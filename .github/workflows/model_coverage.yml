@@ -1,0 +1,57 @@
+# YAML schema for GitHub Actions:
+# https://help.github.com/en/actions/automating-your-workflow-with-github-actions/workflow-syntax-for-github-actions
+#
+# Helpful YAML parser to clarify YAML syntax:
+# https://yaml-online-parser.appspot.com/
+#
+# This workflow will run nightly or when triggered from PR comment
+
+name: Model Coverage
+
+on:
+  workflow_call:
+    inputs:
+      trigger-sha:
+        required: true
+        type: string
+
+jobs:
+  test-model-coverage:
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
+    runs-on:
+      labels: Linux_runner_8_core
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.trigger-sha }}
+
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ secrets.PYTORCH_BENCHMARK_REPO }}
+          path: ${{ github.workspace }}/benchmark
+          token: ${{ secrets.PYTORCH_BENCHMARK_REPO_READER }}
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: "**/*requirements.txt"
+
+      - run: python -m pip install --upgrade pip setuptools
+
+      - name: Setup benchmark repository
+        run: |
+          bash ${{ github.workspace }}/benchmark/ci_ai_edge_torch/ci_setup.sh
+
+      - name: Install ai-edge-torch
+        run: |
+          python -m pip install -r dev-requirements.txt --force-reinstall
+          python -m pip install . --no-cache-dir
+
+      - name: Run tests
+        run: |
+          cd ${{ github.workspace }}/benchmark
+          python -m pytest ci_ai_edge_torch -n 4

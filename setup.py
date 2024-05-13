@@ -1,0 +1,69 @@
+# Copyright 2024 The AI Edge Torch Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
+import pathlib
+
+from setuptools import find_packages
+from setuptools import setup
+
+here = pathlib.Path(__file__).parent.resolve()
+
+# Get the long description from the README file
+long_description = """
+Library that supports converting PyTorch models into a .tflite format, which can
+then be run with TensorFlow Lite and MediaPipe.  This enables applications for
+Android, iOS and IOT that can run models completely on-device.
+
+More details are in the project's [GitHub repository](https://github.com/google-ai-edge/ai-edge-torch).
+""".lstrip()
+
+setup(
+    name="ai-edge-torch",
+    version="0.1.1",
+    description="Supporting PyTorch models with the Google AI Edge TFLite runtime.",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url="https://github.com/google-ai-edge/ai-edge-torch",
+    classifiers=[
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: Developers",
+        "Intended Audience :: Education",
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: Apache Software License",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Topic :: Scientific/Engineering",
+        "Topic :: Scientific/Engineering :: Mathematics",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
+        "Topic :: Software Development",
+        "Topic :: Software Development :: Libraries",
+        "Topic :: Software Development :: Libraries :: Python Modules",
+    ],
+    keywords="On-Device ML, AI, Google, TFLite, PyTorch, LLMs, GenAI",
+    packages=find_packages(
+        include=["ai_edge_torch*"],
+    ),
+    python_requires=">=3.9, <3.12",
+    install_requires=[
+        "numpy",
+        "scipy",
+        "safetensors",
+        "tabulate",
+        "torch==2.4.*",  # 2.4.0 stable release does not exist. Force using torch nightly.
+    ],
+)

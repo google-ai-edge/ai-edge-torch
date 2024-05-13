@@ -1,0 +1,58 @@
+# YAML schema for GitHub Actions:
+# https://help.github.com/en/actions/automating-your-workflow-with-github-actions/workflow-syntax-for-github-actions
+#
+# Helpful YAML parser to clarify YAML syntax:
+# https://yaml-online-parser.appspot.com/
+#
+# This workflow will run nightly or when triggered from PR comment
+
+name: Generative API Examples
+
+on:
+  workflow_call:
+    inputs:
+      trigger-sha:
+        required: true
+        type: string
+
+jobs:
+  check-examples:
+    runs-on:
+      labels: Linux_runner_8_core
+
+    steps:
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - uses: bazel-contrib/setup-bazel@0.8.1
+        with:
+          # Avoid downloading Bazel every time.
+          bazelisk-cache: true
+          # Store build cache per workflow.
+          disk-cache: false
+          # Share repository cache between workflows.
+          repository-cache: false
+      - uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r21e
+          add-to-path: false
+      - uses: actions/setup-java@v3
+        with:
+          java-version: "17"
+          distribution: "temurin"
+      - uses: android-actions/setup-android@v3
+      - run: |
+          sdkmanager "build-tools;30.0.3" "platform-tools"
+          sdkmanager "platforms;android-30" "extras;android;m2repository"
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.trigger-sha }}
+      - name: Install python dependencies
+        run: |
+          pip3 install numpy
+      - name: Build
+        run: |
+          ci/test_examples_build.sh
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}

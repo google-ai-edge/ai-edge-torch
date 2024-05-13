@@ -1,0 +1,18 @@
+# Helpful YAML parser to clarify YAML syntax:
+# https://yaml-online-parser.appspot.com/
+
+name: Generative API (nightly)
+
+on:
+  schedule:
+    # 10 am UTC is 3am or 4am PT depending on daylight savings.
+    - cron: '0 10 * * *'
+
+  workflow_dispatch: {}
+
+jobs:
+  run-generative-api-examples:
+    name: Generative API Examples
+    uses: ./.github/workflows/generative_api_examples.yml
+    with:
+      trigger-sha: ${{ github.sha }}

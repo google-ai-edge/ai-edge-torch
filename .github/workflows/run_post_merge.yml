@@ -1,0 +1,18 @@
+# Helpful YAML parser to clarify YAML syntax:
+# https://yaml-online-parser.appspot.com/
+
+name: Run Post Merge
+
+on:
+  push:
+    branches:
+      - 'main'
+      - 'releases/**'
+
+jobs:
+  run-model-coverage:
+    name: Model Coverage
+    uses: ./.github/workflows/model_coverage.yml
+    secrets: inherit
+    with:
+      trigger-sha: ${{ github.event.after }}

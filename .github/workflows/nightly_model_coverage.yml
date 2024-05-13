@@ -1,0 +1,19 @@
+# Helpful YAML parser to clarify YAML syntax:
+# https://yaml-online-parser.appspot.com/
+
+name: Model Coverage (nightly)
+
+on:
+  schedule:
+    # 10 am UTC is 3am or 4am PT depending on daylight savings.
+    - cron: '0 10 * * *'
+
+  workflow_dispatch: {}
+
+jobs:
+  run-model-coverage:
+    name: Model Coverage (nightly)
+    uses: ./.github/workflows/model_coverage.yml
+    secrets: inherit
+    with:
+      trigger-sha: ${{ github.sha }}

@@ -1,0 +1,3 @@
+*          @google-ai-edge/ai-edge-torch-code-owners
+/.github/  @advaitjain @chunnienc
+/ci/       @advaitjain @chunnienc

@@ -1,0 +1,19 @@
+name: Feature request
+description: Use this template to report feature requests
+labels: ["type:feature request", "component:converter", "component:quantization"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: >
+        Description of the bug:
+  - type: textarea
+    id: behavior
+    attributes:
+      label: >
+        Actual vs expected behavior:
+  - type: textarea
+    id: info
+    attributes:
+      label: >
+        Any other information you'd like to share?
