@@ -78,7 +78,7 @@ The user needs to implement the entire LLM Pipeline themselves, and call TFLite 
 
 This approach provides users with the most control. For example, they can implement streaming, get more control over system memory or implement advanced features such as constrained grammar decoding, speculative decoding etc.
 
-A very simple text generation pipeline based on a decoder-only-transformer is provided [here](https://github.com/google-ai-edge/ai-edge-torch/blob/853301630f2b2455bd2e2f73d8a47e1a1534c91c/ai_edge_torch/generative/examples/c%2B%2B/text_generator_main.cc) for reference. Note that this example serves as a starting point, and users are expected to implement their own pipelines based on their model's specific requirements.
+A very simple text generation pipeline based on a decoder-only-transformer is provided [here](https://github.com/google-ai-edge/ai-edge-torch/blob/main/ai_edge_torch/generative/examples/c%2B%2B/text_generator_main.cc) for reference. Note that this example serves as a starting point, and users are expected to implement their own pipelines based on their model's specific requirements.
 
 #### Use MediaPipe LLM Inference API
 
@@ -105,7 +105,7 @@ model-explorer 'gemma-2b.tflite'
 
 <img width="890" alt="Gemma-2b visualization demo" src="screenshots/gemma-tflite.png">
 
-For an end-to-end example showing how to author, convert, quantize and execute, please refer to the steps [here](https://github.com/google-ai-edge/ai-edge-torch/blob/853301630f2b2455bd2e2f73d8a47e1a1534c91c/ai_edge_torch/generative/examples/README.md)
+For an end-to-end example showing how to author, convert, quantize and execute, please refer to the steps [here](https://github.com/google-ai-edge/ai-edge-torch/blob/main/ai_edge_torch/generative/examples/README.md)
 <br/>
 
 ## What to expect
