@@ -26,7 +26,9 @@ Library that supports converting PyTorch models into a .tflite format, which can
 then be run with TensorFlow Lite and MediaPipe.  This enables applications for
 Android, iOS and IOT that can run models completely on-device.
 
-More details are in the project's [GitHub repository](https://github.com/google-ai-edge/ai-edge-torch).
+[Install steps](https://github.com/google-ai-edge/ai-edge-torch#installation)
+and additional details are in the AI Edge Torch
+[GitHub repository](https://github.com/google-ai-edge/ai-edge-torch).
 """.lstrip()
 
 setup(

@@ -101,7 +101,7 @@ pip install ai-edge-torch==0.1.1
 Alternately, the nightly version can be installed with:
 ```bash
 pip install -r https://raw.githubusercontent.com/google-ai-edge/ai-edge-torch/main/requirements.txt
-pip install ai-edge-torch
+pip install ai-edge-torch-nightly
 ```
 
 * The list of versioned releases can be seen [here](https://github.com/google-ai-edge/ai-edge-torch/releases).
