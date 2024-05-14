@@ -41,7 +41,7 @@ jobs:
 
       - name: Run Tests
         run: |
-          run_tests.sh
+          ./run_tests.sh
         env:
           STABLEHLO_BYTECODE_FROM_PRETTYPRINT: 1
           CI: "true"
