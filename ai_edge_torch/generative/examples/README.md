@@ -22,10 +22,10 @@ For each of the example models, we have a model definition file (e.g. tiny_llama
 Here we use `TinyLlama` as an example to walk you through the authoring steps.
 
 #### Define model's structure
-https://github.com/google-ai-edge/ai-edge-torch-archive/blob/e54638dd4a91ec09115f9ded1bd5540f3f1a4e68/ai_edge_torch/generative/examples/tiny_llama/tiny_llama.py#L43-L74
+https://github.com/google-ai-edge/ai-edge-torch/blob/853301630f2b2455bd2e2f73d8a47e1a1534c91c/ai_edge_torch/generative/examples/tiny_llama/tiny_llama.py#L46-L77
 
 #### Define model's forward function
-https://github.com/google-ai-edge/ai-edge-torch-archive/blob/e54638dd4a91ec09115f9ded1bd5540f3f1a4e68/ai_edge_torch/generative/examples/tiny_llama/tiny_llama.py#L79-L101
+https://github.com/google-ai-edge/ai-edge-torch/blob/853301630f2b2455bd2e2f73d8a47e1a1534c91c/ai_edge_torch/generative/examples/tiny_llama/tiny_llama.py#L79-L104
 
 Now, you will have an `nn.Module` named `TinyLlama`, the next step is to restore the weights from orginal checkpoint into the new model.
 
@@ -37,12 +37,12 @@ place to simplify the `state_dict` mapping process (`utilities/loader.py`).
 The user needs to provide a layer name tempelate (TensorNames) for the source
 model. This tempelate is then used to create an updated `state_dict` that works
 with the mapped model. The tensor map includes the following fields:
-https://github.com/google-ai-edge/ai-edge-torch-archive/blob/3b753d80fdf00872baac523dc727b87b3dc271e7/ai_edge_torch/generative/utilities/loader.py#L120-L134
+https://github.com/google-ai-edge/ai-edge-torch/blob/853301630f2b2455bd2e2f73d8a47e1a1534c91c/ai_edge_torch/generative/utilities/loader.py#L94-L109
 
 The fields that have a default value of `None` are optional and should only be
 populated if they are relevant to the model architecture. For `TinyLlama`, we
 will define the following `TENSOR_NAMES`:
-https://github.com/google-ai-edge/ai-edge-torch-archive/blob/e54638dd4a91ec09115f9ded1bd5540f3f1a4e68/ai_edge_torch/generative/examples/tiny_llama/tiny_llama.py#L27-L40
+https://github.com/google-ai-edge/ai-edge-torch/blob/853301630f2b2455bd2e2f73d8a47e1a1534c91c/ai_edge_torch/generative/examples/tiny_llama/tiny_llama.py#L30-L43
 
 With the `TensorNames` defined, a user can simply use the loading utils to load
 an instance of the mapped model. For instance:
@@ -59,7 +59,7 @@ using a few input samples before proceeding to the conversion step.
 
 ### Model conversion
 In this step, we use the `ai_edge_torch`'s standard multi-signature conversion API to convert PyTorch `nn.Module` to a single TFLite flatbuffer for on-device execution. For example, in `tiny_llama/convert_to_tflite.py`, we use this python code to convert the `TinyLLama` model to a multi-signature TFLite model:
-https://github.com/google-ai-edge/ai-edge-torch-archive/blob/3b753d80fdf00872baac523dc727b87b3dc271e7/ai_edge_torch/generative/examples/tiny_llama/convert_to_tflite.py#L22-L53
+https://github.com/google-ai-edge/ai-edge-torch/blob/853301630f2b2455bd2e2f73d8a47e1a1534c91c/ai_edge_torch/generative/examples/tiny_llama/convert_to_tflite.py#L26-L61
 
 Once converted, you will get a `.tflite` model which will be ready for on-device execution. Note that the `.tflite` model generated uses static shapes. Inside the generated `.tflite` model, there will be two signatures defined (two entrypoints to the model):
 1) `prefill`: taking 2 tensor inputs `prefill_tokens`, `prefill_input_pos`. With shape `(BATCH_SIZE, PREFILL_SEQ_LEN)` and `(PREFILL_SEQ_LEN)`.

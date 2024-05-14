@@ -57,13 +57,13 @@ Once you re-author the model and validate its numerical accuracy, you can conver
 For example, in the `generative/examples/test_models/toy_model_with_kv_cache.py`, you can define inputs for both signatures:
 
 Sample inputs for the `prefill` signature:
-https://github.com/google-ai-edge/ai-edge-torch-archive/blob/1791dec62f1d3f60e7fe52138640d380f58b072d/ai_edge_torch/generative/examples/test_models/toy_model_with_kv_cache.py#L105-L108
+https://github.com/google-ai-edge/ai-edge-torch/blob/853301630f2b2455bd2e2f73d8a47e1a1534c91c/ai_edge_torch/generative/examples/test_models/toy_model_with_kv_cache.py#L105-L108
 
 Sample inputs for the `decode` signature:
-https://github.com/google-ai-edge/ai-edge-torch-archive/blob/1791dec62f1d3f60e7fe52138640d380f58b072d/ai_edge_torch/generative/examples/test_models/toy_model_with_kv_cache.py#L111-L114
+https://github.com/google-ai-edge/ai-edge-torch/blob/853301630f2b2455bd2e2f73d8a47e1a1534c91c/ai_edge_torch/generative/examples/test_models/toy_model_with_kv_cache.py#L111-L114
 
 Then export the model to TFLite with:
-https://github.com/google-ai-edge/ai-edge-torch-archive/blob/1791dec62f1d3f60e7fe52138640d380f58b072d/ai_edge_torch/generative/examples/test_models/toy_model_with_kv_cache.py#L133-L139
+https://github.com/google-ai-edge/ai-edge-torch/blob/853301630f2b2455bd2e2f73d8a47e1a1534c91c/ai_edge_torch/generative/examples/test_models/toy_model_with_kv_cache.py#L133-L139
 
 Please note that using the `prefill` and `decode` method conventions are required for easy integration into the Mediapipe LLM Inference API.
 <br/>
@@ -78,7 +78,7 @@ The user needs to implement the entire LLM Pipeline themselves, and call TFLite 
 
 This approach provides users with the most control. For example, they can implement streaming, get more control over system memory or implement advanced features such as constrained grammar decoding, speculative decoding etc.
 
-A very simple text generation pipeline based on a decoder-only-transformer is provided [here](https://github.com/google-ai-edge/ai-edge-torch-archive/blob/main/ai_edge_torch/generative/examples/c%2B%2B/text_generator_main.cc) for reference. Note that this example serves as a starting point, and users are expected to implement their own pipelines based on their model's specific requirements.
+A very simple text generation pipeline based on a decoder-only-transformer is provided [here](https://github.com/google-ai-edge/ai-edge-torch/blob/main/ai_edge_torch/generative/examples/c%2B%2B/text_generator_main.cc) for reference. Note that this example serves as a starting point, and users are expected to implement their own pipelines based on their model's specific requirements.
 
 #### Use MediaPipe LLM Inference API
 
@@ -105,7 +105,7 @@ model-explorer 'gemma-2b.tflite'
 
 <img width="890" alt="Gemma-2b visualization demo" src="screenshots/gemma-tflite.png">
 
-For an end-to-end example showing how to author, convert, quantize and execute, please refer to the steps [here](https://github.com/google-ai-edge/ai-edge-torch-archive/blob/main/ai_edge_torch/generative/examples/README.md)
+For an end-to-end example showing how to author, convert, quantize and execute, please refer to the steps [here](https://github.com/google-ai-edge/ai-edge-torch/blob/main/ai_edge_torch/generative/examples/README.md)
 <br/>
 
 ## What to expect

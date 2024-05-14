@@ -43,4 +43,4 @@ Currently, the library provides the following configuration class for you to cus
 
 ## High-Level function boundary for performance
 We introduce High-Level Function Boundary (HLFB) as a way of annotating performance-critical pieces of the model (e.g. `scaled_dot_product_attention`, or `KVCache`). HLFB allows the converter to lower the annotated blocks to performant TFLite custom ops. Following is an example of applying HLFB to `SDPA`:
-https://github.com/google-ai-edge/ai-edge-torch-archive/blob/3b753d80fdf00872baac523dc727b87b3dc271e7/ai_edge_torch/generative/layers/attention.py#L74-L122
+https://github.com/google-ai-edge/ai-edge-torch/blob/853301630f2b2455bd2e2f73d8a47e1a1534c91c/ai_edge_torch/generative/layers/attention.py#L74-L122
