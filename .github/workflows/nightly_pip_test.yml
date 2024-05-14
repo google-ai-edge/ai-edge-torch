@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11"]
-    
+
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-python@v4
@@ -26,7 +26,7 @@ jobs:
           pip install -r https://raw.githubusercontent.com/google-ai-edge/ai-edge-torch/main/requirements.txt
       - name: Install ai-edge-torch
         run: |
-          pip install ai-edge-torch
+          pip install ai-edge-torch-nightly
       - name: Import ai-edge-torch
         run: |
           python -c "import ai_edge_torch"
