@@ -45,7 +45,7 @@ Additional technical details of the PyTorch Converter are [here](docs/pytorch_co
 
 ## Generative API
 The AI Edge Torch Generative API is a Torch native library for authoring
-mobile-optimzed PyTorch Transformer models, which can be converted to TFLite,
+mobile-optimized PyTorch Transformer models, which can be converted to TFLite,
 allowing users to easily deploy Large Language Models (LLMs) on mobile
 devices. Users can convert the models using the AI Edge Torch PyTorch
 Converter, and run them via the TensorFlow Lite runtime. See
