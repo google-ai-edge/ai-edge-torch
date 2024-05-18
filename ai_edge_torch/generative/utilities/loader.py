@@ -243,9 +243,13 @@ class ModelLoader:
       )
 
     o_name = self._names.attn_output_proj.format(idx)
-    converted_state[f"{prefix}.atten_func.output_projection.weight"] = state.pop(f"{o_name}.weight")
+    converted_state[f"{prefix}.atten_func.output_projection.weight"] = state.pop(
+        f"{o_name}.weight"
+    )
     if config.attn_config.output_proj_use_bias:
-      converted_state[f"{prefix}.atten_func.output_projection.bias"] = state.pop(f"{o_name}.bias")
+      converted_state[f"{prefix}.atten_func.output_projection.bias"] = state.pop(
+          f"{o_name}.bias"
+      )
 
   def _map_norm(
       self,
