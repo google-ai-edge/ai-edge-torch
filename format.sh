@@ -19,4 +19,4 @@
 set -ex
 
 pyink --pyink-use-majority-quotes --pyink-indentation 2 --extend-exclude third_party --extend-exclude .downloads ./
-isort --profile google --multi-line 7 --skip .downloads ./ --skip venv --skip third_party
+isort --profile google --multi-line 7 --skip .downloads --skip venv --skip third_party ./
