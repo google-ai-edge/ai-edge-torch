@@ -100,7 +100,7 @@ Detailed install instruction can be found [here](https://github.com/google-ai-ed
 
 ### Visualize the model using CLI
 ```
-model-explorer 'gemma-2b.tflite'
+model-explorer 'gemma_seq512_kv1024.tflite'
 ```
 
 <img width="890" alt="Gemma-2b visualization demo" src="screenshots/gemma-tflite.png">
