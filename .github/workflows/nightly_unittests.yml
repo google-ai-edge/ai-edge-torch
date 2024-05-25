@@ -12,6 +12,10 @@ on:
 
 jobs:
   run-unittests-python:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.repository == 'google-ai-edge/ai-edge-torch') # don't run in forks.
+
     name: Unit Tests Python
     uses: ./.github/workflows/unittests_python.yml
     with:

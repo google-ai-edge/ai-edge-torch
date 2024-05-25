@@ -12,6 +12,10 @@ on:
 
 jobs:
   run-model-coverage:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.repository == 'google-ai-edge/ai-edge-torch') # don't run in forks.
+
     name: Model Coverage (nightly)
     uses: ./.github/workflows/model_coverage.yml
     secrets: inherit
