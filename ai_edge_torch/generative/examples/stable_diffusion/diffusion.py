@@ -429,6 +429,7 @@ class Diffusion(nn.Module):
     self.unet = UNet()
     self.final = FinalLayer(320, 4)
 
+  @torch.inference_mode
   def forward(self, latent, context, time):
     time = self.time_embedding(time)
     # print('time:')

@@ -19,6 +19,7 @@ from torch.nn import functional as F
 
 from ai_edge_torch.generative.examples.stable_diffusion.decoder import AttentionBlock  # NOQA
 from ai_edge_torch.generative.examples.stable_diffusion.decoder import ResidualBlock  # NOQA
+import ai_edge_torch.generative.utilities.loader as loading_utils
 
 
 class Encoder(nn.Sequential):
@@ -46,6 +47,7 @@ class Encoder(nn.Sequential):
         nn.Conv2d(8, 8, kernel_size=1, padding=0),
     )
 
+  @torch.inference_mode
   def forward(self, x, noise):
     for module in self:
       if getattr(module, 'stride', None) == (
