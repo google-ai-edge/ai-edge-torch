@@ -50,20 +50,7 @@ jobs:
         run: twine check --strict dist/*
 
       - name: List the contents of ai_edge_torch wheel
-        run: python -m zipfile --list dist/ai_edge_torch*.whl
+        run: python -m zipfile --list dist/*.whl
 
-      - name: Get ai_edge_torch wheel version
-        id: wheel_version
-        run: |
-          WHEEL=$(ls -t dist/ai_edge_torch*.whl | head -n 1)
-          VERSION=$(python -c "from pkginfo import Wheel; print(Wheel(r'${WHEEL}').version)")
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-
-      - name: Upload release to github
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            dist/*.whl
-            requirements.txt
-          prerelease: true
-          tag_name: v${{ steps.wheel_version.outputs.version }}
+      - name: Upload to PyPI
+        run: twine upload dist/* --non-interactive -p ${{ secrets.PYPI_UPLOAD_TOKEN }}
