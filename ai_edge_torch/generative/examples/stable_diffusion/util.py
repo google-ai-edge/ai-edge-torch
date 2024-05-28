@@ -44,9 +44,15 @@ def get_file_path(filename, url=None):
 
 def move_channel(image, to):
   if to == "first":
-    return image.permute(0, 3, 1, 2)  # (N, H, W, C) -> (N, C, H, W)
+    if isinstance(image, torch.Tensor):
+      return image.permute(0, 3, 1, 2)  # (N, H, W, C) -> (N, C, H, W)
+    if isinstance(image, np.ndarray):
+      return image.transpose(0, 3, 1, 2)
   elif to == "last":
-    return image.permute(0, 2, 3, 1)  # (N, C, H, W) -> (N, H, W, C)
+    if isinstance(image, torch.Tensor):
+      return image.permute(0, 2, 3, 1)  # (N, C, H, W) -> (N, H, W, C)
+    if isinstance(image, np.ndarray):
+      return image.transpose(0, 2, 3, 1)
   else:
     raise ValueError("to must be one of the following: first, last")
 
@@ -58,5 +64,8 @@ def rescale(x, old_range, new_range, clamp=False):
   x *= (new_max - new_min) / (old_max - old_min)
   x += new_min
   if clamp:
-    x = x.clamp(new_min, new_max)
+    if isinstance(x, torch.Tensor):
+      x = x.clamp(new_min, new_max)
+    elif isinstance(x, np.ndarray):
+      x = x.clip(new_min, new_max)
   return x

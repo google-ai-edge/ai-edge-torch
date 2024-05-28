@@ -16,9 +16,10 @@
 import numpy as np
 
 from ai_edge_torch.generative.examples.stable_diffusion import util
+from ai_edge_torch.generative.examples.stable_diffusion.samplers.sampler import SamplerInterface  # NOQA
 
 
-class KEulerSampler:
+class KEulerSampler(SamplerInterface):
 
   def __init__(self, n_inference_steps=50, n_training_steps=1000):
     timesteps = np.linspace(n_training_steps - 1, 0, n_inference_steps)

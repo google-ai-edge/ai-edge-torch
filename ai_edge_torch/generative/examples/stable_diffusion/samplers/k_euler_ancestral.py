@@ -14,14 +14,14 @@
 # ==============================================================================
 
 import numpy as np
-import torch
 
 from ai_edge_torch.generative.examples.stable_diffusion import util
+from ai_edge_torch.generative.examples.stable_diffusion.samplers.sampler import SamplerInterface  # NOQA
 
 
-class KEulerAncestralSampler:
+class KEulerAncestralSampler(SamplerInterface):
 
-  def __init__(self, n_inference_steps=50, n_training_steps=1000, generator=None):
+  def __init__(self, n_inference_steps=50, n_training_steps=1000):
     timesteps = np.linspace(n_training_steps - 1, 0, n_inference_steps)
 
     alphas_cumprod = util.get_alphas_cumprod(n_training_steps=n_training_steps)
@@ -37,7 +37,6 @@ class KEulerAncestralSampler:
     self.n_inference_steps = n_inference_steps
     self.n_training_steps = n_training_steps
     self.step_count = 0
-    self.generator = generator
 
   def get_input_scale(self, step_count=None):
     if step_count is None:
@@ -61,6 +60,6 @@ class KEulerAncestralSampler:
     sigma_up = sigma_to * (1 - (sigma_to**2 / sigma_from**2)) ** 0.5
     sigma_down = sigma_to**2 / sigma_from
     latents += output * (sigma_down - sigma_from)
-    noise = torch.randn(latents.shape, generator=self.generator, device=latents.device)
+    noise = np.random.normal(size=latents.shape)
     latents += noise * sigma_up
     return latents
