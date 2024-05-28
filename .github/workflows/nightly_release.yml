@@ -1,0 +1,70 @@
+# Helpful YAML parser to clarify YAML syntax:
+# https://yaml-online-parser.appspot.com/
+
+name: Build and Release (Nightly)
+
+on:
+  workflow_run:
+    workflows: [Unit Tests (nightly)]
+    types:
+      - completed
+  workflow_dispatch: {}
+
+jobs:
+  check-tests-pass:
+    runs-on: ubuntu-latest
+    if:  github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    steps:
+      - run: echo 'The triggering workflow passed'
+
+  build-and-release-nightly:
+    name: Build and Release Nightly
+    needs: check-tests-pass
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get current date
+        id: date
+        run: |
+          DATE=$(date +'%Y%m%d')
+          echo "NIGHTLY_RELEASE_DATE=${DATE}" >> $GITHUB_ENV
+          echo "::set-output name=date:${DATE}"
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install python-build and twine
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine wheel
+          python -m pip list
+
+      - name: Build the wheel
+        run: |
+          python setup.py bdist_wheel
+
+      - name: Verify the distribution
+        run: twine check --strict dist/*
+
+      - name: List the contents of the wheel
+        run: python -m zipfile --list dist/ai-edge-torch*.whl
+
+      - name: Get wheel version
+        id: wheel_version
+        run: |
+          WHEEL=$(ls -t dist/ai_edge_torch*.whl | head -n 1)
+          VERSION=$(python -c "from pkginfo import Wheel; print(Wheel(r'${WHEEL}').version)")
+          echo "::set-output name=version:${VERSION}"
+
+      - name: Upload release to github
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.whl
+            requirements.txt
+          prerelease: true
+          tag_name: v${{ steps.wheel_version.outputs.version }}
