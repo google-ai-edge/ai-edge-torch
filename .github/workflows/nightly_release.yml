@@ -1,7 +1,7 @@
 # Helpful YAML parser to clarify YAML syntax:
 # https://yaml-online-parser.appspot.com/
 
-name: Build and Release (Nightly)
+name: Build and Release (nightly)
 
 on:
   workflow_run:
@@ -13,7 +13,7 @@ on:
 jobs:
   check-tests-pass:
     runs-on: ubuntu-latest
-    if:  github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     steps:
       - run: echo 'The triggering workflow passed'
 
@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get current date
+      - name: Get and set nightly date
         id: date
         run: |
           DATE=$(date +'%Y%m%d')
@@ -50,10 +50,10 @@ jobs:
       - name: Verify the distribution
         run: twine check --strict dist/*
 
-      - name: List the contents of the wheel
-        run: python -m zipfile --list dist/ai-edge-torch*.whl
+      - name: List the contents of ai_edge_torch wheel
+        run: python -m zipfile --list dist/ai_edge_torch*.whl
 
-      - name: Get wheel version
+      - name: Get ai_edge_torch wheel version
         id: wheel_version
         run: |
           WHEEL=$(ls -t dist/ai_edge_torch*.whl | head -n 1)
