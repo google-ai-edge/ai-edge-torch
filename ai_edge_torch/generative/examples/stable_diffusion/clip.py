@@ -68,6 +68,7 @@ class CLIP(nn.Module):
     self.layers = nn.ModuleList([CLIPLayer(12, 768) for i in range(12)])
     self.layernorm = nn.LayerNorm(768)
 
+  @torch.inference_mode
   def forward(self, tokens: torch.LongTensor) -> torch.FloatTensor:
     tokens = tokens.type(torch.long)
 

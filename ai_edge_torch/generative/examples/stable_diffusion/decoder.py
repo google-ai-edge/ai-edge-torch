@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+import torch
 from torch import nn
 from torch.nn import functional as F
 
@@ -104,6 +105,7 @@ class Decoder(nn.Sequential):
         nn.Conv2d(128, 3, kernel_size=3, padding=1),
     )
 
+  @torch.inference_mode
   def forward(self, x):
     x = x / 0.18215
     for module in self:
