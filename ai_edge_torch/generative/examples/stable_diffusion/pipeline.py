@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+import argparse
 import os
 from pathlib import Path
 from typing import Dict, Optional
@@ -25,6 +26,45 @@ import ai_edge_torch.generative.examples.stable_diffusion.samplers as samplers
 from ai_edge_torch.generative.examples.stable_diffusion.tokenizer import Tokenizer  # NOQA
 import ai_edge_torch.generative.examples.stable_diffusion.util as util
 from ai_edge_torch.model import TfLiteModel
+
+arg_parser = argparse.ArgumentParser()
+arg_parser.add_argument(
+    '--tokenizer_vocab_dir',
+    type=str,
+    help='Directory to the tokenizer vocabulary files, which include `merges.txt` and `vocab.json`',
+    required=True,
+)
+arg_parser.add_argument(
+    '--clip_ckpt', type=str, help='Path to CLIP TFLite tflite file', required=True
+)
+arg_parser.add_argument(
+    '--diffusion_ckpt', type=str, help='Path to diffusion tflite file', required=True
+)
+arg_parser.add_argument(
+    '--decoder_ckpt', type=str, help='Path to decoder tflite file', required=True
+)
+arg_parser.add_argument(
+    '--output_path',
+    type=str,
+    help='Path to the output generated image file.',
+    required=True,
+)
+arg_parser.add_argument(
+    '--prompt',
+    default='a photograph of an astronaut riding a horse',
+    type=str,
+    help='The prompt to guide the image generation.',
+)
+arg_parser.add_argument(
+    '--n_inference_steps', default=20, type=int, help='The number of denoising steps.'
+)
+arg_parser.add_argument(
+    '--sampler',
+    default='k_euler',
+    type=str,
+    choices=['k_euler', 'k_euler_ancestral', 'k_lms'],
+    help='A sampler to be used to denoise the encoded image latents. Can be one of `k_lms, `k_euler`, or `k_euler_ancestral`.',
+)
 
 
 class StableDiffusion:
@@ -64,7 +104,7 @@ def run_tflite_pipeline(
   model:
     StableDiffsuion model.
   prompt:
-    The prompts to guide the image generation.
+    The prompt to guide the image generation.
   output_path:
     The path to the generated output image.
   uncond_prompt:
@@ -167,23 +207,16 @@ def run_tflite_pipeline(
 
 
 if __name__ == '__main__':
+  args = arg_parser.parse_args()
   run_tflite_pipeline(
       StableDiffusion(
-          tokenizer_vocab_dir=os.path.join(
-              Path.home(), 'Downloads/stable_diffusion_data'
-          ),
-          clip_ckpt=os.path.join(
-              Path.home(), 'GenAI/stable_diffusion_tflite/clip.tflite'
-          ),
-          diffusion_ckpt=os.path.join(
-              Path.home(), 'GenAI/stable_diffusion_tflite/diffusion.tflite'
-          ),
-          decoder_ckpt=os.path.join(
-              Path.home(), 'GenAI/stable_diffusion_tflite/decoder.tflite'
-          ),
+          tokenizer_vocab_dir=args.tokenizer_vocab_dir,
+          clip_ckpt=args.clip_ckpt,
+          diffusion_ckpt=args.diffusion_ckpt,
+          decoder_ckpt=args.decoder_ckpt,
       ),
-      prompt='a photograph of an astronaut riding a horse',
-      output_path='/tmp/sd_result_tflite.jpg',
-      sampler='k_euler',
-      n_inference_steps=20,
+      prompt=args.prompt,
+      output_path=args.output_path,
+      sampler=args.sampler,
+      n_inference_steps=args.n_inference_steps,
   )
