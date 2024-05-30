@@ -22,7 +22,7 @@ Typical usage example:
 
 1. Applying a single layer recipe to the entire model
 
-  quant_recipe.TransformerQuantRecipe(
+  quant_recipe.GenerativeQuantRecipe(
     default=quant_recipe_utils.create_layer_quant_int8_dynamic()
   )
 """

@@ -80,7 +80,7 @@ class LayerQuantRecipe:
 
 
 @dataclass
-class TransformerQuantRecipe:
+class GenerativeQuantRecipe:
   """Quantization recipe for a model composed of the Edge Generative API layers.
 
   Attributes:
@@ -90,7 +90,7 @@ class TransformerQuantRecipe:
   default: Optional[LayerQuantRecipe] = None
 
   def __str__(self):
-    return f"""TransformerQuantRecipe(
+    return f"""GenerativeQuantRecipe(
   Default: {self.default}
 )"""
 
