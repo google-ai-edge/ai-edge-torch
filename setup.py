@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+import os
 import pathlib
 
 from setuptools import find_packages
@@ -31,9 +32,16 @@ and additional details are in the AI Edge Torch
 [GitHub repository](https://github.com/google-ai-edge/ai-edge-torch).
 """.lstrip()
 
+name = "ai-edge-torch"
+version = "0.2.0"
+if nightly_release_date := os.environ.get("NIGHTLY_RELEASE_DATE"):
+  name += "-nightly"
+  version += ".dev" + nightly_release_date
+
+
 setup(
-    name="ai-edge-torch",
-    version="0.1.1",
+    name=name,
+    version=version,
     description="Supporting PyTorch models with the Google AI Edge TFLite runtime.",
     long_description=long_description,
     long_description_content_type="text/markdown",

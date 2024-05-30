@@ -1,0 +1,56 @@
+# Helpful YAML parser to clarify YAML syntax:
+# https://yaml-online-parser.appspot.com/
+
+name: Build and Release (nightly)
+
+on:
+  workflow_run:
+    workflows: [Unit Tests (nightly)]
+    types:
+      - completed
+  workflow_dispatch: {}
+
+jobs:
+  check-tests-pass:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    steps:
+      - run: echo 'The triggering workflow passed'
+
+  build-and-release-nightly:
+    needs: check-tests-pass
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get and set nightly date
+        id: date
+        run: |
+          DATE=$(date +'%Y%m%d')
+          echo "NIGHTLY_RELEASE_DATE=${DATE}" >> $GITHUB_ENV
+          echo "date=${DATE}" >> $GITHUB_OUTPUT
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install python-build and twine
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine wheel
+          python -m pip list
+
+      - name: Build the wheel
+        run: |
+          python setup.py bdist_wheel
+
+      - name: Verify the distribution
+        run: twine check --strict dist/*
+
+      - name: List the contents of ai_edge_torch wheel
+        run: python -m zipfile --list dist/*.whl
+
+      - name: Upload to PyPI
+        run: twine upload dist/* --non-interactive -p ${{ secrets.PYPI_UPLOAD_TOKEN }}
