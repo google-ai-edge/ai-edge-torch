@@ -44,8 +44,7 @@ class QuantConfig:
     NONE = enum.auto()
     PT2E_DYNAMIC = enum.auto()
     PT2E_STATIC = enum.auto()
-    TFLITE_DYNAMIC = enum.auto()
-    TFLITE_FP16 = enum.auto()
+    AI_EDGE_QUANTIZER = enum.auto()
 
   _quantizer_mode: _QuantizerMode = _QuantizerMode.NONE
 
@@ -77,9 +76,6 @@ class QuantConfig:
     elif generative_recipe is not None:
       generative_recipe.verify()
       object.__setattr__(self, 'generative_recipe', generative_recipe)
-      if self.generative_recipe.default.mode == quant_attrs.Mode.DYNAMIC_RANGE:
-        object.__setattr__(self, '_quantizer_mode', self._QuantizerMode.TFLITE_DYNAMIC)
-      elif self.generative_recipe.default.weight_dtype == quant_attrs.Dtype.FP16:
-        object.__setattr__(self, '_quantizer_mode', self._QuantizerMode.TFLITE_FP16)
+      object.__setattr__(self, '_quantizer_mode', self._QuantizerMode.AI_EDGE_QUANTIZER)
     else:
       raise ValueError('Either pt2e_quantizer or generative_recipe must be set.')
