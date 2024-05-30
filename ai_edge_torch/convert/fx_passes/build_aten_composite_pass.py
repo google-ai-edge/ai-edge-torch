@@ -141,8 +141,11 @@ def _aten_avg_pool2d(gm: GraphModule, node: Node):
     # Only wrap in a composite when the underlying converter can handle it.
     # TODO We should be able to remove this if the converter can inline composites when it can not handle them.
 
-    # We don't cover any cases where ceil_mode is True or divisor_override is set.
-    if full_kwargs["ceil_mode"] or full_kwargs["divisor_override"] is not None:
+    # We don't cover any cases where the divisor_override is set.
+    if full_kwargs["divisor_override"] is not None:
+      return op(*args, **kwargs)
+
+    if full_kwargs["ceil_mode"] and not full_kwargs["count_include_pad"]:
       return op(*args, **kwargs)
 
     # We also can not cover a case where count_include_pad is False but the padding is custom.

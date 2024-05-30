@@ -95,6 +95,21 @@ class TestBuildAtenCompositePass(unittest.TestCase):
     )
     self.assertTrue(stablehlo.count('stablehlo.composite "aten.avg_pool2d.default"'), 1)
 
+  def test_avg_pool2d_ceil_mode(self):
+    stablehlo = _export_to_stablehlo_with_composite(
+        lambda x: torch.nn.functional.avg_pool2d(
+            x,
+            kernel_size=[3, 3],
+            stride=[1, 1],
+            padding=[1, 1],
+            ceil_mode=True,
+            count_include_pad=True,
+            divisor_override=None,
+        ),
+        (torch.rand(1, 3, 6, 6),),
+    )
+    self.assertTrue(stablehlo.count('stablehlo.composite "aten.avg_pool2d.default"'), 1)
+
 
 if __name__ == '__main__':
   unittest.main()

@@ -51,6 +51,7 @@ class TestConvertComposites(unittest.TestCase):
 
   @parameterized.parameterized.expand(
       [
+          # input_size, kernel_size, stride, padding, ceil_mode, count_include_pad, divisor_override
           # no padding, stride = 1
           ([1, 3, 6, 6], [3, 3], [1, 1], [0, 0], False, True, None),
           # add stride
@@ -67,6 +68,8 @@ class TestConvertComposites(unittest.TestCase):
           ([1, 3, 6, 6], [3, 3], [1, 1], [1, 1], False, False, None),
           # ceil_mode = True
           ([1, 3, 6, 6], [3, 3], [1, 1], [1, 1], True, True, None),
+          # ceil_mode = True, stride=[3, 3]
+          ([1, 3, 6, 6], [3, 3], [3, 3], [1, 1], True, True, None),
           # set divisor_override
           ([1, 3, 6, 6], [3, 3], [1, 1], 0, False, True, 6),
           # padding set to one number
