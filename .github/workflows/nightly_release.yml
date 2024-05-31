@@ -60,7 +60,7 @@ jobs:
       - name: Upload to PyPI
         run: twine upload dist/* --non-interactive -p ${{ secrets.PYPI_UPLOAD_TOKEN }}
 
-  test-pip-install-and-import:
+  run-pip-install-and-import-test:
     needs: build-and-release-nightly
     strategy:
       matrix:
