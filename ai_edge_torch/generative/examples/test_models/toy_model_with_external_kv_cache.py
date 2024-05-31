@@ -22,9 +22,9 @@ import torch.nn as nn
 import torch_xla
 
 import ai_edge_torch
-from ai_edge_torch.generative.layers.experimental.attention import TransformerBlock
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.builder as builder
+from ai_edge_torch.generative.layers.experimental.attention import TransformerBlock
 import ai_edge_torch.generative.layers.model_config as cfg
 
 
