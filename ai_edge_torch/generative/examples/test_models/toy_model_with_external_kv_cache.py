@@ -13,9 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 # A toy example which has basic transformer block (w/ externalized KV-Cache).
-import sys
 
-sys.path.append('../../../../')
 from typing import List, Tuple
 
 import numpy as np
