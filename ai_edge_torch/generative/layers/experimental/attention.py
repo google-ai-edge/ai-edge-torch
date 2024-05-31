@@ -27,7 +27,6 @@ import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_e
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention  # NOQA
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention_with_hlfb  # NOQA
 
-
 # data structure for KV cache (modeled as a continguous tensor separately).
 KVCache = tuple[torch.Tensor, torch.Tensor]
 
