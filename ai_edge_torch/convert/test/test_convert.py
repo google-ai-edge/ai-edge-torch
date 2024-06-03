@@ -212,7 +212,6 @@ class TestConvert(unittest.TestCase):
     self.assertTrue(flags["key1"], "new_value1")
     self.assertTrue(flags["key2"]["subkey2"], "new_subvalue2")
 
-  @unittest.skip("https://b.corp.google.com/issues/331463544")
   def test_convert_add_backdoor_flags(self):
     """Tests conversion of an add module setting a tflite converter flag."""
 
@@ -228,13 +227,13 @@ class TestConvert(unittest.TestCase):
     torch_module = Add().eval()
 
     with tempfile.TemporaryDirectory() as tmp_dir_path:
-      mlir_dump_path = os.path.join(
+      ir_dump_path = os.path.join(
           tmp_dir_path, "test_convert_add_backdoor_flags_mlir_dump"
       )
       ai_edge_torch.convert(
-          torch_module, args, _ai_edge_converter_flags={"mlir_dump_dir": mlir_dump_path}
+          torch_module, args, _ai_edge_converter_flags={"ir_dump_dir": ir_dump_path}
       )
-      self.assertTrue(os.path.isdir(mlir_dump_path))
+      self.assertTrue(os.path.isdir(ir_dump_path))
 
   def test_convert_model_with_dynamic_batch(self):
     """
