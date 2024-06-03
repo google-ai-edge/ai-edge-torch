@@ -4,23 +4,28 @@
 name: Build and Release (nightly)
 
 on:
-  workflow_run:
-    workflows: [Unit Tests (nightly)]
-    types:
-      - completed
+  schedule:
+    # 10 am UTC is 3am or 4am PT depending on daylight savings.
+    - cron: "0 10 * * *"
+
   workflow_dispatch: {}
 
 jobs:
-  check-tests-pass:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
-    steps:
-      - run: echo 'The triggering workflow passed'
+  run-unittests-python:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.repository == 'google-ai-edge/ai-edge-torch')
+
+    name: Unit Tests Python
+    uses: ./.github/workflows/unittests_python.yml
+    with:
+      trigger-sha: ${{ github.sha }}
 
   build-and-release-nightly:
-    needs: check-tests-pass
+    needs: run-unittests-python
     runs-on: ubuntu-latest
 
+    name: Build and Release ai-edge-torch-nightly
     steps:
       - uses: actions/checkout@v4
 
@@ -54,3 +59,32 @@ jobs:
 
       - name: Upload to PyPI
         run: twine upload dist/* --non-interactive -p ${{ secrets.PYPI_UPLOAD_TOKEN }}
+
+  run-pip-install-and-import-test:
+    needs: build-and-release-nightly
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
+
+    name: Test Install and Import ai-edge-torch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - run: |
+          python -m pip cache purge
+          python -m pip install --upgrade pip
+
+      - name: Install requirements
+        run: |
+          python -m pip install -r https://raw.githubusercontent.com/google-ai-edge/ai-edge-torch/main/requirements.txt
+
+      - name: Install ai-edge-torch-nightly
+        run: |
+          python -m pip install ai-edge-torch-nightly
+
+      - name: Import ai-edge-torch
+        run: |
+          python -c "import ai_edge_torch"

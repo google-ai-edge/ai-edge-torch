@@ -84,7 +84,7 @@ def main():
 
   def sub(k, v, suffix=""):
     nonlocal requirements
-    pattern = f"{k}\s*(==|@)\s*[^\n;]+{suffix}"
+    pattern = f"{k}\s*(==|>=|@)\s*[^\n;]+{suffix}"
     assert re.findall(pattern, requirements, re.MULTILINE)
     requirements = re.sub(
         pattern,
@@ -120,11 +120,6 @@ def main():
   readme = re.sub(
       "badge/torch-[^-]+",
       f"badge/torch-{torch_version('torch', nightly_date_str)}",
-      readme,
-  )
-  readme = re.sub(
-      "badge/tf--nightly-[^-]+",
-      f"badge/tf--nightly-{tf_version(nightly_date_str)}",
       readme,
   )
   readme_file.write_text(readme)

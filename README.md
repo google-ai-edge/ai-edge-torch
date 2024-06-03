@@ -71,7 +71,7 @@ Build Type         |    Status     |
 Generative API (Linux) | [![](https://github.com/google-ai-edge/ai-edge-torch/actions/workflows/nightly_generative_api.yml/badge.svg?branch=main)](https://github.com/google-ai-edge/ai-edge-torch/actions/workflows/nightly_generative_api.yml) |
 Model Coverage (Linux) | [![](https://github.com/google-ai-edge/ai-edge-torch/actions/workflows/nightly_model_coverage.yml/badge.svg?branch=main)](https://github.com/google-ai-edge/ai-edge-torch/actions/workflows/nightly_model_coverage.yml) |
 Unit tests (Linux)     | [![](https://github.com/google-ai-edge/ai-edge-torch/actions/workflows/nightly_unittests.yml/badge.svg?branch=main)](https://github.com/google-ai-edge/ai-edge-torch/actions/workflows/nightly_unittests.yml) |
-PyPi Package (Linx)    | [![](https://github.com/google-ai-edge/ai-edge-torch/actions/workflows/nightly_pip_test.yml/badge.svg?branch=main)](https://github.com/google-ai-edge/ai-edge-torch/actions/workflows/nightly_pip_test.yml) |
+Nightly Release    | [![](https://github.com/google-ai-edge/ai-edge-torch/actions/workflows/nightly_release.yml/badge.svg?branch=main)](https://github.com/google-ai-edge/ai-edge-torch/actions/workflows/nightly_release.yml) |
 
 ## Installation
 
@@ -80,7 +80,7 @@ PyPi Package (Linx)    | [![](https://github.com/google-ai-edge/ai-edge-torch/ac
  * Python versions:  3.9, 3.10, 3.11
  * Operating system: Linux
  * PyTorch: ![torch](https://img.shields.io/badge/torch-2.4.0.dev20240429-blue)
- * TensorFlow: [![tf-nightly](https://img.shields.io/badge/tf--nightly-2.17.0.dev20240509-blue)](https://pypi.org/project/tf-nightly/)
+ * TensorFlow: [![tf-nightly](https://img.shields.io/badge/tf--nightly-latest-blue)](https://pypi.org/project/tf-nightly/)
 
 <!-- requirement badges are updated by ci/update_nightly_versions.py -->
 
