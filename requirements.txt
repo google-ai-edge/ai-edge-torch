@@ -3,7 +3,7 @@ numpy
 tabulate
 safetensors
 --pre
-tf-nightly==2.17.0.dev20240529
+tf-nightly>=2.17.0.dev20240529
 -f https://download.pytorch.org/whl/nightly/torch_nightly.html
 torch==2.4.0.dev20240429+cpu
 -f https://download.pytorch.org/whl/nightly/torch_nightly.html
