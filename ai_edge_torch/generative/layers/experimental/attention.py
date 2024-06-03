@@ -48,7 +48,6 @@ class TransformerBlock(nn.Module):
     self.atten_func = CausalSelfAttention(
         config.embedding_dim,
         config.attn_config,
-        config.kv_cache_max,
         config.enable_hlfb,
     )
     self.pre_ff_norm = builder.build_norm(
@@ -100,7 +99,6 @@ class CausalSelfAttention(nn.Module):
       self,
       dim: int,
       config: cfg.AttentionConfig,
-      kv_cache_max: int,
       enable_hlfb: bool,
   ) -> None:
     """Initialize an instance of CausalSelfAttention.
@@ -108,7 +106,6 @@ class CausalSelfAttention(nn.Module):
     Args:
       dim (int): causal attention's input/output dimmension.
       config (cfg.AttentionConfig): attention specific configurations.
-      kv_cache_max (int): determines the size of the KV Cache buffer, if enabled.
       enable_hlfb (bool): whether hlfb is enabled or not.
     """
     super().__init__()

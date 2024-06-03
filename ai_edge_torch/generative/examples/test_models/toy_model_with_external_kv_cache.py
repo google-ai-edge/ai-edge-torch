@@ -73,8 +73,7 @@ class ToyModelWithExternalKV(torch.nn.Module):
     mask = mask[:, :, :, : self.config.max_seq_len]
 
     for i, block in enumerate(self.transformer_blocks):
-      input_k = torch.clone(k_caches[i])
-      input_v = torch.clone(v_caches[i])
+      input_k, input_v = k_caches[i], v_caches[i]
       x, (updated_k, updated_v) = block(
           x, (cos, sin), mask, input_pos, (input_k, input_v)
       )
