@@ -99,6 +99,36 @@ def _aten_hardswish(gm: GraphModule, node: Node):
   node.target = hardswish
 
 
+@_register_composite_builder(torch.ops.aten.gelu.default)
+def _aten_gelu(gm: GraphModule, node: Node):
+  op = node.target
+  args_mapper = TorchOpArgumentsMapper(op)
+
+  def gelu(*args, **kwargs):
+    nonlocal op, args_mapper
+
+    full_kwargs = args_mapper.get_full_kwargs(args, kwargs)
+
+    # TFLite supports exact and tanh approximate.
+    if full_kwargs["approximate"] != "none" and full_kwargs["approximate"] != "tanh":
+      return op(*args, **kwargs)
+
+    builder = StableHLOCompositeBuilder(
+        "aten.gelu.default",
+        attr=_tree_map_to_composite_attr_values(
+            {
+                "approximate": full_kwargs["approximate"],
+            }
+        ),
+    )
+    full_kwargs["self"] = builder.mark_inputs(full_kwargs["self"])
+    output = op(full_kwargs["self"])
+    output = builder.mark_outputs(output)
+    return output
+
+  node.target = gelu
+
+
 @_register_composite_builder(torch.ops.aten.avg_pool2d.default)
 def _aten_avg_pool2d(gm: GraphModule, node: Node):
   op = node.target
