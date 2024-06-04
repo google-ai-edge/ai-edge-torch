@@ -128,7 +128,8 @@ class CausalSelfAttention(nn.Module):
       input_pos: Optional[torch.Tensor] = None,
       kv_cache: Optional[KVCache] = None,
   ) -> (torch.Tensor, KVCache):
-    """Forward function of the CausalSelfAttention layer.
+    """Forward function of the CausalSelfAttention layer, which can support
+       MQA, GQA and MHA.
 
     Args:
       x (torch.Tensor): the input tensor.

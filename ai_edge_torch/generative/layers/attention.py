@@ -88,7 +88,6 @@ class TransformerBlock(nn.Module):
     return output
 
 
-# CausalSelfAttention which can support MHQ, MQA or GQA.
 class CausalSelfAttention(nn.Module):
 
   def __init__(
@@ -139,7 +138,8 @@ class CausalSelfAttention(nn.Module):
       mask: Optional[torch.Tensor] = None,
       input_pos: Optional[torch.Tensor] = None,
   ) -> torch.Tensor:
-    """Forward function of the CausalSelfAttention layer.
+    """Forward function of the CausalSelfAttention layer, which can support
+       MQA, GQA and MHA.
 
     Args:
       x (torch.Tensor): the input tensor.
