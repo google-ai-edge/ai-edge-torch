@@ -20,11 +20,11 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from ai_edge_torch.generative.layers.attention import scaled_dot_product_attention  # NOQA
-from ai_edge_torch.generative.layers.attention import scaled_dot_product_attention_with_hlfb  # NOQA
 import ai_edge_torch.generative.layers.builder as builder
 from ai_edge_torch.generative.layers.kv_cache import KVCache
 import ai_edge_torch.generative.layers.model_config as cfg
+from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention  # NOQA
+from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention_with_hlfb  # NOQA
 
 
 class EncoderDecoderBlock(nn.Module):
