@@ -136,6 +136,10 @@ class ModelLoader:
         model (torch.nn.Module): The pytorch model that needs to be loaded.
         strict (bool, optional): Whether the converted keys are strictly
           matched. Defaults to True.
+          
+    Returns:
+        missing_keys (List[str]): a list of str containing the missing keys
+        unexpected_keys (List[str]): a list of str containing the unexpected keys
 
     Raises:
         ValueError: If conversion results in unmapped tensors and strict mode is
