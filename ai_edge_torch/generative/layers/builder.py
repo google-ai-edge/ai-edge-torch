@@ -66,6 +66,8 @@ def build_ff(dim: int, config: cfg.FeedForwardConfig):
     ff_module = feed_forward.SequentialFeedForward
   elif ff_type == cfg.FeedForwardType.GATED:
     ff_module = feed_forward.GatedFeedForward
+  elif ff_type == cfg.FeedForwardType.GATED_SHARED:
+    ff_module = feed_forward.SharedGatedFeedForward
   else:
     raise ValueError("Unsupported feedforward type.")
 
@@ -97,6 +99,8 @@ def _get_activation(type_: cfg.ActivationType):
     return F.gelu
   elif type_ == cfg.ActivationType.GELU_TANH:
     return lambda x: F.gelu(x, approximate="tanh")
+  elif type_ == cfg.ActivationType.GELU_QUICK:
+    return lambda x: F.sigmoid(1.702 * x)
   elif type_ == cfg.ActivationType.RELU:
     return F.relu
   else:
