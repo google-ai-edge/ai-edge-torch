@@ -92,7 +92,6 @@ class TransformerBlock(nn.Module):
     return output, kv_cache
 
 
-# CausalSelfAttention which can support MHQ, MQA or GQA.
 class CausalSelfAttention(nn.Module):
 
   def __init__(
