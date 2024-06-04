@@ -49,8 +49,6 @@ class FeedForwardType(enum.Enum):
   SEQUENTIAL = enum.auto()
   # `output = linear_2(act(linear_1(x)) * lienar_3(x))`.
   GATED = enum.auto()
-  # `output = linear_2(act(linear_1(x)) * linear_1(x)))`
-  GATED_SHARED = enum.auto()
 
 
 @dataclass

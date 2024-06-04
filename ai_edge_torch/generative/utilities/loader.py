@@ -223,10 +223,7 @@ class ModelLoader:
       ff_up_proj_name = self._names.ff_up_proj.format(idx)
       ff_down_proj_name = self._names.ff_down_proj.format(idx)
       ff_gate_proj_name = self._names.ff_gate_proj.format(idx)
-      if config.ff_config.type == model_config.FeedForwardType.GATED:
-        converted_state[f"{prefix}.ff.w3.weight"] = state.pop(
-            f"{ff_up_proj_name}.weight"
-        )
+      converted_state[f"{prefix}.ff.w3.weight"] = state.pop(f"{ff_up_proj_name}.weight")
       converted_state[f"{prefix}.ff.w2.weight"] = state.pop(
           f"{ff_down_proj_name}.weight"
       )
@@ -234,8 +231,7 @@ class ModelLoader:
           f"{ff_gate_proj_name}.weight"
       )
       if config.ff_config.use_bias:
-        if config.ff_config.type == model_config.FeedForwardType.GATED:
-          converted_state[f"{prefix}.ff.w3.bias"] = state.pop(f"{ff_up_proj_name}.bias")
+        converted_state[f"{prefix}.ff.w3.bias"] = state.pop(f"{ff_up_proj_name}.bias")
         converted_state[f"{prefix}.ff.w2.bias"] = state.pop(f"{ff_down_proj_name}.bias")
         converted_state[f"{prefix}.ff.w1.bias"] = state.pop(f"{ff_gate_proj_name}.bias")
 

@@ -89,7 +89,7 @@ def get_model_config() -> cfg.ModelConfig:
   )
 
   ff_config = cfg.FeedForwardConfig(
-      type=cfg.FeedForwardType.GATED_SHARED,
+      type=cfg.FeedForwardType.SEQUENTIAL,
       activation=cfg.ActivationType.GELU_QUICK,
       intermediate_size=embedding_dim * 4,
       use_bias=True,
