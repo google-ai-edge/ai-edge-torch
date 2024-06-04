@@ -93,38 +93,3 @@ class GatedFeedForward(nn.Module):
       torch.Tensor: output tensor after feedforward.
     """
     return self.w2(self.act(self.w1(x)) * self.w3(x))
-
-
-class SharedGatedFeedForward(nn.Module):
-  """Shared Gated Feedforward with customizable activation."""
-
-  def __init__(
-      self,
-      dim: int,
-      hidden_dim: int,
-      activation: Callable[[torch.Tensor], torch.Tensor],
-      use_bias=False,
-  ):
-    """Init function for feedforward layer.
-
-    Args:
-      dim(int): embedding size.
-      hidden_dim(int): hidden dim size of the feedforward layer.
-      activation(Callable): activation function used in this block.
-      use_bias(Boolean): whether to use bias. Default is false.
-    """
-    super().__init__()
-    self.act = activation
-    self.w1 = nn.Linear(dim, hidden_dim, bias=use_bias)
-    self.w2 = nn.Linear(hidden_dim, dim, bias=use_bias)
-
-  def forward(self, x):
-    """Forward pass for Feedforward layer.
-
-    Args:
-      x (torch.Tensor): the input tensor.
-
-    Returns:
-      torch.Tensor: output tensor after feedforward.
-    """
-    return self.w2(self.act(self.w1(x)) * self.w1(x))
