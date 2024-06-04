@@ -169,6 +169,24 @@ class TestConvertComposites(unittest.TestCase):
         model_coverage.compare_tflite_torch(edge_model, torch_module, tracing_args)
     )
 
+  def test_convert_gelu(self):
+    """Tests conversion of a GELU module."""
+
+    args = (torch.randn((5, 10)),)
+    torch_module = torch.nn.GELU().eval()
+    edge_model = ai_edge_torch.convert(torch_module, args)
+
+    self.assertTrue(model_coverage.compare_tflite_torch(edge_model, torch_module, args))
+
+  def test_convert_gelu_approximate(self):
+    """Tests conversion of an Approximate GELU module."""
+
+    args = (torch.randn((5, 10)),)
+    torch_module = torch.nn.GELU('tanh').eval()
+    edge_model = ai_edge_torch.convert(torch_module, args)
+
+    self.assertTrue(model_coverage.compare_tflite_torch(edge_model, torch_module, args))
+
 
 if __name__ == '__main__':
   unittest.main()
