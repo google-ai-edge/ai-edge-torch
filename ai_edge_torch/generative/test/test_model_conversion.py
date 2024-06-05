@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 # Testing model conversion for a few gen-ai models.
+import sys
+sys.path.append("../../../")
 import copy
 import os
 import tempfile
@@ -33,7 +35,6 @@ class TestModelConversion(unittest.TestCase):
   """Unit tests that check for model conversion and correctness."""
 
   def test_toy_model_with_kv_cache(self):
-    self.skipTest("b/338288901")
     config = toy_model_with_kv_cache.get_model_config()
     pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config)
     idx, input_pos = torch.tensor([[1]], dtype=torch.long), torch.tensor(
@@ -42,19 +43,21 @@ class TestModelConversion(unittest.TestCase):
 
     edge_model = ai_edge_torch.convert(pytorch_model, (idx, input_pos))
 
-    self.assertTrue(
-        model_coverage.compare_tflite_torch(
-            edge_model,
-            pytorch_model,
-            (idx, input_pos),
-            num_valid_inputs=1,
-            atol=1e-5,
-            rtol=1e-5,
-        )
-    )
+    # TODO(b/338288901): re-enable test to check output tensors.
+    skip_output_check = True
+    if skip_output_check is False:
+      self.assertTrue(
+          model_coverage.compare_tflite_torch(
+              edge_model,
+              pytorch_model,
+              (idx, input_pos),
+              num_valid_inputs=1,
+              atol=1e-5,
+              rtol=1e-5,
+          )
+      )
 
   def test_toy_model_with_kv_cache_with_hlfb(self):
-    self.skipTest("b/338288901")
     config = toy_model_with_kv_cache.get_model_config()
     config.enable_hlfb = True
     pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config)
@@ -64,19 +67,21 @@ class TestModelConversion(unittest.TestCase):
 
     edge_model = ai_edge_torch.convert(pytorch_model, (idx, input_pos))
 
-    self.assertTrue(
-        model_coverage.compare_tflite_torch(
-            edge_model,
-            pytorch_model,
-            (idx, input_pos),
-            num_valid_inputs=1,
-            atol=1e-5,
-            rtol=1e-5,
-        )
-    )
+    # TODO(b/338288901): re-enable test to check output tensors.
+    skip_output_check = True
+    if skip_output_check is False:
+      self.assertTrue(
+          model_coverage.compare_tflite_torch(
+              edge_model,
+              pytorch_model,
+              (idx, input_pos),
+              num_valid_inputs=1,
+              atol=1e-5,
+              rtol=1e-5,
+          )
+      )
 
   def test_tiny_llama(self):
-    self.skipTest("b/338288901")
     config = tiny_llama.get_fake_model_config_for_test()
     pytorch_model = tiny_llama.TinyLLamma(config)
 
@@ -87,19 +92,21 @@ class TestModelConversion(unittest.TestCase):
 
     edge_model = ai_edge_torch.convert(pytorch_model, (tokens, input_pos))
 
-    self.assertTrue(
-        model_coverage.compare_tflite_torch(
-            edge_model,
-            pytorch_model,
-            (tokens, input_pos),
-            num_valid_inputs=1,
-            atol=1e-5,
-            rtol=1e-5,
-        )
-    )
+    # TODO(b/338288901): re-enable test to check output tensors.
+    skip_output_check = True
+    if skip_output_check is False:
+      self.assertTrue(
+          model_coverage.compare_tflite_torch(
+              edge_model,
+              pytorch_model,
+              (tokens, input_pos),
+              num_valid_inputs=1,
+              atol=1e-5,
+              rtol=1e-5,
+          )
+      )
 
   def test_tiny_llama_multisig(self):
-    self.skipTest("b/338288901")
     config = tiny_llama.get_fake_model_config_for_test()
     pytorch_model = tiny_llama.TinyLLamma(config)
 
@@ -122,35 +129,37 @@ class TestModelConversion(unittest.TestCase):
         .convert()
     )
 
-    # For the pytorch model, the KV cache is a persistent state internal to the model, and it
-    # will be shared for prefill and decode. However, for tflite, currently we can't share
-    # kv-cache between the two signatures. prefill will change the content in kv-cache,
-    # but it won't be readable by the decode tflite model. This means the output of running `decode` after
-    # running `prefill` in pytorch will be different from the output of running `decode` after `prefill` via ai_edge_torch.
-    copied_model = copy.deepcopy(pytorch_model)
+    # TODO(b/338288901): re-enable test to check output tensors.
+    skip_output_check = True
+    if skip_output_check is False:
+      # For the pytorch model, the KV cache is a persistent state internal to the model, and it
+      # will be shared for prefill and decode. However, for tflite, currently we can't share
+      # kv-cache between the two signatures. prefill will change the content in kv-cache,
+      # but it won't be readable by the decode tflite model. This means the output of running `decode` after
+      # running `prefill` in pytorch will be different from the output of running `decode` after `prefill` via ai_edge_torch.
+      copied_model = copy.deepcopy(pytorch_model)
 
-    self.assertTrue(
-        model_coverage.compare_tflite_torch(
-            edge_model,
-            pytorch_model,
-            (prefill_tokens, prefill_input_pos),
-            signature_name="prefill",
-            num_valid_inputs=1,
-        )
-    )
+      self.assertTrue(
+          model_coverage.compare_tflite_torch(
+              edge_model,
+              pytorch_model,
+              (prefill_tokens, prefill_input_pos),
+              signature_name="prefill",
+              num_valid_inputs=1,
+          )
+      )
 
-    self.assertTrue(
-        model_coverage.compare_tflite_torch(
-            edge_model,
-            copied_model,
-            (decode_token, decode_input_pos),
-            signature_name="decode",
-            num_valid_inputs=1,
-        )
-    )
+      self.assertTrue(
+          model_coverage.compare_tflite_torch(
+              edge_model,
+              copied_model,
+              (decode_token, decode_input_pos),
+              signature_name="decode",
+              num_valid_inputs=1,
+          )
+      )
 
   def test_gemma(self):
-    self.skipTest("b/338288901")
     config = gemma.get_fake_model_config_2b_for_test()
     model = gemma.Gemma(config)
 
@@ -161,20 +170,22 @@ class TestModelConversion(unittest.TestCase):
 
     edge_model = ai_edge_torch.convert(model, (tokens, input_pos))
 
-    # TODO(talumbau, haoliang): debug numerical diff.
-    self.assertTrue(
-        model_coverage.compare_tflite_torch(
-            edge_model,
-            model,
-            (tokens, input_pos),
-            num_valid_inputs=1,
-            atol=1e-2,
-            rtol=1e-5,
-        )
-    )
+    # TODO(b/338288901): re-enable test to check output tensors.
+    skip_output_check = True
+    if skip_output_check is False:
+      # TODO(talumbau, haoliang): debug numerical diff.
+      self.assertTrue(
+          model_coverage.compare_tflite_torch(
+              edge_model,
+              model,
+              (tokens, input_pos),
+              num_valid_inputs=1,
+              atol=1e-2,
+              rtol=1e-5,
+          )
+      )
 
   def test_phi2(self):
-    self.skipTest("b/338288901")
     config = phi2.get_fake_model_config_for_test()
     pytorch_model = phi2.Phi2(config)
 
@@ -185,16 +196,19 @@ class TestModelConversion(unittest.TestCase):
 
     edge_model = ai_edge_torch.convert(pytorch_model, (tokens, input_pos))
 
-    self.assertTrue(
-        model_coverage.compare_tflite_torch(
-            edge_model,
-            pytorch_model,
-            (tokens, input_pos),
-            num_valid_inputs=1,
-            atol=1e-5,
-            rtol=1e-5,
-        )
-    )
+    # TODO(b/338288901): re-enable test to check output tensors.
+    skip_output_check = True
+    if skip_output_check is False:
+      self.assertTrue(
+          model_coverage.compare_tflite_torch(
+              edge_model,
+              pytorch_model,
+              (tokens, input_pos),
+              num_valid_inputs=1,
+              atol=1e-5,
+              rtol=1e-5,
+          )
+      )
 
 
 if __name__ == "__main__":
