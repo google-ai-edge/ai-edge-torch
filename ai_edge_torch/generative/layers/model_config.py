@@ -27,6 +27,7 @@ class ActivationType(enum.Enum):
   SILU = enum.auto()
   GELU = enum.auto()
   GELU_TANH = enum.auto()
+  GELU_QUICK = enum.auto()
   RELU = enum.auto()
 
 
@@ -46,7 +47,7 @@ class FeedForwardType(enum.Enum):
 
   # `output = linear(act(linear(x)))`.
   SEQUENTIAL = enum.auto()
-  # `output = linear(act(linear(x)) * lienar(x))`.
+  # `output = linear_2(act(linear_1(x)) * lienar_3(x))`.
   GATED = enum.auto()
 
 
@@ -60,6 +61,9 @@ class AttentionConfig:
   num_query_groups: Optional[int]
   # Percentage of Rotary Positional Embedding added Q and K projections.
   rotary_percentage: Optional[float] = None
+  # Whether to transpose the query groups of qkv bundled tensor before
+  # splitting into separated tensors.
+  qkv_transpose_before_split: bool = False
   # Whether to use bias with Query, Key, and Value projection.
   qkv_use_bias: bool = False
   # Whether to use bias with attention output projection.

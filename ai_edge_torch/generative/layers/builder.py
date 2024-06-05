@@ -97,6 +97,10 @@ def _get_activation(type_: cfg.ActivationType):
     return F.gelu
   elif type_ == cfg.ActivationType.GELU_TANH:
     return lambda x: F.gelu(x, approximate="tanh")
+  elif type_ == cfg.ActivationType.GELU_QUICK:
+    # GELU approximation that is fast but somewhat inaccurate.
+    # See: https://github.com/hendrycks/GELUs
+    return lambda x: x * F.sigmoid(1.702 * x)
   elif type_ == cfg.ActivationType.RELU:
     return F.relu
   else:
