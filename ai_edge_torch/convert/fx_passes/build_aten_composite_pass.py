@@ -104,7 +104,9 @@ def _aten_gelu(gm: GraphModule, node: Node):
   op = node.target
   args_mapper = TorchOpArgumentsMapper(op)
 
-  def gelu(*args, **kwargs):
+  # calling this aten_gelu (instead of gelu) since otherwise, the naming will
+  # conflict with a composite that is built in the tflite converter.
+  def aten_gelu(*args, **kwargs):
     nonlocal op, args_mapper
 
     full_kwargs = args_mapper.get_full_kwargs(args, kwargs)
@@ -126,7 +128,7 @@ def _aten_gelu(gm: GraphModule, node: Node):
     output = builder.mark_outputs(output)
     return output
 
-  node.target = gelu
+  node.target = aten_gelu
 
 
 @_register_composite_builder(torch.ops.aten.avg_pool2d.default)
