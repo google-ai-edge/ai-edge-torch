@@ -69,10 +69,16 @@ def load_pytorch_statedict(full_path: str):
   Raises:
     ValueError: If no tensors are loaded from the provided directory or file.
   """
-  pattern = os.path.join(full_path, "*.bin") if os.path.isdir(full_path) else full_path
   files = []
-  for file in glob.glob(pattern):
-    files.append(file)
+  patterns = []
+  if os.path.isdir(full_path):
+    patterns.append(os.path.join(full_path, "*.bin"))
+    patterns.append(os.path.join(full_path, "*.pt"))
+  else:
+    patterns.append(full_path)
+  for pattern in patterns:
+    for file in glob.glob(pattern):
+      files.append(file)
 
   tensors = {}
   for file in files:
@@ -93,18 +99,20 @@ class ModelLoader:
 
   @dataclass
   class TensorNames:
-    attn_query_proj: str
-    attn_key_proj: str
-    attn_value_proj: str
-    attn_output_proj: str
+    attn_query_proj: str = None
+    attn_key_proj: str = None
+    attn_value_proj: str = None
+    attn_fused_qkv_proj: str = None
+    attn_output_proj: str = None
 
-    ff_up_proj: str
-    ff_down_proj: str
+    ff_up_proj: str = None
+    ff_down_proj: str = None
     ff_gate_proj: str = None
 
     pre_attn_norm: str = None
     pre_ff_norm: str = None
     embedding: str = None
+    embedding_position: str = None
     final_norm: str = None
     lm_head: str = None
 
@@ -129,6 +137,10 @@ class ModelLoader:
         strict (bool, optional): Whether the converted keys are strictly
           matched. Defaults to True.
 
+    Returns:
+        missing_keys (List[str]): a list of str containing the missing keys
+        unexpected_keys (List[str]): a list of str containing the unexpected keys
+
     Raises:
         ValueError: If conversion results in unmapped tensors and strict mode is
           enabled.
@@ -139,6 +151,10 @@ class ModelLoader:
       converted_state["tok_embedding.weight"] = state.pop(
           f"{self._names.embedding}.weight"
       )
+      if self._names.embedding_position is not None:
+        converted_state["tok_embedding_position"] = state.pop(
+            f"{self._names.embedding_position}"
+        )
     if self._names.lm_head is not None:
       converted_state["lm_head.weight"] = state.pop(f"{self._names.lm_head}.weight")
       if model.config.lm_head_use_bias:
@@ -158,7 +174,7 @@ class ModelLoader:
       raise ValueError(
           f"Failed to map all tensor. Remaing tensor are: {list(state.keys())}"
       )
-    model.load_state_dict(converted_state, strict=strict)
+    return model.load_state_dict(converted_state, strict=strict)
 
   def _get_loader(self) -> Callable[[str], Dict[str, torch.Tensor]]:
     """A best effort method for finding appropriate state loader.
@@ -172,13 +188,15 @@ class ModelLoader:
     if os.path.isdir(self._file_name):
       if glob.glob(os.path.join(self._file_name, "*.safetensors")):
         return load_safetensors
-      if glob.glob(os.path.join(self._file_name, "*.bin")):
+      if glob.glob(os.path.join(self._file_name, "*.bin")) or glob.glob(
+          os.path.join(self._file_name, "*.pt")
+      ):
         return load_pytorch_statedict
 
     if self._file_name.endswith(".safetensors"):
       return load_safetensors
 
-    if self._file_name.endswith(".bin"):
+    if self._file_name.endswith(".bin") or self._file_name.endswith(".pt"):
       return load_pytorch_statedict
 
     raise ValueError(f"File format not supported.")
@@ -225,22 +243,33 @@ class ModelLoader:
       converted_state: Dict[str, torch.Tensor],
   ):
     prefix = f"transformer_blocks.{idx}"
-    q_name = self._names.attn_query_proj.format(idx)
-    k_name = self._names.attn_key_proj.format(idx)
-    v_name = self._names.attn_value_proj.format(idx)
-    converted_state[f"{prefix}.atten_func.qkv_projection.weight"] = self._fuse_qkv(
-        config,
-        state.pop(f"{q_name}.weight"),
-        state.pop(f"{k_name}.weight"),
-        state.pop(f"{v_name}.weight"),
-    )
-    if config.attn_config.qkv_use_bias:
-      converted_state[f"{prefix}.atten_func.qkv_projection.bias"] = self._fuse_qkv(
-          config,
-          state.pop(f"{q_name}.bias"),
-          state.pop(f"{k_name}.bias"),
-          state.pop(f"{v_name}.bias"),
+    if self._names.attn_fused_qkv_proj:
+      fused_qkv_name = self._names.attn_fused_qkv_proj.format(idx)
+      converted_state[f"{prefix}.atten_func.qkv_projection.weight"] = state.pop(
+          f"{fused_qkv_name}.weight"
       )
+    else:
+      q_name = self._names.attn_query_proj.format(idx)
+      k_name = self._names.attn_key_proj.format(idx)
+      v_name = self._names.attn_value_proj.format(idx)
+      converted_state[f"{prefix}.atten_func.qkv_projection.weight"] = self._fuse_qkv(
+          config,
+          state.pop(f"{q_name}.weight"),
+          state.pop(f"{k_name}.weight"),
+          state.pop(f"{v_name}.weight"),
+      )
+    if config.attn_config.qkv_use_bias:
+      if self._names.attn_fused_qkv_proj:
+        converted_state[f"{prefix}.atten_func.qkv_projection.bias"] = state.pop(
+            f"{fused_qkv_name}.bias"
+        )
+      else:
+        converted_state[f"{prefix}.atten_func.qkv_projection.bias"] = self._fuse_qkv(
+            config,
+            state.pop(f"{q_name}.bias"),
+            state.pop(f"{k_name}.bias"),
+            state.pop(f"{v_name}.bias"),
+        )
 
     o_name = self._names.attn_output_proj.format(idx)
     converted_state[f"{prefix}.atten_func.output_projection.weight"] = state.pop(

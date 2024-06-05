@@ -19,11 +19,12 @@ from pathlib import Path
 import torch
 
 import ai_edge_torch
-from ai_edge_torch.generative.examples.stable_diffusion.clip import CLIP
+import ai_edge_torch.generative.examples.stable_diffusion.clip as clip
 from ai_edge_torch.generative.examples.stable_diffusion.decoder import Decoder
 from ai_edge_torch.generative.examples.stable_diffusion.diffusion import Diffusion  # NOQA
 from ai_edge_torch.generative.examples.stable_diffusion.encoder import Encoder
 import ai_edge_torch.generative.examples.stable_diffusion.util as util
+import ai_edge_torch.generative.utilities.loader as loading_utils
 
 
 @torch.inference_mode
@@ -36,8 +37,9 @@ def convert_stable_diffusion_to_tflite(
     image_width: int = 512,
 ):
 
-  clip = CLIP()
-  clip.load_state_dict(torch.load(clip_ckpt_path))
+  clip_model = clip.CLIP(clip.get_model_config())
+  loader = loading_utils.ModelLoader(clip_ckpt_path, clip.TENSOR_NAMES)
+  loader.load(clip_model, strict=False)
 
   encoder = Encoder()
   encoder.load_state_dict(torch.load(encoder_ckpt_path))
@@ -59,13 +61,13 @@ def convert_stable_diffusion_to_tflite(
   )
 
   input_latents = encoder(input_image, noise)
-  context_cond = clip(prompt_tokens)
+  context_cond = clip_model(prompt_tokens)
   context_uncond = torch.zeros_like(context_cond)
   context = torch.cat([context_cond, context_uncond], axis=0)
   time_embedding = util.get_time_embedding(timestamp)
 
   # CLIP text encoder
-  ai_edge_torch.signature('encode', clip, (prompt_tokens,)).convert().export(
+  ai_edge_torch.signature('encode', clip_model, (prompt_tokens,)).convert().export(
       '/tmp/stable_diffusion/clip.tflite'
   )
 

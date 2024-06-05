@@ -58,13 +58,13 @@ class TestBuildAtenCompositePass(unittest.TestCase):
     stablehlo = _export_to_stablehlo_with_composite(
         lambda x: torch.nn.Hardswish()(x), (torch.rand(10, 10),)
     )
-    self.assertTrue(stablehlo.count('stablehlo.composite "aten.hardswish.default"'), 1)
+    self.assertEqual(stablehlo.count('stablehlo.composite "aten.hardswish.default"'), 1)
 
   def test_hardswish_op(self):
     stablehlo = _export_to_stablehlo_with_composite(
         lambda x: torch.ops.aten.hardswish.default(x), (torch.rand(10, 10),)
     )
-    self.assertTrue(stablehlo.count('stablehlo.composite "aten.hardswish.default"'), 1)
+    self.assertEqual(stablehlo.count('stablehlo.composite "aten.hardswish.default"'), 1)
 
   def test_avg_pool2d_layer(self):
     stablehlo = _export_to_stablehlo_with_composite(
@@ -78,7 +78,9 @@ class TestBuildAtenCompositePass(unittest.TestCase):
         )(x),
         (torch.rand(1, 3, 6, 6),),
     )
-    self.assertTrue(stablehlo.count('stablehlo.composite "aten.avg_pool2d.default"'), 1)
+    self.assertEqual(
+        stablehlo.count('stablehlo.composite "aten.avg_pool2d.default"'), 1
+    )
 
   def test_avg_pool2d_op(self):
     stablehlo = _export_to_stablehlo_with_composite(
@@ -93,7 +95,9 @@ class TestBuildAtenCompositePass(unittest.TestCase):
         ),
         (torch.rand(1, 3, 6, 6),),
     )
-    self.assertTrue(stablehlo.count('stablehlo.composite "aten.avg_pool2d.default"'), 1)
+    self.assertEqual(
+        stablehlo.count('stablehlo.composite "aten.avg_pool2d.default"'), 1
+    )
 
   def test_avg_pool2d_ceil_mode(self):
     stablehlo = _export_to_stablehlo_with_composite(
@@ -108,7 +112,21 @@ class TestBuildAtenCompositePass(unittest.TestCase):
         ),
         (torch.rand(1, 3, 6, 6),),
     )
-    self.assertTrue(stablehlo.count('stablehlo.composite "aten.avg_pool2d.default"'), 1)
+    self.assertEqual(
+        stablehlo.count('stablehlo.composite "aten.avg_pool2d.default"'), 1
+    )
+
+  def test_gelu_layer(self):
+    stablehlo = _export_to_stablehlo_with_composite(
+        lambda x: torch.nn.GELU()(x), (torch.rand(10, 10),)
+    )
+    self.assertEqual(stablehlo.count('stablehlo.composite "aten.gelu.default"'), 1)
+
+  def test_approximate_gelu_layer(self):
+    stablehlo = _export_to_stablehlo_with_composite(
+        lambda x: torch.nn.GELU('tanh')(x), (torch.rand(10, 10),)
+    )
+    self.assertEqual(stablehlo.count('stablehlo.composite "aten.gelu.default"'), 1)
 
 
 if __name__ == '__main__':
