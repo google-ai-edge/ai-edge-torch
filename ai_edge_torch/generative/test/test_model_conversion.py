@@ -90,7 +90,7 @@ class TestModelConversion(unittest.TestCase):
     input_pos = torch.arange(0, 10)
 
     edge_model = ai_edge_torch.convert(pytorch_model, (tokens, input_pos))
-    
+
     # TODO(b/338288901): re-enable test to check output tensors.
     skip_output_check = True
     if skip_output_check is False:
