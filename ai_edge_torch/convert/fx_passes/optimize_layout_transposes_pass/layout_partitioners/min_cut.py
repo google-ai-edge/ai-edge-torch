@@ -25,6 +25,25 @@ from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import layo
 from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import layout_mark  # NOQA
 
 
+def can_partition(graph_module: torch.fx.GraphModule):
+  """Returns true if the input graph_module can be partitioned by min cut solver
+  in a reasonable time.
+
+  The min cut solver implements O(|V|^2|E|) Dinic's algorithm, which may
+  take a long time to complete for large graph module. This function determines
+  whether the graph module can be partitioned by the graph module size.
+
+  See go/pytorch-layout-transpose-optimization for more details.
+  """
+  graph = graph_module.graph
+  n_nodes = len(graph.nodes)
+  n_edges = sum(len(n.users) for n in graph.nodes)
+
+  # According to the experiments our model set, |V| < 2000 can
+  # be partitioned generally in a reasonable time.
+  return n_nodes**2 * n_edges < 2000**3
+
+
 class MinCutSolver:
   # A number that is large enough but can fit into int32 with all computations
   # in the maximum flow.
