@@ -13,8 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 # Testing model conversion for a few gen-ai models.
-import sys
-sys.path.append("../../../")
 import copy
 import os
 import tempfile
