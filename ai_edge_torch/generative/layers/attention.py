@@ -57,7 +57,7 @@ class TransformerBlock(nn.Module):
   def forward(
       self,
       x: torch.Tensor,
-      rope: Tuple[torch.Tensor, torch.Tensor],
+      rope: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
       mask: Optional[torch.Tensor] = None,
       input_pos: Optional[torch.Tensor] = None,
   ) -> torch.Tensor:
@@ -134,7 +134,7 @@ class CausalSelfAttention(nn.Module):
   def forward(
       self,
       x: torch.Tensor,
-      rope: Tuple[torch.Tensor, torch.Tensor],
+      rope: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
       mask: Optional[torch.Tensor] = None,
       input_pos: Optional[torch.Tensor] = None,
   ) -> torch.Tensor:
@@ -159,28 +159,35 @@ class CausalSelfAttention(nn.Module):
     # Assemble into a number of query groups to support MHA, MQA and GQA.
     q_per_kv = self.config.num_heads // self.config.num_query_groups
     total_qkv = q_per_kv + 2  # Each group has >=1 queries, 1 key, and 1 value.
-    qkv = qkv.view(
-        B, T, self.config.num_query_groups, total_qkv, self.head_dim
-    )  # (B, T, num_query_groups, total_qkv, head_dim)
+    if self.config.qkv_transpose_before_split:
+      qkv = qkv.view(
+          B, T, total_qkv, self.config.num_query_groups, self.head_dim
+      )  # (B, T, total_qkv, num_query_groups, head_dim)
+      qkv_axis = -3
+    else:
+      qkv = qkv.view(
+          B, T, self.config.num_query_groups, total_qkv, self.head_dim
+      )  # (B, T, num_query_groups, total_qkv, head_dim)
+      qkv_axis = -2
 
     # Split batched computation into three.
-    q, k, v = qkv.split((q_per_kv, 1, 1), dim=-2)
-
+    q, k, v = qkv.split((q_per_kv, 1, 1), dim=qkv_axis)
     q = q.reshape(B, T, -1, self.head_dim)
     k = k.reshape(B, T, -1, self.head_dim)
     v = v.reshape(B, T, -1, self.head_dim)
 
     # Compute rotary positional embedding for query and key.
     n_elem = int(self.config.rotary_percentage * self.head_dim)
-    cos, sin = rope
-    q_roped = rotary_pos_emb.apply_rope(
-        q[..., :n_elem], cos.repeat(1, 2), sin.repeat(1, 2)
-    )
-    k_roped = rotary_pos_emb.apply_rope(
-        k[..., :n_elem], cos.repeat(1, 2), sin.repeat(1, 2)
-    )
-    q = torch.cat((q_roped, q[..., n_elem:]), dim=-1)
-    k = torch.cat((k_roped, k[..., n_elem:]), dim=-1)
+    if n_elem > 0:
+      cos, sin = rope
+      q_roped = rotary_pos_emb.apply_rope(
+          q[..., :n_elem], cos.repeat(1, 2), sin.repeat(1, 2)
+      )
+      k_roped = rotary_pos_emb.apply_rope(
+          k[..., :n_elem], cos.repeat(1, 2), sin.repeat(1, 2)
+      )
+      q = torch.cat((q_roped, q[..., n_elem:]), dim=-1)
+      k = torch.cat((k_roped, k[..., n_elem:]), dim=-1)
 
     if self.kv_cache is not None:
       # TODO(haoliang): Handle when execeeding max sequence length.
