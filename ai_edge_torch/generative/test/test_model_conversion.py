@@ -80,6 +80,7 @@ class TestModelConversion(unittest.TestCase):
       )
 
   def test_tiny_llama(self):
+    # TODO(b/338288901): re-enable test to check output tensors.
     config = tiny_llama.get_fake_model_config_for_test()
     pytorch_model = tiny_llama.TinyLLamma(config)
 
@@ -90,7 +91,6 @@ class TestModelConversion(unittest.TestCase):
 
     edge_model = ai_edge_torch.convert(pytorch_model, (tokens, input_pos))
 
-    # TODO(b/338288901): re-enable test to check output tensors.
     skip_output_check = True
     if skip_output_check is False:
       self.assertTrue(
@@ -158,6 +158,7 @@ class TestModelConversion(unittest.TestCase):
       )
 
   def test_gemma(self):
+    # TODO(b/338288901): re-enable test to check output tensors.
     config = gemma.get_fake_model_config_2b_for_test()
     model = gemma.Gemma(config)
 
@@ -168,7 +169,6 @@ class TestModelConversion(unittest.TestCase):
 
     edge_model = ai_edge_torch.convert(model, (tokens, input_pos))
 
-    # TODO(b/338288901): re-enable test to check output tensors.
     skip_output_check = True
     if skip_output_check is False:
       # TODO(talumbau, haoliang): debug numerical diff.
@@ -184,6 +184,7 @@ class TestModelConversion(unittest.TestCase):
       )
 
   def test_phi2(self):
+    # TODO(b/338288901): re-enable test to check output tensors.
     config = phi2.get_fake_model_config_for_test()
     pytorch_model = phi2.Phi2(config)
 
@@ -193,8 +194,7 @@ class TestModelConversion(unittest.TestCase):
     input_pos = torch.arange(0, 10)
 
     edge_model = ai_edge_torch.convert(pytorch_model, (tokens, input_pos))
-
-    # TODO(b/338288901): re-enable test to check output tensors.
+    
     skip_output_check = True
     if skip_output_check is False:
       self.assertTrue(
