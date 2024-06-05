@@ -131,11 +131,6 @@ class TestModelConversion(unittest.TestCase):
     # TODO(b/338288901): re-enable test to check output tensors.
     skip_output_check = True
     if skip_output_check is False:
-      # For the pytorch model, the KV cache is a persistent state internal to the model, and it
-      # will be shared for prefill and decode. However, for tflite, currently we can't share
-      # kv-cache between the two signatures. prefill will change the content in kv-cache,
-      # but it won't be readable by the decode tflite model. This means the output of running `decode` after
-      # running `prefill` in pytorch will be different from the output of running `decode` after `prefill` via ai_edge_torch.
       copied_model = copy.deepcopy(pytorch_model)
 
       self.assertTrue(
