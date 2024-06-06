@@ -21,7 +21,7 @@ from ai_edge_torch.generative.quantize import quant_attrs
 from ai_edge_torch.generative.quantize import quant_recipe
 from ai_edge_torch.generative.quantize.quant_attrs import Algorithm as _algo
 from ai_edge_torch.generative.quantize.quant_attrs import Dtype as _dtype
-from ai_edge_torch.generative.quantize.quant_attrs import Granularity as _granularity    # NOQA
+from ai_edge_torch.generative.quantize.quant_attrs import Granularity as _granularity  # NOQA
 from ai_edge_torch.generative.quantize.quant_attrs import Mode as _mode
 
 _OpExecutionMode = quantizer.qtyping.OpExecutionMode
