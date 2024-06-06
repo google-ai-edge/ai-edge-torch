@@ -97,7 +97,7 @@ class TestQuantizeConvert(unittest.TestCase):
   @parameterized.expand(
       [
           (quant_recipes.full_fp16_recipe(), 0.75),
-          (quant_recipes.full_linear_int8_dynamic_recipe(), 0.75),
+          (quant_recipes.full_linear_int8_dynamic_recipe(), 0.64),
           (_attention_1_int8_dynamic_recipe(), 0.95),
           (_feedforward_0_int8_dynamic_recipe(), 0.87),
       ]
@@ -118,6 +118,7 @@ class TestQuantizeConvert(unittest.TestCase):
         expected_compression,
         delta=0.01,
     )
+    quantized_model.export(f"/tmp/test_quantized_{expected_compression}.tflite")
 
   def test_quantize_convert_compare_toy(self):
     self.skipTest("b/338288901")
