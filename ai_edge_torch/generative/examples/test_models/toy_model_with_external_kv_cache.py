@@ -63,9 +63,8 @@ class ToyModelWithExternalKV(torch.nn.Module):
       self,
       idx: torch.Tensor,
       input_pos: torch.Tensor,
-      k_caches: List[torch.Tensor],
-      v_caches: List[torch.Tensor],
-  ) -> (torch.Tensor, torch.Tensor, torch.Tensor):
+      *kv_caches,
+  ) -> Tuple[torch.Tensor, ...]:
     x = self.tok_embedding(idx)
     cos, sin = self.rope_cache
     cos = cos.index_select(0, input_pos)
@@ -73,15 +72,17 @@ class ToyModelWithExternalKV(torch.nn.Module):
     mask = self.mask_cache.index_select(2, input_pos)
     mask = mask[:, :, :, : self.config.max_seq_len]
 
+    updated_kv_caches = []
     for i, block in enumerate(self.transformer_blocks):
-      input_k, input_v = k_caches[i], v_caches[i]
+      input_k, input_v = kv_caches[2 * i], kv_caches[2 * i + 1]
       x, (updated_k, updated_v) = block(
           x, (cos, sin), mask, input_pos, (input_k, input_v)
       )
-      k_caches[i], v_caches[i] = updated_k, updated_v
+      updated_kv_caches.append(updated_k)
+      updated_kv_caches.append(updated_v)
 
     x = self.final_norm(x)
-    return self.lm_head(x), k_caches, v_caches
+    return self.lm_head(x), *updated_kv_caches
 
 
 def _export_stablehlo_mlir(model, args):
@@ -133,15 +134,15 @@ def define_and_run() -> None:
   config = get_model_config()
   model = ToyModelWithExternalKV(config)
   print('running an inference')
-  kv = kv_cache.build_kv_cache(config)
+  kv = kv_cache.KVCache.from_model_config(config)
 
   idx, input_pos = get_sample_prefill_inputs()
   decode_idx, decode_input_pos = get_sample_decode_inputs()
-  print(model.forward(idx, input_pos, kv.k_caches, kv.v_caches))
+  print(model.forward(idx, input_pos, *kv.get_flattened_tensors()))
 
   if dump_mlir:
     mlir_text = _export_stablehlo_mlir(
-        model, (idx, input_pos, kv.k_caches, kv.v_caches)
+        model, (idx, input_pos, *kv.get_flattened_tensors())
     )
     with open('/tmp/toy_model_with_external_kv.stablehlo.mlir', 'w') as f:
       f.write(mlir_text)
@@ -152,10 +153,10 @@ def define_and_run() -> None:
   print('converting toy model to tflite with 2 signatures (prefill + decode)')
   edge_model = (
       ai_edge_torch.signature(
-          'prefill', model, (idx, input_pos, kv.k_caches, kv.v_caches)
+          'prefill', model, (idx, input_pos, *kv.get_flattened_tensors())
       )
       .signature(
-          'decode', model, (decode_idx, decode_input_pos, kv.k_caches, kv.v_caches)
+          'decode', model, (decode_idx, decode_input_pos, *kv.get_flattened_tensors())
       )
       .convert()
   )
