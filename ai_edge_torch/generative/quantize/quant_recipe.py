@@ -14,8 +14,7 @@
 # ==============================================================================
 
 from dataclasses import dataclass
-import enum
-from typing import Optional
+from typing import Optional, Union
 
 from ai_edge_torch.generative.quantize import quant_attrs
 from ai_edge_torch.generative.quantize import supported_schemes
@@ -111,8 +110,12 @@ class GenerativeQuantRecipe:
 
   default: Optional[LayerQuantRecipe] = None
   embedding: Optional[LayerQuantRecipe] = None
-  attention: Optional[LayerQuantRecipe] | Optional[dict[int, LayerQuantRecipe]] = None
-  feedforward: Optional[LayerQuantRecipe] | Optional[dict[int, LayerQuantRecipe]] = None
+  attention: Union[
+      Optional[LayerQuantRecipe], Optional[dict[int, LayerQuantRecipe]]
+  ] = None
+  feedforward: Union[
+      Optional[LayerQuantRecipe], Optional[dict[int, LayerQuantRecipe]]
+  ] = None
 
   def __str__(self):
     return f"""GenerativeQuantRecipe(
