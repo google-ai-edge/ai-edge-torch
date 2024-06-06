@@ -14,13 +14,18 @@
 # ==============================================================================
 # Cache management utilities.
 
+from dataclasses import dataclass
 from typing import Any, Dict, List, Tuple
 
 import torch
 
 
+@dataclass
 class KVCache:
-  """A utility clss for holding Key and Value caches per layer."""
+  """A utility class for holding Key and Value caches per layer."""
+
+  k_caches: List[torch.Tensor]
+  v_caches: List[torch.Tensor]
 
   def __init__(
       self,
