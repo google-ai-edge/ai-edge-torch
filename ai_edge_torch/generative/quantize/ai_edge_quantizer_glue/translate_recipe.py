@@ -19,10 +19,6 @@ from ai_edge_quantizer import quantizer
 
 from ai_edge_torch.generative.quantize import quant_attrs
 from ai_edge_torch.generative.quantize import quant_recipe
-from ai_edge_torch.generative.quantize.quant_attrs import Algorithm as _algo
-from ai_edge_torch.generative.quantize.quant_attrs import Dtype as _dtype
-from ai_edge_torch.generative.quantize.quant_attrs import Granularity as _granularity  # NOQA
-from ai_edge_torch.generative.quantize.quant_attrs import Mode as _mode
 
 _OpExecutionMode = quantizer.qtyping.OpExecutionMode
 _OpName = quantizer.qtyping.TFLOperationName
@@ -41,40 +37,40 @@ _ANY_TWO_DIGITS_REGEX_STR = '\d{1,2}'
 
 
 def _get_nbits_from_dtype(dtype: quant_attrs.Dtype) -> int:
-  if dtype == _dtype.FP32:
+  if dtype == quant_attrs.Dtype.FP32:
     return 32
-  elif dtype == _dtype.FP16:
+  elif dtype == quant_attrs.Dtype.FP16:
     return 16
-  elif dtype == _dtype.INT8:
+  elif dtype == quant_attrs.Dtype.INT8:
     return 8
   raise ValueError('Unimplemented number of bits')
 
 
 def _get_dtype_from_dtype(dtype: quant_attrs.Dtype) -> quantizer.qtyping.TensorDataType:
-  if dtype == _dtype.FP32 or dtype == _dtype.FP16:
+  if dtype == quant_attrs.Dtype.FP32 or dtype == quant_attrs.Dtype.FP16:
     return quantizer.qtyping.TensorDataType.FLOAT
   else:
     return quantizer.qtyping.TensorDataType.INT
 
 
 def _get_execution_mode_from_mode(mode: quant_attrs.Mode) -> _OpExecutionMode:
-  if mode == _mode.DYNAMIC_RANGE:
+  if mode == quant_attrs.Mode.DYNAMIC_RANGE:
     return _OpExecutionMode.DRQ
-  elif mode == _mode.WEIGHT_ONLY:
+  elif mode == quant_attrs.Mode.WEIGHT_ONLY:
     return _OpExecutionMode.WEIGHT_ONLY
   raise ValueError('Unimplemented execution mode')
 
 
 def _get_channelwise_from_granularity(granularity: quant_attrs.Granularity) -> bool:
-  if granularity == _granularity.CHANNELWISE:
+  if granularity == quant_attrs.Granularity.CHANNELWISE:
     return True
-  elif granularity == _granularity.NONE:
+  elif granularity == quant_attrs.Granularity.NONE:
     return False
   raise ValueError('Unimplemented granularity')
 
 
 def _get_algorithm_key_from_algorithm(algo: quant_attrs.Algorithm) -> str:
-  if algo == _algo.MIN_MAX:
+  if algo == quant_attrs.Algorithm.MIN_MAX:
     return quantizer.algorithm_manager.PTQ
   raise ValueError('Unimplemented algorithm')
 
