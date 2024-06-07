@@ -82,7 +82,7 @@ class LayerQuantRecipe:
 class GenerativeQuantRecipe:
   """Quantization recipe for a model composed of the Edge Generative API layers.
 
-  Some layers can be specified with different LayerQuantRecipe for each block by
+  Some layers can be specified with different `LayerQuantRecipe` for each block by
   providing a dictionary keyed by the TransformerBlock index, e.g. attention
   and feedforward. For example,
 
