@@ -41,6 +41,15 @@ class NormalizationType(enum.Enum):
   LAYER_NORM = enum.auto()
 
 
+@dataclass
+class NormalizationConfig:
+  """Normalizater parameters."""
+
+  type: NormalizationType = NormalizationType.NONE
+  epsilon: float = 1e-5
+  zero_centered: bool = False
+
+
 @enum.unique
 class FeedForwardType(enum.Enum):
   """Different variations of the Feed Forward module."""
@@ -53,9 +62,10 @@ class FeedForwardType(enum.Enum):
 
 @dataclass
 class AttentionConfig:
-  """Attention moduel's parameters."""
+  """Attention model's parameters."""
 
   num_heads: int
+  head_dim: int
   # Used to determine number of groups in grouped query attention (GQA)
   # https://arxiv.org/pdf/2305.13245.pdf
   num_query_groups: Optional[int]
@@ -71,6 +81,9 @@ class AttentionConfig:
   enable_kv_cache: bool = True
   relative_attention_num_buckets: int = 0
   relative_attention_max_distance: int = 0
+  # Normalization to apply to query and key.
+  query_norm_config: NormalizationConfig = field(default_factory=NormalizationConfig)
+  key_norm_config: NormalizationConfig = field(default_factory=NormalizationConfig)
 
 
 @dataclass
@@ -81,15 +94,6 @@ class FeedForwardConfig:
   activation: ActivationType
   intermediate_size: int
   use_bias: bool = False
-
-
-@dataclass
-class NormalizationConfig:
-  """Normalizater parameters."""
-
-  type: NormalizationType = NormalizationType.NONE
-  epsilon: float = 1e-5
-  zero_centered: bool = False
 
 
 @dataclass
@@ -133,7 +137,3 @@ class ModelConfig:
       return self.kv_cache_max_len
     else:
       return self.max_seq_len
-
-  @property
-  def head_dim(self) -> int:
-    return self.embedding_dim // self.attn_config.num_heads
