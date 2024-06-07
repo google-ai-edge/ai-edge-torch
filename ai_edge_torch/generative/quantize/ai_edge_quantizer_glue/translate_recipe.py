@@ -71,7 +71,9 @@ def _get_channelwise_from_granularity(granularity: quant_attrs.Granularity) -> b
 
 def _get_algorithm_key_from_algorithm(algo: quant_attrs.Algorithm) -> str:
   if algo == quant_attrs.Algorithm.MIN_MAX:
-    return quantizer.algorithm_manager.PTQ
+    return quantizer.algorithm_manager.AlgorithmName.MIN_MAX_UNIFORM_QUANT
+  elif algo == quant_attrs.Algorithm.FLOAT_CAST:
+    return quantizer.algorithm_manager.AlgorithmName.FLOAT_CASTING
   raise ValueError('Unimplemented algorithm')
 
 
@@ -80,12 +82,10 @@ def _set_a_quant_config(
     layer_recipe: quant_recipe.LayerQuantRecipe,
     regex: str,
 ):
-  for op_name in [
-      _OpName.FULLY_CONNECTED,
-      _OpName.CONV_2D,
-      _OpName.BATCH_MATMUL,
-      _OpName.EMBEDDING_LOOKUP,
-  ]:
+  support_op_list = [_OpName.FULLY_CONNECTED, _OpName.CONV_2D]
+  if layer_recipe.algorithm == quant_attrs.Algorithm.MIN_MAX:
+    support_op_list += [_OpName.BATCH_MATMUL, _OpName.EMBEDDING_LOOKUP]
+  for op_name in support_op_list:
     rm.add_quantization_config(
         regex=regex,
         operation_name=op_name,
@@ -151,8 +151,11 @@ def quantize_model(
     fp.write(model)
   with open(tmp_recipe_path, 'w') as rp:
     rp.write(json.dumps(recipe))
+
   qt = quantizer.Quantizer(tmp_model_path, tmp_recipe_path)
   result = qt.quantize()
+
+  # TODO(b/336599483): Remove tempfile and use bytearray instead
   import os
 
   os.remove(tmp_model_path)

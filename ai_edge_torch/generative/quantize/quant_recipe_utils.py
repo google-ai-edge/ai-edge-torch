@@ -46,6 +46,6 @@ def create_layer_quant_fp16() -> quant_recipe.LayerQuantRecipe:
       activation_dtype=quant_attrs.Dtype.FP32,
       weight_dtype=quant_attrs.Dtype.FP16,
       mode=quant_attrs.Mode.WEIGHT_ONLY,
-      algorithm=quant_attrs.Algorithm.MIN_MAX,
+      algorithm=quant_attrs.Algorithm.FLOAT_CAST,
       granularity=quant_attrs.Granularity.NONE,
   )
