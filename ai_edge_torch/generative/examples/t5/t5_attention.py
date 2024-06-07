@@ -20,6 +20,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
+from ai_edge_torch.generative.layers.attention import CrossAttention
 import ai_edge_torch.generative.layers.builder as builder
 from ai_edge_torch.generative.layers.kv_cache import KVCache
 import ai_edge_torch.generative.layers.model_config as cfg
@@ -122,7 +123,7 @@ class EncoderDecoderBlock(nn.Module):
     return hidden_states, position_bias, encoder_decoder_position_bias
 
 
-class T5Attention(nn.Module):
+class T5Attention(CrossAttention):
 
   def __init__(
       self,
@@ -138,50 +139,20 @@ class T5Attention(nn.Module):
     Args:
       dim (int): causal attention's input/output dimmension.
       config (cfg.AttentionConfig): attention specific configurations.
+      norm_config (cfg.NormalizationConfig): normalization configure before attention.
       kv_cache_max (int): determines the size of the KV Cache buffer, if enabled.
       enable_hlfb (bool): whether hlfb is enabled or not.
       has_relative_attention_bias (bool): whether we compute relative bias.
     """
-    super().__init__()
+    super().__init__(dim, dim, config, kv_cache_max, enable_hlfb)
     self.pre_atten_norm = builder.build_norm(dim, norm_config)
 
     self.has_relative_attention_bias = has_relative_attention_bias
     self.relative_attention_num_buckets = config.relative_attention_num_buckets
-    self.d_model = dim
-    self.head_dim = dim // config.num_heads
-    self.n_heads = config.num_heads
-    self.inner_dim = self.n_heads * self.head_dim
-
-    self.q = nn.Linear(self.d_model, self.inner_dim, bias=config.qkv_use_bias)
-    self.k = nn.Linear(self.d_model, self.inner_dim, bias=config.qkv_use_bias)
-    self.v = nn.Linear(self.d_model, self.inner_dim, bias=config.qkv_use_bias)
-    # output projection
-    self.proj = nn.Linear(
-        self.inner_dim, self.d_model, bias=config.output_proj_use_bias
-    )
-
     if self.has_relative_attention_bias:
       self.relative_attention_bias = nn.Embedding(
           self.relative_attention_num_buckets, self.n_heads
       )
-
-    self.config = config
-    self.kv_cache = None
-    # Build a k/v cache with size (batch_size, kv_cache_max, n_heads, head_dim).
-    # Now only supports a max batch_size of 1.
-    if config.enable_kv_cache:
-      self.kv_cache = KVCache(
-          1,
-          kv_cache_max,
-          config.num_query_groups,
-          self.head_dim,
-          enable_hlfb,
-      )
-
-    if enable_hlfb:
-      self.sdpa_func = scaled_dot_product_attention_with_hlfb
-    else:
-      self.sdpa_func = scaled_dot_product_attention
 
   def forward(
       self,
@@ -206,7 +177,7 @@ class T5Attention(nn.Module):
 
     x = self.pre_atten_norm(x)
     B, T, C = x.size()  # batch size, sequence length, embedding dimensionality (n_embd)
-    query_states = self.q(x)
+    query_states = self.q_projection(x)
     query_states = query_states.reshape(B, T, -1, self.head_dim)  # (B, T, nh_q, hs)
 
     if key_value_states is not None:
@@ -217,13 +188,13 @@ class T5Attention(nn.Module):
       ) = (
           key_value_states.size()
       )  # batch size, sequence length, embedding dimensionality (n_embd)
-      key_states = self.k(key_value_states)
-      value_states = self.v(key_value_states)
+      key_states = self.k_projection(key_value_states)
+      value_states = self.v_projection(key_value_states)
       key_states = key_states.reshape(kvB, kvT, -1, self.head_dim)
       value_states = value_states.reshape(kvB, kvT, -1, self.head_dim)
     else:
-      key_states = self.k(x)
-      value_states = self.v(x)
+      key_states = self.k_projection(x)
+      value_states = self.v_projection(x)
       key_states = key_states.reshape(B, T, -1, self.head_dim)
       value_states = value_states.reshape(B, T, -1, self.head_dim)
 
@@ -251,5 +222,5 @@ class T5Attention(nn.Module):
     )
     y = y.reshape(B, T, C)  # re-assemble all head outputs side by side
     # output projection
-    y = self.proj(y)
+    y = self.output_projection(y)
     return y, position_bias
