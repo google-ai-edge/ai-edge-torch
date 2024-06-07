@@ -106,13 +106,18 @@ class CausalSelfAttention(nn.Module):
       enable_hlfb (bool): whether hlfb is enabled or not.
     """
     super().__init__()
-    self.head_dim = dim // config.num_heads
-    shape = (config.num_heads + 2 * config.num_query_groups) * self.head_dim
-    # Key, query, value projections for all heads.
-    self.qkv_projection = nn.Linear(dim, shape, bias=config.qkv_use_bias)
-    self.output_projection = nn.Linear(dim, dim, bias=config.output_proj_use_bias)
     self.config = config
     self.kv_cache = None
+    qkv_shape = (config.num_heads + 2 * config.num_query_groups) * config.head_dim
+    output_shape = config.num_heads * config.head_dim
+    # Key, query, value projections for all heads.
+    self.qkv_projection = nn.Linear(dim, qkv_shape, bias=config.qkv_use_bias)
+    self.output_projection = nn.Linear(
+        output_shape, dim, bias=config.output_proj_use_bias
+    )
+    # Query and key normalization.
+    self.query_norm = builder.build_norm(config.head_dim, config.query_norm_config)
+    self.key_norm = builder.build_norm(config.head_dim, config.key_norm_config)
 
     # Build a k/v cache with size (batch_size, kv_cache_max, n_heads, head_dim).
     # Now only supports batch_size of 1.
@@ -122,7 +127,7 @@ class CausalSelfAttention(nn.Module):
           1,
           kv_cache_max,
           config.num_query_groups,
-          self.head_dim,
+          config.head_dim,
           enable_hlfb,
       )
 
@@ -151,7 +156,7 @@ class CausalSelfAttention(nn.Module):
       output activation from this self attention layer.
     """
     # Batch size, sequence length, embedding dimensionality.
-    B, T, E = x.size()
+    B, T, _ = x.size()
     assert B == 1, "Currently only batch_size = 1 is supported."
 
     qkv = self.qkv_projection(x)
@@ -161,23 +166,27 @@ class CausalSelfAttention(nn.Module):
     total_qkv = q_per_kv + 2  # Each group has >=1 queries, 1 key, and 1 value.
     if self.config.qkv_transpose_before_split:
       qkv = qkv.view(
-          B, T, total_qkv, self.config.num_query_groups, self.head_dim
+          B, T, total_qkv, self.config.num_query_groups, self.config.head_dim
       )  # (B, T, total_qkv, num_query_groups, head_dim)
       qkv_axis = -3
     else:
       qkv = qkv.view(
-          B, T, self.config.num_query_groups, total_qkv, self.head_dim
+          B, T, self.config.num_query_groups, total_qkv, self.config.head_dim
       )  # (B, T, num_query_groups, total_qkv, head_dim)
       qkv_axis = -2
 
     # Split batched computation into three.
     q, k, v = qkv.split((q_per_kv, 1, 1), dim=qkv_axis)
-    q = q.reshape(B, T, -1, self.head_dim)
-    k = k.reshape(B, T, -1, self.head_dim)
-    v = v.reshape(B, T, -1, self.head_dim)
+    q = q.reshape(B, T, -1, self.config.head_dim)
+    k = k.reshape(B, T, -1, self.config.head_dim)
+    v = v.reshape(B, T, -1, self.config.head_dim)
+
+    # Apply query and key normalization.
+    q = self.query_norm(q)
+    k = self.key_norm(k)
 
     # Compute rotary positional embedding for query and key.
-    n_elem = int(self.config.rotary_percentage * self.head_dim)
+    n_elem = int(self.config.rotary_percentage * self.config.head_dim)
     if n_elem > 0:
       cos, sin = rope
       q_roped = rotary_pos_emb.apply_rope(
@@ -193,8 +202,8 @@ class CausalSelfAttention(nn.Module):
       # TODO(haoliang): Handle when execeeding max sequence length.
       k, v = self.kv_cache.update_cache(input_pos, k, v)
 
-    y = self.sdpa_func(q, k, v, self.head_dim, mask=mask)
-    y = y.reshape(B, T, E)
+    y = self.sdpa_func(q, k, v, self.config.head_dim, mask=mask)
+    y = y.reshape(B, T, -1)
 
     # Compute the output projection.
     y = self.output_projection(y)
