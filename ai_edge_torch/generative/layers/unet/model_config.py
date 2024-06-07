@@ -90,9 +90,6 @@ class AutoEncoderConfig:
   # The output channels of each block.
   block_out_channels: List[int]
 
-  # # Block types.
-  # block_types: List[BlockType]
-
   # Number of channels in the input image.
   in_channels: int
 

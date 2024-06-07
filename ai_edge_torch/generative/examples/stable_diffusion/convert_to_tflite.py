@@ -48,11 +48,11 @@ def convert_stable_diffusion_to_tflite(
   diffusion = Diffusion()
   diffusion.load_state_dict(torch.load(diffusion_ckpt_path))
 
-  decoder_model = decoder.Decoder(decoder.get_model_config()).eval()
+  decoder_model = decoder.Decoder(decoder.get_model_config())
   decoder_loader = autoencoder_loader.AutoEncoderModelLoader(
       decoder_ckpt_path, decoder.TENSORS_NAMES
   )
-  decoder_loader.load(decoder_model, strict=False)
+  decoder_loader.load(decoder_model)
 
   # Tensors used to trace the model graph during conversion.
   n_tokens = 77
