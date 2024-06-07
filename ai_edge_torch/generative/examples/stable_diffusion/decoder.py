@@ -149,7 +149,46 @@ TENSORS_NAMES = autoencoder_loader.AutoEncoderModelLoader.TensorNames(
 
 
 class Decoder(nn.Module):
+  """The Decoder model used in Stable Diffusion.
+  
+  For details, see https://arxiv.org/abs/2103.00020
 
+  Sturcture of the Decoder:
+  
+      latents tensor
+            |
+            ▼
+  ┌───────────────────┐
+  │  Post Quant Conv  │
+  └─────────┬─────────┘
+            │
+  ┌─────────▼─────────┐
+  │      ConvIn       │
+  └─────────┬─────────┘
+            │
+  ┌─────────▼─────────┐
+  │     MidBlock2D    │
+  └─────────┬─────────┘
+            │
+  ┌─────────▼─────────┐
+  │    UpDecoder2D    │ x 4
+  └─────────┬─────────┘
+            │
+  ┌─────────▼─────────┐
+  │     FinalNorm     │
+  └─────────┬─────────┘
+            |
+  ┌─────────▼─────────┐
+  │    Activation     │
+  └─────────┬─────────┘
+            |
+  ┌─────────▼─────────┐
+  │      ConvOut      │
+  └─────────┬─────────┘
+            |
+            ▼
+      Output Image 
+  """
   def __init__(self, config: unet_cfg.AutoEncoderConfig):
     super().__init__()
     self.config = config
@@ -217,7 +256,8 @@ class Decoder(nn.Module):
     return x
 
 
-def get_model_config():
+def get_model_config() -> unet_cfg.AutoEncoderConfig:
+  """Get configs for the Decoder of Stable Diffusion v1.5"""
   in_channels = 3
   latent_channels = 4
   out_channels = 3

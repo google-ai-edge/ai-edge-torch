@@ -139,6 +139,7 @@ class UpDecoderBlock2D(nn.Module):
   │    (Optional)     │
   │     Upsampler     │
   └─────────┬─────────┘
+            │
   ┌─────────▼─────────┐
   │    (Optional)     │
   │      Conv2D       │
