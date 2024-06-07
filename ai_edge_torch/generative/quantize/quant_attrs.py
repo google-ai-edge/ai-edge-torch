@@ -32,9 +32,11 @@ class Algorithm(enum.Enum):
   Attributes:
     MIN_MAX: Maps the min/max of floating point space to the min/max of
       quantized space and quantize uniformly.
+    FLOAT_CAST: Casts a float to another float of a different type.
   """
 
   MIN_MAX = enum.auto()
+  FLOAT_CAST = enum.auto()
 
 
 @enum.unique

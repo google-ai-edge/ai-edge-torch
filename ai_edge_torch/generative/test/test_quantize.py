@@ -36,34 +36,47 @@ class TestVerifyRecipes(unittest.TestCase):
 
   @parameterized.expand(
       [
-          (Dtype.FP32, Dtype.FP32, Mode.DYNAMIC_RANGE),
-          (Dtype.INT8, Dtype.INT8, Mode.DYNAMIC_RANGE),
-          (Dtype.INT8, Dtype.FP16, Mode.DYNAMIC_RANGE),
-          (Dtype.FP16, Dtype.INT8, Mode.DYNAMIC_RANGE),
-          (Dtype.FP32, Dtype.FP32, Mode.WEIGHT_ONLY),
-          (Dtype.INT8, Dtype.INT8, Mode.WEIGHT_ONLY),
-          (Dtype.FP16, Dtype.INT8, Mode.WEIGHT_ONLY),
-          (Dtype.INT8, Dtype.FP16, Mode.WEIGHT_ONLY),
-          (Dtype.FP16, Dtype.FP16, Mode.WEIGHT_ONLY),
+          (Dtype.FP32, Dtype.FP32),
+          (Dtype.INT8, Dtype.INT8),
+          (Dtype.INT8, Dtype.FP16),
+          (Dtype.FP16, Dtype.INT8),
+          (Dtype.FP16, Dtype.FP16),
       ]
   )
   def test_verify_invalid_recipes(
       self,
       activation,
       weight,
-      mode,
-      algo=Algorithm.MIN_MAX,
-      granularity=Granularity.CHANNELWISE,
   ):
-    with self.assertRaises(ValueError):
-      quant_recipe.LayerQuantRecipe(
-          activation, weight, mode, algo, granularity
-      ).verify()
+    for m in Mode:
+      for a in Algorithm:
+        for g in Granularity:
+          with self.assertRaises(ValueError):
+            quant_recipe.LayerQuantRecipe(activation, weight, m, a, g).verify()
 
   @parameterized.expand(
       [
-          (Dtype.FP32, Dtype.INT8, Mode.DYNAMIC_RANGE, Granularity.CHANNELWISE),
-          (Dtype.FP32, Dtype.FP16, Mode.WEIGHT_ONLY, Granularity.NONE),
+          (
+              Dtype.FP32,
+              Dtype.INT8,
+              Mode.DYNAMIC_RANGE,
+              Algorithm.MIN_MAX,
+              Granularity.CHANNELWISE,
+          ),
+          (
+              Dtype.FP32,
+              Dtype.INT8,
+              Mode.WEIGHT_ONLY,
+              Algorithm.MIN_MAX,
+              Granularity.CHANNELWISE,
+          ),
+          (
+              Dtype.FP32,
+              Dtype.FP16,
+              Mode.WEIGHT_ONLY,
+              Algorithm.FLOAT_CAST,
+              Granularity.NONE,
+          ),
       ]
   )
   def test_verify_valid_recipes(
@@ -71,8 +84,8 @@ class TestVerifyRecipes(unittest.TestCase):
       activation,
       weight,
       mode,
+      algo,
       granularity,
-      algo=Algorithm.MIN_MAX,
   ):
     quant_recipe.LayerQuantRecipe(activation, weight, mode, algo, granularity).verify()
 
@@ -118,7 +131,6 @@ class TestQuantizeConvert(unittest.TestCase):
         expected_compression,
         delta=0.01,
     )
-    quantized_model.export(f"/tmp/test_quantized_{expected_compression}.tflite")
 
   def test_quantize_convert_compare_toy(self):
     self.skipTest("b/338288901")
