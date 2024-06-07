@@ -199,3 +199,17 @@ class CausalSelfAttention(nn.Module):
     # Compute the output projection.
     y = self.output_projection(y)
     return y
+
+
+class SelfAttention(CausalSelfAttention):
+
+  def forward(
+      self,
+      x: torch.Tensor,
+      rope: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+      input_pos: Optional[torch.Tensor] = None,
+  ) -> torch.Tensor:
+    B, T, _ = x.size()
+    return super().forward(
+        x, rope=rope, mask=torch.zeros((B, T), dtype=torch.float32), input_pos=input_pos
+    )
