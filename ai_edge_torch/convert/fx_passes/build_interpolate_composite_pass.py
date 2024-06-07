@@ -65,13 +65,12 @@ def _get_upsample_bilinear2d_align_corners_pattern():
 
   return pattern
 
+
 @functools.cache
 def _get_interpolate_nearest2d_pattern():
   pattern = mark_pattern.Pattern(
       "tfl.resize_nearest_neighbor",
-      lambda x: torch.nn.functional.interpolate(
-          x, scale_factor=2, mode="nearest"
-      ),
+      lambda x: torch.nn.functional.interpolate(x, scale_factor=2, mode="nearest"),
       export_args=(torch.rand(1, 3, 100, 100),),
   )
 
@@ -85,6 +84,7 @@ def _get_interpolate_nearest2d_pattern():
     }
 
   return pattern
+
 
 class BuildInterpolateCompositePass(FxPassBase):
 

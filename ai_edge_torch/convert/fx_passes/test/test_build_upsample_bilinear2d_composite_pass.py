@@ -38,9 +38,7 @@ def _export_to_stablehlo_with_composite(
     module = func
 
   exported_program = torch.export.export(module, export_args)
-  exported_program = run_passes(
-      exported_program, [BuildInterpolateCompositePass()]
-  )
+  exported_program = run_passes(exported_program, [BuildInterpolateCompositePass()])
 
   return torch_xla.stablehlo.exported_program_to_stablehlo(
       exported_program
@@ -221,6 +219,7 @@ class TestBuildAtenCompositePass(unittest.TestCase):
         ),
         1,
     )
+
 
 if __name__ == '__main__':
   unittest.main()
