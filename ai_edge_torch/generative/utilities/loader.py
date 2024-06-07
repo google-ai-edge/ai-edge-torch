@@ -16,7 +16,7 @@
 from dataclasses import dataclass
 import glob
 import os
-from typing import Callable, Dict
+from typing import Callable, Dict, List, Tuple
 
 from safetensors import safe_open
 import torch
@@ -129,7 +129,9 @@ class ModelLoader:
     self._names = names
     self._loader = self._get_loader()
 
-  def load(self, model: torch.nn.Module, strict: bool = True):
+  def load(
+      self, model: torch.nn.Module, strict: bool = True
+  ) -> Tuple[List[str], List[str]]:
     """Load the model from the checkpoint
 
     Args:

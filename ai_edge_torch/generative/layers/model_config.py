@@ -39,6 +39,7 @@ class NormalizationType(enum.Enum):
   NONE = enum.auto()
   RMS_NORM = enum.auto()
   LAYER_NORM = enum.auto()
+  GROUP_NORM = enum.auto()
 
 
 @enum.unique
@@ -90,6 +91,8 @@ class NormalizationConfig:
   type: NormalizationType = NormalizationType.NONE
   epsilon: float = 1e-5
   zero_centered: bool = False
+  # Number of groups used in group normalization.
+  group_num: Optional[float] = None
 
 
 @dataclass
