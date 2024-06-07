@@ -77,7 +77,7 @@ def _get_algorithm_key_from_algorithm(algo: quant_attrs.Algorithm) -> str:
   raise ValueError('Unimplemented algorithm')
 
 
-def _set_a_quant_config(
+def _set_quant_config(
     rm: quantizer.recipe_manager.RecipeManager,
     layer_recipe: quant_recipe.LayerQuantRecipe,
     regex: str,
@@ -111,17 +111,17 @@ def translate_to_ai_edge_recipe(
   rm = quantizer.recipe_manager.RecipeManager()
 
   if recipe.default is not None:
-    _set_a_quant_config(rm, recipe.default, _DEFAULT_REGEX_STR)
+    _set_quant_config(rm, recipe.default, _DEFAULT_REGEX_STR)
 
   if recipe.embedding is not None:
-    _set_a_quant_config(rm, recipe.embedding, _EMBEDDING_REGEX_STR)
+    _set_quant_config(rm, recipe.embedding, _EMBEDDING_REGEX_STR)
 
   if recipe.attention is not None:
     if isinstance(recipe.attention, dict):
       for idx, layer in recipe.attention.items():
-        _set_a_quant_config(rm, layer, _ATTENTION_IDX_REGEX_STR.format(idx))
+        _set_quant_config(rm, layer, _ATTENTION_IDX_REGEX_STR.format(idx))
     else:
-      _set_a_quant_config(
+      _set_quant_config(
           rm,
           recipe.attention,
           _ATTENTION_IDX_REGEX_STR.format(_ANY_TWO_DIGITS_REGEX_STR),
@@ -130,9 +130,9 @@ def translate_to_ai_edge_recipe(
   if recipe.feedforward is not None:
     if isinstance(recipe.feedforward, dict):
       for idx, layer in recipe.feedforward.items():
-        _set_a_quant_config(rm, layer, _FEEDFORWARD_IDX_REGEX_STR.format(idx))
+        _set_quant_config(rm, layer, _FEEDFORWARD_IDX_REGEX_STR.format(idx))
     else:
-      _set_a_quant_config(
+      _set_quant_config(
           rm,
           recipe.feedforward,
           _FEEDFORWARD_IDX_REGEX_STR.format(_ANY_TWO_DIGITS_REGEX_STR),
