@@ -150,11 +150,11 @@ TENSORS_NAMES = autoencoder_loader.AutoEncoderModelLoader.TensorNames(
 
 class Decoder(nn.Module):
   """The Decoder model used in Stable Diffusion.
-  
+
   For details, see https://arxiv.org/abs/2103.00020
 
   Sturcture of the Decoder:
-  
+
       latents tensor
             |
             ▼
@@ -187,8 +187,9 @@ class Decoder(nn.Module):
   └─────────┬─────────┘
             |
             ▼
-      Output Image 
+      Output Image
   """
+
   def __init__(self, config: unet_cfg.AutoEncoderConfig):
     super().__init__()
     self.config = config
