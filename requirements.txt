@@ -1,4 +1,4 @@
-ai-edge-quantizer
+ai-edge-quantizer-nightly
 scipy
 numpy
 tabulate

@@ -80,21 +80,29 @@ def _set_a_quant_config(
     layer_recipe: quant_recipe.LayerQuantRecipe,
     regex: str,
 ):
-  rm.add_quantization_config(
-      regex=regex,
-      operation_name=quantizer.qtyping.TFLOperationName.ALL,
-      op_config=_OpQuantConfig(
-          weight_tensor_config=_TensorQuantConfig(
-              num_bits=_get_nbits_from_dtype(layer_recipe.weight_dtype),
-              symmetric=True,
-              channel_wise=_get_channelwise_from_granularity(layer_recipe.granularity),
-              dtype=_get_dtype_from_dtype(layer_recipe.weight_dtype),
-          ),
-          execution_mode=_get_execution_mode_from_mode(layer_recipe.mode),
-      ),
-      algorithm_key=_get_algorithm_key_from_algorithm(layer_recipe.algorithm),
-      override_algorithm=True,
-  )
+  for op_name in [
+      _OpName.FULLY_CONNECTED,
+      _OpName.CONV_2D,
+      _OpName.BATCH_MATMUL,
+      _OpName.EMBEDDING_LOOKUP,
+  ]:
+    rm.add_quantization_config(
+        regex=regex,
+        operation_name=op_name,
+        op_config=_OpQuantConfig(
+            weight_tensor_config=_TensorQuantConfig(
+                num_bits=_get_nbits_from_dtype(layer_recipe.weight_dtype),
+                symmetric=True,
+                channel_wise=_get_channelwise_from_granularity(
+                    layer_recipe.granularity
+                ),
+                dtype=_get_dtype_from_dtype(layer_recipe.weight_dtype),
+            ),
+            execution_mode=_get_execution_mode_from_mode(layer_recipe.mode),
+        ),
+        algorithm_key=_get_algorithm_key_from_algorithm(layer_recipe.algorithm),
+        override_algorithm=True,
+    )
 
 
 def translate_to_ai_edge_recipe(
