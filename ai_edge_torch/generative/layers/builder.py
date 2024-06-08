@@ -44,6 +44,8 @@ def build_norm(dim: int, config: cfg.NormalizationConfig):
     )
   elif config.type == cfg.NormalizationType.LAYER_NORM:
     return nn.LayerNorm(dim, eps=config.epsilon)
+  elif config.type == cfg.NormalizationType.GROUP_NORM:
+    return nn.GroupNorm(config.group_num, dim, config.epsilon)
   else:
     raise ValueError("Unsupported norm type.")
 
@@ -69,7 +71,7 @@ def build_ff(dim: int, config: cfg.FeedForwardConfig):
   else:
     raise ValueError("Unsupported feedforward type.")
 
-  activation = _get_activation(config.activation)
+  activation = get_activation(config.activation)
 
   return ff_module(
       dim=dim,
@@ -79,7 +81,7 @@ def build_ff(dim: int, config: cfg.FeedForwardConfig):
   )
 
 
-def _get_activation(type_: cfg.ActivationType):
+def get_activation(type_: cfg.ActivationType):
   """Get pytorch callable activation from the name.
 
   Args:

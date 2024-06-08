@@ -199,3 +199,28 @@ class CausalSelfAttention(nn.Module):
     # Compute the output projection.
     y = self.output_projection(y)
     return y
+
+
+class SelfAttention(CausalSelfAttention):
+  """Non-causal Self Attention module, which is equivalent to CausalSelfAttention without mask."""
+
+  def forward(
+      self,
+      x: torch.Tensor,
+      rope: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+      input_pos: Optional[torch.Tensor] = None,
+  ) -> torch.Tensor:
+    """Forward function of the SelfAttention layer, which can support MQA, GQA and MHA.
+
+    Args:
+      x (torch.Tensor): the input tensor.
+      rope (Tuple[torch.Tensor, torch.Tensor]): the input rope tensor.
+      input_pos (torch.Tensor): the optional input position tensor.
+
+    Returns:
+      output activation from this self attention layer.
+    """
+    B, T, _ = x.size()
+    return super().forward(
+        x, rope=rope, mask=torch.zeros((B, T), dtype=torch.float32), input_pos=input_pos
+    )
