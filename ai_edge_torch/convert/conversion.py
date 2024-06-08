@@ -25,7 +25,7 @@ from torch_xla import stablehlo
 from ai_edge_torch import model
 from ai_edge_torch.convert import conversion_utils as cutils
 from ai_edge_torch.convert.fx_passes import BuildAtenCompositePass
-from ai_edge_torch.convert.fx_passes import BuildUpsampleBilinear2DCompositePass  # NOQA
+from ai_edge_torch.convert.fx_passes import BuildInterpolateCompositePass  # NOQA
 from ai_edge_torch.convert.fx_passes import CanonicalizePass
 from ai_edge_torch.convert.fx_passes import InjectMlirDebuginfoPass
 from ai_edge_torch.convert.fx_passes import OptimizeLayoutTransposesPass
@@ -41,7 +41,7 @@ def _run_convert_passes(
   return run_passes(
       exported_program,
       [
-          BuildUpsampleBilinear2DCompositePass(),
+          BuildInterpolateCompositePass(),
           CanonicalizePass(),
           OptimizeLayoutTransposesPass(),
           CanonicalizePass(),

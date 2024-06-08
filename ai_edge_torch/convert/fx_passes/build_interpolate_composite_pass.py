@@ -66,13 +66,34 @@ def _get_upsample_bilinear2d_align_corners_pattern():
   return pattern
 
 
-class BuildUpsampleBilinear2DCompositePass(FxPassBase):
+@functools.cache
+def _get_interpolate_nearest2d_pattern():
+  pattern = mark_pattern.Pattern(
+      "tfl.resize_nearest_neighbor",
+      lambda x: torch.nn.functional.interpolate(x, scale_factor=2, mode="nearest"),
+      export_args=(torch.rand(1, 3, 100, 100),),
+  )
+
+  @pattern.register_attr_builder
+  def attr_builder(pattern, graph_module, internal_match):
+    output = internal_match.returning_nodes[0]
+    output_h, output_w = output.meta["val"].shape[-2:]
+    return {
+        "size": (int(output_h), int(output_w)),
+        "is_nchw_op": True,
+    }
+
+  return pattern
+
+
+class BuildInterpolateCompositePass(FxPassBase):
 
   def __init__(self):
     super().__init__()
     self._patterns = [
         _get_upsample_bilinear2d_pattern(),
         _get_upsample_bilinear2d_align_corners_pattern(),
+        _get_interpolate_nearest2d_pattern(),
     ]
 
   def call(self, graph_module: torch.fx.GraphModule):

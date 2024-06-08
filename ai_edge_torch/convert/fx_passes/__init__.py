@@ -24,7 +24,7 @@ from ai_edge_torch.convert.fx_passes._pass_base import ExportedProgramPassResult
 from ai_edge_torch.convert.fx_passes._pass_base import FxPassBase
 from ai_edge_torch.convert.fx_passes._pass_base import FxPassResult
 from ai_edge_torch.convert.fx_passes.build_aten_composite_pass import BuildAtenCompositePass  # NOQA
-from ai_edge_torch.convert.fx_passes.build_upsample_bilinear2d_composite_pass import BuildUpsampleBilinear2DCompositePass  # NOQA
+from ai_edge_torch.convert.fx_passes.build_interpolate_composite_pass import BuildInterpolateCompositePass  # NOQA
 from ai_edge_torch.convert.fx_passes.canonicalize_pass import CanonicalizePass
 from ai_edge_torch.convert.fx_passes.inject_mlir_debuginfo_pass import InjectMlirDebuginfoPass  # NOQA
 from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import OptimizeLayoutTransposesPass  # NOQA
