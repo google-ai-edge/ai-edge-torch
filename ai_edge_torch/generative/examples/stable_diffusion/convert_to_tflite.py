@@ -20,10 +20,11 @@ import torch
 
 import ai_edge_torch
 import ai_edge_torch.generative.examples.stable_diffusion.clip as clip
-from ai_edge_torch.generative.examples.stable_diffusion.decoder import Decoder
+import ai_edge_torch.generative.examples.stable_diffusion.decoder as decoder
 from ai_edge_torch.generative.examples.stable_diffusion.diffusion import Diffusion  # NOQA
 from ai_edge_torch.generative.examples.stable_diffusion.encoder import Encoder
 import ai_edge_torch.generative.examples.stable_diffusion.util as util
+import ai_edge_torch.generative.utilities.autoencoder_loader as autoencoder_loader
 import ai_edge_torch.generative.utilities.loader as loading_utils
 
 
@@ -47,8 +48,11 @@ def convert_stable_diffusion_to_tflite(
   diffusion = Diffusion()
   diffusion.load_state_dict(torch.load(diffusion_ckpt_path))
 
-  decoder = Decoder()
-  decoder.load_state_dict(torch.load(decoder_ckpt_path))
+  decoder_model = decoder.Decoder(decoder.get_model_config())
+  decoder_loader = autoencoder_loader.AutoEncoderModelLoader(
+      decoder_ckpt_path, decoder.TENSORS_NAMES
+  )
+  decoder_loader.load(decoder_model)
 
   # Tensors used to trace the model graph during conversion.
   n_tokens = 77
@@ -85,7 +89,7 @@ def convert_stable_diffusion_to_tflite(
   ).convert().export('/tmp/stable_diffusion/diffusion.tflite')
 
   # Image decoder
-  ai_edge_torch.signature('decode', decoder, (input_latents,)).convert().export(
+  ai_edge_torch.signature('decode', decoder_model, (input_latents,)).convert().export(
       '/tmp/stable_diffusion/decoder.tflite'
   )
 

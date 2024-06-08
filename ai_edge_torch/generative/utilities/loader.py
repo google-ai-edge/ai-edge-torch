@@ -16,7 +16,7 @@
 from dataclasses import dataclass
 import glob
 import os
-from typing import Callable, Dict
+from typing import Callable, Dict, List, Tuple
 
 from safetensors import safe_open
 import torch
@@ -129,8 +129,10 @@ class ModelLoader:
     self._names = names
     self._loader = self._get_loader()
 
-  def load(self, model: torch.nn.Module, strict: bool = True):
-    """Load the model from the checkpoint
+  def load(
+      self, model: torch.nn.Module, strict: bool = True
+  ) -> Tuple[List[str], List[str]]:
+    """Load the model from the checkpoint.
 
     Args:
         model (torch.nn.Module): The pytorch model that needs to be loaded.
@@ -138,8 +140,8 @@ class ModelLoader:
           matched. Defaults to True.
 
     Returns:
-        missing_keys (List[str]): a list of str containing the missing keys
-        unexpected_keys (List[str]): a list of str containing the unexpected keys
+        missing_keys (List[str]): a list of str containing the missing keys.
+        unexpected_keys (List[str]): a list of str containing the unexpected keys.
 
     Raises:
         ValueError: If conversion results in unmapped tensors and strict mode is

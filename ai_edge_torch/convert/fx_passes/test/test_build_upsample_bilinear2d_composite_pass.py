@@ -19,7 +19,7 @@ import unittest
 import torch
 import torch_xla
 
-from ai_edge_torch.convert.fx_passes import BuildUpsampleBilinear2DCompositePass  # NOQA
+from ai_edge_torch.convert.fx_passes import BuildInterpolateCompositePass  # NOQA
 from ai_edge_torch.convert.fx_passes import run_passes
 
 
@@ -38,9 +38,7 @@ def _export_to_stablehlo_with_composite(
     module = func
 
   exported_program = torch.export.export(module, export_args)
-  exported_program = run_passes(
-      exported_program, [BuildUpsampleBilinear2DCompositePass()]
-  )
+  exported_program = run_passes(exported_program, [BuildInterpolateCompositePass()])
 
   return torch_xla.stablehlo.exported_program_to_stablehlo(
       exported_program
@@ -188,6 +186,36 @@ class TestBuildAtenCompositePass(unittest.TestCase):
     self.assertTrue(
         stablehlo.count(
             'composite_attributes = {align_corners = true, output = dense<[15, 20]> : tensor<2xi64>}'
+        ),
+        1,
+    )
+
+  def test_nn_functional_interpolate_nearest(self):
+    stablehlo = _export_to_stablehlo_with_composite(
+        lambda x: torch.nn.functional.interpolate(x, scale_factor=3.0, mode='nearest'),
+        (torch.rand(1, 3, 10, 10),),
+    )
+    self.assertTrue(
+        stablehlo.count('stablehlo.composite "tfl.resize_nearest_neighbor"'), 1
+    )
+    self.assertTrue(
+        stablehlo.count(
+            'composite_attributes = {is_nchw_op = true, size = dense<30> : tensor<2xi64>}'
+        ),
+        1,
+    )
+
+  def test_nn_functional_interpolate_nearest_size(self):
+    stablehlo = _export_to_stablehlo_with_composite(
+        lambda x: torch.nn.functional.interpolate(x, size=[15, 20], mode='nearest'),
+        (torch.rand(1, 3, 10, 10),),
+    )
+    self.assertTrue(
+        stablehlo.count('stablehlo.composite "tfl.resize_nearest_neighbor"'), 1
+    )
+    self.assertTrue(
+        stablehlo.count(
+            'composite_attributes = {is_nchw_op = true, size = dense<[15, 20]> : tensor<2xi64>}'
         ),
         1,
     )
