@@ -39,7 +39,7 @@ class ResidualBlock2DConfig:
   in_channels: int
   out_channels: int
   normalization_config: layers_cfg.NormalizationConfig
-  activation_type: layers_cfg.ActivationType
+  activation_config: layers_cfg.ActivationConfig
   # Optional time embedding channels if the residual block takes a time embedding context as input
   time_embedding_channels: Optional[int] = None
 
@@ -56,7 +56,7 @@ class UpDecoderBlock2DConfig:
   in_channels: int
   out_channels: int
   normalization_config: layers_cfg.NormalizationConfig
-  activation_type: layers_cfg.ActivationType
+  activation_config: layers_cfg.ActivationConfig
   num_layers: int
   # Optional time embedding channels if the residual blocks take a time embedding context as input
   time_embedding_channels: Optional[int] = None
@@ -72,7 +72,7 @@ class UpDecoderBlock2DConfig:
 class MidBlock2DConfig:
   in_channels: int
   normalization_config: layers_cfg.NormalizationConfig
-  activation_type: layers_cfg.ActivationType
+  activation_config: layers_cfg.ActivationConfig
   num_layers: int
   # Optional time embedding channels if the residual blocks take a time embedding context as input
   time_embedding_channels: Optional[int] = None
@@ -85,7 +85,7 @@ class AutoEncoderConfig:
   """Configurations of encoder/decoder in the autoencoder model."""
 
   # The activation type of encoder/decoder blocks.
-  activation_type: layers_cfg.ActivationType
+  activation_config: layers_cfg.ActivationConfig
 
   # The output channels of each block.
   block_out_channels: List[int]

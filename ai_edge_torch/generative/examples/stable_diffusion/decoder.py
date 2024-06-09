@@ -221,7 +221,7 @@ class Decoder(nn.Module):
                   in_channels=prev_output_channel,
                   out_channels=block_out_channels,
                   normalization_config=config.normalization_config,
-                  activation_type=config.activation_type,
+                  activation_config=config.activation_config,
                   num_layers=config.layers_per_block,
                   add_upsample=not_final_block,
                   upsample_conv=True,
@@ -235,7 +235,7 @@ class Decoder(nn.Module):
     self.final_norm = layers_builder.build_norm(
         block_out_channels, config.normalization_config
     )
-    self.act_fn = layers_builder.get_activation(config.activation_type)
+    self.act_fn = layers_builder.get_activation(config.activation_config)
     self.conv_out = nn.Conv2d(
         block_out_channels,
         config.out_channels,
@@ -287,7 +287,7 @@ def get_model_config() -> unet_cfg.AutoEncoderConfig:
   mid_block_config = unet_cfg.MidBlock2DConfig(
       in_channels=block_out_channels[-1],
       normalization_config=norm_config,
-      activation_type=layers_cfg.ActivationType.SILU,
+      activation_config=layers_cfg.ActivationConfig(layers_cfg.ActivationType.SILU),
       num_layers=1,
       attention_block_config=att_config,
   )
@@ -296,7 +296,7 @@ def get_model_config() -> unet_cfg.AutoEncoderConfig:
       in_channels=in_channels,
       latent_channels=latent_channels,
       out_channels=out_channels,
-      activation_type=layers_cfg.ActivationType.SILU,
+      activation_config=layers_cfg.ActivationConfig(layers_cfg.ActivationType.SILU),
       block_out_channels=block_out_channels,
       scaling_factor=scaling_factor,
       layers_per_block=layers_per_block,

@@ -112,7 +112,7 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   )
   ff_config = cfg.FeedForwardConfig(
       type=cfg.FeedForwardType.SEQUENTIAL,
-      activation=cfg.ActivationType.GELU_TANH,
+      activation=cfg.ActivationConfig(cfg.ActivationType.GELU_TANH),
       intermediate_size=10240,
       use_bias=True,
   )

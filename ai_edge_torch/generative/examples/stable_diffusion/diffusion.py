@@ -130,7 +130,7 @@ class Upsample(nn.Module):
     self.conv = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
 
   def forward(self, x):
-    x = F.interpolate(x, scale_factor=2, mode='nearest')
+    x = F.interpolate(x, scale_factor=2, mode="nearest")
     return self.conv(x)
 
 
@@ -237,3 +237,8 @@ class Diffusion(nn.Module):
     output = self.unet(latent, context, time)
     output = self.final(output)
     return output
+
+
+if __name__ == "__main__":
+  diffusion = Diffusion()
+  print(diffusion.state_dict().keys())

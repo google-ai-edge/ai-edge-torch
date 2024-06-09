@@ -27,7 +27,7 @@ class ActivationType(enum.Enum):
   SILU = enum.auto()
   GELU = enum.auto()
   GELU_TANH = enum.auto()
-  GELU_QUICK = enum.auto()
+  GE_GLU = enum.auto()
   RELU = enum.auto()
 
 
@@ -75,11 +75,19 @@ class AttentionConfig:
 
 
 @dataclass
+class ActivationConfig:
+  type: ActivationType = ActivationType.LINEAR
+  # Dimension of input and output, used in GeGLU.
+  dim_in: Optional[int] = None
+  dim_out: Optional[int] = None
+
+
+@dataclass
 class FeedForwardConfig:
   """FeedForward module's parameters."""
 
   type: FeedForwardType
-  activation: ActivationType
+  activation: ActivationConfig
   intermediate_size: int
   use_bias: bool = False
 
