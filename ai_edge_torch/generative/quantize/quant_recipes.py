@@ -34,15 +34,15 @@ from ai_edge_torch.quantize import quant_config
 
 def full_linear_int8_dynamic_recipe() -> quant_config.QuantConfig:
   return quant_config.QuantConfig(
-      transformer_recipe=quant_recipe.TransformerQuantRecipe(
-          default=quant_recipe_utils.create_layer_quant_int8_dynamic()
+      generative_recipe=quant_recipe.GenerativeQuantRecipe(
+          default=quant_recipe_utils.create_layer_quant_int8_dynamic(),
       )
   )
 
 
 def full_fp16_recipe() -> quant_config.QuantConfig:
   return quant_config.QuantConfig(
-      transformer_recipe=quant_recipe.TransformerQuantRecipe(
+      generative_recipe=quant_recipe.GenerativeQuantRecipe(
           default=quant_recipe_utils.create_layer_quant_fp16()
       )
   )

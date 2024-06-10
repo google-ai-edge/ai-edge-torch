@@ -24,6 +24,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 import torch
 from torch_xla import stablehlo
 
+from ai_edge_torch.generative.quantize.ai_edge_quantizer_glue import translate_recipe  # NOQA
 from ai_edge_torch.quantize import quant_config as qcfg
 
 try:
@@ -249,11 +250,6 @@ def _set_tfl_converter_quant_flags(
       converter._experimental_qdq_conversion_mode = "DYNAMIC"
     elif quantizer_mode == qcfg.QuantConfig._QuantizerMode.PT2E_STATIC:
       converter._experimental_qdq_conversion_mode = "STATIC"
-    elif quantizer_mode == qcfg.QuantConfig._QuantizerMode.TFLITE_DYNAMIC:
-      converter.optimizations = [tf.lite.Optimize.DEFAULT]
-    elif quantizer_mode == qcfg.QuantConfig._QuantizerMode.TFLITE_FP16:
-      converter.optimizations = [tf.lite.Optimize.DEFAULT]
-      converter.target_spec.supported_types = [tf.float16]
 
 
 def convert_stablehlo_to_tflite(
@@ -323,8 +319,24 @@ def convert_stablehlo_to_tflite(
     converter._experimental_enable_composite_direct_lowering = True
 
     _set_tfl_converter_quant_flags(converter, quant_config)
+    if (
+        quant_config is not None
+        and quant_config._quantizer_mode
+        == quant_config._QuantizerMode.AI_EDGE_QUANTIZER
+    ):
+      translated_recipe = translate_recipe.translate_to_ai_edge_recipe(
+          quant_config.generative_recipe
+      )
+
     _apply_tfl_backdoor_flags(converter, _tfl_converter_flags)
 
     tflite_model = converter.convert()
+
+    if (
+        quant_config is not None
+        and quant_config._quantizer_mode
+        == quant_config._QuantizerMode.AI_EDGE_QUANTIZER
+    ):
+      tflite_model = translate_recipe.quantize_model(tflite_model, translated_recipe)
 
   return tflite_model

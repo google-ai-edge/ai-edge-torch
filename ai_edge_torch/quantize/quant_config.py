@@ -32,27 +32,26 @@ class QuantConfig:
     pt2e_quantizer: The instance of PT2EQuantizer used to quantize the model
       with PT2E quantization. This method of quantization is not applicable to
       models created with the Edge Generative API.
-    transformer_recipe: Quantization recipe to be applied on a model created
+    generative_recipe: Quantization recipe to be applied on a model created
       with the Edge Generative API.
   """
 
   pt2e_quantizer: pt2eq.PT2EQuantizer = None
-  transformer_recipe: quant_recipe.TransformerQuantRecipe = None
+  generative_recipe: quant_recipe.GenerativeQuantRecipe = None
 
   @enum.unique
   class _QuantizerMode(enum.Enum):
     NONE = enum.auto()
     PT2E_DYNAMIC = enum.auto()
     PT2E_STATIC = enum.auto()
-    TFLITE_DYNAMIC = enum.auto()
-    TFLITE_FP16 = enum.auto()
+    AI_EDGE_QUANTIZER = enum.auto()
 
   _quantizer_mode: _QuantizerMode = _QuantizerMode.NONE
 
   def __init__(
       self,
       pt2e_quantizer: Optional[pt2eq.PT2EQuantizer] = None,
-      transformer_recipe: Optional[quant_recipe.TransformerQuantRecipe] = None,
+      generative_recipe: Optional[quant_recipe.GenerativeQuantRecipe] = None,
   ):
     """Initializes some internal states based on selected quantization method.
 
@@ -61,8 +60,8 @@ class QuantConfig:
     is properly setup. Additionally sets up an utility enum _quantizer_mode to
     guide certain conversion processes.
     """
-    if pt2e_quantizer is not None and transformer_recipe is not None:
-      raise ValueError('Cannot set both pt2e_quantizer and transformer_recipe.')
+    if pt2e_quantizer is not None and generative_recipe is not None:
+      raise ValueError('Cannot set both pt2e_quantizer and generative_recipe.')
     elif pt2e_quantizer is not None:
       object.__setattr__(self, 'pt2e_quantizer', pt2e_quantizer)
       object.__setattr__(
@@ -74,12 +73,9 @@ class QuantConfig:
               else self._QuantizerMode.PT2E_STATIC
           ),
       )
-    elif transformer_recipe is not None:
-      transformer_recipe.verify()
-      object.__setattr__(self, 'transformer_recipe', transformer_recipe)
-      if self.transformer_recipe.default.mode == quant_attrs.Mode.DYNAMIC_RANGE:
-        object.__setattr__(self, '_quantizer_mode', self._QuantizerMode.TFLITE_DYNAMIC)
-      elif self.transformer_recipe.default.weight_dtype == quant_attrs.Dtype.FP16:
-        object.__setattr__(self, '_quantizer_mode', self._QuantizerMode.TFLITE_FP16)
+    elif generative_recipe is not None:
+      generative_recipe.verify()
+      object.__setattr__(self, 'generative_recipe', generative_recipe)
+      object.__setattr__(self, '_quantizer_mode', self._QuantizerMode.AI_EDGE_QUANTIZER)
     else:
-      raise ValueError('Either pt2e_quantizer or transformer_recipe must be set.')
+      raise ValueError('Either pt2e_quantizer or generative_recipe must be set.')

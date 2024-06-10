@@ -14,8 +14,7 @@
 # ==============================================================================
 
 from dataclasses import dataclass
-import enum
-from typing import Optional
+from typing import Optional, Union
 
 from ai_edge_torch.generative.quantize import quant_attrs
 from ai_edge_torch.generative.quantize import supported_schemes
@@ -80,18 +79,50 @@ class LayerQuantRecipe:
 
 
 @dataclass
-class TransformerQuantRecipe:
+class GenerativeQuantRecipe:
   """Quantization recipe for a model composed of the Edge Generative API layers.
+
+  Some layers can be specified with different `LayerQuantRecipe` for each block by
+  providing a dictionary keyed by the TransformerBlock index, e.g. attention
+  and feedforward. For example,
+
+  ```
+  default = LayerQuantRecipeA
+  attention = { 2: LayerQuantRecipeB }
+  feedforward = { 3: LayerQuantRecipeC }
+  ```
+
+  will apply LayerQuantRecipeA to the entire model, overriden by
+  LayerQuantRecipeB for the TransformerBlock[2].attention layer and
+  LayerQuantRecipeC for the TransformerBlock[3].feedforward layer. Any config
+  with invalid indices will be ignored.
 
   Attributes:
     default: The quantization recipe for global scope of the model.
+    embedding: Recipe for the embedding table.
+    attention: Recipe for the attention blocks. This could be specified with
+      different LayerQuantRecipe for each block by providing a dictionary
+      keyed by the TransformerBlock index.
+    feedforward: Recipe for the feedforward layers. This could be specified with
+      different LayerQuantRecipe for each block by providing a dictionary
+      keyed by the TransformerBlock index.
   """
 
   default: Optional[LayerQuantRecipe] = None
+  embedding: Optional[LayerQuantRecipe] = None
+  attention: Union[
+      Optional[LayerQuantRecipe], Optional[dict[int, LayerQuantRecipe]]
+  ] = None
+  feedforward: Union[
+      Optional[LayerQuantRecipe], Optional[dict[int, LayerQuantRecipe]]
+  ] = None
 
   def __str__(self):
-    return f"""TransformerQuantRecipe(
+    return f"""GenerativeQuantRecipe(
   Default: {self.default}
+  Embedding: {self.embedding}
+  Attention: {self.attention}
+  Feedforward: {self.feedforward}
 )"""
 
   __repr__ = __str__
@@ -104,3 +135,17 @@ class TransformerQuantRecipe:
     """
     if self.default is not None:
       self.default.verify()
+    if self.embedding is not None:
+      self.embedding.verify()
+    if self.attention is not None:
+      if isinstance(self.attention, dict):
+        for recipe in self.attention.values():
+          recipe.verify()
+      else:
+        self.attention.verify()
+    if self.feedforward is not None:
+      if isinstance(self.feedforward, dict):
+        for recipe in self.feedforward.values():
+          recipe.verify()
+      else:
+        self.feedforward.verify()
