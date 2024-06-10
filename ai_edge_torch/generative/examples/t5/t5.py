@@ -349,7 +349,7 @@ def get_model_config_t5() -> cfg.ModelConfig:
   )
   ff_config = cfg.FeedForwardConfig(
       type=cfg.FeedForwardType.SEQUENTIAL,
-      activation=cfg.ActivationType.RELU,
+      activation=cfg.ActivationConfig(cfg.ActivationType.RELU),
       intermediate_size=3072,
   )
   # T5 Confirmed as RMS Norm and eps = 1e-6 TJA.

@@ -76,7 +76,7 @@ def define_and_run() -> None:
   )
   ff_config = cfg.FeedForwardConfig(
       type=cfg.FeedForwardType.GATED,
-      activation=cfg.ActivationType.SILU,
+      activation=cfg.ActivationConfig(cfg.ActivationType.SILU),
       intermediate_size=256,
   )
   norm_config = cfg.NormalizationConfig(type=cfg.NormalizationType.RMS_NORM)

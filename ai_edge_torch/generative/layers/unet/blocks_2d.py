@@ -53,7 +53,7 @@ class ResidualBlock2D(nn.Module):
     self.conv_2 = nn.Conv2d(
         config.out_channels, config.out_channels, kernel_size=3, stride=1, padding=1
     )
-    self.act_fn = layers_builder.get_activation(config.activation_type)
+    self.act_fn = layers_builder.get_activation(config.activation_config)
     if config.in_channels == config.out_channels:
       self.residual_layer = nn.Identity()
     else:
@@ -167,7 +167,7 @@ class UpDecoderBlock2D(nn.Module):
                   out_channels=config.out_channels,
                   time_embedding_channels=config.time_embedding_channels,
                   normalization_config=config.normalization_config,
-                  activation_type=config.activation_type,
+                  activation_config=config.activation_config,
               )
           )
       )
@@ -244,7 +244,7 @@ class MidBlock2D(nn.Module):
                 out_channels=config.in_channels,
                 time_embedding_channels=config.time_embedding_channels,
                 normalization_config=config.normalization_config,
-                activation_type=config.activation_type,
+                activation_config=config.activation_config,
             )
         )
     ]
@@ -259,7 +259,7 @@ class MidBlock2D(nn.Module):
                   out_channels=config.in_channels,
                   time_embedding_channels=config.time_embedding_channels,
                   normalization_config=config.normalization_config,
-                  activation_type=config.activation_type,
+                  activation_config=config.activation_config,
               )
           )
       )

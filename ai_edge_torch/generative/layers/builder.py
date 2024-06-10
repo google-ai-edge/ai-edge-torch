@@ -13,12 +13,30 @@
 # limitations under the License.
 # ==============================================================================
 # Builder class for individual components.
+import torch
 from torch import nn
 import torch.nn.functional as F
 
 import ai_edge_torch.generative.layers.feed_forward as feed_forward
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.layers.normalization as normalization
+
+
+class GeGLU(nn.Module):
+  """GeGLU is an activation function which is a variant of GELU.
+
+  GeGLU(x) = (xW+b) * GELU(xV+c)
+  See: https://arxiv.org/abs/2002.05202v1
+
+  """
+
+  def __init__(self, d_in: int, d_out: int):
+    super().__init__()
+    self.proj = nn.Linear(d_in, d_out * 2)
+
+  def forward(self, x: torch.Tensor):
+    x, gate = self.proj(x).chunk(2, dim=-1)
+    return x * F.gelu(gate)
 
 
 def build_norm(dim: int, config: cfg.NormalizationConfig):
@@ -81,29 +99,33 @@ def build_ff(dim: int, config: cfg.FeedForwardConfig):
   )
 
 
-def get_activation(type_: cfg.ActivationType):
-  """Get pytorch callable activation from the name.
+def get_activation(config: cfg.ActivationConfig):
+  """Get pytorch callable activation from the activation config.
 
   Args:
-    name (string): activation's name.
+    config (cfg.ActivationConfig): activation config.
 
   Returns:
     Activation function.
 
   Raises:
-    ValueError: If activation name is not supported.
+    ValueError: If activation config is not supported.
   """
-  if type_ == cfg.ActivationType.SILU:
+  if config.type == cfg.ActivationType.LINEAR:
+    return lambda x: x
+  elif config.type == cfg.ActivationType.SILU:
     return F.silu
-  elif type_ == cfg.ActivationType.GELU:
+  elif config.type == cfg.ActivationType.GELU:
     return F.gelu
-  elif type_ == cfg.ActivationType.GELU_TANH:
+  elif config.type == cfg.ActivationType.GELU_TANH:
     return lambda x: F.gelu(x, approximate="tanh")
-  elif type_ == cfg.ActivationType.GELU_QUICK:
+  elif config.type == cfg.ActivationType.GELU_QUICK:
     # GELU approximation that is fast but somewhat inaccurate.
     # See: https://github.com/hendrycks/GELUs
     return lambda x: x * F.sigmoid(1.702 * x)
-  elif type_ == cfg.ActivationType.RELU:
+  elif config.type == cfg.ActivationType.GE_GLU:
+    return GeGLU(config.dim_in, config.dim_out)
+  elif config.type == cfg.ActivationType.RELU:
     return F.relu
   else:
     raise ValueError("Unsupported activation type.")
