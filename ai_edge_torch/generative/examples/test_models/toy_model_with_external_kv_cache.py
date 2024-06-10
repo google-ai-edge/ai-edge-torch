@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 # A toy example which has basic transformer block (w/ externalized KV-Cache).
+import sys
+sys.path.append("../../../../")
 
 from typing import List, Tuple
 
@@ -101,7 +103,7 @@ def get_model_config() -> cfg.ModelConfig:
   norm_config = cfg.NormalizationConfig(type=cfg.NormalizationType.RMS_NORM)
   config = cfg.ModelConfig(
       vocab_size=150,
-      num_layers=2,
+      num_layers=1,
       max_seq_len=100,
       embedding_dim=128,
       attn_config=attn_config,
@@ -132,8 +134,8 @@ def define_and_run() -> None:
   config = get_model_config()
   model = ToyModelWithExternalKV(config)
   print('running an inference')
-  k_caches = torch.zeros((2, 1, 100, 4, 4), dtype=torch.float32)
-  v_caches = torch.zeros((2, 1, 100, 4, 4), dtype=torch.float32)
+  k_caches = torch.zeros((1, 1, 100, 4, 4), dtype=torch.float32)
+  v_caches = torch.zeros((1, 1, 100, 4, 4), dtype=torch.float32)
 
   idx, input_pos = get_sample_prefill_inputs()
   decode_idx, decode_input_pos = get_sample_decode_inputs()
