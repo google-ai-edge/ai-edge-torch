@@ -225,7 +225,7 @@ class Decoder(nn.Module):
                   num_layers=config.layers_per_block,
                   add_upsample=not_final_block,
                   upsample_conv=True,
-                  sampling_config=unet_cfg.SamplingConfig(
+                  sampling_config=unet_cfg.UpSamplingConfig(
                       2, unet_cfg.SamplingType.NEAREST
                   ),
               )
