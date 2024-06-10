@@ -271,7 +271,7 @@ def get_model_config() -> unet_cfg.AutoEncoderConfig:
   )
 
   att_config = unet_cfg.AttentionBlock2DConfig(
-      dims=block_out_channels[-1],
+      dim=block_out_channels[-1],
       normalization_config=norm_config,
       attention_config=layers_cfg.AttentionConfig(
           num_heads=1,

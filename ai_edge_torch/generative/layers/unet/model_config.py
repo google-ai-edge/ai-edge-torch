@@ -46,9 +46,34 @@ class ResidualBlock2DConfig:
 
 @dataclass
 class AttentionBlock2DConfig:
-  dims: int
+  dim: int
   normalization_config: layers_cfg.NormalizationConfig
   attention_config: layers_cfg.AttentionConfig
+
+
+@dataclass
+class CrossAttentionBlock2DConfig:
+  query_dim: int
+  cross_dim: int
+  normalization_config: layers_cfg.NormalizationConfig
+  attention_config: layers_cfg.AttentionConfig
+
+
+@dataclass
+class FeedForwardBlock2DConfig:
+  dim: int
+  hidden_dim: int
+  normalization_config: layers_cfg.NormalizationConfig
+  activation_config: layers_cfg.ActivationConfig
+  use_bias: bool
+
+
+@dataclass
+class TransformerBlock2Dconfig:
+  pre_conv_normalization_config: layers_cfg.NormalizationConfig
+  attention_block_config: AttentionBlock2DConfig
+  cross_attention_block_config: CrossAttentionBlock2DConfig
+  feed_forward_block_config: FeedForwardBlock2DConfig
 
 
 @dataclass

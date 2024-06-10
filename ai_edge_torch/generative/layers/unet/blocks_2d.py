@@ -18,8 +18,10 @@ from typing import Optional
 import torch
 from torch import nn
 
+from ai_edge_torch.generative.layers.attention import CrossAttention
 from ai_edge_torch.generative.layers.attention import SelfAttention
 import ai_edge_torch.generative.layers.builder as layers_builder
+import ai_edge_torch.generative.layers.model_config as layers_cfg
 import ai_edge_torch.generative.layers.unet.builder as unet_builder
 import ai_edge_torch.generative.layers.unet.model_config as unet_cfg
 
@@ -78,6 +80,7 @@ class ResidualBlock2D(nn.Module):
     x = self.act_fn(x)
     x = self.conv_1(x)
     if self.time_emb_proj is not None:
+      time_emb = self.act_fn(time_emb)
       time_emb = self.time_emb_proj(time_emb)[:, :, None, None]
       x = x + time_emb
     x = self.norm_2(x)
@@ -90,7 +93,8 @@ class ResidualBlock2D(nn.Module):
 class AttentionBlock2D(nn.Module):
   """2D self attention block
 
-  x = SelfAttention(Norm(input_tensor))
+  residual = x
+  x = SelfAttention(Norm(input_tensor)) + residual
 
   """
 
@@ -101,8 +105,8 @@ class AttentionBlock2D(nn.Module):
       config (unet_cfg.AttentionBlock2DConfig): the configuration of this block.
     """
     super().__init__()
-    self.norm = layers_builder.build_norm(config.dims, config.normalization_config)
-    self.attention = SelfAttention(config.dims, config.attention_config, 0, True)
+    self.norm = layers_builder.build_norm(config.dim, config.normalization_config)
+    self.attention = SelfAttention(config.dim, config.attention_config, 0, True)
 
   def forward(self, input_tensor: torch.Tensor) -> torch.Tensor:
     """Forward function of the AttentionBlock2D.
@@ -122,6 +126,168 @@ class AttentionBlock2D(nn.Module):
     x = x.transpose(-1, -2)
     x = x.view(B, C, H, W)
     x = x + residual
+    return x
+
+
+class CrossAttentionBlock2D(nn.Module):
+  """2D cross attention block
+
+  residual = x
+  x = CrossAttention(Norm(input_tensor), context) + residual
+
+  """
+
+  def __init__(self, config: unet_cfg.CrossAttentionBlock2DConfig):
+    """Initialize an instance of the AttentionBlock2D.
+
+    Args:
+      config (unet_cfg.CrossAttentionBlock2DConfig): the configuration of this block.
+    """
+    super().__init__()
+    self.config = config
+    self.norm = layers_builder.build_norm(config.query_dim, config.normalization_config)
+    self.attention = CrossAttention(
+        config.query_dim, config.cross_dim, config.attention_config, 0, True
+    )
+
+  def forward(
+      self, input_tensor: torch.Tensor, context_tensor: torch.Tensor
+  ) -> torch.Tensor:
+    """Forward function of the CrossAttentionBlock2D.
+
+    Args:
+      input_tensor (torch.Tensor): the input tensor.
+      context_tensor (torch.Tensor): the context tensor to apply cross attention on.
+
+    Returns:
+      output activation tensor after cross attention.
+    """
+    residual = input_tensor
+    x = self.norm(input_tensor)
+    B, C, H, W = x.shape
+    x = x.view(B, C, H * W)
+    x = x.transpose(-1, -2)
+    x = self.attention(x, context_tensor)
+    x = x.transpose(-1, -2)
+    x = x.view(B, C, H, W)
+    x = x + residual
+    return x
+
+
+class FeedForwardBlock2D(nn.Module):
+  """2D feed forward block
+
+  residual = x
+  x = w2(Activation(w1(Norm(x)))) + residual
+
+  """
+
+  def __init__(
+      self,
+      config: unet_cfg.FeedForwardBlock2DConfig,
+  ):
+    super().__init__()
+    self.config = config
+    self.act = layers_builder.get_activation(config.activation_config)
+    self.norm = layers_builder.build_norm(config.hidden_dim, config.normalization_config)
+    if config.activation_config.type == layers_cfg.ActivationType.GE_GLU:
+      self.w1 = nn.Identity()
+      self.w2 = nn.Linear(config.hidden_dim, config.dim)
+    else:
+      self.w1 = nn.Linear(config.dim, config.hidden_dim)
+      self.w2 = nn.Linear(config.hidden_dim, config.dim)
+
+  def forward(self, x: torch.Tensor) -> torch.Tensor:
+    residual = x
+
+    B, C, H, W = x.shape
+    x = x.view((B, C, H * W))
+    x = x.transpose(-1, -2)  # (B, HW, C)
+
+    x = self.norm(x)
+    x = self.w1(x)
+    x = self.act(x)
+    x = self.w2(x)
+
+    x = x.transpose(-1, -2)  # (B, C, HW)
+    x = x.view((B, C, H, W))
+
+    return x + residual
+
+
+class TransformerBlock2D(nn.Module):
+  """Basic transformer block used in UNet of diffusion model
+
+       input_tensor    context_tensor
+            |                 |
+  ┌─────────▼─────────┐       |
+  │      ConvIn       |       │
+  └─────────┬─────────┘       |
+            |                 |
+            ▼                 |
+  ┌───────────────────┐       |
+  │  Attention Block  │       |
+  └─────────┬─────────┘       |
+            │                 |
+  ┌────────────────────┐      |
+  │CrossAttention Block│◄─────┘
+  └─────────┬──────────┘
+            │
+  ┌─────────▼─────────┐
+  │ FeedForwardBlock  │
+  └─────────┬─────────┘
+            │
+  ┌─────────▼─────────┐
+  │      ConvOut      │
+  └─────────┬─────────┘
+            ▼
+      hidden_states
+
+
+  """
+
+  def __init__(self, config: unet_cfg.TransformerBlock2Dconfig):
+    """Initialize an instance of the TransformerBlock2D.
+
+    Args:
+      config (unet_cfg.TransformerBlock2Dconfig): the configuration of this block.
+    """
+    self.config = config
+    self.pre_conv_norm = layers_builder.build_norm(
+        config.query_dim, config.pre_conv_normalization_config
+    )
+    self.conv_in = nn.Conv2d(
+        config.query_dim, config.query_dim, kernel_size=1, padding=0
+    )
+    self.self_attention = AttentionBlock2D(config.attention_block_config)
+    self.cross_attention = CrossAttention(config.cross_attention_block_config)
+    self.feed_forward = FeedForwardBlock2D(config.feed_forward_block_config)
+    self.conv_out = nn.Conv2d(
+        config.query_dim, config.query_dim, kernel_size=1, padding=0
+    )
+
+  def forward(self, x: torch.Tensor, context: torch.Tensor):
+    """Forward function of the TransformerBlock2D.
+
+    Args:
+      input_tensor (torch.Tensor): the input tensor.
+      context_tensor (torch.Tensor): the context tensor to apply cross attention on.
+
+    Returns:
+      output activation tensor after transformer block.
+    """
+    residual_long = x
+
+    x = self.pre_conv_norm(x)
+    x = self.conv_in(x)
+
+    x = self.self_attention(x)
+    x = self.cross_attention(x, context)
+    x = self.feed_forward(x)
+
+    x = self.conv_out(x)
+    x = x + residual_long
+
     return x
 
 
