@@ -119,5 +119,5 @@ For an end-to-end example showing how to author, convert, quantize and execute, 
 ### Known Issues
 The following are known product issues we are actively working to fix.
 
-* The conversion, and serialization process is unoptimized for LLMs. It requires keeping multiple copies of the weights in memory for transformations, and serialization/deserialization.
+* The conversion, and serialization process is unoptimized for LLMs. It requires keeping multiple copies of the weights in memory for transformations, and serialization/deserialization. For an optimal conversion flow, use Colab Pro or a powerful Linux workstation (or cloud instance) with at least 32GB of RAM.
 * Runtime execution of the LLM in TFLite is missing some memory optimizations, and inefficient during memory unpacking on XNNPack.
