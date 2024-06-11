@@ -25,6 +25,7 @@ from ai_edge_torch.generative.layers.kv_cache import KVCache
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention  # NOQA
+from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention_torch  # NOQA
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention_with_hlfb  # NOQA
 
 
@@ -226,6 +227,19 @@ class CausalSelfAttention(nn.Module):
 class SelfAttention(CausalSelfAttention):
   """Non-causal Self Attention module, which is equivalent to CausalSelfAttention without mask."""
 
+  def __init__(
+      self,
+      dim: int,
+      config: cfg.AttentionConfig,
+      kv_cache_max: int,
+      enable_hlfb: bool,
+  ) -> None:
+    super().__init__(dim, config, kv_cache_max, enable_hlfb=enable_hlfb)
+    if not enable_hlfb:
+      # TODO(yichunk): enable HLFB for batch size > 1.
+      # Currently only this sdpa_func support batch size > 1.
+      self.sdpa_func = scaled_dot_product_attention_torch
+
   def forward(
       self,
       x: torch.Tensor,
@@ -244,7 +258,10 @@ class SelfAttention(CausalSelfAttention):
     """
     B, T, _ = x.size()
     return super().forward(
-        x, rope=rope, mask=torch.zeros((B, T), dtype=torch.float32), input_pos=input_pos
+        x,
+        rope=rope,
+        mask=torch.zeros((B, 1, T, T), dtype=torch.float32),
+        input_pos=input_pos,
     )
 
 
@@ -291,10 +308,11 @@ class CrossAttention(nn.Module):
           enable_hlfb,
       )
 
+    # TODO(yichunk): enable HLFB for cross attention. The length of source and target sequence are different.
     if enable_hlfb:
       self.sdpa_func = scaled_dot_product_attention_with_hlfb
     else:
-      self.sdpa_func = scaled_dot_product_attention
+      self.sdpa_func = scaled_dot_product_attention_torch
 
   def forward(
       self,
@@ -304,19 +322,29 @@ class CrossAttention(nn.Module):
       mask: Optional[torch.Tensor] = None,
       input_pos: Optional[torch.Tensor] = None,
   ):
-    B, T, E = x.size()  # batch size, sequence length, embedding dimensionality (n_embd)
+    """Forward function of the CrossAttention layer.
+
+    Args:
+      x (torch.Tensor): the target tensor, with shape [B, target_seq_len, ...]
+      y (torch.Tensor): the source tensor, with shape [B, source_seq_len, ...]
+      rope (Tuple[torch.Tensor, torch.Tensor]): the input rope tensor.
+      input_pos (torch.Tensor): the optional input position tensor.
+
+    Returns:
+      output activation from this self attention layer.
+    """
+    batch_size = x.size()[0]
+    target_seq_len = x.size()[1]
+    source_seq_len = y.size()[1]
 
     q = self.q_projection(x)
-    k = self.k_projection(x)
-    v = self.v_projection(x)
+    k = self.k_projection(y)
+    v = self.v_projection(y)
 
-    interim_shape = (B, T, self.n_heads, self.head_dim)
+    interim_shape = (batch_size, -1, self.n_heads, self.head_dim)
     q = q.view(interim_shape)
     k = k.view(interim_shape)
     v = v.view(interim_shape)
-
-    if mask is None:
-      mask = torch.zeros((B, T), dtype=torch.float32)
 
     # Compute rotary positional embedding for query and key.
     n_elem = int(self.config.rotary_percentage * self.head_dim)
@@ -325,9 +353,11 @@ class CrossAttention(nn.Module):
     if self.kv_cache is not None:
       # TODO(haoliang): Handle when execeeding max sequence length.
       k, v = self.kv_cache.update_cache(input_pos, k, v)
-
+    mask = torch.zeros(
+        (batch_size, 1, target_seq_len, source_seq_len), dtype=torch.float32
+    )
     y = self.sdpa_func(q, k, v, self.head_dim, mask=mask)
-    y = y.reshape(B, T, E)
+    y = y.reshape(batch_size, target_seq_len, -1)
 
     # Compute the output projection.
     y = self.output_projection(y)

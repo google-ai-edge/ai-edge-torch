@@ -115,3 +115,40 @@ def scaled_dot_product_attention_with_hlfb(
   result = y.transpose(1, 2)
   result = builder.mark_outputs(result)
   return result
+
+
+# TODO(yichunk): enable HLFB for cross attention
+def scaled_dot_product_attention_torch(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    head_size: int,
+    mask: Optional[torch.Tensor] = None,
+    scale: Optional[float] = None,
+):
+  """Scaled dot product attention implemented in PyTorch, supporting unequal sequence length of q and k, v.
+
+  Args:
+    q (torch.Tensor): Query tensor, with shape [B, T, N, H].
+    k (torch.Tensor): Key tensor, with shape [B, S, KV_LEN, H].
+    v (torch.Tensor): Value tensor, with shape [B, S, KV_LEN, H].
+    head_size (int): head dimension.
+    mask (torch.Tensor): the optional mask tensor.
+
+  Returns:
+    The output tensor of scaled_dot_product_attention.
+  """
+
+  if scale is None:
+    scale = 1.0 / math.sqrt(head_size)
+
+  q = q.transpose(1, 2)
+  k = k.transpose(1, 2)
+  v = v.transpose(1, 2)
+
+  y = q @ k.transpose(-1, -2)
+  y *= scale
+  y = F.softmax(y, dim=-1)
+  y = y @ v
+
+  return y.transpose(1, 2)

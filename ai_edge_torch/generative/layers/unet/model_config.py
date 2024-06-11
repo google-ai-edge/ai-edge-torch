@@ -204,3 +204,59 @@ class AutoEncoderConfig:
 
   # The configuration of middle blocks, that is, after the last block of encoder and before the first block of decoder.
   mid_block_config: MidBlock2DConfig
+
+
+@dataclass
+class DiffusionModelConfig:
+  """Configurations of Diffusion model."""
+
+  # Number of channels in the input tensor.
+  in_channels: int
+
+  # Number of channels in the output tensor.
+  out_channels: int
+
+  # The output channels of each block.
+  block_out_channels: List[int]
+
+  # The layesr number of each block.
+  layers_per_block: int
+
+  # The padding to use for the downsampling.
+  downsample_padding: int
+
+  # Normalization config used in residual blocks.
+  residual_norm_config: layers_cfg.NormalizationConfig
+
+  # Activation config used in residual blocks
+  residual_activation_type: layers_cfg.ActivationType
+
+  # The number of attention heads used in transformer blocks.
+  transformer_num_attention_heads: int
+
+  # The dimension of cross attention used in transformer blocks.
+  transformer_cross_attention_dim: int
+
+  # Normalization config used in prev conv layer of transformer blocks.
+  transformer_pre_conv_norm_config: layers_cfg.NormalizationConfig
+
+  # Normalization config used in transformer blocks.
+  transformer_norm_config: layers_cfg.NormalizationConfig
+
+  # Activation type of feed forward used in transformer blocks.
+  transformer_ff_activation_type: layers_cfg.ActivationType
+
+  # Number of layers in mid block.
+  mid_block_layers: int
+
+  # Dimension of time embedding.
+  time_embedding_dim: int
+
+  # Time embedding dimensions for blocks.
+  time_embedding_blocks_dim: int
+
+  # Normalization config used for final layer
+  final_norm_config: layers_cfg.NormalizationConfig
+
+  # Activation type used in final layer
+  final_activation_type: layers_cfg.ActivationType
