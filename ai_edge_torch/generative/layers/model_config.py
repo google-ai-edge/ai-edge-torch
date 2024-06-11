@@ -27,6 +27,7 @@ class ActivationType(enum.Enum):
   SILU = enum.auto()
   GELU = enum.auto()
   GELU_TANH = enum.auto()
+  GELU_QUICK = enum.auto()
   GE_GLU = enum.auto()
   RELU = enum.auto()
 
