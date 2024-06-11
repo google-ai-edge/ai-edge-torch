@@ -145,7 +145,7 @@ class AutoEncoderModelLoader(loader.ModelLoader):
               in_channels=prev_output_channel,
               out_channels=block_out_channels,
               normalization_config=model.config.normalization_config,
-              activation_type=model.config.activation_type,
+              activation_config=model.config.activation_config,
               num_layers=model.config.layers_per_block,
               add_upsample=not_final_block,
               upsample_conv=True,
@@ -240,7 +240,7 @@ class AutoEncoderModelLoader(loader.ModelLoader):
         out_channels=config.in_channels,
         time_embedding_channels=config.time_embedding_channels,
         normalization_config=config.normalization_config,
-        activation_type=config.activation_type,
+        activation_config=config.activation_config,
     )
     self._map_residual_block(
         state,
@@ -286,7 +286,7 @@ class AutoEncoderModelLoader(loader.ModelLoader):
               out_channels=config.out_channels,
               time_embedding_channels=config.time_embedding_channels,
               normalization_config=config.normalization_config,
-              activation_type=config.activation_type,
+              activation_config=config.activation_config,
           ),
       )
     if config.add_upsample and config.upsample_conv:
