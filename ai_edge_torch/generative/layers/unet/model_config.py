@@ -22,16 +22,28 @@ from typing import List, Optional
 import ai_edge_torch.generative.layers.model_config as layers_cfg
 
 
-@dataclass
+@enum.unique
 class SamplingType(enum.Enum):
   NEAREST = enum.auto()
   BILINEAR = enum.auto()
+  AVERAGE = enum.auto()
+  CONVOLUTION = enum.auto()
 
 
 @dataclass
-class SamplingConfig:
-  scale_factor: float
+class UpSamplingConfig:
   mode: SamplingType
+  scale_factor: float
+
+
+@dataclass
+class DownSamplingConfig:
+  mode: SamplingType
+  in_channels: int
+  kernel_size: int
+  stride: int
+  padding: int
+  out_channels: Optional[int] = None
 
 
 @dataclass
@@ -46,9 +58,34 @@ class ResidualBlock2DConfig:
 
 @dataclass
 class AttentionBlock2DConfig:
-  dims: int
+  dim: int
   normalization_config: layers_cfg.NormalizationConfig
   attention_config: layers_cfg.AttentionConfig
+
+
+@dataclass
+class CrossAttentionBlock2DConfig:
+  query_dim: int
+  cross_dim: int
+  normalization_config: layers_cfg.NormalizationConfig
+  attention_config: layers_cfg.AttentionConfig
+
+
+@dataclass
+class FeedForwardBlock2DConfig:
+  dim: int
+  hidden_dim: int
+  normalization_config: layers_cfg.NormalizationConfig
+  activation_config: layers_cfg.ActivationConfig
+  use_bias: bool
+
+
+@dataclass
+class TransformerBlock2Dconfig:
+  pre_conv_normalization_config: layers_cfg.NormalizationConfig
+  attention_block_config: AttentionBlock2DConfig
+  cross_attention_block_config: CrossAttentionBlock2DConfig
+  feed_forward_block_config: FeedForwardBlock2DConfig
 
 
 @dataclass
@@ -58,14 +95,62 @@ class UpDecoderBlock2DConfig:
   normalization_config: layers_cfg.NormalizationConfig
   activation_config: layers_cfg.ActivationConfig
   num_layers: int
-  # Optional time embedding channels if the residual blocks take a time embedding context as input
+  # Optional time embedding channels if the residual blocks take a time embedding as input
   time_embedding_channels: Optional[int] = None
   # Whether to add upsample operation after residual blocks
   add_upsample: bool = True
   # Whether to add a conv2d layer after upsample
   upsample_conv: bool = True
   # Optional sampling config if add_upsample is True.
-  sampling_config: Optional[SamplingConfig] = None
+  sampling_config: Optional[UpSamplingConfig] = None
+  # Optional config of transformer blocks interleaved with residual blocks
+  transformer_block_config: Optional[TransformerBlock2Dconfig] = None
+  # Optional dimension of context tensor if context tensor is given as input.
+  context_dim: Optional[int] = None
+
+
+@dataclass
+class SkipUpDecoderBlock2DConfig:
+  in_channels: int
+  out_channels: int
+  # The dimension of output channels of previous connected block
+  prev_out_channels: int
+  normalization_config: layers_cfg.NormalizationConfig
+  activation_config: layers_cfg.ActivationConfig
+  num_layers: int
+  # Optional time embedding channels if the residual blocks take a time embedding as input
+  time_embedding_channels: Optional[int] = None
+  # Whether to add upsample operation after residual blocks
+  add_upsample: bool = True
+  # Whether to add a conv2d layer after upsample
+  upsample_conv: bool = True
+  # Optional sampling config if add_upsample is True.
+  sampling_config: Optional[UpSamplingConfig] = None
+  # Optional config of transformer blocks interleaved with residual blocks
+  transformer_block_config: Optional[TransformerBlock2Dconfig] = None
+  # Optional dimension of context tensor if context tensor is given as input.
+  context_dim: Optional[int] = None
+
+
+@dataclass
+class DownEncoderBlock2DConfig:
+  in_channels: int
+  out_channels: int
+  normalization_config: layers_cfg.NormalizationConfig
+  activation_config: layers_cfg.ActivationConfig
+  num_layers: int
+  # Padding for the downsampling convolution.
+  padding: int = 1
+  # Optional time embedding channels if the residual blocks take a time embedding as input
+  time_embedding_channels: Optional[int] = None
+  # Whether to add downsample operation after residual blocks
+  add_downsample: bool = True
+  # Optional sampling config if add_upsample is True.
+  sampling_config: Optional[DownSamplingConfig] = None
+  # Optional config of transformer blocks interleaved with residual blocks
+  transformer_block_config: Optional[TransformerBlock2Dconfig] = None
+  # Optional dimension of context tensor if context tensor is given as input.
+  context_dim: Optional[int] = None
 
 
 @dataclass
@@ -78,6 +163,10 @@ class MidBlock2DConfig:
   time_embedding_channels: Optional[int] = None
   # Optional config of attention blocks interleaved with residual blocks
   attention_block_config: Optional[AttentionBlock2DConfig] = None
+  # Optional config of transformer blocks interleaved with residual blocks
+  transformer_block_config: Optional[TransformerBlock2Dconfig] = None
+  # Optional dimension of context tensor if context tensor is given as input.
+  context_dim: Optional[int] = None
 
 
 @dataclass

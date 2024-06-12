@@ -225,7 +225,7 @@ class Decoder(nn.Module):
                   num_layers=config.layers_per_block,
                   add_upsample=not_final_block,
                   upsample_conv=True,
-                  sampling_config=unet_cfg.SamplingConfig(
+                  sampling_config=unet_cfg.UpSamplingConfig(
                       2, unet_cfg.SamplingType.NEAREST
                   ),
               )
@@ -271,7 +271,7 @@ def get_model_config() -> unet_cfg.AutoEncoderConfig:
   )
 
   att_config = unet_cfg.AttentionBlock2DConfig(
-      dims=block_out_channels[-1],
+      dim=block_out_channels[-1],
       normalization_config=norm_config,
       attention_config=layers_cfg.AttentionConfig(
           num_heads=1,
