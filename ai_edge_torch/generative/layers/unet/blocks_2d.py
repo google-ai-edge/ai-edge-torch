@@ -349,7 +349,7 @@ class DownEncoderBlock2D(nn.Module):
       if config.transformer_block_config:
         transformers.append(TransformerBlock2D(config.transformer_block_config))
     self.resnets = nn.ModuleList(resnets)
-    self.transformers = nn.ModuleList(transformers)
+    self.transformers = nn.ModuleList(transformers) if len(transformers) > 0 else None
     if config.add_downsample:
       self.downsampler = unet_builder.build_downsampling(config.sampling_config)
     else:
@@ -438,7 +438,7 @@ class UpDecoderBlock2D(nn.Module):
       if config.transformer_block_config:
         transformers.append(TransformerBlock2D(config.transformer_block_config))
     self.resnets = nn.ModuleList(resnets)
-    self.transformers = nn.ModuleList(transformers)
+    self.transformers = nn.ModuleList(transformers) if len(transformers) > 0 else None
     if config.add_upsample:
       self.upsampler = unet_builder.build_upsampling(config.sampling_config)
       if config.upsample_conv:
@@ -466,10 +466,10 @@ class UpDecoderBlock2D(nn.Module):
       output hidden_states tensor after UpDecoderBlock2D.
     """
     hidden_states = input_tensor
-    for resnet, transformer in zip(self.resnets, self.transformers):
+    for i, resnet in enumerate(self.resnets):
       hidden_states = resnet(hidden_states, time_emb)
-      if transformer is not None:
-        hidden_states = transformer(hidden_states, context_tensor)
+      if self.transformers is not None:
+        hidden_states = self.transformers[i](hidden_states, context_tensor)
     if self.upsampler:
       hidden_states = self.upsampler(hidden_states)
       if self.upsample_conv:
@@ -536,7 +536,7 @@ class SkipUpDecoderBlock2D(nn.Module):
       if config.transformer_block_config:
         transformers.append(TransformerBlock2D(config.transformer_block_config))
     self.resnets = nn.ModuleList(resnets)
-    self.transformers = nn.ModuleList(transformers)
+    self.transformers = nn.ModuleList(transformers) if len(transformers) > 0 else None
     if config.add_upsample:
       self.upsampler = unet_builder.build_upsampling(config.sampling_config)
       if config.upsample_conv:
@@ -566,13 +566,13 @@ class SkipUpDecoderBlock2D(nn.Module):
       output hidden_states tensor after SkipUpDecoderBlock2D.
     """
     hidden_states = input_tensor
-    for resnet, skip_connection_tensor, transformer in zip(
-        self.resnets, skip_connection_tensors, self.transformers
+    for i, (resnet, skip_connection_tensor) in enumerate(
+        zip(self.resnets, skip_connection_tensors)
     ):
       hidden_states = torch.cat([resnet, skip_connection_tensor], dim=1)
       hidden_states = resnet(hidden_states, time_emb)
-      if transformer is not None:
-        hidden_states = transformer(hidden_states, context_tensor)
+      if self.transformers is not None:
+        hidden_states = self.transformers[i](hidden_states, context_tensor)
     if self.upsampler:
       hidden_states = self.upsampler(hidden_states)
       if self.upsample_conv:
@@ -648,8 +648,8 @@ class MidBlock2D(nn.Module):
           )
       )
     self.resnets = nn.ModuleList(resnets)
-    self.attentions = nn.ModuleList(attentions)
-    self.transformers = nn.ModuleList(transformers)
+    self.attentions = nn.ModuleList(attentions) if len(attentions) > 0 else None
+    self.transformers = nn.ModuleList(transformers) if len(transformers) > 0 else None
 
   def forward(
       self,
@@ -670,12 +670,10 @@ class MidBlock2D(nn.Module):
       output hidden_states tensor after MidBlock2D.
     """
     hidden_states = self.resnets[0](input_tensor, time_emb)
-    for attn, transformer, resnet in zip(
-        self.attentions, self.transformers, self.resnets[1:]
-    ):
-      if attn is not None:
-        hidden_states = attn(hidden_states)
-      if transformer is not None:
-        hidden_states = transformer(hidden_states, context_tensor)
+    for i, resnet in enumerate(self.resnets[1:]):
+      if self.attentions is not None:
+        hidden_states = self.attentions[i](hidden_states)
+      if self.transformers is not None:
+        hidden_states = self.transformers[i](hidden_states, context_tensor)
       hidden_states = resnet(hidden_states, time_emb)
     return hidden_states
