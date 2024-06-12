@@ -28,6 +28,33 @@ from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention_with_hlfb  # NOQA
 
 
+def _embed_rope(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    n_elem: int,
+    rope: Tuple[torch.Tensor, torch.Tensor],
+) -> Tuple[torch.Tensor, torch.Tensor]:
+  """Embed rotary positional embedding for query and key.
+
+  Args:
+    q (torch.Tensor): query tensor.
+    k (torch.Tensor): key tensor.
+    n_elem (int): number of elements to embed rotarty positional embedding.
+    rope (Tuple[torch.Tensor, torch.Tensor]): the input rope tensor.
+  """
+  if n_elem > 0:
+    cos, sin = rope
+    q_roped = rotary_pos_emb.apply_rope(
+        q[..., :n_elem], cos.repeat(1, 2), sin.repeat(1, 2)
+    )
+    k_roped = rotary_pos_emb.apply_rope(
+        k[..., :n_elem], cos.repeat(1, 2), sin.repeat(1, 2)
+    )
+    q = torch.cat((q_roped, q[..., n_elem:]), dim=-1)
+    k = torch.cat((k_roped, k[..., n_elem:]), dim=-1)
+  return q, k
+
+
 class TransformerBlock(nn.Module):
 
   def __init__(self, config: cfg.ModelConfig) -> None:
@@ -178,16 +205,7 @@ class CausalSelfAttention(nn.Module):
 
     # Compute rotary positional embedding for query and key.
     n_elem = int(self.config.rotary_percentage * self.head_dim)
-    if n_elem > 0:
-      cos, sin = rope
-      q_roped = rotary_pos_emb.apply_rope(
-          q[..., :n_elem], cos.repeat(1, 2), sin.repeat(1, 2)
-      )
-      k_roped = rotary_pos_emb.apply_rope(
-          k[..., :n_elem], cos.repeat(1, 2), sin.repeat(1, 2)
-      )
-      q = torch.cat((q_roped, q[..., n_elem:]), dim=-1)
-      k = torch.cat((k_roped, k[..., n_elem:]), dim=-1)
+    q, k = _embed_rope(q, k, n_elem, rope)
 
     if self.kv_cache is not None:
       # TODO(haoliang): Handle when execeeding max sequence length.
@@ -224,3 +242,88 @@ class SelfAttention(CausalSelfAttention):
     return super().forward(
         x, rope=rope, mask=torch.zeros((B, T), dtype=torch.float32), input_pos=input_pos
     )
+
+
+class CrossAttention(nn.Module):
+
+  def __init__(
+      self,
+      query_dim: int,
+      cross_dim: int,
+      config: cfg.AttentionConfig,
+      kv_cache_max: int,
+      enable_hlfb: bool,
+  ) -> None:
+    """Initialize an instance of CrossAttention.
+
+    Args:
+      query_dim (int): query tensor's dimension.
+      cross_dim (int): cross attention's dimensions, for key and value tensors.
+      config (cfg.AttentionConfig): attention specific configurations.
+      kv_cache_max (int): determines the size of the KV Cache buffer, if enabled.
+      enable_hlfb (bool): whether hlfb is enabled or not.
+    """
+    super().__init__()
+    self.config = config
+    self.head_dim = query_dim // config.num_heads
+    self.n_heads = config.num_heads
+    self.q_projection = nn.Linear(query_dim, query_dim, bias=config.qkv_use_bias)
+    self.k_projection = nn.Linear(cross_dim, query_dim, bias=config.qkv_use_bias)
+    self.v_projection = nn.Linear(cross_dim, query_dim, bias=config.qkv_use_bias)
+    self.output_projection = nn.Linear(
+        query_dim, query_dim, bias=config.output_proj_use_bias
+    )
+
+    self.kv_cache = None
+    # Build a k/v cache with size (batch_size, kv_cache_max, n_heads, head_dim).
+    # Now only supports a max batch_size of 1.
+    if config.enable_kv_cache:
+      self.kv_cache = KVCache(
+          1,
+          kv_cache_max,
+          config.num_query_groups,
+          self.head_dim,
+          enable_hlfb,
+      )
+
+    if enable_hlfb:
+      self.sdpa_func = scaled_dot_product_attention_with_hlfb
+    else:
+      self.sdpa_func = scaled_dot_product_attention
+
+  def forward(
+      self,
+      x: torch.Tensor,
+      y: torch.Tensor,
+      rope: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+      mask: Optional[torch.Tensor] = None,
+      input_pos: Optional[torch.Tensor] = None,
+  ):
+    B, T, E = x.size()  # batch size, sequence length, embedding dimensionality (n_embd)
+
+    q = self.q_projection(x)
+    k = self.k_projection(x)
+    v = self.v_projection(x)
+
+    interim_shape = (B, T, self.n_heads, self.head_dim)
+    q = q.view(interim_shape)
+    k = k.view(interim_shape)
+    v = v.view(interim_shape)
+
+    if mask is None:
+      mask = torch.zeros((B, T), dtype=torch.float32)
+
+    # Compute rotary positional embedding for query and key.
+    n_elem = int(self.config.rotary_percentage * self.head_dim)
+    q, k = _embed_rope(q, k, n_elem, rope)
+
+    if self.kv_cache is not None:
+      # TODO(haoliang): Handle when execeeding max sequence length.
+      k, v = self.kv_cache.update_cache(input_pos, k, v)
+
+    y = self.sdpa_func(q, k, v, self.head_dim, mask=mask)
+    y = y.reshape(B, T, E)
+
+    # Compute the output projection.
+    y = self.output_projection(y)
+    return y

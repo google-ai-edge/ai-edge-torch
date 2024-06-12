@@ -318,7 +318,7 @@ class ModelLoader:
     q_name = names.attn_query_proj.format(idx)
     k_name = names.attn_key_proj.format(idx)
     v_name = names.attn_value_proj.format(idx)
-    # model.encoder.transformer_blocks[0].atten_func.q.weight
+    # model.encoder.transformer_blocks[0].atten_func.q_projection.weight
     if fuse_attention:
       converted_state[f"{prefix}.atten_func.attn.weight"] = self._fuse_qkv(
           config,
@@ -334,18 +334,34 @@ class ModelLoader:
             state.pop(f"{v_name}.bias"),
         )
     else:
-      converted_state[f"{prefix}.atten_func.q.weight"] = state.pop(f"{q_name}.weight")
-      converted_state[f"{prefix}.atten_func.k.weight"] = state.pop(f"{k_name}.weight")
-      converted_state[f"{prefix}.atten_func.v.weight"] = state.pop(f"{v_name}.weight")
+      converted_state[f"{prefix}.atten_func.q_projection.weight"] = state.pop(
+          f"{q_name}.weight"
+      )
+      converted_state[f"{prefix}.atten_func.k_projection.weight"] = state.pop(
+          f"{k_name}.weight"
+      )
+      converted_state[f"{prefix}.atten_func.v_projection.weight"] = state.pop(
+          f"{v_name}.weight"
+      )
       if config.attn_config.qkv_use_bias:
-        converted_state[f"{prefix}.atten_func.q.bias"] = state.pop(f"{q_name}.bias")
-        converted_state[f"{prefix}.atten_func.k.bias"] = state.pop(f"{k_name}.bias")
-        converted_state[f"{prefix}.atten_func.v.bias"] = state.pop(f"{v_name}.bias")
+        converted_state[f"{prefix}.atten_func.q_projection.bias"] = state.pop(
+            f"{q_name}.bias"
+        )
+        converted_state[f"{prefix}.atten_func.k_projection.bias"] = state.pop(
+            f"{k_name}.bias"
+        )
+        converted_state[f"{prefix}.atten_func.v_projection.bias"] = state.pop(
+            f"{v_name}.bias"
+        )
 
     o_name = names.attn_output_proj.format(idx)
-    converted_state[f"{prefix}.atten_func.proj.weight"] = state.pop(f"{o_name}.weight")
+    converted_state[f"{prefix}.atten_func.output_projection.weight"] = state.pop(
+        f"{o_name}.weight"
+    )
     if config.attn_config.output_proj_use_bias:
-      converted_state[f"{prefix}.atten_func.proj.bias"] = state.pop(f"{o_name}.bias")
+      converted_state[f"{prefix}.atten_func.output_projection.bias"] = state.pop(
+          f"{o_name}.bias"
+      )
 
   def _map_cross_attention(
       self,
@@ -383,32 +399,32 @@ class ModelLoader:
             state.pop(f"{v_name}.bias"),
         )
     else:
-      converted_state[f"{prefix}.cross_atten_func.q.weight"] = state.pop(
+      converted_state[f"{prefix}.cross_atten_func.q_projection.weight"] = state.pop(
           f"{q_name}.weight"
       )
-      converted_state[f"{prefix}.cross_atten_func.k.weight"] = state.pop(
+      converted_state[f"{prefix}.cross_atten_func.k_projection.weight"] = state.pop(
           f"{k_name}.weight"
       )
-      converted_state[f"{prefix}.cross_atten_func.v.weight"] = state.pop(
+      converted_state[f"{prefix}.cross_atten_func.v_projection.weight"] = state.pop(
           f"{v_name}.weight"
       )
       if config.attn_config.qkv_use_bias:
-        converted_state[f"{prefix}.cross_atten_func.q.bias"] = state.pop(
+        converted_state[f"{prefix}.cross_atten_func.q_projection.bias"] = state.pop(
             f"{q_name}.bias"
         )
-        converted_state[f"{prefix}.cross_atten_func.k.bias"] = state.pop(
+        converted_state[f"{prefix}.cross_atten_func.k_projection.bias"] = state.pop(
             f"{k_name}.bias"
         )
-        converted_state[f"{prefix}.cross_atten_func.v.bias"] = state.pop(
+        converted_state[f"{prefix}.cross_atten_func.v_projection.bias"] = state.pop(
             f"{v_name}.bias"
         )
 
     o_name = names.cross_attn_output_proj.format(idx)
-    converted_state[f"{prefix}.cross_atten_func.proj.weight"] = state.pop(
+    converted_state[f"{prefix}.cross_atten_func.output_projection.weight"] = state.pop(
         f"{o_name}.weight"
     )
     if config.attn_config.output_proj_use_bias:
-      converted_state[f"{prefix}.cross_atten_func.proj.bias"] = state.pop(
+      converted_state[f"{prefix}.cross_atten_func.output_projection.bias"] = state.pop(
           f"{o_name}.bias"
       )
 
