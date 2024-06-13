@@ -129,7 +129,7 @@ class CausalSelfAttention(nn.Module):
     """Initialize an instance of CausalSelfAttention.
 
     Args:
-      batch_size (int): batch_size for the input tensor.
+      batch_size (int): batch size of the input tensor.
       dim (int): causal attention's input/output dimmension.
       config (cfg.AttentionConfig): attention specific configurations.
       kv_cache_max (int): determines the size of the KV Cache buffer, if enabled.
@@ -183,7 +183,7 @@ class CausalSelfAttention(nn.Module):
     B, T, E = x.size()
     assert (
         B == self.batch_size
-    ), "batch size of input tensor must match with model configuration."
+    ), "batch size of input tensor must match with the batch size specified in the model configuration."
 
     qkv = self.qkv_projection(x)
 
