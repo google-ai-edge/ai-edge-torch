@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import torch
 from torch import nn
@@ -93,8 +93,7 @@ class ResidualBlock2D(nn.Module):
 class AttentionBlock2D(nn.Module):
   """2D self attention block
 
-  residual = x
-  x = SelfAttention(Norm(input_tensor)) + residual
+  x = SelfAttention(Norm(input_tensor)) + x
 
   """
 
@@ -105,8 +104,15 @@ class AttentionBlock2D(nn.Module):
       config (unet_cfg.AttentionBlock2DConfig): the configuration of this block.
     """
     super().__init__()
+    self.config = config
     self.norm = layers_builder.build_norm(config.dim, config.normalization_config)
-    self.attention = SelfAttention(config.dim, config.attention_config, 0, True)
+    self.attention = SelfAttention(
+        config.attention_batch_size,
+        config.dim,
+        config.attention_config,
+        0,
+        enable_hlfb=config.enable_hlfb,
+    )
 
   def forward(self, input_tensor: torch.Tensor) -> torch.Tensor:
     """Forward function of the AttentionBlock2D.
@@ -118,10 +124,16 @@ class AttentionBlock2D(nn.Module):
       output activation tensor after self attention.
     """
     residual = input_tensor
-    x = self.norm(input_tensor)
-    B, C, H, W = x.shape
-    x = x.view(B, C, H * W)
-    x = x.transpose(-1, -2)
+    B, C, H, W = input_tensor.shape
+    x = input_tensor
+    if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
+      x = self.norm(x)
+      x = input_tensor.view(B, C, H * W)
+      x = x.transpose(-1, -2)
+    else:
+      x = input_tensor.view(B, C, H * W)
+      x = x.transpose(-1, -2)
+      x = self.norm(x)
     x = self.attention(x)
     x = x.transpose(-1, -2)
     x = x.view(B, C, H, W)
@@ -132,8 +144,7 @@ class AttentionBlock2D(nn.Module):
 class CrossAttentionBlock2D(nn.Module):
   """2D cross attention block
 
-  residual = x
-  x = CrossAttention(Norm(input_tensor), context) + residual
+  x = CrossAttention(Norm(input_tensor), context) + x
 
   """
 
@@ -147,7 +158,12 @@ class CrossAttentionBlock2D(nn.Module):
     self.config = config
     self.norm = layers_builder.build_norm(config.query_dim, config.normalization_config)
     self.attention = CrossAttention(
-        config.query_dim, config.cross_dim, config.attention_config, 0, True
+        config.attention_batch_size,
+        config.query_dim,
+        config.cross_dim,
+        config.attention_config,
+        0,
+        enable_hlfb=config.enable_hlfb,
     )
 
   def forward(
@@ -163,10 +179,16 @@ class CrossAttentionBlock2D(nn.Module):
       output activation tensor after cross attention.
     """
     residual = input_tensor
-    x = self.norm(input_tensor)
-    B, C, H, W = x.shape
-    x = x.view(B, C, H * W)
-    x = x.transpose(-1, -2)
+    B, C, H, W = input_tensor.shape
+    x = input_tensor
+    if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
+      x = self.norm(x)
+      x = input_tensor.view(B, C, H * W)
+      x = x.transpose(-1, -2)
+    else:
+      x = input_tensor.view(B, C, H * W)
+      x = x.transpose(-1, -2)
+      x = self.norm(x)
     x = self.attention(x, context_tensor)
     x = x.transpose(-1, -2)
     x = x.view(B, C, H, W)
@@ -177,8 +199,7 @@ class CrossAttentionBlock2D(nn.Module):
 class FeedForwardBlock2D(nn.Module):
   """2D feed forward block
 
-  residual = x
-  x = w2(Activation(w1(Norm(x)))) + residual
+  x = w2(Activation(w1(Norm(x)))) + x
 
   """
 
@@ -197,14 +218,18 @@ class FeedForwardBlock2D(nn.Module):
       self.w1 = nn.Linear(config.dim, config.hidden_dim)
       self.w2 = nn.Linear(config.hidden_dim, config.dim)
 
-  def forward(self, x: torch.Tensor) -> torch.Tensor:
-    residual = x
-
-    B, C, H, W = x.shape
-    x = x.view((B, C, H * W))
-    x = x.transpose(-1, -2)  # (B, HW, C)
-
-    x = self.norm(x)
+  def forward(self, input_tensor: torch.Tensor) -> torch.Tensor:
+    residual = input_tensor
+    B, C, H, W = input_tensor.shape
+    x = input_tensor
+    if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
+      x = self.norm(x)
+      x = input_tensor.view(B, C, H * W)
+      x = x.transpose(-1, -2)
+    else:
+      x = input_tensor.view(B, C, H * W)
+      x = x.transpose(-1, -2)
+      x = self.norm(x)
     x = self.w1(x)
     x = self.act(x)
     x = self.w2(x)
@@ -287,7 +312,6 @@ class TransformerBlock2D(nn.Module):
 
     x = self.pre_conv_norm(x)
     x = self.conv_in(x)
-
     x = self.self_attention(x)
     x = self.cross_attention(x, context)
     x = self.feed_forward(x)
@@ -360,7 +384,8 @@ class DownEncoderBlock2D(nn.Module):
       input_tensor: torch.Tensor,
       time_emb: Optional[torch.Tensor] = None,
       context_tensor: Optional[torch.Tensor] = None,
-  ) -> torch.Tensor:
+      output_hidden_states: bool = False,
+  ) -> torch.Tensor | Tuple[torch.Tensor, List[torch.Tensor]]:
     """Forward function of the DownEncoderBlock2D.
 
     Args:
@@ -368,18 +393,24 @@ class DownEncoderBlock2D(nn.Module):
       time_emb (torch.Tensor): optional time embedding tensor, if the block is configured to accept
         time embedding.
       context_tensor (torch.Tensor): optional context tensor, if the block if configured to use transofrmer block.
-
+      output_hidden_states (bool): whether to output hidden states, usually for skip connections.
     Returns:
       output hidden_states tensor after DownEncoderBlock2D.
     """
     hidden_states = input_tensor
-    for resnet, transformer in zip(self.resnets, self.transformers):
+    output_states = []
+    for i, resnet in enumerate(self.resnets):
       hidden_states = resnet(hidden_states, time_emb)
-      if transformer is not None:
-        hidden_states = transformer(hidden_states, context_tensor)
+      if self.transformers is not None:
+        hidden_states = self.transformers[i](hidden_states, context_tensor)
+      output_states.append(hidden_states)
     if self.downsampler:
       hidden_states = self.downsampler(hidden_states)
-    return hidden_states
+      output_states.append(hidden_states)
+    if output_hidden_states:
+      return hidden_states, output_states
+    else:
+      return hidden_states
 
 
 class UpDecoderBlock2D(nn.Module):
@@ -569,7 +600,7 @@ class SkipUpDecoderBlock2D(nn.Module):
     for i, (resnet, skip_connection_tensor) in enumerate(
         zip(self.resnets, skip_connection_tensors)
     ):
-      hidden_states = torch.cat([resnet, skip_connection_tensor], dim=1)
+      hidden_states = torch.cat([hidden_states, skip_connection_tensor], dim=1)
       hidden_states = resnet(hidden_states, time_emb)
       if self.transformers is not None:
         hidden_states = self.transformers[i](hidden_states, context_tensor)
