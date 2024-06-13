@@ -61,6 +61,7 @@ class AttentionBlock2DConfig:
   dim: int
   normalization_config: layers_cfg.NormalizationConfig
   attention_config: layers_cfg.AttentionConfig
+  enable_hlfb: bool = True
 
 
 @dataclass
@@ -69,6 +70,7 @@ class CrossAttentionBlock2DConfig:
   cross_dim: int
   normalization_config: layers_cfg.NormalizationConfig
   attention_config: layers_cfg.AttentionConfig
+  enable_hlfb: bool = True
 
 
 @dataclass

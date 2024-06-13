@@ -107,7 +107,7 @@ class AttentionBlock2D(nn.Module):
     self.config = config
     self.norm = layers_builder.build_norm(config.dim, config.normalization_config)
     self.attention = SelfAttention(
-        config.dim, config.attention_config, 0, enable_hlfb=True
+        config.dim, config.attention_config, 0, enable_hlfb=config.enable_hlfb
     )
 
   def forward(self, input_tensor: torch.Tensor) -> torch.Tensor:
@@ -158,7 +158,7 @@ class CrossAttentionBlock2D(nn.Module):
         config.cross_dim,
         config.attention_config,
         0,
-        enable_hlfb=True,
+        enable_hlfb=config.enable_hlfb
     )
 
   def forward(
