@@ -158,7 +158,7 @@ class CrossAttentionBlock2D(nn.Module):
         config.cross_dim,
         config.attention_config,
         0,
-        enable_hlfb=config.enable_hlfb
+        enable_hlfb=config.enable_hlfb,
     )
 
   def forward(

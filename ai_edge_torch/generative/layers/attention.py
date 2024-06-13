@@ -310,13 +310,14 @@ class CrossAttention(nn.Module):
     """Forward function of the CrossAttention layer.
 
     Args:
-      x (torch.Tensor): the target tensor, with shape [B, target_seq_len, ...]
-      y (torch.Tensor): the source tensor, with shape [B, source_seq_len, ...]
-      rope (Tuple[torch.Tensor, torch.Tensor]): the input rope tensor.
+      x (torch.Tensor): the target tensor, with shape [B, target_seq_len, ...].
+      y (torch.Tensor): the source tensor, with shape [B, source_seq_len, ...].
+      rope (Tuple[torch.Tensor, torch.Tensor]): the optional input rope tensor.
+      mask (torch.Tensor): the optional mask tensor can be broadcaseted to shape [B, n_heads, target_seq_len, source_seq_len].
       input_pos (torch.Tensor): the optional input position tensor.
 
     Returns:
-      output activation from this self attention layer.
+      output activation from this cross attention layer.
     """
     batch_size = x.size()[0]
     target_seq_len = x.size()[1]
@@ -338,9 +339,10 @@ class CrossAttention(nn.Module):
     if self.kv_cache is not None:
       # TODO(haoliang): Handle when execeeding max sequence length.
       k, v = self.kv_cache.update_cache(input_pos, k, v)
-    mask = torch.zeros(
-        (batch_size, 1, target_seq_len, source_seq_len), dtype=torch.float32
-    )
+    if mask is None:
+      mask = torch.zeros(
+          (batch_size, 1, target_seq_len, source_seq_len), dtype=torch.float32
+      )
     y = self.sdpa_func(q, k, v, self.head_dim, mask=mask)
     y = y.reshape(batch_size, target_seq_len, -1)
 
