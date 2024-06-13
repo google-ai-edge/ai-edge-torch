@@ -25,7 +25,6 @@ from ai_edge_torch.generative.layers.kv_cache import KVCache
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention  # NOQA
-from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention_torch  # NOQA
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention_with_hlfb  # NOQA
 
 
@@ -227,19 +226,6 @@ class CausalSelfAttention(nn.Module):
 class SelfAttention(CausalSelfAttention):
   """Non-causal Self Attention module, which is equivalent to CausalSelfAttention without mask."""
 
-  def __init__(
-      self,
-      dim: int,
-      config: cfg.AttentionConfig,
-      kv_cache_max: int,
-      enable_hlfb: bool,
-  ) -> None:
-    super().__init__(dim, config, kv_cache_max, enable_hlfb=enable_hlfb)
-    if not enable_hlfb:
-      # TODO(yichunk): enable HLFB for batch size > 1.
-      # Currently only this sdpa_func support batch size > 1.
-      self.sdpa_func = scaled_dot_product_attention_torch
-
   def forward(
       self,
       x: torch.Tensor,
@@ -308,11 +294,10 @@ class CrossAttention(nn.Module):
           enable_hlfb,
       )
 
-    # TODO(yichunk): enable HLFB for cross attention. The length of source and target sequence are different.
     if enable_hlfb:
       self.sdpa_func = scaled_dot_product_attention_with_hlfb
     else:
-      self.sdpa_func = scaled_dot_product_attention_torch
+      self.sdpa_func = scaled_dot_product_attention
 
   def forward(
       self,
