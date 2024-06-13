@@ -108,6 +108,7 @@ class NormalizationConfig:
 class ModelConfig:
   """Base configurations for building a transformer architecture."""
 
+  batch_size: int
   vocab_size: int
   num_layers: int
   max_seq_len: int
