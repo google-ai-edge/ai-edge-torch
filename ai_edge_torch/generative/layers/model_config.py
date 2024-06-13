@@ -108,7 +108,6 @@ class NormalizationConfig:
 class ModelConfig:
   """Base configurations for building a transformer architecture."""
 
-  batch_size: int
   vocab_size: int
   num_layers: int
   max_seq_len: int
@@ -139,6 +138,9 @@ class ModelConfig:
 
   # The Attention computation will include relative positional bias.
   relative_attention: bool = False
+
+  # Default batch size of the exported model. Default value is 1.
+  batch_size: int = 1
 
   @property
   def kv_cache_max(self) -> int:
