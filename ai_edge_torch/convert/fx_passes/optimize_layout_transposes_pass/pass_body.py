@@ -261,10 +261,17 @@ class OptimizeLayoutTransposesPass(ExportedProgramPassBase):
     self.mark_const_nodes(exported_program)
 
     graph_module = exported_program.graph_module
-    if os.environ.get("AIEDGETORCH_LAYOUT_OPTIMIZE_USE_MINCUT_PARTITIONER"):
+    partitioner = os.environ.get("AIEDGETORCH_LAYOUT_OPTIMIZE_PARTITIONER", None)
+    if partitioner == "MINCUT":
       graph_module = layout_partitioners.min_cut.partition(graph_module)
-    else:
+    elif partitioner == "GREEDY":
       graph_module = layout_partitioners.greedy.partition(graph_module)
+    else:
+      # By default use min cut partitioner if possible
+      if layout_partitioners.min_cut.can_partition(graph_module):
+        graph_module = layout_partitioners.min_cut.partition(graph_module)
+      else:
+        graph_module = layout_partitioners.greedy.partition(graph_module)
 
     graph = graph_module.graph
     for node in list(graph.nodes):
