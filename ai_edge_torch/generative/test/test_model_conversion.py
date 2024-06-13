@@ -55,6 +55,30 @@ class TestModelConversion(unittest.TestCase):
           )
       )
 
+  def test_toy_model_with_multi_batches(self):
+    config = toy_model_with_kv_cache.get_model_config()
+    config.batch_size = 2
+    pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config)
+    idx, input_pos = torch.tensor([[1], [2]], dtype=torch.long), torch.tensor(
+        [10], dtype=torch.int64
+    )
+
+    edge_model = ai_edge_torch.convert(pytorch_model, (idx, input_pos))
+
+    # TODO(b/338288901): re-enable test to check output tensors.
+    skip_output_check = True
+    if skip_output_check is False:
+      self.assertTrue(
+          model_coverage.compare_tflite_torch(
+              edge_model,
+              pytorch_model,
+              (idx, input_pos),
+              num_valid_inputs=1,
+              atol=1e-5,
+              rtol=1e-5,
+          )
+      )
+
   def test_toy_model_with_kv_cache_with_hlfb(self):
     config = toy_model_with_kv_cache.get_model_config()
     config.enable_hlfb = True

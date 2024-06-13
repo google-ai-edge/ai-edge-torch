@@ -139,6 +139,9 @@ class ModelConfig:
   # The Attention computation will include relative positional bias.
   relative_attention: bool = False
 
+  # Default batch size of the exported model. Default value is 1.
+  batch_size: int = 1
+
   @property
   def kv_cache_max(self) -> int:
     if self.kv_cache_max_len > 0:

@@ -70,6 +70,7 @@ class TransformerBlock(nn.Module):
         config.embedding_dim, config.pre_attention_norm_config
     )
     self.atten_func = CausalSelfAttention(
+        config.batch_size,
         config.embedding_dim,
         config.attn_config,
         config.kv_cache_max,
@@ -119,6 +120,7 @@ class CausalSelfAttention(nn.Module):
 
   def __init__(
       self,
+      batch_size: int,
       dim: int,
       config: cfg.AttentionConfig,
       kv_cache_max: int,
@@ -127,6 +129,7 @@ class CausalSelfAttention(nn.Module):
     """Initialize an instance of CausalSelfAttention.
 
     Args:
+      batch_size (int): batch size of the input tensor.
       dim (int): causal attention's input/output dimmension.
       config (cfg.AttentionConfig): attention specific configurations.
       kv_cache_max (int): determines the size of the KV Cache buffer, if enabled.
@@ -140,13 +143,12 @@ class CausalSelfAttention(nn.Module):
     self.output_projection = nn.Linear(dim, dim, bias=config.output_proj_use_bias)
     self.config = config
     self.kv_cache = None
+    self.batch_size = batch_size
 
     # Build a k/v cache with size (batch_size, kv_cache_max, n_heads, head_dim).
-    # Now only supports batch_size of 1.
-    # TODO(haoliang): support batch_size greater than 1.
     if config.enable_kv_cache:
       self.kv_cache = KVCache(
-          1,
+          batch_size,
           kv_cache_max,
           config.num_query_groups,
           self.head_dim,
@@ -179,7 +181,9 @@ class CausalSelfAttention(nn.Module):
     """
     # Batch size, sequence length, embedding dimensionality.
     B, T, E = x.size()
-    assert B == 1, "Currently only batch_size = 1 is supported."
+    assert (
+        B == self.batch_size
+    ), "batch size of input tensor must match with the batch size specified in the model configuration."
 
     qkv = self.qkv_projection(x)
 
@@ -248,6 +252,7 @@ class CrossAttention(nn.Module):
 
   def __init__(
       self,
+      batch_size: int,
       query_dim: int,
       cross_dim: int,
       config: cfg.AttentionConfig,
@@ -257,6 +262,7 @@ class CrossAttention(nn.Module):
     """Initialize an instance of CrossAttention.
 
     Args:
+      batch_size (int): batch size of the input tensor.
       query_dim (int): query tensor's dimension.
       cross_dim (int): cross attention's dimensions, for key and value tensors.
       config (cfg.AttentionConfig): attention specific configurations.
@@ -276,10 +282,9 @@ class CrossAttention(nn.Module):
 
     self.kv_cache = None
     # Build a k/v cache with size (batch_size, kv_cache_max, n_heads, head_dim).
-    # Now only supports a max batch_size of 1.
     if config.enable_kv_cache:
       self.kv_cache = KVCache(
-          1,
+          batch_size,
           kv_cache_max,
           config.num_query_groups,
           self.head_dim,
