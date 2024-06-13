@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+import re
 
 import torch
 from torch.fx.passes.infra.pass_base import PassBase
@@ -36,6 +37,11 @@ def _get_mlir_debuginfo(node: torch.fx.Node):
       layers.append(layer_str + iid)
 
     hierachy_str = "/".join(layers) + ";"
+
+    stack_trace = node.meta.get("stack_trace", "")
+    for src, line in re.findall(r'File\s*"([^"]+)",\s*line\s*(\d+)', stack_trace):
+      hierachy_str += f"{src}:{line};"
+
     return hierachy_str
 
   # TODO(yijieyang): Encode aten op and attrs.
