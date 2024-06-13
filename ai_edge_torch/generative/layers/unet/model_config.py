@@ -62,6 +62,7 @@ class AttentionBlock2DConfig:
   normalization_config: layers_cfg.NormalizationConfig
   attention_config: layers_cfg.AttentionConfig
   enable_hlfb: bool = True
+  attention_batch_size: int = 1
 
 
 @dataclass
@@ -71,6 +72,7 @@ class CrossAttentionBlock2DConfig:
   normalization_config: layers_cfg.NormalizationConfig
   attention_config: layers_cfg.AttentionConfig
   enable_hlfb: bool = True
+  attention_batch_size: int = 1
 
 
 @dataclass
@@ -232,6 +234,9 @@ class DiffusionModelConfig:
 
   # Activation config used in residual blocks
   residual_activation_type: layers_cfg.ActivationType
+
+  # The batch size used in transformer blocks, for attention layers.
+  transformer_batch_size: int
 
   # The number of attention heads used in transformer blocks.
   transformer_num_attention_heads: int

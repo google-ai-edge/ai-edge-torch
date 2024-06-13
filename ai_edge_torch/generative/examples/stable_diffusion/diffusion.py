@@ -206,23 +206,23 @@ class Diffusion(nn.Module):
            │      └─────────┬─────────┘       │            │
            │                │                 │            │
            │      ┌─────────▼─────────┐       │            │
-           └──────►    UpDecoder2D    │ ◄─────┴────────────┘
+           └──────►  SkipUpDecoder2D  │ ◄─────┴────────────┘
                   └─────────┬─────────┘ x 4
                             │
                   ┌─────────▼─────────┐
                   │     FinalNorm     │
-                  └───────────────────┘
-                            |
+                  └─────────┬─────────┘
+                            │
                   ┌─────────▼─────────┐
                   │    Activation     │
-                  └───────────────────┘
-                            |
+                  └─────────┬─────────┘
+                            │
                   ┌─────────▼─────────┐
                   │      ConvOut      │
-                  └───────────────────┘
-                            |
+                  └─────────┬─────────┘
+                            │
                             ▼
-                      Output Image
+                      output image
   """
 
   def __init__(self, config: unet_cfg.DiffusionModelConfig):
@@ -283,12 +283,14 @@ class Diffusion(nn.Module):
                     transformer_block_config=unet_cfg.TransformerBlock2Dconfig(
                         attention_block_config=unet_cfg.AttentionBlock2DConfig(
                             dim=output_channel,
+                            attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
                             attention_config=attention_config,
                         ),
                         cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                             query_dim=output_channel,
                             cross_dim=config.transformer_cross_attention_dim,
+                            attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
                             attention_config=attention_config,
                         ),
@@ -341,12 +343,14 @@ class Diffusion(nn.Module):
             transformer_block_config=unet_cfg.TransformerBlock2Dconfig(
                 attention_block_config=unet_cfg.AttentionBlock2DConfig(
                     dim=mid_block_channels,
+                    attention_batch_size=config.transformer_batch_size,
                     normalization_config=config.transformer_norm_config,
                     attention_config=attention_config,
                 ),
                 cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                     query_dim=mid_block_channels,
                     cross_dim=config.transformer_cross_attention_dim,
+                    attention_batch_size=config.transformer_batch_size,
                     normalization_config=config.transformer_norm_config,
                     attention_config=attention_config,
                 ),
@@ -400,12 +404,14 @@ class Diffusion(nn.Module):
                     transformer_block_config=unet_cfg.TransformerBlock2Dconfig(
                         attention_block_config=unet_cfg.AttentionBlock2DConfig(
                             dim=output_channel,
+                            attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
                             attention_config=attention_config,
                         ),
                         cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                             query_dim=output_channel,
                             cross_dim=config.transformer_cross_attention_dim,
+                            attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
                             attention_config=attention_config,
                         ),
@@ -490,8 +496,16 @@ class Diffusion(nn.Module):
     return x
 
 
-def get_model_config() -> unet_cfg.DiffusionModelConfig:
-  """Get configs for the Diffusion model of Stable Diffusion v1.5"""
+def get_model_config(batch_size: int) -> unet_cfg.DiffusionModelConfig:
+  """Get configs for the Diffusion model of Stable Diffusion v1.5
+
+  Args:
+    batch_size (int): the batch size of input.
+
+  Retruns:
+    The configuration of diffusion model of Stable Diffusion v1.5.
+
+  """
   in_channels = 4
   out_channels = 4
   block_out_channels = [320, 640, 1280, 1280]
@@ -506,6 +520,7 @@ def get_model_config() -> unet_cfg.DiffusionModelConfig:
 
   # Transformer configs.
   transformer_num_attention_heads = 8
+  transformer_batch_size = batch_size
   transformer_cross_attention_dim = 768  # Embedding fomr CLIP model
   transformer_pre_conv_norm_config = layers_cfg.NormalizationConfig(
       layers_cfg.NormalizationType.GROUP_NORM, epsilon=1e-6, group_num=32
@@ -536,6 +551,7 @@ def get_model_config() -> unet_cfg.DiffusionModelConfig:
       downsample_padding=downsample_padding,
       residual_norm_config=residual_norm_config,
       residual_activation_type=residual_activation_type,
+      transformer_batch_size=transformer_batch_size,
       transformer_num_attention_heads=transformer_num_attention_heads,
       transformer_cross_attention_dim=transformer_cross_attention_dim,
       transformer_pre_conv_norm_config=transformer_pre_conv_norm_config,

@@ -45,7 +45,7 @@ def convert_stable_diffusion_to_tflite(
   encoder = Encoder()
   encoder.load_state_dict(torch.load(encoder_ckpt_path))
 
-  diffusion_model = diffusion.Diffusion(diffusion.get_model_config())
+  diffusion_model = diffusion.Diffusion(diffusion.get_model_config(2))
   diffusion_loader = stable_diffusion_loader.DiffusionModelLoader(
       diffusion_ckpt_path, diffusion.TENSORS_NAMES
   )
