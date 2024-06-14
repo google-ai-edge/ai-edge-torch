@@ -134,6 +134,7 @@ class AttentionBlock2D(nn.Module):
       x = input_tensor.view(B, C, H * W)
       x = x.transpose(-1, -2)
       x = self.norm(x)
+    x = x.contiguous()  # Prevent BATCH_MATMUL op in converted tflite.
     x = self.attention(x)
     x = x.transpose(-1, -2)
     x = x.view(B, C, H, W)
