@@ -202,7 +202,9 @@ class CausalSelfAttention(nn.Module):
       )
     else:
       qkv = qkv.view(B, T, self.config.num_query_groups, -1)
-      q, k, v = qkv.split((q_per_kv * self.head_dim, self.head_dim, self.head_dim), dim=-1)
+      q, k, v = qkv.split(
+          (q_per_kv * self.head_dim, self.head_dim, self.head_dim), dim=-1
+      )
 
     q = q.reshape(B, T, -1, self.head_dim)
     k = k.reshape(B, T, -1, self.head_dim)
