@@ -22,7 +22,8 @@ import unittest
 import torch
 import torch_xla
 
-from ai_edge_torch.debug import find_culprits, _search_model
+from ai_edge_torch.debug import _search_model
+from ai_edge_torch.debug import find_culprits
 
 _test_culprit_lib = torch.library.Library("test_culprit", "DEF")
 
@@ -50,6 +51,7 @@ class BadModel(torch.nn.Module):
 
 
 class TestSearchModel(unittest.TestCase):
+
   def test_search_model_with_ops(self):
     class MultipleOpsModel(torch.nn.Module):
 
@@ -69,7 +71,9 @@ class TestSearchModel(unittest.TestCase):
       return torch.ops.aten.sub.Tensor in list([n.target for n in fx_gm.graph.nodes])
 
     results = list(_search_model(find_subgraph_with_sub, model, args))
-    self.assertIn(torch.ops.aten.sub.Tensor, list([n.target for n in results[0].graph.nodes]))
+    self.assertIn(
+        torch.ops.aten.sub.Tensor, list([n.target for n in results[0].graph.nodes])
+    )
 
 
 class TestCulprit(unittest.TestCase):

@@ -357,12 +357,12 @@ def _search_model(
   """Finds subgraphs in the torch model that satify a certain predicate function provided by the users.
 
   Args:
-    predicate_f: a predicate function the users specify. 
-      It takes a FX (sub)graph and the inputs to this graph, 
-      return True if the graph satisfies the predicate, 
-      return False otherwise.    
+    predicate_f: a predicate function the users specify.
+      It takes a FX (sub)graph and the inputs to this graph,
+      return True if the graph satisfies the predicate,
+      return False otherwise.
     model: model in which to search subgraph.
-    export_args: A set of args to trace the model with, 
+    export_args: A set of args to trace the model with,
       i.e. model(*args) must run.
     max_granularity - FX minifier arg. The maximum granularity (number of nodes)
       in the returned ATen FX subgraph of the culprit.
