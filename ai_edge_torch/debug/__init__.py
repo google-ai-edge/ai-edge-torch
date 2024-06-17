@@ -14,3 +14,4 @@
 # ==============================================================================
 
 from .culprit import find_culprits
+from .culprit import _search_model

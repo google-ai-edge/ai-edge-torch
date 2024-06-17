@@ -20,8 +20,9 @@ import sys
 import unittest
 
 import torch
+import torch_xla
 
-from ai_edge_torch.debug import find_culprits
+from ai_edge_torch.debug import find_culprits, _search_model
 
 _test_culprit_lib = torch.library.Library("test_culprit", "DEF")
 
@@ -46,6 +47,29 @@ class BadModel(torch.nn.Module):
     x = x + 1
     x = torch.ops.test_culprit.non_lowerable_op.default(x)
     return x
+
+
+class TestSearchModel(unittest.TestCase):
+  def test_search_model_with_ops(self):
+    class MultipleOpsModel(torch.nn.Module):
+
+      def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        sub_0 = x - 1
+        add_0 = y + 1
+        mul_0 = x * y
+        add_1 = sub_0 + add_0
+        mul_1 = add_0 * mul_0
+        sub_1 = add_1 - mul_1
+        return sub_1
+
+    model = MultipleOpsModel().eval()
+    args = (torch.rand(10), torch.rand(10))
+
+    def find_subgraph_with_sub(fx_gm, inputs):
+      return torch.ops.aten.sub.Tensor in list([n.target for n in fx_gm.graph.nodes])
+
+    results = list(_search_model(find_subgraph_with_sub, model, args))
+    self.assertIn(torch.ops.aten.sub.Tensor, list([n.target for n in results[0].graph.nodes]))
 
 
 class TestCulprit(unittest.TestCase):
