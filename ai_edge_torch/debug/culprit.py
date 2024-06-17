@@ -371,13 +371,15 @@ def _search_model(
 
   if isinstance(model, torch.nn.Module):
     try:
-      model = torch.export.export(model, export_args)
+      ep = torch.export.export(model, export_args)
     except Exception as err:
       raise ValueError(
           "Your model is not exportable by torch.export.export. Please modify your model to be torch-exportable first."
       ) from err
+  else:
+    ep = model
 
-  fx_gm, fx_inputs = utils.exported_program_to_fx_graph_module_and_inputs(model)
+  fx_gm, fx_inputs = utils.exported_program_to_fx_graph_module_and_inputs(ep)
   fx_gm = _normalize_getitem_nodes(fx_gm)
 
   # HACK: temporarily disable XLA_HLO_DEBUG so that fx_minifier won't dump
