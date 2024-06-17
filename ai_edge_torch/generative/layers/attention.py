@@ -189,20 +189,23 @@ class CausalSelfAttention(nn.Module):
 
     # Assemble into a number of query groups to support MHA, MQA and GQA.
     q_per_kv = self.config.num_heads // self.config.num_query_groups
-    total_qkv = q_per_kv + 2  # Each group has >=1 queries, 1 key, and 1 value.
+    # Each group has >=1 queries, 1 key, and 1 value.
     if self.config.qkv_transpose_before_split:
-      qkv = qkv.view(
-          B, T, total_qkv, self.config.num_query_groups, self.head_dim
-      )  # (B, T, total_qkv, num_query_groups, head_dim)
-      qkv_axis = -3
+      qkv = qkv.view(B, T, -1, self.head_dim)
+      q, k, v = qkv.split(
+          (
+              q_per_kv * self.config.num_query_groups,
+              self.config.num_query_groups,
+              self.config.num_query_groups,
+          ),
+          dim=-2,
+      )
     else:
-      qkv = qkv.view(
-          B, T, self.config.num_query_groups, total_qkv, self.head_dim
-      )  # (B, T, num_query_groups, total_qkv, head_dim)
-      qkv_axis = -2
+      qkv = qkv.view(B, T, self.config.num_query_groups, -1)
+      q, k, v = qkv.split(
+          (q_per_kv * self.head_dim, self.head_dim, self.head_dim), dim=-1
+      )
 
-    # Split batched computation into three.
-    q, k, v = qkv.split((q_per_kv, 1, 1), dim=qkv_axis)
     q = q.reshape(B, T, -1, self.head_dim)
     k = k.reshape(B, T, -1, self.head_dim)
     v = v.reshape(B, T, -1, self.head_dim)

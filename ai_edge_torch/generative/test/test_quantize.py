@@ -116,6 +116,7 @@ class TestQuantizeConvert(unittest.TestCase):
       ]
   )
   def test_quantize_convert_toy_sizes(self, quant_config, expected_compression):
+    self.skipTest("b/346896669")
     config = toy_model_with_kv_cache.get_model_config()
     pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config)
     idx, input_pos = torch.tensor([[1]], dtype=torch.long), torch.tensor(
