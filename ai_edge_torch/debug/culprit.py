@@ -354,6 +354,20 @@ def _search_model(
     max_granularity: Optional[int] = None,
     enable_fx_minifier_logging: bool = False,
 ) -> Generator[SearchResult, None, None]:
+  """Finds subgraphs in the torch model that satify a certain predicate function provided by the users.
+
+  Args:
+    predicate_f: a predicate function the users specify. 
+      It takes a FX (sub)graph and the inputs to this graph, 
+      return True if the graph satisfies the predicate, 
+      return False otherwise.    
+    model: model in which to search subgraph.
+    export_args: A set of args to trace the model with, 
+      i.e. model(*args) must run.
+    max_granularity - FX minifier arg. The maximum granularity (number of nodes)
+      in the returned ATen FX subgraph of the culprit.
+    enable_fx_minifier_logging: If true, allows the underlying FX minifier to log the progress.
+  """
 
   if isinstance(model, torch.nn.Module):
     try:
