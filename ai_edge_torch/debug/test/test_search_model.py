@@ -43,9 +43,7 @@ class TestSearchModel(unittest.TestCase):
 
     results = list(_search_model(find_subgraph_with_sub, model, args))
     self.assertEqual(len(results), 2)
-    self.assertIn(
-        torch.ops.aten.sub.Tensor, list([n.target for n in results[0].graph.nodes])
-    )
+    self.assertIn(torch.ops.aten.sub.Tensor, [n.target for n in results[0].graph.nodes])
 
 
 if __name__ == "__main__":
