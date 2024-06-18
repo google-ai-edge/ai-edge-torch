@@ -30,6 +30,7 @@ from ai_edge_torch.convert.fx_passes import CanonicalizePass
 from ai_edge_torch.convert.fx_passes import InjectMlirDebuginfoPass
 from ai_edge_torch.convert.fx_passes import OptimizeLayoutTransposesPass
 from ai_edge_torch.convert.fx_passes import run_passes
+from ai_edge_torch.generative.fx_passes import run_generative_passes
 from ai_edge_torch.quantize import quant_config as qcfg
 
 os.environ["EXPERIMENTAL_XLA_UNBOUNDED_DYNAMISM"] = "1"
@@ -38,6 +39,7 @@ os.environ["EXPERIMENTAL_XLA_UNBOUNDED_DYNAMISM"] = "1"
 def _run_convert_passes(
     exported_program: ExportedProgram,
 ) -> ExportedProgram:
+  exported_program = run_generative_passes(exported_program)
   return run_passes(
       exported_program,
       [
