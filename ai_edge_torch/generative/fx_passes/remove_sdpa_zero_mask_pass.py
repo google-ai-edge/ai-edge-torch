@@ -32,14 +32,14 @@ class RemoveSDPACompositeZeroMaskPass(ExportedProgramPassBase):
       ):
         continue
 
-      source, name, io_num, id, is_input = node.args[:5]
+      source, name, io_position, id, is_input = node.args[:5]
       # Composite info:
       # - name: odml.scaled_dot_product_attention
       # - inputs: q, k, v, mask
-      if name == "odml.scaled_dot_product_attention" and is_input and io_num == 3:
+      if name == "odml.scaled_dot_product_attention" and is_input and io_position == 3:
         if self.is_zero_tensor_node(source):
           # Remove the mark_tensor call on the mask input by
-          # replacing the target with a identity function
+          # replacing the target with an identity function.
           node.target = lambda *args, **kwargs: args[0]
 
     exported_program.graph_module.graph.lint()
