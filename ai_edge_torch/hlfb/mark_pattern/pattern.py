@@ -197,7 +197,7 @@ class Pattern:
     self._scalar_attr_locations = []
     for tracker in self._scalar_attr_trackers:
       self._scalar_attr_locations.append(
-          _find_scalar_attr(module, export_args, tracker)
+          _find_scalar_attr(exported_program.module(), export_args, tracker)
       )
 
     # Builds list of ordered input and output nodes.
