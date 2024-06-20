@@ -37,6 +37,7 @@ def _get_upsample_bilinear2d_pattern():
           x, scale_factor=2, mode="bilinear", align_corners=False
       ),
       export_args=(torch.rand(1, 3, 100, 100),),
+      decomp_table=_interpolate_decompositions,
   )
 
   @pattern.register_attr_builder
@@ -48,7 +49,6 @@ def _get_upsample_bilinear2d_pattern():
         "align_corners": False,
     }
 
-  pattern.run_decompositions(_interpolate_decompositions)
   return pattern
 
 
@@ -60,6 +60,7 @@ def _get_upsample_bilinear2d_align_corners_pattern():
           x, scale_factor=2, mode="bilinear", align_corners=True
       ),
       export_args=(torch.rand(1, 3, 100, 100),),
+      decomp_table=_interpolate_decompositions,
   )
 
   @pattern.register_attr_builder
@@ -71,7 +72,6 @@ def _get_upsample_bilinear2d_align_corners_pattern():
         "align_corners": True,
     }
 
-  pattern.run_decompositions(_interpolate_decompositions)
   return pattern
 
 
@@ -81,6 +81,7 @@ def _get_interpolate_nearest2d_pattern():
       "tfl.resize_nearest_neighbor",
       lambda x: torch.nn.functional.interpolate(x, scale_factor=2, mode="nearest"),
       export_args=(torch.rand(1, 3, 100, 100),),
+      decomp_table=_interpolate_decompositions,
   )
 
   @pattern.register_attr_builder
@@ -92,7 +93,6 @@ def _get_interpolate_nearest2d_pattern():
         "is_nchw_op": True,
     }
 
-  pattern.run_decompositions(_interpolate_decompositions)
   return pattern
 
 
