@@ -64,6 +64,28 @@ class TestToChannelLastIO(unittest.TestCase):
     y = m(x)
     self.assertEqual(y.shape, (1, 10, 10, 3))
 
+  def test_list_args(self):
+    class Add(torch.nn.Module):
+
+      def forward(self, x, y):
+        return x + y
+
+    x = (torch.rand(1, 10, 10, 3), torch.rand(1, 10, 10, 3))
+    y = ai_edge_torch.to_channel_last_io(Add(), args=[0, 1])(*x)
+    self.assertEqual(y.shape, (1, 3, 10, 10))
+
+  def test_list_outputs(self):
+    class TwoIdentity(torch.nn.Module):
+
+      def forward(self, x):
+        return x, x
+
+    x = torch.rand(1, 3, 10, 10)
+    y = ai_edge_torch.to_channel_last_io(TwoIdentity(), outputs=[0])(x)
+    self.assertIsInstance(y, tuple)
+    self.assertEqual(y[0].shape, (1, 10, 10, 3))
+    self.assertEqual(y[1].shape, (1, 3, 10, 10))
+
 
 if __name__ == "__main__":
   unittest.main()

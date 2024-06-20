@@ -55,7 +55,7 @@ class ChannelLastIOWrapper(nn.Module):
     if not outputs_is_list:
       return output_list[0]
     else:
-      return type(output)(output_list)
+      return type(outputs)(output_list)
 
 
 def to_channel_last_io(
@@ -63,7 +63,7 @@ def to_channel_last_io(
     args: Optional[list[int]] = None,
     outputs: Optional[list[int]] = None,
 ):
-  """Wraps the model with channel last layout transformations for the given module.
+  """Wraps the module with channel first to channel last layout transformations.
 
   Args:
     args (list[int]): Transform args with indices in the list from channel first
