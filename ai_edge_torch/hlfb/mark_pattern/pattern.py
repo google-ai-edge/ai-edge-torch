@@ -180,10 +180,13 @@ class Pattern:
       module = PatternModule(module).eval()
 
     self.name = name
-    self.exported_program = torch.export.export(module, export_args)
-    self.graph_module = self.exported_program.graph_module
     self.attr_builder = attr_builder
     self._scalar_attr_trackers = scalar_attr_trackers if scalar_attr_trackers else []
+    self._set_exported_program(torch.export.export(module, export_args))
+
+  def _set_exported_program(self, exported_program: torch.export.ExportedProgram):
+    self.exported_program = exported_program
+    self.graph_module = self.exported_program.graph_module
 
     # Sanitize graph_module for more precise pattern matching.
     # The graph_module to match against this pattern should apply equivalent
@@ -211,6 +214,13 @@ class Pattern:
         self.graph_nodes_map[spec.arg.name]
         for spec in self.exported_program.graph_signature.output_specs
     )
+
+  def run_decompositions(
+      self, decomp_table: Optional[dict[torch._ops.OperatorBase, Callable]] = None
+  ):
+    exported_program = self.exported_program.run_decompositions(decomp_table)
+    self._set_exported_program(exported_program)
+    return self
 
   def register_attr_builder(self, attr_builder):
     self.attr_builder = attr_builder

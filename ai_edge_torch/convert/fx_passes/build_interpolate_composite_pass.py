@@ -17,9 +17,16 @@ import functools
 
 import torch
 
-from ai_edge_torch.convert.fx_passes import FxPassBase
-from ai_edge_torch.convert.fx_passes import FxPassResult
+from ai_edge_torch.convert.fx_passes._pass_base import ExportedProgramPassBase
+from ai_edge_torch.convert.fx_passes._pass_base import ExportedProgramPassResult  # NOQA
 from ai_edge_torch.hlfb import mark_pattern
+
+_interpolate_decompositions = torch._decomp.get_decompositions(
+    [
+        torch.ops.aten.upsample_bilinear2d.vec,
+        torch.ops.aten.upsample_nearest2d.vec,
+    ]
+)
 
 
 @functools.cache
@@ -41,6 +48,7 @@ def _get_upsample_bilinear2d_pattern():
         "align_corners": False,
     }
 
+  pattern.run_decompositions(_interpolate_decompositions)
   return pattern
 
 
@@ -63,6 +71,7 @@ def _get_upsample_bilinear2d_align_corners_pattern():
         "align_corners": True,
     }
 
+  pattern.run_decompositions(_interpolate_decompositions)
   return pattern
 
 
@@ -83,10 +92,11 @@ def _get_interpolate_nearest2d_pattern():
         "is_nchw_op": True,
     }
 
+  pattern.run_decompositions(_interpolate_decompositions)
   return pattern
 
 
-class BuildInterpolateCompositePass(FxPassBase):
+class BuildInterpolateCompositePass(ExportedProgramPassBase):
 
   def __init__(self):
     super().__init__()
@@ -96,10 +106,14 @@ class BuildInterpolateCompositePass(FxPassBase):
         _get_interpolate_nearest2d_pattern(),
     ]
 
-  def call(self, graph_module: torch.fx.GraphModule):
+  def call(self, exported_program: torch.export.ExportedProgram):
+    # Forward compatibility
+    exported_program = exported_program.run_decompositions(_interpolate_decompositions)
+
+    graph_module = exported_program.graph_module
     for pattern in self._patterns:
       graph_module = mark_pattern.mark_pattern(graph_module, pattern)
 
     graph_module.graph.lint()
     graph_module.recompile()
-    return FxPassResult(graph_module, True)
+    return ExportedProgramPassResult(exported_program, True)
