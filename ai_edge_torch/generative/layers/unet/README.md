@@ -1,8 +1,8 @@
 # ODML UNet Layers
-Common Pytorch building blocks to re-author UNet based models.
+Common PyTorch building blocks to re-author UNet based models.
 
 ## Blocks 2D layers
-`blocks_2d.py` provide common building blocks used in AutoEncoder and general UNet-like models. Each block has a corresponding config class provided in `model_config.py`, and the block layer is initialized with the config class. `blocks_2d.py` provide the following blocks:
+`blocks_2d.py` provides common building blocks used in AutoEncoder and general UNet-like models. Each block has a corresponding config class provided in `model_config.py`, and the block layer is initialized with the config class. `blocks_2d.py` provide the following blocks:
 * `ResidualBlock2D`: a basic residual layer containing two convolution layers, with optional time embedding layer.
 * `AttentionBlock2D`: self attention layer for 2D tensor.
 * `CrossAttentionBlock2D`: cross attention layer for 2D tensor, between latent tensor and context tensor.
