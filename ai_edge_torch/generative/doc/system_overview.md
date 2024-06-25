@@ -62,7 +62,28 @@ For more documentation on the layer design, please refer to [this page](https://
 ### Checkpoint loading APIs.
 
 
-
 ### Quantization via AI Edge quantizer
 TODO(psho): fill in this part.
 
+### Multi-signature conversion API.
+
+Generative AI models usually have large weights (a few hundred MBs or up to GBs for SLM), and it may have different calling function like `Prefill` or `Decode`. Depending on the model, those different entry functions may also reference the same set of weights during the forward pass. If we converted those entry functions separately, we may notice that the converted TF Lite models have lots of duplicated weights, which will make it impossible for on-device deployment. By leveraging the [multi-signature conversion API in TF Lite converter](https://www.tensorflow.org/lite/guide/signatures), we can achieve the following benefits:
+* Single flatbuffer file with multiple entry points (called `Signatures`).
+* Weights are automatically de-duped and shared across `Signatures`.
+* User or high-level library code can easily call into the [signature invocaction APIs](https://www.tensorflow.org/lite/guide/signatures#run_signatures).
+* Ability to pack different `nn.Modules` converted graphs into the same flatbuffer model for single-file deployment (e.g. different components in stable diffusion model).
+
+For code examples, please refer to [this](https://github.com/google-ai-edge/ai-edge-torch/tree/main/ai_edge_torch/generative#convert-pytorch-llm-to-a-tflite-model) to learn how to use multi-signature conversion API.
+
+### Conversion flow
+
+With AI edge torch generative API, it adopts the same PyTorch to TF Lite conversion flow as traditional models. On a high level, it involves the following steps:
+1) PyTorch compiler (Dynamo). We leverage [Torch Dynamo](https://pytorch.org/docs/stable/torch.compiler_deepdive.html) which is the official graph compiler for PyTorch 2.0. It performs graph capturing and exports the PyTorch `nn.Module` to an FX graph with Aten operations.
+2) TorchXLA. For the moment, we are using [Torch/XLA](https://github.com/pytorch/xla) to compile the FX graph to Stable HLO graph. The converted graph will be stored as a Tensorflow SavedModel.
+3) TF Lite MLIR converter. The TF Lite converter will consume the SavedModel with StableHLO ops, and further lower it down to TF Lite ops.
+
+To convert a several billion parameters Generative AI model, it usually takes a lot of CPU and RAM resources on your machine, as the converter does all kinds of graph optimizations and transformations to ensure the converted model is highly optimized. Going forward, we will continue to improve the converter infrastructure to reduce its system overhead.
+
+### Composite op lowering via high-level function boundary.
+
+To address the performance issue of LLM, we identified that the model's forward pass is usually bottlenecked by a few key operations, such as KV cache or scaled dot product attention. As the converter traces the whole model and performs graph lowering through Aten/CoreAten/StableHLO etc, there are chances that certain op groups are not properly fused together, resulting in bad runtime performance. For example, we leverage PyTorch's [SDPA](https://pytorch.org/docs/stable/generated/torch.nn.functional.scaled_dot_product_attention.html) to implement attention computation, however it will be converted to very inefficient TF Lite ops after graph lowering.
