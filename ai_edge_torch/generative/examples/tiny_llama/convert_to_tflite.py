@@ -50,7 +50,7 @@ def convert_tiny_llama_to_tflite(
   decode_token = torch.tensor([[0]], dtype=torch.long)
   decode_input_pos = torch.tensor([0], dtype=torch.int64)
 
-  quant_config = quant_recipes.full_linear_int8_dynamic_recipe() if quantize else None
+  quant_config = quant_recipes.full_int8_dynamic_recipe() if quantize else None
   edge_model = (
       ai_edge_torch.signature(
           'prefill', pytorch_model, (prefill_tokens, prefill_input_pos)

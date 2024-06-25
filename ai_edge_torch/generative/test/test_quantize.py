@@ -110,7 +110,7 @@ class TestQuantizeConvert(unittest.TestCase):
   @parameterized.expand(
       [
           (quant_recipes.full_fp16_recipe(), 0.65),
-          (quant_recipes.full_linear_int8_dynamic_recipe(), 0.47),
+          (quant_recipes.full_int8_dynamic_recipe(), 0.47),
           (_attention_int8_dynamic_recipe(), 0.89),
           (_feedforward_int8_dynamic_recipe(), 0.72),
       ]
