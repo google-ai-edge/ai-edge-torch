@@ -29,6 +29,8 @@ On a high level, the library is composed of the following major components:
 8) End-to-end Pipeline APIs (MediaPipe-based or pure C++ inference).
 9) Model visualization and profiling tools.
 
+Below is an overview of the main components and user flow.
+
 <img width="890" alt="Gemma-2b visualization demo" src="generative_system_architecture.png">
 
 
