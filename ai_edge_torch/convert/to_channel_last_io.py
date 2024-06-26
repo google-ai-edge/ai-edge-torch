@@ -28,10 +28,18 @@ class ChannelLastIOWrapper(nn.Module):
     self._outputs = outputs or []
 
   def _to_channel_last(self, x):
+    if not torch.is_tensor(x):
+      raise ValueError("Input must be a torch tensor")
+    if x.ndim < 3:
+      raise ValueError("Input must be a tensor with rank > 3 in layout (N, C, ...)")
     dims = [0, *range(2, x.ndim), 1]
     return torch.permute(x, dims)
 
   def _to_channel_first(self, x):
+    if not torch.is_tensor(x):
+      raise ValueError("Input must be a torch tensor.")
+    if x.ndim < 3:
+      raise ValueError("Input must be a tensor with rank > 3 in layout (N, ..., C)")
     dims = [0, x.ndim - 1, *range(1, x.ndim - 1)]
     return torch.permute(x, dims)
 
@@ -67,9 +75,9 @@ def to_channel_last_io(
 
   Args:
     args (list[int]): Transform args with indices in the list from channel first
-      (NCX) to channel last (NXC).
+      (N, C, ...) to channel last (N, ..., C).
     outputs (list[int]): Transform outputs with indices in the list from channel
-      first (NCX) to channel last (NXC).
+      first (N, C, ...) to channel last (N, ..., C).
   Returns:
     The wrapped nn.Module with additional layout transposes after inputs and/or before
     outputs.
