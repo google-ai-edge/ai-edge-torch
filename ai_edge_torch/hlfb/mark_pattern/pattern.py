@@ -100,13 +100,18 @@ class ScalarAttrLocation:
 
 
 def _find_scalar_attr(
-    pattern_module: torch.nn.Module, export_args: tuple[Any], tracker: ScalarAttrTracker
+    pattern_module: torch.nn.Module,
+    export_args: tuple[Any],
+    tracker: ScalarAttrTracker,
+    decomp_table=None,
 ) -> ScalarAttrLocation:
   scalar_loc_intersections = None
   for source, target in tracker._source_targets:
     track_args = list(export_args)
     track_args[tracker.pattern_arg_pos] = source
     ep = torch.export.export(pattern_module, tuple(track_args))
+    if decomp_table is not None:
+      ep = ep.run_decompositions(decomp_table)
 
     scalar_locs = set()
     nodes = ep.graph_module.graph.nodes
@@ -145,6 +150,7 @@ class Pattern:
           ["Pattern", GraphModule, InternalMatch], Optional[dict[str, Any]]
       ] = None,
       scalar_attr_trackers: list[ScalarAttrTracker] = None,
+      decomp_table: Optional[dict[torch._ops.OperatorBase, Callable]] = None,
   ):
     """The PyTorch computation pattern to match against a model.
 
@@ -165,6 +171,8 @@ class Pattern:
         for scalar args in `export_args`, which are used to track
         the attr occurrence(s) and retrieve their values from the
         matched subgraph.
+      decomp_table (Optional[dict[torch._ops.OperatorBase, Callable]]):
+        The decomposition table to be run on the pattern's exported program.
     """
     if not isinstance(module, torch.nn.Module):
 
@@ -180,22 +188,27 @@ class Pattern:
       module = PatternModule(module).eval()
 
     self.name = name
-    self.exported_program = torch.export.export(module, export_args)
-    self.graph_module = self.exported_program.graph_module
     self.attr_builder = attr_builder
     self._scalar_attr_trackers = scalar_attr_trackers if scalar_attr_trackers else []
+
+    exported_program = torch.export.export(module, export_args)
+    if decomp_table is not None:
+      exported_program = exported_program.run_decompositions(decomp_table)
+
+    self.exported_program = exported_program
+    self.graph_module = self.exported_program.graph_module
+
+    self._scalar_attr_locations = []
+    for tracker in self._scalar_attr_trackers:
+      self._scalar_attr_locations.append(
+          _find_scalar_attr(module, export_args, tracker, decomp_table=decomp_table)
+      )
 
     # Sanitize graph_module for more precise pattern matching.
     # The graph_module to match against this pattern should apply equivalent
     # sanitization.
     self.graph_module = passes.remove_clone_ops(self.graph_module)
     self.graph_module = passes.remove_dangling_args(self.graph_module)
-
-    self._scalar_attr_locations = []
-    for tracker in self._scalar_attr_trackers:
-      self._scalar_attr_locations.append(
-          _find_scalar_attr(module, export_args, tracker)
-      )
 
     # Builds list of ordered input and output nodes.
     self.graph_nodes_map = {}
