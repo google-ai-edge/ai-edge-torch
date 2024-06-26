@@ -49,9 +49,14 @@ class TestToChannelLastIO(unittest.TestCase):
     y = ai_edge_torch.to_channel_last_io(Identity(), args=[0], outputs=[0])(x)
     self.assertEqual(y.shape, (1, 10, 10, 3))
 
-  def test_args_outputs_5d(self):
+  def test_args_5d(self):
     x = torch.rand(1, 10, 10, 10, 3)
-    y = ai_edge_torch.to_channel_last_io(Identity(), args=[0], outputs=[0])(x)
+    y = ai_edge_torch.to_channel_last_io(Identity(), args=[0])(x)
+    self.assertEqual(y.shape, (1, 3, 10, 10, 10))
+
+  def test_outputs_5d(self):
+    x = torch.rand(1, 3, 10, 10, 10)
+    y = ai_edge_torch.to_channel_last_io(Identity(), outputs=[0])(x)
     self.assertEqual(y.shape, (1, 10, 10, 10, 3))
 
   def test_chained_wrappers(self):
