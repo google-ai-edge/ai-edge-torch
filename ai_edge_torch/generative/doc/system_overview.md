@@ -86,4 +86,29 @@ To convert a several billion parameters Generative AI model, it usually takes a 
 
 ### Composite op lowering via high-level function boundary.
 
-To address the performance issue of LLM, we identified that the model's forward pass is usually bottlenecked by a few key operations, such as KV cache or scaled dot product attention. As the converter traces the whole model and performs graph lowering through Aten/CoreAten/StableHLO etc, there are chances that certain op groups are not properly fused together, resulting in bad runtime performance. For example, we leverage PyTorch's [SDPA](https://pytorch.org/docs/stable/generated/torch.nn.functional.scaled_dot_product_attention.html) to implement attention computation, however it will be converted to very inefficient TF Lite ops after graph lowering.
+To address the performance issue of LLM, we identified that the model's forward pass is usually bottlenecked by a few key operations, such as KV cache or scaled dot product attention. As the converter traces the whole model and performs graph lowering through Aten/CoreAten/StableHLO etc, there are chances that certain op groups are not properly fused together, resulting in bad runtime performance. For example, we leverage PyTorch's [SDPA](https://pytorch.org/docs/stable/generated/torch.nn.functional.scaled_dot_product_attention.html) to implement attention computation, however it will be converted to less efficient form if it's converted directly. The core problem here is that the converter doesn't know the boundary of a `SDPA` op so it can't apply any optimizations on it. We use TorchXLA's high-level function boundary API to mark the boundary of the `SDPA` operation, and then lower it to TF Lite custom op. For example, see how HLFB is applied inside the `SDPA` python implementation:
+https://github.com/google-ai-edge/ai-edge-torch/blob/9b06abe7c645f1d784804eb7f63f93458f358ba1/ai_edge_torch/generative/layers/scaled_dot_product_attention.py#L69-L117
+
+As a result, everything in between the `builder.mark_inputs` and `builder.mark_outputs` call will be wrapped inside a StableHLO composite op named `odml.scaled_dot_product_attention`, and map to TF Lite's [SDPA custom op](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/lite/experimental/genai/sdpa.cc) by the converter. During runtime, the delegate will match and replace the `odml.scaled_dot_product_attention` to the most efficient kernels on that delegate backend.
+
+### On-device execution via TF Lite and delegate system.
+
+TF Lite supports a broad range of hardware accelerators via it's on-device [delegation system](https://www.tensorflow.org/lite/performance/delegates). On CPU, we leverage the [XNNPack library](https://github.com/google/XNNPACK) and the [TF Lite XNNPack delegate](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/lite/delegates/xnnpack/README.md) to accelerate generative models on-device. In the future, we will broaden the support for GPU, TPUs and other NPUs.
+
+#### How to achieve speed up
+
+When calling `ModifyGraphWithDelegate` API, TF Lite delegate will traverse the model and see which parts of the model it can speed up. For `SDPA` op, the XNNPack delegate will match the op based on its name and construct an XNNPack computation subgraph to accelerate attention calculation. See [VisitScaledDotAttentionCompositeNode](https://github.com/tensorflow/tensorflow/blob/dea0e2a6f8beca190ca138093e669d42ee244056/tensorflow/lite/delegates/xnnpack/xnnpack_delegate.cc#L6625) in TF Lite's XNNPack delegate for how it handles the `SDPA` computation.
+
+#### Runtime memory savings & Reduced warmup time
+
+Achieving low peak memory usage is also very critical for on-device generative AI model execution. To this end, we have implemented several optimizations in the current  TF Lite and XNNPack delegate to reduce overall memory consumption:
+* XNNPack weight cache. Internally the delegate will repack the weights into a central weight cache, to allow for weight sharing across different signatures. See this [blog post](https://blog.tensorflow.org/2022/06/memory-efficient-inference-with-xnnpack.html) for more details.
+* XNNPack weight serialization. The weight cache can be automatically serialized to a local file which the delegate could quickly reload later, this will greatly reduce the warmup time on the second inference.
+
+### End-to-end Pipeline APIs (MediaPipe-based or pure C++ inference).
+
+TODO: finish this up.
+
+### Model visualization and profiling tools.
+
+For now, we are using Model Explorer and the TF Lite benchmarking tools to visualize and profile model performance.
