@@ -35,7 +35,7 @@ class TestModelConversion(unittest.TestCase):
   def test_toy_model_with_kv_cache(self):
     config = toy_model_with_kv_cache.get_model_config()
     pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config)
-    idx, input_pos = torch.tensor([[1]], dtype=torch.long), torch.tensor(
+    idx, input_pos = torch.tensor([[1]], dtype=torch.int), torch.tensor(
         [10], dtype=torch.int64
     )
 
@@ -59,7 +59,7 @@ class TestModelConversion(unittest.TestCase):
     config = toy_model_with_kv_cache.get_model_config()
     config.batch_size = 2
     pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config)
-    idx, input_pos = torch.tensor([[1], [2]], dtype=torch.long), torch.tensor(
+    idx, input_pos = torch.tensor([[1], [2]], dtype=torch.int), torch.tensor(
         [10], dtype=torch.int64
     )
 
@@ -83,7 +83,7 @@ class TestModelConversion(unittest.TestCase):
     config = toy_model_with_kv_cache.get_model_config()
     config.enable_hlfb = True
     pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config)
-    idx, input_pos = torch.tensor([[1]], dtype=torch.long), torch.tensor(
+    idx, input_pos = torch.tensor([[1]], dtype=torch.int), torch.tensor(
         [10], dtype=torch.int64
     )
 
@@ -109,7 +109,7 @@ class TestModelConversion(unittest.TestCase):
     pytorch_model = tiny_llama.TinyLLamma(config)
 
     idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
-    tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
+    tokens = torch.full((1, 10), 0, dtype=torch.int, device="cpu")
     tokens[0, :4] = idx
     input_pos = torch.arange(0, 10)
 
@@ -135,13 +135,13 @@ class TestModelConversion(unittest.TestCase):
 
     # prefill
     seq_len = 10
-    prefill_tokens = torch.full((1, seq_len), 0, dtype=torch.long, device="cpu")
+    prefill_tokens = torch.full((1, seq_len), 0, dtype=torch.int, device="cpu")
     prompt_token = torch.from_numpy(np.array([1, 2, 3, 4]))
     prefill_tokens[0, : len(prompt_token)] = prompt_token
     prefill_input_pos = torch.arange(0, seq_len)
 
     # decode
-    decode_token = torch.tensor([[1]], dtype=torch.long)
+    decode_token = torch.tensor([[1]], dtype=torch.int)
     decode_input_pos = torch.tensor([5], dtype=torch.int64)
 
     edge_model = (
@@ -183,7 +183,7 @@ class TestModelConversion(unittest.TestCase):
     model = gemma.Gemma(config)
 
     idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
-    tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
+    tokens = torch.full((1, 10), 0, dtype=torch.int, device="cpu")
     tokens[0, :4] = idx
     input_pos = torch.arange(0, 10)
 
@@ -210,7 +210,7 @@ class TestModelConversion(unittest.TestCase):
     pytorch_model = phi2.Phi2(config)
 
     idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
-    tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
+    tokens = torch.full((1, 10), 0, dtype=torch.int, device="cpu")
     tokens[0, :4] = idx
     input_pos = torch.arange(0, 10)
 

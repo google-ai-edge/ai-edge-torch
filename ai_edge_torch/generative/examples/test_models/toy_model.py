@@ -93,7 +93,7 @@ def define_and_run() -> None:
   )
 
   model = ToySingleLayerModel(config)
-  idx = torch.unsqueeze(torch.arange(0, KV_CACHE_MAX_LEN), 0)
+  idx = torch.unsqueeze(torch.arange(0, KV_CACHE_MAX_LEN, dtype=torch.int), 0)
   input_pos = torch.arange(0, KV_CACHE_MAX_LEN)
   print('running an inference')
   print(
