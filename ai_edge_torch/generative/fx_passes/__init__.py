@@ -12,6 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+import torch
 
-from .culprit import _search_model
-from .culprit import find_culprits
+from ai_edge_torch.convert.fx_passes import CanonicalizePass
+from ai_edge_torch.convert.fx_passes import run_passes
+from ai_edge_torch.generative.fx_passes.remove_sdpa_zero_mask_pass import RemoveSDPACompositeZeroMaskPass  # NOQA
+
+
+def run_generative_passes(
+    exported_program: torch.export.ExportedProgram,
+) -> torch.export.ExportedProgram:
+  return run_passes(
+      exported_program,
+      [
+          RemoveSDPACompositeZeroMaskPass(),
+          CanonicalizePass(),
+      ],
+  )

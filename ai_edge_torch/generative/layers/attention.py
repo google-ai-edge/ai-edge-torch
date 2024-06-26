@@ -70,6 +70,7 @@ class TransformerBlock(nn.Module):
         config.embedding_dim, config.pre_attention_norm_config
     )
     self.atten_func = CausalSelfAttention(
+        config.batch_size,
         config.embedding_dim,
         config.attn_config,
         config.kv_cache_max,
@@ -119,6 +120,7 @@ class CausalSelfAttention(nn.Module):
 
   def __init__(
       self,
+      batch_size: int,
       dim: int,
       config: cfg.AttentionConfig,
       kv_cache_max: int,
@@ -127,6 +129,7 @@ class CausalSelfAttention(nn.Module):
     """Initialize an instance of CausalSelfAttention.
 
     Args:
+      batch_size (int): batch size of the input tensor.
       dim (int): causal attention's input/output dimmension.
       config (cfg.AttentionConfig): attention specific configurations.
       kv_cache_max (int): determines the size of the KV Cache buffer, if enabled.
@@ -140,13 +143,12 @@ class CausalSelfAttention(nn.Module):
     self.output_projection = nn.Linear(dim, dim, bias=config.output_proj_use_bias)
     self.config = config
     self.kv_cache = None
+    self.batch_size = batch_size
 
     # Build a k/v cache with size (batch_size, kv_cache_max, n_heads, head_dim).
-    # Now only supports batch_size of 1.
-    # TODO(haoliang): support batch_size greater than 1.
     if config.enable_kv_cache:
       self.kv_cache = KVCache(
-          1,
+          batch_size,
           kv_cache_max,
           config.num_query_groups,
           self.head_dim,
@@ -179,26 +181,31 @@ class CausalSelfAttention(nn.Module):
     """
     # Batch size, sequence length, embedding dimensionality.
     B, T, E = x.size()
-    assert B == 1, "Currently only batch_size = 1 is supported."
+    assert (
+        B == self.batch_size
+    ), "batch size of input tensor must match with the batch size specified in the model configuration."
 
     qkv = self.qkv_projection(x)
 
     # Assemble into a number of query groups to support MHA, MQA and GQA.
     q_per_kv = self.config.num_heads // self.config.num_query_groups
-    total_qkv = q_per_kv + 2  # Each group has >=1 queries, 1 key, and 1 value.
+    # Each group has >=1 queries, 1 key, and 1 value.
     if self.config.qkv_transpose_before_split:
-      qkv = qkv.view(
-          B, T, total_qkv, self.config.num_query_groups, self.head_dim
-      )  # (B, T, total_qkv, num_query_groups, head_dim)
-      qkv_axis = -3
+      qkv = qkv.view(B, T, -1, self.head_dim)
+      q, k, v = qkv.split(
+          (
+              q_per_kv * self.config.num_query_groups,
+              self.config.num_query_groups,
+              self.config.num_query_groups,
+          ),
+          dim=-2,
+      )
     else:
-      qkv = qkv.view(
-          B, T, self.config.num_query_groups, total_qkv, self.head_dim
-      )  # (B, T, num_query_groups, total_qkv, head_dim)
-      qkv_axis = -2
+      qkv = qkv.view(B, T, self.config.num_query_groups, -1)
+      q, k, v = qkv.split(
+          (q_per_kv * self.head_dim, self.head_dim, self.head_dim), dim=-1
+      )
 
-    # Split batched computation into three.
-    q, k, v = qkv.split((q_per_kv, 1, 1), dim=qkv_axis)
     q = q.reshape(B, T, -1, self.head_dim)
     k = k.reshape(B, T, -1, self.head_dim)
     v = v.reshape(B, T, -1, self.head_dim)
@@ -240,7 +247,10 @@ class SelfAttention(CausalSelfAttention):
     """
     B, T, _ = x.size()
     return super().forward(
-        x, rope=rope, mask=torch.zeros((B, T), dtype=torch.float32), input_pos=input_pos
+        x,
+        rope=rope,
+        mask=torch.zeros((B, 1, T, T), dtype=torch.float32),
+        input_pos=input_pos,
     )
 
 
@@ -248,6 +258,7 @@ class CrossAttention(nn.Module):
 
   def __init__(
       self,
+      batch_size: int,
       query_dim: int,
       cross_dim: int,
       config: cfg.AttentionConfig,
@@ -257,6 +268,7 @@ class CrossAttention(nn.Module):
     """Initialize an instance of CrossAttention.
 
     Args:
+      batch_size (int): batch size of the input tensor.
       query_dim (int): query tensor's dimension.
       cross_dim (int): cross attention's dimensions, for key and value tensors.
       config (cfg.AttentionConfig): attention specific configurations.
@@ -276,10 +288,9 @@ class CrossAttention(nn.Module):
 
     self.kv_cache = None
     # Build a k/v cache with size (batch_size, kv_cache_max, n_heads, head_dim).
-    # Now only supports a max batch_size of 1.
     if config.enable_kv_cache:
       self.kv_cache = KVCache(
-          1,
+          batch_size,
           kv_cache_max,
           config.num_query_groups,
           self.head_dim,
@@ -299,19 +310,30 @@ class CrossAttention(nn.Module):
       mask: Optional[torch.Tensor] = None,
       input_pos: Optional[torch.Tensor] = None,
   ):
-    B, T, E = x.size()  # batch size, sequence length, embedding dimensionality (n_embd)
+    """Forward function of the CrossAttention layer.
+
+    Args:
+      x (torch.Tensor): the target tensor, with shape [B, target_seq_len, ...].
+      y (torch.Tensor): the source tensor, with shape [B, source_seq_len, ...].
+      rope (Tuple[torch.Tensor, torch.Tensor]): the optional input rope tensor.
+      mask (torch.Tensor): the optional mask tensor can be broadcaseted to shape [B, n_heads, target_seq_len, source_seq_len].
+      input_pos (torch.Tensor): the optional input position tensor.
+
+    Returns:
+      output activation from this cross attention layer.
+    """
+    batch_size = x.size()[0]
+    target_seq_len = x.size()[1]
+    source_seq_len = y.size()[1]
 
     q = self.q_projection(x)
-    k = self.k_projection(x)
-    v = self.v_projection(x)
+    k = self.k_projection(y)
+    v = self.v_projection(y)
 
-    interim_shape = (B, T, self.n_heads, self.head_dim)
+    interim_shape = (batch_size, -1, self.n_heads, self.head_dim)
     q = q.view(interim_shape)
     k = k.view(interim_shape)
     v = v.view(interim_shape)
-
-    if mask is None:
-      mask = torch.zeros((B, T), dtype=torch.float32)
 
     # Compute rotary positional embedding for query and key.
     n_elem = int(self.config.rotary_percentage * self.head_dim)
@@ -320,9 +342,12 @@ class CrossAttention(nn.Module):
     if self.kv_cache is not None:
       # TODO(haoliang): Handle when execeeding max sequence length.
       k, v = self.kv_cache.update_cache(input_pos, k, v)
-
+    if mask is None:
+      mask = torch.zeros(
+          (batch_size, 1, target_seq_len, source_seq_len), dtype=torch.float32
+      )
     y = self.sdpa_func(q, k, v, self.head_dim, mask=mask)
-    y = y.reshape(B, T, E)
+    y = y.reshape(batch_size, target_seq_len, -1)
 
     # Compute the output projection.
     y = self.output_projection(y)

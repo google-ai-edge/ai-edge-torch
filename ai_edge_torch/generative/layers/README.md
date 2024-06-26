@@ -13,6 +13,8 @@ These two files provide the following common Python helper functions:
 And also the following `nn.Module` classes:
 * `TransformerBlock`
 * `CausalSelfAttention`
+* `SelfAttention`
+* `CrossAttention`
 
 ## Builder class for common layers
 In `builder.py`, it provides following helper functions:
