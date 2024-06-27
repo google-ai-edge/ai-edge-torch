@@ -104,7 +104,6 @@ class TestModelConversion(unittest.TestCase):
       )
 
   def test_tiny_llama(self):
-    self.skipTest("b/338288901")
     config = tiny_llama.get_fake_model_config_for_test()
     pytorch_model = tiny_llama.TinyLLamma(config)
 
@@ -178,7 +177,6 @@ class TestModelConversion(unittest.TestCase):
       )
 
   def test_gemma(self):
-    self.skipTest("b/338288901")
     config = gemma.get_fake_model_config_2b_for_test()
     model = gemma.Gemma(config)
 
@@ -205,7 +203,6 @@ class TestModelConversion(unittest.TestCase):
       )
 
   def test_phi2(self):
-    self.skipTest("b/338288901")
     config = phi2.get_fake_model_config_for_test()
     pytorch_model = phi2.Phi2(config)
 
