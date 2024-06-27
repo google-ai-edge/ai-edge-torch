@@ -13,4 +13,5 @@
 # limitations under the License.
 # ==============================================================================
 
+from .culprit import _search_model
 from .culprit import find_culprits

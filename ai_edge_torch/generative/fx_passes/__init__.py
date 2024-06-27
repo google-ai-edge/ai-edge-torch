@@ -12,20 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+import torch
 
-from .convert.converter import convert
-from .convert.converter import signature
-from .convert.to_channel_last_io import to_channel_last_io
-from .model import Model
+from ai_edge_torch.convert.fx_passes import CanonicalizePass
+from ai_edge_torch.convert.fx_passes import run_passes
+from ai_edge_torch.generative.fx_passes.remove_sdpa_zero_mask_pass import RemoveSDPACompositeZeroMaskPass  # NOQA
 
 
-def load(path: str) -> Model:
-  """Imports an ai_edge_torch model from disk.
-
-  Args:
-    path: The path to the serialized ai_edge_torch model.
-
-  Returns:
-    An ai_edge_torch.model.Model object.
-  """
-  return Model.load(path)
+def run_generative_passes(
+    exported_program: torch.export.ExportedProgram,
+) -> torch.export.ExportedProgram:
+  return run_passes(
+      exported_program,
+      [
+          RemoveSDPACompositeZeroMaskPass(),
+          CanonicalizePass(),
+      ],
+  )

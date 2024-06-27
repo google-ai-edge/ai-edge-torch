@@ -21,11 +21,11 @@ import torch
 import ai_edge_torch
 import ai_edge_torch.generative.examples.stable_diffusion.clip as clip
 import ai_edge_torch.generative.examples.stable_diffusion.decoder as decoder
-from ai_edge_torch.generative.examples.stable_diffusion.diffusion import Diffusion  # NOQA
+import ai_edge_torch.generative.examples.stable_diffusion.diffusion as diffusion
 from ai_edge_torch.generative.examples.stable_diffusion.encoder import Encoder
 import ai_edge_torch.generative.examples.stable_diffusion.util as util
-import ai_edge_torch.generative.utilities.autoencoder_loader as autoencoder_loader
 import ai_edge_torch.generative.utilities.loader as loading_utils
+import ai_edge_torch.generative.utilities.stable_diffusion_loader as stable_diffusion_loader
 
 
 @torch.inference_mode
@@ -45,11 +45,14 @@ def convert_stable_diffusion_to_tflite(
   encoder = Encoder()
   encoder.load_state_dict(torch.load(encoder_ckpt_path))
 
-  diffusion = Diffusion()
-  diffusion.load_state_dict(torch.load(diffusion_ckpt_path))
+  diffusion_model = diffusion.Diffusion(diffusion.get_model_config(2))
+  diffusion_loader = stable_diffusion_loader.DiffusionModelLoader(
+      diffusion_ckpt_path, diffusion.TENSORS_NAMES
+  )
+  diffusion_loader.load(diffusion_model)
 
   decoder_model = decoder.Decoder(decoder.get_model_config())
-  decoder_loader = autoencoder_loader.AutoEncoderModelLoader(
+  decoder_loader = stable_diffusion_loader.AutoEncoderModelLoader(
       decoder_ckpt_path, decoder.TENSORS_NAMES
   )
   decoder_loader.load(decoder_model)
@@ -84,7 +87,7 @@ def convert_stable_diffusion_to_tflite(
   # Diffusion
   ai_edge_torch.signature(
       'diffusion',
-      diffusion,
+      diffusion_model,
       (torch.repeat_interleave(input_latents, 2, 0), context, time_embedding),
   ).convert().export('/tmp/stable_diffusion/diffusion.tflite')
 
