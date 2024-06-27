@@ -15,6 +15,7 @@
 
 from .convert.converter import convert
 from .convert.converter import signature
+from .convert.to_channel_last_io import to_channel_last_io
 from .model import Model
 
 
