@@ -118,9 +118,8 @@ class TestQuantizeConvert(unittest.TestCase):
   def test_quantize_convert_toy_sizes(self, quant_config, expected_compression):
     config = toy_model.get_model_config()
     pytorch_model = toy_model.ToySingleLayerModel(config)
-    idx, input_pos = torch.tensor([[1]], dtype=torch.long), torch.tensor(
-        [10], dtype=torch.int64
-    )
+    idx = torch.unsqueeze(torch.arange(0, 100), 0)
+    input_pos = torch.arange(0, 100)
 
     quantized_model = ai_edge_torch.convert(
         pytorch_model, (idx, input_pos), quant_config=quant_config

@@ -93,7 +93,6 @@ def _set_quant_config(
           execution_mode=_get_execution_mode_from_mode(layer_recipe.mode),
       ),
       algorithm_key=_get_algorithm_key_from_algorithm(layer_recipe.algorithm),
-      override_algorithm=True,
   )
 
 
