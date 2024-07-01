@@ -267,6 +267,7 @@ def convert_stablehlo_to_tflite(
     _tfl_converter_flags: A nested dictionary allowing setting flags for the underlying tflite converter.
   """
 
+  """
   bundle = shlo_graph_module._bundle
   tf_module = tf.Module()
   bundle.state_dict = {
@@ -304,7 +305,7 @@ def convert_stablehlo_to_tflite(
   with tempfile.TemporaryDirectory() as temp_dir_path:
     tf.saved_model.save(
         tf_module,
-        temp_dir_path,
+        '~/Downloads/gemma_saved_model',
         signatures={
             sig.name: tf_concrete_funcs[idx] for idx, sig in enumerate(signatures)
         },
@@ -313,11 +314,14 @@ def convert_stablehlo_to_tflite(
     del tf_module
     del tf_concrete_funcs
     gc.collect()
+    return
+    """
 
-    converter = tf.lite.TFLiteConverter.from_saved_model(temp_dir_path)
-    converter._set_original_model_type(conversion_metadata_fb.ModelType.PYTORCH)
-    converter._experimental_enable_composite_direct_lowering = True
+  converter = tf.lite.TFLiteConverter.from_saved_model('/usr/local/google/home/haoliang/Downloads/gemma_saved_model')
+  converter._set_original_model_type(conversion_metadata_fb.ModelType.PYTORCH)
+  converter._experimental_enable_composite_direct_lowering = True
 
+  """
     _set_tfl_converter_quant_flags(converter, quant_config)
     if (
         quant_config is not None
@@ -327,16 +331,19 @@ def convert_stablehlo_to_tflite(
       translated_recipe = translate_recipe.translate_to_ai_edge_recipe(
           quant_config.generative_recipe
       )
+  """
 
-    _apply_tfl_backdoor_flags(converter, _tfl_converter_flags)
+  _apply_tfl_backdoor_flags(converter, _tfl_converter_flags)
 
-    tflite_model = converter.convert()
+  tflite_model = converter.convert()
 
+  """
     if (
         quant_config is not None
         and quant_config._quantizer_mode
         == quant_config._QuantizerMode.AI_EDGE_QUANTIZER
     ):
       tflite_model = translate_recipe.quantize_model(tflite_model, translated_recipe)
+  """
 
   return tflite_model

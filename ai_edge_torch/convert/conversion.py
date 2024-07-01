@@ -87,6 +87,7 @@ def convert_signatures(
   """
   _warn_training_modules(signatures)
 
+  """
   exported_programs: torch.export.ExportedProgram = [
       torch.export.export(
           sig.module, sig.sample_args, dynamic_shapes=sig.dynamic_shapes
@@ -108,9 +109,10 @@ def convert_signatures(
   del shlo_bundles
 
   gc.collect()
+  """
 
   tflite_model = cutils.convert_stablehlo_to_tflite(
-      merged_shlo_graph_module,
+      None,
       signatures,
       quant_config=quant_config,
       _tfl_converter_flags=_tfl_converter_flags,
