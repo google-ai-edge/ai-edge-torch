@@ -21,7 +21,7 @@ ai_edge_torch/generative/layers/model_config.py:ModelConfig.
 
 Typical usage example:
 
-  quant_config = quant_recipes.full_linear_int8_dynamic_recipe()
+  quant_config = quant_recipes.full_int8_dynamic_recipe()
   edge_model = ai_edge_torch.convert(
       model, (tokens, input_pos), quant_config=quant_config
   )
@@ -32,7 +32,7 @@ from ai_edge_torch.generative.quantize import quant_recipe_utils
 from ai_edge_torch.quantize import quant_config
 
 
-def full_linear_int8_dynamic_recipe() -> quant_config.QuantConfig:
+def full_int8_dynamic_recipe() -> quant_config.QuantConfig:
   return quant_config.QuantConfig(
       generative_recipe=quant_recipe.GenerativeQuantRecipe(
           default=quant_recipe_utils.create_layer_quant_int8_dynamic(),

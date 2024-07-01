@@ -26,12 +26,10 @@ _TensorQuantConfig = quantizer.qtyping.TensorQuantizationConfig
 _OpQuantConfig = quantizer.qtyping.OpQuantizationConfig
 
 _DEFAULT_REGEX_STR = '.*'
-_ATTENTION_IDX_REGEX_STR = (
-    'transformer_blocks\[{}\]/ai_edge_torch.generative.layers.attention'
-)
-_FEEDFORWARD_IDX_REGEX_STR = (
-    'transformer_blocks\[{}\]/ai_edge_torch.generative.layers.feed_forward'
-)
+_SINGULAR_TRANSFORMER_BLOCK_REGEX_STR = 'transformer_block'
+_IDX_TRANSFORMER_BLOCKS_REGEX_STR = 'transformer_blocks\[{}\]'
+_ATTENTION_REGEX_STR = 'ai_edge_torch.generative.layers.attention'
+_FEEDFORWARD_REGEX_STR = 'ai_edge_torch.generative.layers.feed_forward'
 _EMBEDDING_REGEX_STR = 'Embedding_tok_embedding'
 _ANY_TWO_DIGITS_REGEX_STR = '\d{1,2}'
 
@@ -82,27 +80,20 @@ def _set_quant_config(
     layer_recipe: quant_recipe.LayerQuantRecipe,
     regex: str,
 ):
-  support_op_list = [_OpName.FULLY_CONNECTED, _OpName.CONV_2D]
-  if layer_recipe.algorithm == quant_attrs.Algorithm.MIN_MAX:
-    support_op_list += [_OpName.BATCH_MATMUL, _OpName.EMBEDDING_LOOKUP]
-  for op_name in support_op_list:
-    rm.add_quantization_config(
-        regex=regex,
-        operation_name=op_name,
-        op_config=_OpQuantConfig(
-            weight_tensor_config=_TensorQuantConfig(
-                num_bits=_get_nbits_from_dtype(layer_recipe.weight_dtype),
-                symmetric=True,
-                channel_wise=_get_channelwise_from_granularity(
-                    layer_recipe.granularity
-                ),
-                dtype=_get_dtype_from_dtype(layer_recipe.weight_dtype),
-            ),
-            execution_mode=_get_execution_mode_from_mode(layer_recipe.mode),
-        ),
-        algorithm_key=_get_algorithm_key_from_algorithm(layer_recipe.algorithm),
-        override_algorithm=True,
-    )
+  rm.add_quantization_config(
+      regex=regex,
+      operation_name=_OpName.ALL_SUPPORTED,
+      op_config=_OpQuantConfig(
+          weight_tensor_config=_TensorQuantConfig(
+              num_bits=_get_nbits_from_dtype(layer_recipe.weight_dtype),
+              symmetric=True,
+              channel_wise=_get_channelwise_from_granularity(layer_recipe.granularity),
+              dtype=_get_dtype_from_dtype(layer_recipe.weight_dtype),
+          ),
+          execution_mode=_get_execution_mode_from_mode(layer_recipe.mode),
+      ),
+      algorithm_key=_get_algorithm_key_from_algorithm(layer_recipe.algorithm),
+  )
 
 
 def translate_to_ai_edge_recipe(
@@ -119,23 +110,31 @@ def translate_to_ai_edge_recipe(
   if recipe.attention is not None:
     if isinstance(recipe.attention, dict):
       for idx, layer in recipe.attention.items():
-        _set_quant_config(rm, layer, _ATTENTION_IDX_REGEX_STR.format(idx))
+        _set_quant_config(
+            rm,
+            layer,
+            f'{_IDX_TRANSFORMER_BLOCKS_REGEX_STR.format(idx)}/{_ATTENTION_REGEX_STR}',
+        )
     else:
       _set_quant_config(
           rm,
           recipe.attention,
-          _ATTENTION_IDX_REGEX_STR.format(_ANY_TWO_DIGITS_REGEX_STR),
+          f'{_SINGULAR_TRANSFORMER_BLOCK_REGEX_STR}/{_ATTENTION_REGEX_STR}',
       )
 
   if recipe.feedforward is not None:
     if isinstance(recipe.feedforward, dict):
       for idx, layer in recipe.feedforward.items():
-        _set_quant_config(rm, layer, _FEEDFORWARD_IDX_REGEX_STR.format(idx))
+        _set_quant_config(
+            rm,
+            layer,
+            f'{_IDX_TRANSFORMER_BLOCKS_REGEX_STR.format(idx)}/{_FEEDFORWARD_REGEX_STR}',
+        )
     else:
       _set_quant_config(
           rm,
           recipe.feedforward,
-          _FEEDFORWARD_IDX_REGEX_STR.format(_ANY_TWO_DIGITS_REGEX_STR),
+          f'{_SINGULAR_TRANSFORMER_BLOCK_REGEX_STR}/{_FEEDFORWARD_REGEX_STR}',
       )
 
   return rm.get_quantization_recipe()
@@ -144,21 +143,6 @@ def translate_to_ai_edge_recipe(
 def quantize_model(
     model: bytearray, recipe: quantizer.recipe_manager.ModelQuantizationRecipe
 ) -> bytearray:
-  # TODO(b/336599483): Remove tempfile and use bytearray instead
-  tmp_model_path = '/tmp/tmp.tflite'
-  tmp_recipe_path = '/tmp/recipe.json'
-  with open(tmp_model_path, 'wb') as fp:
-    fp.write(model)
-  with open(tmp_recipe_path, 'w') as rp:
-    rp.write(json.dumps(recipe))
-
-  qt = quantizer.Quantizer(tmp_model_path, tmp_recipe_path)
+  qt = quantizer.Quantizer(bytearray(model), recipe)
   result = qt.quantize()
-
-  # TODO(b/336599483): Remove tempfile and use bytearray instead
-  import os
-
-  os.remove(tmp_model_path)
-  os.remove(tmp_recipe_path)
-
   return result.quantized_model

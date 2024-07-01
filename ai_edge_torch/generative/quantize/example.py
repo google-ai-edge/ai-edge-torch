@@ -31,7 +31,7 @@ def main():
   input_pos = torch.arange(0, 10)
 
   # Create a quantization recipe to be applied to the model
-  quant_config = quant_recipes.full_linear_int8_dynamic_recipe()
+  quant_config = quant_recipes.full_int8_dynamic_recipe()
   print(quant_config)
 
   # Convert with quantization
