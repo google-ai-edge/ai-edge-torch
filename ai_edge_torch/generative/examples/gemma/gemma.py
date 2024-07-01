@@ -163,7 +163,7 @@ def define_and_run_2b() -> None:
   checkpoint_path = os.path.join(Path.home(), "Downloads/llm_data/gemma-2b")
   model = build_2b_model(checkpoint_path, kv_cache_max_len=kv_cache_max_len)
   idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
-  tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.int, device="cpu")
+  tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.long, device="cpu")
   tokens[0, :4] = idx
   input_pos = torch.arange(0, kv_cache_max_len)
   print("running an inference")

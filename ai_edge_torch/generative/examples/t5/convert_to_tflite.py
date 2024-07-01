@@ -30,23 +30,23 @@ def convert_t5_to_tflite_singlesig(checkpoint_path: str):
 
   # encoder
   seq_len = 512
-  prefill_e_tokens = torch.full((1, seq_len), 0, dtype=torch.int)
+  prefill_e_tokens = torch.full((1, seq_len), 0, dtype=torch.long)
   prompt_e_token = [1, 2, 3, 4, 5, 6]
   prefill_e_tokens[0, : len(prompt_e_token)] = torch.tensor(
-      prompt_e_token, dtype=torch.int
+      prompt_e_token, dtype=torch.long
   )
   prefill_e_input_pos = torch.arange(0, seq_len)
-  prefill_d_tokens = torch.full((1, seq_len), 0, dtype=torch.int)
+  prefill_d_tokens = torch.full((1, seq_len), 0, dtype=torch.long)
   prompt_d_token = [1, 2, 3, 4, 5, 6]
   prefill_d_tokens[0, : len(prompt_d_token)] = torch.tensor(
-      prompt_d_token, dtype=torch.int
+      prompt_d_token, dtype=torch.long
   )
   prefill_d_input_pos = torch.arange(0, seq_len)
 
   # decoder
-  decode_token = torch.tensor([[1]], dtype=torch.int)
+  decode_token = torch.tensor([[1]], dtype=torch.long)
   decode_input_pos = torch.tensor([0], dtype=torch.int64)
-  decode_d_token = torch.tensor([[1]], dtype=torch.int)
+  decode_d_token = torch.tensor([[1]], dtype=torch.long)
   decode_d_input_pos = torch.tensor([0], dtype=torch.int64)
 
   # Pad mask for self attention only on "real" tokens.
@@ -78,23 +78,23 @@ def convert_t5_to_tflite_multisig(checkpoint_path: str):
 
   # encoder
   seq_len = 512
-  prefill_e_tokens = torch.full((1, seq_len), 0, dtype=torch.int)
+  prefill_e_tokens = torch.full((1, seq_len), 0, dtype=torch.long)
   prompt_e_token = [1, 2, 3, 4, 5, 6]
   prefill_e_tokens[0, : len(prompt_e_token)] = torch.tensor(
-      prompt_e_token, dtype=torch.int
+      prompt_e_token, dtype=torch.long
   )
   prefill_e_input_pos = torch.arange(0, seq_len)
-  prefill_d_tokens = torch.full((1, seq_len), 0, dtype=torch.int)
+  prefill_d_tokens = torch.full((1, seq_len), 0, dtype=torch.long)
   prompt_d_token = [1, 2, 3, 4, 5, 6]
   prefill_d_tokens[0, : len(prompt_d_token)] = torch.tensor(
-      prompt_d_token, dtype=torch.int
+      prompt_d_token, dtype=torch.long
   )
   prefill_d_input_pos = torch.arange(0, seq_len)
 
   # decoder
-  decode_token = torch.tensor([[1]], dtype=torch.int)
+  decode_token = torch.tensor([[1]], dtype=torch.long)
   decode_input_pos = torch.tensor([0], dtype=torch.int64)
-  decode_d_token = torch.tensor([[1]], dtype=torch.int)
+  decode_d_token = torch.tensor([[1]], dtype=torch.long)
   decode_d_input_pos = torch.tensor([0], dtype=torch.int64)
 
   # Pad mask for self attention only on "real" tokens.

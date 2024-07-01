@@ -61,7 +61,7 @@ def convert_stable_diffusion_to_tflite(
   n_tokens = 77
   timestamp = 0
   len_prompt = 1
-  prompt_tokens = torch.full((1, n_tokens), 0, dtype=torch.int)
+  prompt_tokens = torch.full((1, n_tokens), 0, dtype=torch.long)
   input_image = torch.full((1, 3, image_height, image_width), 0, dtype=torch.float32)
   noise = torch.full(
       (len_prompt, 4, image_height // 8, image_width // 8), 0, dtype=torch.float32

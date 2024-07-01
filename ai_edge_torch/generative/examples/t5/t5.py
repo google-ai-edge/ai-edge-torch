@@ -562,7 +562,7 @@ def define_and_run_t5(checkpoint_path: str) -> None:
   model = build_t5_model(checkpoint_path)
 
   idx = get_sample_encoder_input_ids()
-  tokens = torch.full((1, 512), 0, dtype=torch.int, device="cpu")
+  tokens = torch.full((1, 512), 0, dtype=torch.long, device="cpu")
   tokens[0, :77] = idx
   input_pos = torch.arange(0, 512)
 
@@ -586,7 +586,7 @@ def define_and_run_t5_split(checkpoint_path: str) -> None:
   t5_decoder_model = build_t5_decoder_model(config, embedding_layer, checkpoint_path)
   idx = get_sample_encoder_input_ids()
 
-  tokens = torch.full((1, 512), 0, dtype=torch.int, device="cpu")
+  tokens = torch.full((1, 512), 0, dtype=torch.long, device="cpu")
   tokens[0, :77] = idx
   input_pos = torch.arange(0, 512)
 
