@@ -1,4 +1,4 @@
-ai-edge-quantizer-nightly==0.0.1.dev202406070009
+ai-edge-quantizer-nightly==0.0.1.dev202407012233
 scipy
 numpy
 tabulate
