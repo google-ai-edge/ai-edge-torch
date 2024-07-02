@@ -74,6 +74,6 @@ setup(
         "scipy",
         "safetensors",
         "tabulate",
-        "torch==2.4.*",  # 2.4.0 stable release does not exist. Force using torch nightly.
+        "torch>=2.4.0",  # 2.4.0 stable release does not exist. Force using torch nightly.
     ],
 )
