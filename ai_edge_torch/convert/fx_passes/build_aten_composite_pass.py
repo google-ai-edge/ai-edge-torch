@@ -223,6 +223,7 @@ def _aten_embedding(gm: GraphModule, node: Node):
     full_kwargs = args_mapper.get_full_kwargs(args, kwargs)
     _, embedding_dim = full_kwargs["weight"].size()
     idx = full_kwargs["indices"]
+    idx = idx.type(torch.int)
     B, T = idx.size()
 
     idx = torch.reshape(idx, (B * T,))

@@ -190,7 +190,7 @@ class TestConvertComposites(unittest.TestCase):
   def test_convert_embedding_lookup(self):
     """Tests conversion of an Embedding module."""
 
-    args = (torch.full((1, 10), 0, dtype=torch.int),)
+    args = (torch.full((1, 10), 0, dtype=torch.long),)
     torch_module = torch.nn.Embedding(10, 10)
     edge_model = ai_edge_torch.convert(torch_module, args)
 
