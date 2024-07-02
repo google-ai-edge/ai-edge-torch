@@ -103,13 +103,13 @@ def get_model_config() -> cfg.ModelConfig:
 
 
 def get_sample_prefill_inputs() -> Tuple[torch.Tensor, torch.Tensor]:
-  idx = torch.unsqueeze(torch.arange(0, 100, dtype=torch.int), 0)
+  idx = torch.unsqueeze(torch.arange(0, 100), 0)
   input_pos = torch.arange(0, 100)
   return idx, input_pos
 
 
 def get_sample_decode_inputs() -> Tuple[torch.Tensor, torch.Tensor]:
-  idx = torch.tensor([[1]], dtype=torch.int)
+  idx = torch.tensor([[1]], dtype=torch.long)
   input_pos = torch.tensor([10], dtype=torch.int64)
   return idx, input_pos
 
