@@ -213,6 +213,35 @@ def _aten_avg_pool2d(gm: GraphModule, node: Node):
   node.target = avg_pool2d
 
 
+@_register_composite_builder(torch.ops.aten.embedding.default)
+def _aten_embedding(gm: GraphModule, node: Node):
+  op = node.target
+  args_mapper = TorchOpArgumentsMapper(op)
+
+  def embedding(*args, **kwargs):
+    nonlocal op, args_mapper
+    full_kwargs = args_mapper.get_full_kwargs(args, kwargs)
+    _, embedding_dim = full_kwargs["weight"].size()
+    idx = full_kwargs["indices"]
+    idx = idx.type(torch.int)
+    B, T = idx.size()
+
+    idx = torch.reshape(idx, (B * T,))
+
+    builder = StableHLOCompositeBuilder("odml.embedding_lookup")
+    full_kwargs["indices"], full_kwargs["weight"] = builder.mark_inputs(
+        idx,
+        full_kwargs["weight"],
+    )
+    output = op(**full_kwargs)
+    output = builder.mark_outputs(output)
+
+    output = torch.reshape(output, (B, T, embedding_dim))
+    return output
+
+  node.target = embedding
+
+
 class BuildAtenCompositePass(PassBase):
 
   def call(self, graph_module: GraphModule):
