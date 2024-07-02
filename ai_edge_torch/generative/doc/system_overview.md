@@ -1,6 +1,6 @@
 # AI Edge Torch Generative API System Architecture Overview
 
-This doc aims to provide a technical deep dive of the AI Edge Torch Generative API, discuss its design considerations, system architecture and major components, current limitations, and future plans for improved system health, usability and performance.
+This document aims to provide a technical deep dive of the AI Edge Torch Generative API, discuss its design considerations, system architecture and major components, current limitations, and future plans for improved system health, usability and performance.
 
 ## Main objective
 
