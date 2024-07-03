@@ -18,6 +18,8 @@ The system is designed to help ML practitioners deploy their trained Large Langu
 * [Convert](#convert-pytorch-llm-to-a-tflite-model) the model, and get a TFLite Flatbuffer representing the mobile model.
 * Choose either approach below to deploy the end to end [LLM Inference Pipeline](#end-to-end-inference-pipeline).
 
+For a more detailed explaination of how the system works, please refer to the [System Overview](doc/system_overview.md).
+
 ### Model Authoring using Edge Generative API
 
 The library provides basic [building blocks](generative/layers) for common transformer models (encoder only, decoder only, or encoder-decoder style). As a mobile App developer who wants to integrate LLMs or transformer models into your Android or iOS app, you can re-author your PyTorch Large Language Model using these layers.
