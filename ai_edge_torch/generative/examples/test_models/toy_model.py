@@ -70,7 +70,7 @@ class ToySingleLayerModel(torch.nn.Module):
     return self.lm_head(x)
 
 
-def define_and_run() -> None:
+def get_model_config() -> cfg.ModelConfig:
   attn_config = cfg.AttentionConfig(
       num_heads=32, num_query_groups=4, rotary_percentage=1.0, enable_kv_cache=False
   )
@@ -91,8 +91,11 @@ def define_and_run() -> None:
       pre_ff_norm_config=norm_config,
       final_norm_config=norm_config,
   )
+  return config
 
-  model = ToySingleLayerModel(config)
+
+def define_and_run() -> None:
+  model = ToySingleLayerModel(get_model_config())
   idx = torch.unsqueeze(torch.arange(0, KV_CACHE_MAX_LEN), 0)
   input_pos = torch.arange(0, KV_CACHE_MAX_LEN)
   print('running an inference')

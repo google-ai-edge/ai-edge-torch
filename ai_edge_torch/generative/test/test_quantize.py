@@ -19,7 +19,7 @@ from parameterized import parameterized
 import torch
 
 import ai_edge_torch
-from ai_edge_torch.generative.examples.test_models import toy_model_with_kv_cache  # NOQA
+from ai_edge_torch.generative.examples.test_models import toy_model  # NOQA
 from ai_edge_torch.generative.quantize import quant_recipe
 from ai_edge_torch.generative.quantize import quant_recipe_utils
 from ai_edge_torch.generative.quantize import quant_recipes
@@ -93,35 +93,33 @@ class TestVerifyRecipes(unittest.TestCase):
 class TestQuantizeConvert(unittest.TestCase):
   """Test conversion with quantization."""
 
-  def _attention_1_int8_dynamic_recipe() -> quant_config.QuantConfig:
+  def _attention_int8_dynamic_recipe() -> quant_config.QuantConfig:
     return quant_config.QuantConfig(
         generative_recipe=quant_recipe.GenerativeQuantRecipe(
-            attention={1: quant_recipe_utils.create_layer_quant_int8_dynamic()},
+            attention=quant_recipe_utils.create_layer_quant_int8_dynamic(),
         )
     )
 
-  def _feedforward_0_int8_dynamic_recipe() -> quant_config.QuantConfig:
+  def _feedforward_int8_dynamic_recipe() -> quant_config.QuantConfig:
     return quant_config.QuantConfig(
         generative_recipe=quant_recipe.GenerativeQuantRecipe(
-            feedforward={0: quant_recipe_utils.create_layer_quant_int8_dynamic()},
+            feedforward=quant_recipe_utils.create_layer_quant_int8_dynamic(),
         )
     )
 
   @parameterized.expand(
       [
-          (quant_recipes.full_fp16_recipe(), 0.75),
-          (quant_recipes.full_linear_int8_dynamic_recipe(), 0.64),
-          (_attention_1_int8_dynamic_recipe(), 0.95),
-          (_feedforward_0_int8_dynamic_recipe(), 0.87),
+          (quant_recipes.full_fp16_recipe(), 0.65),
+          (quant_recipes.full_int8_dynamic_recipe(), 0.47),
+          (_attention_int8_dynamic_recipe(), 0.89),
+          (_feedforward_int8_dynamic_recipe(), 0.72),
       ]
   )
   def test_quantize_convert_toy_sizes(self, quant_config, expected_compression):
-    self.skipTest("b/346896669")
-    config = toy_model_with_kv_cache.get_model_config()
-    pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config)
-    idx, input_pos = torch.tensor([[1]], dtype=torch.long), torch.tensor(
-        [10], dtype=torch.int64
-    )
+    config = toy_model.get_model_config()
+    pytorch_model = toy_model.ToySingleLayerModel(config)
+    idx = torch.unsqueeze(torch.arange(0, 100), 0)
+    input_pos = torch.arange(0, 100)
 
     quantized_model = ai_edge_torch.convert(
         pytorch_model, (idx, input_pos), quant_config=quant_config

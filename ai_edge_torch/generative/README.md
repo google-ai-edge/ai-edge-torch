@@ -34,7 +34,7 @@ Quantization can be done via the API exposed in [quantize](quantize/). To apply 
 `quant_recipes.py` contains a list of recipes that are known to be well-supported during runtime. For the average user, this is a good starting point to select the quantization scheme that is best suited for your deployment needs. After identifying the target recipe, the model can be quantized as follows. This example is extracted from `generative/examples/quantize/example.py`.
 
 ```
-quant_config = quant_recipes.full_linear_int8_dynamic_recipe()
+quant_config = quant_recipes.full_int8_dynamic_recipe()
 edge_model = ai_edge_torch.convert(
     model, (tokens, input_pos), quant_config=quant_config
 )
