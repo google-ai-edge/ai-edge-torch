@@ -18,7 +18,7 @@ The system is designed to help ML practitioners deploy their trained Large Langu
 * [Convert](#convert-pytorch-llm-to-a-tflite-model) the model, and get a TFLite Flatbuffer representing the mobile model.
 * Choose either approach below to deploy the end to end [LLM Inference Pipeline](#end-to-end-inference-pipeline).
 
-For a more detailed explaination of how the system works, please refer to the [System Overview](https://github.com/google-ai-edge/ai-edge-torch/blob/main/ai_edge_torch/generative/doc/system_overview.md).
+For a more detailed explaination of how the system works, please refer to the [System Overview](doc/system_overview.md).
 
 ### Model Authoring using Edge Generative API
 
