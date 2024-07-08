@@ -22,7 +22,7 @@ import ai_edge_torch.generative.layers.unet.blocks_2d as blocks_2d
 import ai_edge_torch.generative.layers.unet.model_config as unet_cfg
 import ai_edge_torch.generative.utilities.stable_diffusion_loader as stable_diffusion_loader
 
-TENSORS_NAMES = stable_diffusion_loader.AutoEncoderModelLoader.TensorNames(
+PYTORCH_TENSOR_NAMES = stable_diffusion_loader.AutoEncoderModelLoader.TensorNames(
     post_quant_conv="0",
     conv_in="1",
     mid_block_tensor_names=stable_diffusion_loader.MidBlockTensorNames(
@@ -145,6 +145,133 @@ TENSORS_NAMES = stable_diffusion_loader.AutoEncoderModelLoader.TensorNames(
     ],
     final_norm="23",
     conv_out="25",
+)
+
+SAFETENSORS_TENSOR_NAMES = stable_diffusion_loader.AutoEncoderModelLoader.TensorNames(
+    post_quant_conv="first_stage_model.post_quant_conv",
+    conv_in="first_stage_model.decoder.conv_in",
+    mid_block_tensor_names=stable_diffusion_loader.MidBlockTensorNames(
+        residual_block_tensor_names=[
+            stable_diffusion_loader.ResidualBlockTensorNames(
+                norm_1="first_stage_model.decoder.mid.block_1.norm1",
+                norm_2="first_stage_model.decoder.mid.block_1.norm2",
+                conv_1="first_stage_model.decoder.mid.block_1.conv1",
+                conv_2="first_stage_model.decoder.mid.block_1.conv2",
+            ),
+            stable_diffusion_loader.ResidualBlockTensorNames(
+                norm_1="first_stage_model.decoder.mid.block_2.norm1",
+                norm_2="first_stage_model.decoder.mid.block_2.norm2",
+                conv_1="first_stage_model.decoder.mid.block_2.conv1",
+                conv_2="first_stage_model.decoder.mid.block_2.conv2",
+            ),
+        ],
+        attention_block_tensor_names=[
+            stable_diffusion_loader.AttentionBlockTensorNames(
+                norm="first_stage_model.decoder.mid.attn_1.norm",
+                q_proj="first_stage_model.decoder.mid.attn_1.q",
+                k_proj="first_stage_model.decoder.mid.attn_1.k",
+                v_proj="first_stage_model.decoder.mid.attn_1.v",
+                output_proj="first_stage_model.decoder.mid.attn_1.proj_out",
+            )
+        ],
+    ),
+    up_decoder_blocks_tensor_names=[
+        stable_diffusion_loader.UpDecoderBlockTensorNames(
+            residual_block_tensor_names=[
+                stable_diffusion_loader.ResidualBlockTensorNames(
+                    norm_1="first_stage_model.decoder.up.3.block.0.norm1",
+                    norm_2="first_stage_model.decoder.up.3.block.0.norm2",
+                    conv_1="first_stage_model.decoder.up.3.block.0.conv1",
+                    conv_2="first_stage_model.decoder.up.3.block.0.conv2",
+                ),
+                stable_diffusion_loader.ResidualBlockTensorNames(
+                    norm_1="first_stage_model.decoder.up.3.block.1.norm1",
+                    norm_2="first_stage_model.decoder.up.3.block.1.norm2",
+                    conv_1="first_stage_model.decoder.up.3.block.1.conv1",
+                    conv_2="first_stage_model.decoder.up.3.block.1.conv2",
+                ),
+                stable_diffusion_loader.ResidualBlockTensorNames(
+                    norm_1="first_stage_model.decoder.up.3.block.2.norm1",
+                    norm_2="first_stage_model.decoder.up.3.block.2.norm2",
+                    conv_1="first_stage_model.decoder.up.3.block.2.conv1",
+                    conv_2="first_stage_model.decoder.up.3.block.2.conv2",
+                ),
+            ],
+            upsample_conv="first_stage_model.decoder.up.3.upsample.conv",
+        ),
+        stable_diffusion_loader.UpDecoderBlockTensorNames(
+            residual_block_tensor_names=[
+                stable_diffusion_loader.ResidualBlockTensorNames(
+                    norm_1="first_stage_model.decoder.up.2.block.0.norm1",
+                    norm_2="first_stage_model.decoder.up.2.block.0.norm2",
+                    conv_1="first_stage_model.decoder.up.2.block.0.conv1",
+                    conv_2="first_stage_model.decoder.up.2.block.0.conv2",
+                ),
+                stable_diffusion_loader.ResidualBlockTensorNames(
+                    norm_1="first_stage_model.decoder.up.2.block.1.norm1",
+                    norm_2="first_stage_model.decoder.up.2.block.1.norm2",
+                    conv_1="first_stage_model.decoder.up.2.block.1.conv1",
+                    conv_2="first_stage_model.decoder.up.2.block.1.conv2",
+                ),
+                stable_diffusion_loader.ResidualBlockTensorNames(
+                    norm_1="first_stage_model.decoder.up.2.block.2.norm1",
+                    norm_2="first_stage_model.decoder.up.2.block.2.norm2",
+                    conv_1="first_stage_model.decoder.up.2.block.2.conv1",
+                    conv_2="first_stage_model.decoder.up.2.block.2.conv2",
+                ),
+            ],
+            upsample_conv="first_stage_model.decoder.up.2.upsample.conv",
+        ),
+        stable_diffusion_loader.UpDecoderBlockTensorNames(
+            residual_block_tensor_names=[
+                stable_diffusion_loader.ResidualBlockTensorNames(
+                    norm_1="first_stage_model.decoder.up.1.block.0.norm1",
+                    norm_2="first_stage_model.decoder.up.1.block.0.norm2",
+                    conv_1="first_stage_model.decoder.up.1.block.0.conv1",
+                    conv_2="first_stage_model.decoder.up.1.block.0.conv2",
+                    residual_layer="first_stage_model.decoder.up.1.block.0.nin_shortcut",
+                ),
+                stable_diffusion_loader.ResidualBlockTensorNames(
+                    norm_1="first_stage_model.decoder.up.1.block.1.norm1",
+                    norm_2="first_stage_model.decoder.up.1.block.1.norm2",
+                    conv_1="first_stage_model.decoder.up.1.block.1.conv1",
+                    conv_2="first_stage_model.decoder.up.1.block.1.conv2",
+                ),
+                stable_diffusion_loader.ResidualBlockTensorNames(
+                    norm_1="first_stage_model.decoder.up.1.block.2.norm1",
+                    norm_2="first_stage_model.decoder.up.1.block.2.norm2",
+                    conv_1="first_stage_model.decoder.up.1.block.2.conv1",
+                    conv_2="first_stage_model.decoder.up.1.block.2.conv2",
+                ),
+            ],
+            upsample_conv="first_stage_model.decoder.up.1.upsample.conv",
+        ),
+        stable_diffusion_loader.UpDecoderBlockTensorNames(
+            residual_block_tensor_names=[
+                stable_diffusion_loader.ResidualBlockTensorNames(
+                    norm_1="first_stage_model.decoder.up.0.block.0.norm1",
+                    norm_2="first_stage_model.decoder.up.0.block.0.norm2",
+                    conv_1="first_stage_model.decoder.up.0.block.0.conv1",
+                    conv_2="first_stage_model.decoder.up.0.block.0.conv2",
+                    residual_layer="first_stage_model.decoder.up.0.block.0.nin_shortcut",
+                ),
+                stable_diffusion_loader.ResidualBlockTensorNames(
+                    norm_1="first_stage_model.decoder.up.0.block.1.norm1",
+                    norm_2="first_stage_model.decoder.up.0.block.1.norm2",
+                    conv_1="first_stage_model.decoder.up.0.block.1.conv1",
+                    conv_2="first_stage_model.decoder.up.0.block.1.conv2",
+                ),
+                stable_diffusion_loader.ResidualBlockTensorNames(
+                    norm_1="first_stage_model.decoder.up.0.block.2.norm1",
+                    norm_2="first_stage_model.decoder.up.0.block.2.norm2",
+                    conv_1="first_stage_model.decoder.up.0.block.2.conv1",
+                    conv_2="first_stage_model.decoder.up.0.block.2.conv2",
+                ),
+            ],
+        ),
+    ],
+    final_norm="first_stage_model.decoder.norm_out",
+    conv_out="first_stage_model.decoder.conv_out",
 )
 
 
@@ -288,8 +415,10 @@ def get_model_config() -> unet_cfg.AutoEncoderConfig:
           output_proj_use_bias=True,
           enable_kv_cache=False,
           qkv_transpose_before_split=True,
+          qkv_fused_interleaved=False,
           rotary_percentage=0.0,
       ),
+      enable_hlfb=True,
   )
 
   mid_block_config = unet_cfg.MidBlock2DConfig(
