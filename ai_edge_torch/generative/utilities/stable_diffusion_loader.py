@@ -37,6 +37,9 @@ class ResidualBlockTensorNames:
 class AttentionBlockTensorNames:
   norm: str = None
   fused_qkv_proj: str = None
+  q_proj: str = None
+  k_proj: str = None
+  v_proj: str = None
   output_proj: str = None
 
 
@@ -106,12 +109,21 @@ def _map_to_converted_state(
     state_param: str,
     converted_state: Dict[str, torch.Tensor],
     converted_state_param: str,
+    squeeze_dims: bool = False,
 ):
   converted_state[f"{converted_state_param}.weight"] = state.pop(
       f"{state_param}.weight"
   )
+  if squeeze_dims:
+    converted_state[f"{converted_state_param}.weight"] = torch.squeeze(
+        converted_state[f"{converted_state_param}.weight"]
+    )
   if f"{state_param}.bias" in state:
     converted_state[f"{converted_state_param}.bias"] = state.pop(f"{state_param}.bias")
+    if squeeze_dims:
+      converted_state[f"{converted_state_param}.bias"] = torch.squeeze(
+          converted_state[f"{converted_state_param}.bias"]
+      )
 
 
 class BaseLoader(loader.ModelLoader):
@@ -179,17 +191,65 @@ class BaseLoader(loader.ModelLoader):
           f"{converted_state_param_prefix}.norm",
       )
     attention_layer_prefix = f"{converted_state_param_prefix}.attention"
-    _map_to_converted_state(
-        state,
-        tensor_names.fused_qkv_proj,
-        converted_state,
-        f"{attention_layer_prefix}.qkv_projection",
-    )
+    if tensor_names.fused_qkv_proj is not None:
+      _map_to_converted_state(
+          state,
+          tensor_names.fused_qkv_proj,
+          converted_state,
+          f"{attention_layer_prefix}.qkv_projection",
+      )
+    else:
+      _map_to_converted_state(
+          state,
+          tensor_names.q_proj,
+          converted_state,
+          f"{attention_layer_prefix}.q_projection",
+          squeeze_dims=True,
+      )
+      _map_to_converted_state(
+          state,
+          tensor_names.k_proj,
+          converted_state,
+          f"{attention_layer_prefix}.k_projection",
+          squeeze_dims=True,
+      )
+      _map_to_converted_state(
+          state,
+          tensor_names.v_proj,
+          converted_state,
+          f"{attention_layer_prefix}.v_projection",
+          squeeze_dims=True,
+      )
+      converted_state[f"{attention_layer_prefix}.qkv_projection.weight"] = torch.concat(
+          [
+              converted_state[f"{attention_layer_prefix}.q_projection.weight"],
+              converted_state[f"{attention_layer_prefix}.k_projection.weight"],
+              converted_state[f"{attention_layer_prefix}.v_projection.weight"],
+          ],
+          axis=0,
+      )
+      del converted_state[f"{attention_layer_prefix}.q_projection.weight"]
+      del converted_state[f"{attention_layer_prefix}.k_projection.weight"]
+      del converted_state[f"{attention_layer_prefix}.v_projection.weight"]
+      if config.attention_config.qkv_use_bias:
+        converted_state[f"{attention_layer_prefix}.qkv_projection.bias"] = torch.concat(
+            [
+                converted_state[f"{attention_layer_prefix}.q_projection.bias"],
+                converted_state[f"{attention_layer_prefix}.k_projection.bias"],
+                converted_state[f"{attention_layer_prefix}.v_projection.bias"],
+            ],
+            axis=0,
+        )
+        del converted_state[f"{attention_layer_prefix}.q_projection.bias"]
+        del converted_state[f"{attention_layer_prefix}.k_projection.bias"]
+        del converted_state[f"{attention_layer_prefix}.v_projection.bias"]
+
     _map_to_converted_state(
         state,
         tensor_names.output_proj,
         converted_state,
         f"{attention_layer_prefix}.output_projection",
+        squeeze_dims=True,
     )
 
   def _map_cross_attention_block(
@@ -269,7 +329,7 @@ class BaseLoader(loader.ModelLoader):
       converted_state: Dict[str, torch.Tensor],
       tensor_names: TransformerBlockTensorNames,
       converted_state_param_prefix: str,
-      config: unet_config.TransformerBlock2Dconfig,
+      config: unet_config.TransformerBlock2DConfig,
   ):
     _map_to_converted_state(
         state,
@@ -482,6 +542,10 @@ class BaseLoader(loader.ModelLoader):
       )
 
 
+# Alias class name for better code reading.
+ClipModelLoader = BaseLoader
+
+
 class AutoEncoderModelLoader(BaseLoader):
 
   @dataclass
@@ -668,7 +732,7 @@ class DiffusionModelLoader(BaseLoader):
                 stride=2,
                 padding=config.downsample_padding,
             ),
-            transformer_block_config=unet_config.TransformerBlock2Dconfig(
+            transformer_block_config=unet_config.TransformerBlock2DConfig(
                 attention_block_config=unet_config.AttentionBlock2DConfig(
                     dim=output_channel,
                     normalization_config=config.transformer_norm_config,
@@ -726,7 +790,7 @@ class DiffusionModelLoader(BaseLoader):
         ),
         num_layers=config.mid_block_layers,
         time_embedding_channels=config.time_embedding_blocks_dim,
-        transformer_block_config=unet_config.TransformerBlock2Dconfig(
+        transformer_block_config=unet_config.TransformerBlock2DConfig(
             attention_block_config=unet_config.AttentionBlock2DConfig(
                 dim=mid_block_channels,
                 normalization_config=config.transformer_norm_config,
@@ -789,7 +853,7 @@ class DiffusionModelLoader(BaseLoader):
                 mode=unet_config.SamplingType.NEAREST,
                 scale_factor=2,
             ),
-            transformer_block_config=unet_config.TransformerBlock2Dconfig(
+            transformer_block_config=unet_config.TransformerBlock2DConfig(
                 attention_block_config=unet_config.AttentionBlock2DConfig(
                     dim=output_channel,
                     normalization_config=config.transformer_norm_config,

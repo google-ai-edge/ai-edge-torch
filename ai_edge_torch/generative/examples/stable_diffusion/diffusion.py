@@ -26,12 +26,12 @@ _down_encoder_blocks_tensor_names = [
     stable_diffusion_loader.DownEncoderBlockTensorNames(
         residual_block_tensor_names=[
             stable_diffusion_loader.ResidualBlockTensorNames(
-                norm_1=f"unet.encoders.{i*3+j+1}.0.groupnorm_feature",
-                conv_1=f"unet.encoders.{i*3+j+1}.0.conv_feature",
-                norm_2=f"unet.encoders.{i*3+j+1}.0.groupnorm_merged",
-                conv_2=f"unet.encoders.{i*3+j+1}.0.conv_merged",
-                time_embedding=f"unet.encoders.{i*3+j+1}.0.linear_time",
-                residual_layer=f"unet.encoders.{i*3+j+1}.0.residual_layer"
+                norm_1=f"model.diffusion_model.input_blocks.{i*3+j+1}.0.in_layers.0",
+                conv_1=f"model.diffusion_model.input_blocks.{i*3+j+1}.0.in_layers.2",
+                norm_2=f"model.diffusion_model.input_blocks.{i*3+j+1}.0.out_layers.0",
+                conv_2=f"model.diffusion_model.input_blocks.{i*3+j+1}.0.out_layers.3",
+                time_embedding=f"model.diffusion_model.input_blocks.{i*3+j+1}.0.emb_layers.1",
+                residual_layer=f"model.diffusion_model.input_blocks.{i*3+j+1}.0.skip_connection"
                 if (i * 3 + j + 1) in [4, 7]
                 else None,
             )
@@ -39,32 +39,36 @@ _down_encoder_blocks_tensor_names = [
         ],
         transformer_block_tensor_names=[
             stable_diffusion_loader.TransformerBlockTensorNames(
-                pre_conv_norm=f"unet.encoders.{i*3+j+1}.1.groupnorm",
-                conv_in=f"unet.encoders.{i*3+j+1}.1.conv_input",
-                conv_out=f"unet.encoders.{i*3+j+1}.1.conv_output",
+                pre_conv_norm=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.norm",
+                conv_in=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.proj_in",
+                conv_out=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.proj_out",
                 self_attention=stable_diffusion_loader.AttentionBlockTensorNames(
-                    norm=f"unet.encoders.{i*3+j+1}.1.layernorm_1",
-                    fused_qkv_proj=f"unet.encoders.{i*3+j+1}.1.attention_1.in_proj",
-                    output_proj=f"unet.encoders.{i*3+j+1}.1.attention_1.out_proj",
+                    norm=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.transformer_blocks.0.norm1",
+                    q_proj=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.transformer_blocks.0.attn1.to_q",
+                    k_proj=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.transformer_blocks.0.attn1.to_k",
+                    v_proj=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.transformer_blocks.0.attn1.to_v",
+                    output_proj=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.transformer_blocks.0.attn1.to_out.0",
                 ),
                 cross_attention=stable_diffusion_loader.CrossAttentionBlockTensorNames(
-                    norm=f"unet.encoders.{i*3+j+1}.1.layernorm_2",
-                    q_proj=f"unet.encoders.{i*3+j+1}.1.attention_2.q_proj",
-                    k_proj=f"unet.encoders.{i*3+j+1}.1.attention_2.k_proj",
-                    v_proj=f"unet.encoders.{i*3+j+1}.1.attention_2.v_proj",
-                    output_proj=f"unet.encoders.{i*3+j+1}.1.attention_2.out_proj",
+                    norm=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.transformer_blocks.0.norm2",
+                    q_proj=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.transformer_blocks.0.attn2.to_q",
+                    k_proj=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.transformer_blocks.0.attn2.to_k",
+                    v_proj=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.transformer_blocks.0.attn2.to_v",
+                    output_proj=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.transformer_blocks.0.attn2.to_out.0",
                 ),
                 feed_forward=stable_diffusion_loader.FeedForwardBlockTensorNames(
-                    norm=f"unet.encoders.{i*3+j+1}.1.layernorm_3",
-                    ge_glu=f"unet.encoders.{i*3+j+1}.1.linear_geglu_1",
-                    w2=f"unet.encoders.{i*3+j+1}.1.linear_geglu_2",
+                    norm=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.transformer_blocks.0.norm3",
+                    ge_glu=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.transformer_blocks.0.ff.net.0.proj",
+                    w2=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.transformer_blocks.0.ff.net.2",
                 ),
             )
             for j in range(2)
         ]
         if i < 3
         else None,
-        downsample_conv=f"unet.encoders.{i*3+3}.0" if i < 3 else None,
+        downsample_conv=f"model.diffusion_model.input_blocks.{i*3+3}.0.op"
+        if i < 3
+        else None,
     )
     for i in range(4)
 ]
@@ -72,35 +76,37 @@ _down_encoder_blocks_tensor_names = [
 _mid_block_tensor_names = stable_diffusion_loader.MidBlockTensorNames(
     residual_block_tensor_names=[
         stable_diffusion_loader.ResidualBlockTensorNames(
-            norm_1=f"unet.bottleneck.{i}.groupnorm_feature",
-            conv_1=f"unet.bottleneck.{i}.conv_feature",
-            norm_2=f"unet.bottleneck.{i}.groupnorm_merged",
-            conv_2=f"unet.bottleneck.{i}.conv_merged",
-            time_embedding=f"unet.bottleneck.{i}.linear_time",
+            norm_1=f"model.diffusion_model.middle_block.{i}.in_layers.0",
+            conv_1=f"model.diffusion_model.middle_block.{i}.in_layers.2",
+            norm_2=f"model.diffusion_model.middle_block.{i}.out_layers.0",
+            conv_2=f"model.diffusion_model.middle_block.{i}.out_layers.3",
+            time_embedding=f"model.diffusion_model.middle_block.{i}.emb_layers.1",
         )
         for i in [0, 2]
     ],
     transformer_block_tensor_names=[
         stable_diffusion_loader.TransformerBlockTensorNames(
-            pre_conv_norm=f"unet.bottleneck.{i}.groupnorm",
-            conv_in=f"unet.bottleneck.{i}.conv_input",
-            conv_out=f"unet.bottleneck.{i}.conv_output",
+            pre_conv_norm=f"model.diffusion_model.middle_block.{i}.norm",
+            conv_in=f"model.diffusion_model.middle_block.{i}.proj_in",
+            conv_out=f"model.diffusion_model.middle_block.{i}.proj_out",
             self_attention=stable_diffusion_loader.AttentionBlockTensorNames(
-                norm=f"unet.bottleneck.{i}.layernorm_1",
-                fused_qkv_proj=f"unet.bottleneck.{i}.attention_1.in_proj",
-                output_proj=f"unet.bottleneck.{i}.attention_1.out_proj",
+                norm=f"model.diffusion_model.middle_block.{i}.transformer_blocks.0.norm1",
+                q_proj=f"model.diffusion_model.middle_block.{i}.transformer_blocks.0.attn1.to_q",
+                k_proj=f"model.diffusion_model.middle_block.{i}.transformer_blocks.0.attn1.to_k",
+                v_proj=f"model.diffusion_model.middle_block.{i}.transformer_blocks.0.attn1.to_v",
+                output_proj=f"model.diffusion_model.middle_block.{i}.transformer_blocks.0.attn1.to_out.0",
             ),
             cross_attention=stable_diffusion_loader.CrossAttentionBlockTensorNames(
-                norm=f"unet.bottleneck.{i}.layernorm_2",
-                q_proj=f"unet.bottleneck.{i}.attention_2.q_proj",
-                k_proj=f"unet.bottleneck.{i}.attention_2.k_proj",
-                v_proj=f"unet.bottleneck.{i}.attention_2.v_proj",
-                output_proj=f"unet.bottleneck.{i}.attention_2.out_proj",
+                norm=f"model.diffusion_model.middle_block.{i}.transformer_blocks.0.norm2",
+                q_proj=f"model.diffusion_model.middle_block.{i}.transformer_blocks.0.attn2.to_q",
+                k_proj=f"model.diffusion_model.middle_block.{i}.transformer_blocks.0.attn2.to_k",
+                v_proj=f"model.diffusion_model.middle_block.{i}.transformer_blocks.0.attn2.to_v",
+                output_proj=f"model.diffusion_model.middle_block.{i}.transformer_blocks.0.attn2.to_out.0",
             ),
             feed_forward=stable_diffusion_loader.FeedForwardBlockTensorNames(
-                norm=f"unet.bottleneck.{i}.layernorm_3",
-                ge_glu=f"unet.bottleneck.{i}.linear_geglu_1",
-                w2=f"unet.bottleneck.{i}.linear_geglu_2",
+                norm=f"model.diffusion_model.middle_block.{i}.transformer_blocks.0.norm3",
+                ge_glu=f"model.diffusion_model.middle_block.{i}.transformer_blocks.0.ff.net.0.proj",
+                w2=f"model.diffusion_model.middle_block.{i}.transformer_blocks.0.ff.net.2",
             ),
         )
         for i in [1]
@@ -111,58 +117,59 @@ _up_decoder_blocks_tensor_names = [
     stable_diffusion_loader.SkipUpDecoderBlockTensorNames(
         residual_block_tensor_names=[
             stable_diffusion_loader.ResidualBlockTensorNames(
-                norm_1=f"unet.decoders.{i*3+j}.0.groupnorm_feature",
-                conv_1=f"unet.decoders.{i*3+j}.0.conv_feature",
-                norm_2=f"unet.decoders.{i*3+j}.0.groupnorm_merged",
-                conv_2=f"unet.decoders.{i*3+j}.0.conv_merged",
-                time_embedding=f"unet.decoders.{i*3+j}.0.linear_time",
-                residual_layer=f"unet.decoders.{i*3+j}.0.residual_layer",
+                norm_1=f"model.diffusion_model.output_blocks.{i*3+j}.0.in_layers.0",
+                conv_1=f"model.diffusion_model.output_blocks.{i*3+j}.0.in_layers.2",
+                norm_2=f"model.diffusion_model.output_blocks.{i*3+j}.0.out_layers.0",
+                conv_2=f"model.diffusion_model.output_blocks.{i*3+j}.0.out_layers.3",
+                time_embedding=f"model.diffusion_model.output_blocks.{i*3+j}.0.emb_layers.1",
+                residual_layer=f"model.diffusion_model.output_blocks.{i*3+j}.0.skip_connection",
             )
             for j in range(3)
         ],
         transformer_block_tensor_names=[
             stable_diffusion_loader.TransformerBlockTensorNames(
-                pre_conv_norm=f"unet.decoders.{i*3+j}.1.groupnorm",
-                conv_in=f"unet.decoders.{i*3+j}.1.conv_input",
-                conv_out=f"unet.decoders.{i*3+j}.1.conv_output",
+                pre_conv_norm=f"model.diffusion_model.output_blocks.{i*3+j}.1.norm",
+                conv_in=f"model.diffusion_model.output_blocks.{i*3+j}.1.proj_in",
+                conv_out=f"model.diffusion_model.output_blocks.{i*3+j}.1.proj_out",
                 self_attention=stable_diffusion_loader.AttentionBlockTensorNames(
-                    norm=f"unet.decoders.{i*3+j}.1.layernorm_1",
-                    fused_qkv_proj=f"unet.decoders.{i*3+j}.1.attention_1.in_proj",
-                    output_proj=f"unet.decoders.{i*3+j}.1.attention_1.out_proj",
+                    norm=f"model.diffusion_model.output_blocks.{i*3+j}.1.transformer_blocks.0.norm1",
+                    q_proj=f"model.diffusion_model.output_blocks.{i*3+j}.1.transformer_blocks.0.attn1.to_q",
+                    k_proj=f"model.diffusion_model.output_blocks.{i*3+j}.1.transformer_blocks.0.attn1.to_k",
+                    v_proj=f"model.diffusion_model.output_blocks.{i*3+j}.1.transformer_blocks.0.attn1.to_v",
+                    output_proj=f"model.diffusion_model.output_blocks.{i*3+j}.1.transformer_blocks.0.attn1.to_out.0",
                 ),
                 cross_attention=stable_diffusion_loader.CrossAttentionBlockTensorNames(
-                    norm=f"unet.decoders.{i*3+j}.1.layernorm_2",
-                    q_proj=f"unet.decoders.{i*3+j}.1.attention_2.q_proj",
-                    k_proj=f"unet.decoders.{i*3+j}.1.attention_2.k_proj",
-                    v_proj=f"unet.decoders.{i*3+j}.1.attention_2.v_proj",
-                    output_proj=f"unet.decoders.{i*3+j}.1.attention_2.out_proj",
+                    norm=f"model.diffusion_model.output_blocks.{i*3+j}.1.transformer_blocks.0.norm2",
+                    q_proj=f"model.diffusion_model.output_blocks.{i*3+j}.1.transformer_blocks.0.attn2.to_q",
+                    k_proj=f"model.diffusion_model.output_blocks.{i*3+j}.1.transformer_blocks.0.attn2.to_k",
+                    v_proj=f"model.diffusion_model.output_blocks.{i*3+j}.1.transformer_blocks.0.attn2.to_v",
+                    output_proj=f"model.diffusion_model.output_blocks.{i*3+j}.1.transformer_blocks.0.attn2.to_out.0",
                 ),
                 feed_forward=stable_diffusion_loader.FeedForwardBlockTensorNames(
-                    norm=f"unet.decoders.{i*3+j}.1.layernorm_3",
-                    ge_glu=f"unet.decoders.{i*3+j}.1.linear_geglu_1",
-                    w2=f"unet.decoders.{i*3+j}.1.linear_geglu_2",
+                    norm=f"model.diffusion_model.output_blocks.{i*3+j}.1.transformer_blocks.0.norm3",
+                    ge_glu=f"model.diffusion_model.output_blocks.{i*3+j}.1.transformer_blocks.0.ff.net.0.proj",
+                    w2=f"model.diffusion_model.output_blocks.{i*3+j}.1.transformer_blocks.0.ff.net.2",
                 ),
             )
             for j in range(3)
         ]
         if i > 0
         else None,
-        upsample_conv=f"unet.decoders.{i*3+2}.2.conv"
+        upsample_conv=f"model.diffusion_model.output_blocks.{i*3+2}.2.conv"
         if 0 < i < 3
-        else (f"unet.decoders.2.1.conv" if i == 0 else None),
+        else (f"model.diffusion_model.output_blocks.2.1.conv" if i == 0 else None),
     )
     for i in range(4)
 ]
 
-
-TENSORS_NAMES = stable_diffusion_loader.DiffusionModelLoader.TensorNames(
+TENSOR_NAMES = stable_diffusion_loader.DiffusionModelLoader.TensorNames(
     time_embedding=stable_diffusion_loader.TimeEmbeddingTensorNames(
-        w1="time_embedding.linear_1",
-        w2="time_embedding.linear_2",
+        w1="model.diffusion_model.time_embed.0",
+        w2="model.diffusion_model.time_embed.2",
     ),
-    conv_in="unet.encoders.0.0",
-    conv_out="final.conv",
-    final_norm="final.groupnorm",
+    conv_in="model.diffusion_model.input_blocks.0.0",
+    conv_out="model.diffusion_model.out.2",
+    final_norm="model.diffusion_model.out.0",
     down_encoder_blocks_tensor_names=_down_encoder_blocks_tensor_names,
     mid_block_tensor_names=_mid_block_tensor_names,
     up_decoder_blocks_tensor_names=_up_decoder_blocks_tensor_names,
@@ -249,6 +256,7 @@ class Diffusion(nn.Module):
         qkv_use_bias=False,
         output_proj_use_bias=True,
         enable_kv_cache=False,
+        qkv_fused_interleaved=False,
     )
 
     # Down encoders.
@@ -280,7 +288,7 @@ class Diffusion(nn.Module):
                         stride=2,
                         padding=config.downsample_padding,
                     ),
-                    transformer_block_config=unet_cfg.TransformerBlock2Dconfig(
+                    transformer_block_config=unet_cfg.TransformerBlock2DConfig(
                         attention_block_config=unet_cfg.AttentionBlock2DConfig(
                             dim=output_channel,
                             attention_batch_size=config.transformer_batch_size,
@@ -340,7 +348,7 @@ class Diffusion(nn.Module):
             ),
             num_layers=config.mid_block_layers,
             time_embedding_channels=config.time_embedding_blocks_dim,
-            transformer_block_config=unet_cfg.TransformerBlock2Dconfig(
+            transformer_block_config=unet_cfg.TransformerBlock2DConfig(
                 attention_block_config=unet_cfg.AttentionBlock2DConfig(
                     dim=mid_block_channels,
                     attention_batch_size=config.transformer_batch_size,
@@ -401,7 +409,7 @@ class Diffusion(nn.Module):
                         mode=unet_cfg.SamplingType.NEAREST,
                         scale_factor=2,
                     ),
-                    transformer_block_config=unet_cfg.TransformerBlock2Dconfig(
+                    transformer_block_config=unet_cfg.TransformerBlock2DConfig(
                         attention_block_config=unet_cfg.AttentionBlock2DConfig(
                             dim=output_channel,
                             attention_batch_size=config.transformer_batch_size,

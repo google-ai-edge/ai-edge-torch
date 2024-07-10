@@ -272,7 +272,7 @@ class TransformerBlock2D(nn.Module):
 
   """
 
-  def __init__(self, config: unet_cfg.TransformerBlock2Dconfig):
+  def __init__(self, config: unet_cfg.TransformerBlock2DConfig):
     """Initialize an instance of the TransformerBlock2D.
 
     Args:
