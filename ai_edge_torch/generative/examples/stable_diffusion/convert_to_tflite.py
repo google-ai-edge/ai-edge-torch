@@ -33,12 +33,6 @@ arg_parser.add_argument(
     '--clip_ckpt', type=str, help='Path to source CLIP model checkpoint', required=True
 )
 arg_parser.add_argument(
-    '--encoder_ckpt',
-    type=str,
-    help='Path to source image encoder model checkpoint',
-    required=False,
-)
-arg_parser.add_argument(
     '--diffusion_ckpt',
     type=str,
     help='Path to source diffusion model checkpoint',
@@ -51,67 +45,46 @@ arg_parser.add_argument(
     required=True,
 )
 arg_parser.add_argument(
-    '--ckpt_format',
-    type=str,
-    choices=['pytorch', 'safetensors'],
-    default='safetensors',
-    nargs='?',
-    const='safetensors',
-)
-arg_parser.add_argument(
     '--output_dir',
     type=str,
-    help='Path to the converted TFLite directory.',
+    help='Path to the converted TF Lite directory.',
     required=True,
 )
 
 
 @torch.inference_mode
 def convert_stable_diffusion_to_tflite(
-    ckpt_format: str,
     output_dir: str,
     clip_ckpt_path: str,
     diffusion_ckpt_path: str,
     decoder_ckpt_path: str,
-    encoder_ckpt_path: Optional[str] = None,
     image_height: int = 512,
     image_width: int = 512,
 ):
 
-  strict_loading = ckpt_format == 'pytorch'
-
-  clip_model = clip.CLIP(
-      clip.get_model_config(qkv_fused_interleaved=(ckpt_format == 'pytorch'))
-  )
+  clip_model = clip.CLIP(clip.get_model_config())
   loader = stable_diffusion_loader.ClipModelLoader(
       clip_ckpt_path,
-      clip.SAFETENSORS_TENSOR_NAMES
-      if ckpt_format == 'safetensors'
-      else clip.PYTORCH_TENSOR_NAMES,
+      clip.TENSOR_NAMES,
   )
-  loader.load(clip_model, strict=strict_loading)
+  loader.load(clip_model, strict=False)
 
   diffusion_model = diffusion.Diffusion(diffusion.get_model_config(2))
   diffusion_loader = stable_diffusion_loader.DiffusionModelLoader(
-      diffusion_ckpt_path,
-      diffusion.SAFETENSORS_TENSOR_NAMES
-      if ckpt_format == 'safetensors'
-      else diffusion.PYTORCH_TENSOR_NAMES,
+      diffusion_ckpt_path, diffusion.TENSOR_NAMES
   )
-  diffusion_loader.load(diffusion_model, strict=strict_loading)
+  diffusion_loader.load(diffusion_model, strict=False)
 
   decoder_model = decoder.Decoder(decoder.get_model_config())
   decoder_loader = stable_diffusion_loader.AutoEncoderModelLoader(
-      decoder_ckpt_path,
-      decoder.SAFETENSORS_TENSOR_NAMES
-      if ckpt_format == 'safetensors'
-      else decoder.PYTORCH_TENSOR_NAMES,
+      decoder_ckpt_path, decoder.TENSOR_NAMES
   )
-  decoder_loader.load(decoder_model, strict=strict_loading)
+  decoder_loader.load(decoder_model, strict=False)
 
-  if encoder_ckpt_path is not None:
-    encoder = Encoder()
-    encoder.load_state_dict(torch.load(encoder_ckpt_path))
+  # TODO(yichunk): enable image encoder conversion
+  # if encoder_ckpt_path is not None:
+  #   encoder = Encoder()
+  #   encoder.load_state_dict(torch.load(encoder_ckpt_path))
 
   # Tensors used to trace the model graph during conversion.
   n_tokens = 77
@@ -132,17 +105,17 @@ def convert_stable_diffusion_to_tflite(
   if not os.path.exists(output_dir):
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
+  # TODO(yichunk): convert to multi signature tflite model.
   # CLIP text encoder
   ai_edge_torch.signature('encode', clip_model, (prompt_tokens,)).convert().export(
       f'{output_dir}/clip.tflite'
   )
 
-  # TODO(yichunk): convert to multi signature tflite model.
+  # TODO(yichunk): enable image encoder conversion
   # Image encoder
-  if encoder_ckpt_path is not None:
-    ai_edge_torch.signature('encode', encoder, (input_image, noise)).convert().export(
-        f'{output_dir}/encoder.tflite'
-    )
+  # ai_edge_torch.signature('encode', encoder, (input_image, noise)).convert().export(
+  #     f'{output_dir}/encoder.tflite'
+  # )
 
   # Diffusion
   ai_edge_torch.signature(
@@ -160,10 +133,8 @@ def convert_stable_diffusion_to_tflite(
 if __name__ == '__main__':
   args = arg_parser.parse_args()
   convert_stable_diffusion_to_tflite(
-      ckpt_format=args.ckpt_format,
       output_dir=args.output_dir,
       clip_ckpt_path=args.clip_ckpt,
-      encoder_ckpt_path=args.encoder_ckpt,
       diffusion_ckpt_path=args.diffusion_ckpt,
       decoder_ckpt_path=args.decoder_ckpt,
       image_height=512,

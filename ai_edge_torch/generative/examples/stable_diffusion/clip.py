@@ -22,20 +22,7 @@ import ai_edge_torch.generative.layers.builder as builder
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
 
-PYTORCH_TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
-    ff_up_proj="layers.{}.linear_1",
-    ff_down_proj="layers.{}.linear_2",
-    attn_fused_qkv_proj="layers.{}.attention.in_proj",
-    attn_output_proj="layers.{}.attention.out_proj",
-    pre_attn_norm="layers.{}.layernorm_1",
-    pre_ff_norm="layers.{}.layernorm_2",
-    embedding="embedding.token_embedding",
-    embedding_position="embedding.position_value",
-    final_norm="layernorm",
-    lm_head=None,
-)
-
-SAFETENSORS_TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
+TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="cond_stage_model.transformer.text_model.encoder.layers.{}.mlp.fc1",
     ff_down_proj="cond_stage_model.transformer.text_model.encoder.layers.{}.mlp.fc2",
     attn_query_proj="cond_stage_model.transformer.text_model.encoder.layers.{}.self_attn.q_proj",
@@ -84,7 +71,7 @@ class CLIP(nn.Module):
     return output
 
 
-def get_model_config(qkv_fused_interleaved: bool) -> cfg.ModelConfig:
+def get_model_config() -> cfg.ModelConfig:
   max_seq_len = 77
   vocab_size = 49408
   num_layers = 12
@@ -98,7 +85,7 @@ def get_model_config(qkv_fused_interleaved: bool) -> cfg.ModelConfig:
       rotary_percentage=0.0,
       qkv_use_bias=True,
       qkv_transpose_before_split=True,
-      qkv_fused_interleaved=qkv_fused_interleaved,
+      qkv_fused_interleaved=False,
       output_proj_use_bias=True,
       enable_kv_cache=False,
   )
