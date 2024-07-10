@@ -220,4 +220,3 @@ if __name__ == '__main__':
       sampler=args.sampler,
       n_inference_steps=args.n_inference_steps,
   )
-  
