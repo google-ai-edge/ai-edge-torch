@@ -36,11 +36,24 @@ class RemoveSDPACompositeZeroMaskPass(ExportedProgramPassBase):
       # Composite info:
       # - name: odml.scaled_dot_product_attention
       # - inputs: q, k, v, mask
+
+      def transpose_mark(x,  *args, **kwargs):
+        x = torch.transpose(x, 1, 2)
+        marked = torch.ops.xla.mark_tensor.default(x, *args, **kwargs)
+        marked = torch.transpose(marked, 2, 1)
+        return marked
+            
       if name == "odml.scaled_dot_product_attention" and is_input and io_position == 3:
         if self.is_zero_tensor_node(source):
           # Remove the mark_tensor call on the mask input by
           # replacing the target with an identity function.
           node.target = lambda *args, **kwargs: args[0]
+      # Transpose Q tensor from [batch, seq_len, num_heads, head_dim] -> [batch, num_heads, seq_len, head_dim]
+      if name == "odml.scaled_dot_product_attention" and is_input and io_position == 0:
+          node.target = transpose_mark
+      # Transpose Output tensor from [batch, num_heads, seq_len, head_dim] -> [batch, seq_len, num_heads, head_dim]
+      if name == "odml.scaled_dot_product_attention" and not is_input:
+          node.target = transpose_mark
 
     exported_program.graph_module.graph.lint()
     exported_program.graph_module.recompile()
