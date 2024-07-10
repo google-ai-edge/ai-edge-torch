@@ -60,7 +60,8 @@ def _torch_tensors_to_np(*argv):
 def compare_tflite_torch(
     edge_model: Model,
     torch_eval_func: Callable,
-    input_data=None,
+    args=None,
+    kwargs=None,
     *,
     num_valid_inputs: int = 1,
     signature_name: str = None,
@@ -71,8 +72,9 @@ def compare_tflite_torch(
   Args:
     edge_model: Serialized ai_edge_torch.model.Model object.
     torch_eval_func: Callable function to evaluate torch model.
-    input_data: torch.tensor array  or a callable to generate a torch.tensor array
+    args: torch.tensor array or a callable to generate a torch.tensor array
       with random data, to pass into models during inference. (default None).
+    kwargs: dict of str to torch.tensor, or a callable to generate such.
     num_valid_inputs: Defines the number of times the random inputs will be generated (if a callable is provided for input_data).
     signature_name: If provided, specifies the name for the signature of the edge_model to run.
       Calls the default signature if not provided.
@@ -86,29 +88,33 @@ def compare_tflite_torch(
   # The supplied model_def.forward_args() will be executed num_valid_inputs
   # times to generate num_valid_inputs random inputs.
   torch_inputs = [
-      input_data() if callable(input_data) else input_data
+      (
+          (args() if callable(args) else args) or tuple(),
+          (kwargs() if callable(kwargs) else kwargs) or {},
+      )
       for _ in range(num_valid_inputs)
   ]
-  torch_outputs = [torch_eval_func(*xs) for xs in torch_inputs]
-  np_inputs = [_torch_tensors_to_np(xs) for xs in torch_inputs]
+  torch_outputs = [torch_eval_func(*args, **kwargs) for args, kwargs in torch_inputs]
+  np_inputs = [
+      (_torch_tensors_to_np(args), _torch_tensors_to_np(kwargs))
+      for args, kwargs in torch_inputs
+  ]
   np_outputs = [_torch_tensors_to_np(_flatten(ys)) for ys in torch_outputs]
 
   # Define inline utility function used throughout the function.
   def equal_fn(actual, expected):
     return np.allclose(actual, expected, atol=atol, rtol=rtol)
 
-  def get_actual_fn(input):
+  def get_edge_output(inputs):
+    args, kwargs = inputs
     if signature_name is None:
-      return _flatten(edge_model(*input))
+      return _flatten(edge_model(*args, **kwargs))
     else:
-      return _flatten(edge_model(*input, signature_name=signature_name))
-
-  def get_expected_fn(input=None, idx=0):
-    return np_outputs[idx]
+      return _flatten(edge_model(*args, **kwargs, signature_name=signature_name))
 
   for idx, np_input in enumerate(np_inputs):
-    output = get_actual_fn(np_input)
-    golden_output = get_expected_fn(np_input, idx)
+    output = get_edge_output(np_input)
+    golden_output = np_outputs[idx]
 
     is_output_len_eq = len(golden_output) == len(output)
 
