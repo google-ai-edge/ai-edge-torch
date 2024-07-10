@@ -22,6 +22,7 @@ import tempfile
 from typing import Any, Dict, Optional, Tuple, Union
 
 import torch
+import torch.utils._pytree as pytree
 from torch_xla import stablehlo
 
 from ai_edge_torch.generative.quantize.ai_edge_quantizer_glue import translate_recipe  # NOQA
@@ -47,7 +48,44 @@ class Signature:
   name: str
   module: torch.nn.Module
   sample_args: tuple[torch.Tensor]
+  sample_kwargs: dict[str, torch.Tensor]
   dynamic_shapes: Optional[Union[Dict[str, Any], Tuple[Any]]] = None
+
+  @property
+  def _normalized_sample_args_kwargs(self):
+    args, kwargs = self.sample_args, self.sample_kwargs
+    if args is not None:
+      if not isinstance(args, tuple):
+        # TODO: Check value types
+        raise ValueError("sample_args must be a tuple of torch tensors.")
+    if kwargs is not None:
+      if not isinstance(kwargs, dict) or not all(
+          isinstance(key, str) for key in kwargs.keys()
+      ):
+        # TODO: Check value types
+        raise ValueError("sample_kwargs must be a dict of string to tensor.")
+
+    args = args if args is not None else tuple()
+    kwargs = kwargs if kwargs is not None else {}
+    return args, kwargs
+
+  @property
+  def flat_arg_names(self) -> list[str]:
+    spec = pytree.tree_flatten(self._normalized_sample_args_kwargs)[1]
+    args_spec, kwargs_spec = spec.children_specs
+
+    names = []
+    for i in range(args_spec.num_leaves):
+      names.append(f"args_{i}")
+
+    for name, value_spec in zip(kwargs_spec.context, kwargs_spec.children_specs):
+      for i in range(value_spec.num_leaves):
+        names.append(f"{name}_{i}")
+    return names
+
+  @property
+  def flat_args(self) -> tuple[torch.Tensor]:
+    return tuple(pytree.tree_flatten(self._normalized_sample_args_kwargs)[0])
 
 
 def exported_program_to_stablehlo_bundle(
@@ -189,7 +227,9 @@ def _make_tf_function(
 
 def _make_tf_signature(
     meta: stablehlo.StableHLOFunctionMeta,
+    signature: Signature,
 ) -> list[tf.TensorSpec]:
+  input_names = signature.flat_arg_names
   input_pos_to_spec = {
       loc.position: spec
       for loc, spec in itertools.chain(
@@ -197,9 +237,11 @@ def _make_tf_signature(
       )
       if loc.type_ == stablehlo.VariableType.INPUT_ARG
   }
+  assert len(input_pos_to_spec) == len(input_names)
+
   primitive_type_to_tf_type = {"int": "int32", "float": "float32"}
   ret: list[tf.TensorSpec] = []
-  for i in range(len(input_pos_to_spec)):
+  for i, name in enumerate(input_names):
     spec = input_pos_to_spec[i]
     shape = _get_shape_with_dynamic(spec)
     ret.append(
@@ -208,7 +250,7 @@ def _make_tf_signature(
             dtype=primitive_type_to_tf_type[spec.dtype]
             if spec.dtype in primitive_type_to_tf_type
             else spec.dtype,
-            name=f"args_{i}",
+            name=name,
         )
     )
   return ret
@@ -276,7 +318,8 @@ def convert_stablehlo_to_tflite(
       tf.Variable(v, trainable=False) for v in bundle.additional_constants
   ]
   tf_signatures: list[list[tf.TensorSpec]] = list(
-      _make_tf_signature(func.meta) for func in bundle.stablehlo_funcs
+      _make_tf_signature(func.meta, sig)
+      for func, sig in zip(bundle.stablehlo_funcs, signatures)
   )
 
   tf_functions = _make_tf_function(shlo_graph_module, bundle)
