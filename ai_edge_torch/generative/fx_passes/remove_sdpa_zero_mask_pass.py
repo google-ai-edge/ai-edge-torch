@@ -40,7 +40,7 @@ class RemoveSDPACompositeZeroMaskPass(ExportedProgramPassBase):
         if self.is_zero_tensor_node(source):
           # Remove the mark_tensor call on the mask input by
           # replacing the target with an identity function.
-          node.target = lambda *args, **kwargs: args[0]
+          node.target = lambda *args, **kwargs: torch.zeros_like(args[0])
 
     exported_program.graph_module.graph.lint()
     exported_program.graph_module.recompile()
