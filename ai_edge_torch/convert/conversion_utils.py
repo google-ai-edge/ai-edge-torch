@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+import collections
 import copy
 from dataclasses import dataclass
 import gc
@@ -78,7 +79,14 @@ class Signature:
     for i in range(args_spec.num_leaves):
       names.append(f"args_{i}")
 
-    for name, value_spec in zip(kwargs_spec.context, kwargs_spec.children_specs):
+    dict_context = (
+        kwargs_spec.context
+        if kwargs_spec.type is not collections.defaultdict
+        # ignore mismatch of `default_factory` for defaultdict
+        else kwargs_spec.context[1]
+    )
+
+    for name, value_spec in zip(dict_context, kwargs_spec.children_specs):
       if value_spec.num_leaves == 1:
         names.append(name)
       else:
