@@ -296,7 +296,7 @@ class TestConvert(unittest.TestCase):
       def forward(self, x, y):
         return x + y
 
-    args_gen = lambda: torch.randn(10, 10)
+    args_gen = lambda: (torch.randn(10, 10),)
     kwargs_gen = lambda: dict(y=torch.randn(10, 10))
 
     model = SampleModel().eval()
