@@ -92,7 +92,7 @@ class Signature:
       else:
         # value_spec.num_leaves may be greater than 1 when the value is a (nested)
         # tuple of tensors. We haven't decided how we should support flattenable
-        # tensor containers  as inputs.
+        # tensor containers as inputs.
         # TODO(b/352584188): Decide the behavior of tensor container as input (flatten or reject)
         for i in range(value_spec.num_leaves):
           names.append(f"{name}_{i}")
