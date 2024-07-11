@@ -183,7 +183,9 @@ class T5Attention(CrossAttention):
     x = self.pre_atten_norm(x)
     B, T, C = x.size()  # batch size, sequence length, embedding dimensionality (n_embd)
     query_states = self.q_projection(x)
-    query_states = query_states.reshape(B, T, -1, self.head_dim)  # (B, T, nh_q, hs)
+    query_states = query_states.reshape(
+        B, T, -1, self.config.head_dim
+    )  # (B, T, nh_q, hs)
 
     if key_value_states is not None:
       (
@@ -195,13 +197,13 @@ class T5Attention(CrossAttention):
       )  # batch size, sequence length, embedding dimensionality (n_embd)
       key_states = self.k_projection(key_value_states)
       value_states = self.v_projection(key_value_states)
-      key_states = key_states.reshape(kvB, kvT, -1, self.head_dim)
-      value_states = value_states.reshape(kvB, kvT, -1, self.head_dim)
+      key_states = key_states.reshape(kvB, kvT, -1, self.config.head_dim)
+      value_states = value_states.reshape(kvB, kvT, -1, self.config.head_dim)
     else:
       key_states = self.k_projection(x)
       value_states = self.v_projection(x)
-      key_states = key_states.reshape(B, T, -1, self.head_dim)
-      value_states = value_states.reshape(B, T, -1, self.head_dim)
+      key_states = key_states.reshape(B, T, -1, self.config.head_dim)
+      value_states = value_states.reshape(B, T, -1, self.config.head_dim)
 
     if key_value_states is None and self.kv_cache is not None:
       key_states, value_states = self.kv_cache.update_cache(
@@ -218,12 +220,17 @@ class T5Attention(CrossAttention):
             0
         )  # shape (1, num_heads, query_length, key_length)
       else:
-        # position_bias = torch.zeros(B, self.n_heads, T, self.head_dim, dtype=torch.float32)
+        # position_bias = torch.zeros(B, self.n_heads, T, self.config.head_dim, dtype=torch.float32)
         position_bias = torch.zeros_like(mask, dtype=torch.float32)
 
     mask = mask + position_bias
     y = self.sdpa_func(
-        query_states, key_states, value_states, self.head_dim, mask=mask, scale=1.0
+        query_states,
+        key_states,
+        value_states,
+        self.config.head_dim,
+        mask=mask,
+        scale=1.0,
     )
     y = y.reshape(B, T, C)  # re-assemble all head outputs side by side
     # output projection
