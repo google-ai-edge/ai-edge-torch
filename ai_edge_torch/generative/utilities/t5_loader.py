@@ -505,8 +505,8 @@ class ModelLoader:
     q_per_kv = (
         config.attn_config.num_heads // config.attn_config.num_query_groups
     )
-    qs = torch.split(q, config.head_dim * q_per_kv)
-    ks = torch.split(k, config.head_dim)
-    vs = torch.split(v, config.head_dim)
+    qs = torch.split(q, config.attn_config.head_dim * q_per_kv)
+    ks = torch.split(k, config.attn_config.head_dim)
+    vs = torch.split(v, config.attn_config.head_dim)
     cycled = [t for group in zip(qs, ks, vs) for t in group]
     return torch.cat(cycled)

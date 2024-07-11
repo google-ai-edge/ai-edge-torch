@@ -55,9 +55,10 @@ class FeedForwardType(enum.Enum):
 
 @dataclass
 class AttentionConfig:
-  """Attention moduel's parameters."""
+  """Attention model's parameters."""
 
   num_heads: int
+  head_dim: int
   # Used to determine number of groups in grouped query attention (GQA)
   # https://arxiv.org/pdf/2305.13245.pdf
   num_query_groups: Optional[int]
@@ -156,7 +157,3 @@ class ModelConfig:
       return self.kv_cache_max_len
     else:
       return self.max_seq_len
-
-  @property
-  def head_dim(self) -> int:
-    return self.embedding_dim // self.attn_config.num_heads
