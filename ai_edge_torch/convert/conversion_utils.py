@@ -57,13 +57,13 @@ class Signature:
     args, kwargs = self.sample_args, self.sample_kwargs
     if args is not None:
       if not isinstance(args, tuple):
-        # TODO: Check value types
+        # TODO(b/352584188): Check value types
         raise ValueError("sample_args must be a tuple of torch tensors.")
     if kwargs is not None:
       if not isinstance(kwargs, dict) or not all(
           isinstance(key, str) for key in kwargs.keys()
       ):
-        # TODO: Check value types
+        # TODO(b/352584188): Check value types
         raise ValueError("sample_kwargs must be a dict of string to tensor.")
 
     args = args if args is not None else tuple()
@@ -93,7 +93,7 @@ class Signature:
         # value_spec.num_leaves may be greater than 1 when the value is a (nested)
         # tuple of tensors. We haven't decided how we should support flattenable
         # tensor containers  as inputs.
-        # TODO: Decide the behavior of tensor container as input (flatten or reject)
+        # TODO(b/352584188): Decide the behavior of tensor container as input (flatten or reject)
         for i in range(value_spec.num_leaves):
           names.append(f"{name}_{i}")
     return names
