@@ -34,17 +34,23 @@ class Converter:
       self,
       name: str,
       module: torch.nn.Module,
-      sample_args: tuple[cutils.TracingArg],
+      sample_args=None,
+      sample_kwargs=None,
+      *,
       dynamic_shapes: Optional[Union[Dict[str, Any], Tuple[Any]]] = None,
   ) -> Converter:
     """Alias to `add_signature`"""
-    return self.add_signature(name, module, sample_args, dynamic_shapes)
+    return self.add_signature(
+        name, module, sample_args, sample_kwargs, dynamic_shapes=dynamic_shapes
+    )
 
   def add_signature(
       self,
       name: str,
       module: torch.nn.Module,
-      sample_args: tuple[cutils.TracingArg],
+      sample_args=None,
+      sample_kwargs=None,
+      *,
       dynamic_shapes: Optional[Union[Dict[str, Any], Tuple[Any]]] = None,
   ) -> Converter:
     """Allows adding a new named torch model along with sample args to the conversion.
@@ -52,7 +58,8 @@ class Converter:
     Args:
       name: The name of the signature included in the converted edge model.
       module: The torch module to be converted.
-      sample_args: Tuple of args by which the torch module will be traced prior to conversion.
+      sample_args: Tuple of tensors by which the torch module will be traced with prior to conversion.
+      sample_kwargs: Dict of str to tensor by which the torch module will be traced with prior to conversion.
       dynamic_shapes: Optional dict or tuple that specify dynamic shape specifications for each input in original order.
         See https://pytorch.org/docs/stable/export.html#expressing-dynamism for more details.
 
@@ -63,13 +70,21 @@ class Converter:
     if name in [sig.name for sig in self._signatures]:
       raise ValueError(f"A signature with the provided name ({name}) is already added.")
 
-    self._signatures.append(cutils.Signature(name, module, sample_args, dynamic_shapes))
+    if sample_args is None and sample_kwargs is None:
+      raise ValueError("sample_args or sample_kwargs must be provided.")
+
+    self._signatures.append(
+        cutils.Signature(
+            name, module, sample_args, sample_kwargs, dynamic_shapes=dynamic_shapes
+        )
+    )
     return self
 
   def convert(
       self,
       module: torch.nn.Module = None,
-      sample_args: tuple[cutils.TracingArg] = None,
+      sample_args=None,
+      sample_kwargs=None,
       *,
       quant_config: Optional[qcfg.QuantConfig] = None,
       dynamic_shapes: Optional[Union[Dict[str, Any], Tuple[Any]]] = None,
@@ -88,7 +103,8 @@ class Converter:
     Args:
       name: The name of the signature included in the converted edge model.
       module: The torch module to be converted.
-      sample_args: Tuple of args by which the torch module will be traced prior to conversion.
+      sample_args: Tuple of tensors by which the torch module will be traced with prior to conversion.
+      sample_kwargs: Dict of str to tensor by which the torch module will be traced with prior to conversion.
       quant_config: User-defined quantization method and scheme of the model.
       dynamic_shapes: Optional dict or tuple that specify dynamic shape specifications for each input in original order.
         See https://pytorch.org/docs/stable/export.html#expressing-dynamism for more details.
@@ -100,12 +116,20 @@ class Converter:
       ValueError: If the arguments are not provided as expected. See the example in this functions's comment.
     """
     if module is not None:
-      if sample_args is not None:  # both module and args provided
+      if (
+          sample_args is not None or sample_kwargs is not None
+      ):  # both module and args provided
         self.add_signature(
-            cutils.DEFAULT_SIGNATURE_NAME, module, sample_args, dynamic_shapes
+            cutils.DEFAULT_SIGNATURE_NAME,
+            module,
+            sample_args,
+            sample_kwargs,
+            dynamic_shapes=dynamic_shapes,
         )
-      else:  # module is provided but not sample_args
-        raise ValueError("sample_args needs to be provided if a module is specified.")
+      else:  # module is provided but not args
+        raise ValueError(
+            "sample_args or sample_kwargs must be provided if a module is specified."
+        )
 
     return conversion.convert_signatures(
         self._signatures,
@@ -117,7 +141,8 @@ class Converter:
 def signature(
     name: str,
     module: torch.nn.Module,
-    sample_args: tuple[cutils.TracingArg],
+    sample_args=None,
+    sample_kwargs=None,
     dynamic_shapes: Optional[Union[Dict[str, Any], Tuple[Any]]] = None,
 ) -> Converter:
   """Initiates a Converter object with the provided signature.
@@ -125,7 +150,8 @@ def signature(
   Args:
     name: The name of the signature included in the converted edge model.
     module: The torch module to be converted.
-    sample_args: Tuple of args by which the torch module will be traced prior to conversion.
+    sample_args: Tuple of tensors by which the torch module will be traced with prior to conversion.
+    sample_kwargs: Dict of str to tensor by which the torch module will be traced with prior to conversion.
     dynamic_shapes: Optional dict or tuple that specify dynamic shape specifications for each input in original order.
       See https://pytorch.org/docs/stable/export.html#expressing-dynamism for more details.
 
@@ -134,12 +160,15 @@ def signature(
     edge_model = converter.convert()
 
   """
-  return Converter().signature(name, module, sample_args, dynamic_shapes)
+  return Converter().signature(
+      name, module, sample_args, sample_kwargs, dynamic_shapes=dynamic_shapes
+  )
 
 
 def convert(
     module: torch.nn.Module = None,
-    sample_args: tuple[cutils.TracingArg] = None,
+    sample_args=None,
+    sample_kwargs=None,
     *,
     quant_config: Optional[qcfg.QuantConfig] = None,
     dynamic_shapes: Optional[Union[Dict[str, Any], Tuple[Any]]] = None,
@@ -149,7 +178,8 @@ def convert(
 
   Args:
     module: The torch module to be converted.
-    sample_args: Tuple of args by which the torch module will be traced prior to conversion.
+    sample_args: Tuple of tensors by which the torch module will be traced with prior to conversion.
+    sample_kwargs: Dict of str to tensor by which the torch module will be traced with prior to conversion.
     quant_config: User-defined quantization method and scheme of the model.
     dynamic_shapes: Optional dict or tuple that specify dynamic shape specifications for each input in original order.
       See https://pytorch.org/docs/stable/export.html#expressing-dynamism for more details.
@@ -165,6 +195,7 @@ def convert(
   return Converter().convert(
       module,
       sample_args,
+      sample_kwargs,
       quant_config=quant_config,
       dynamic_shapes=dynamic_shapes,
       _ai_edge_converter_flags=_ai_edge_converter_flags,

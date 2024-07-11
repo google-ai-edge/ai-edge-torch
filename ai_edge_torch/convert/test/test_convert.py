@@ -267,6 +267,45 @@ class TestConvert(unittest.TestCase):
           model_coverage.compare_tflite_torch(edge_model, model, validate_input)
       )
 
+  def test_convert_model_with_kwargs(self):
+    """
+    Test converting a simple model with sample_kwargs.
+    """
+
+    class SampleModel(torch.nn.Module):
+
+      def forward(self, x, y):
+        return x + y
+
+    kwargs_gen = lambda: dict(x=torch.randn(10, 10), y=torch.randn(10, 10))
+
+    model = SampleModel().eval()
+    edge_model = ai_edge_torch.convert(model, sample_kwargs=kwargs_gen())
+
+    self.assertTrue(
+        model_coverage.compare_tflite_torch(edge_model, model, kwargs=kwargs_gen)
+    )
+
+  def test_convert_model_with_args_kwargs(self):
+    """
+    Test converting a simple model with both sample_args and sample_kwargs.
+    """
+
+    class SampleModel(torch.nn.Module):
+
+      def forward(self, x, y):
+        return x + y
+
+    args_gen = lambda: (torch.randn(10, 10),)
+    kwargs_gen = lambda: dict(y=torch.randn(10, 10))
+
+    model = SampleModel().eval()
+    edge_model = ai_edge_torch.convert(model, args_gen(), kwargs_gen())
+
+    self.assertTrue(
+        model_coverage.compare_tflite_torch(edge_model, model, args_gen, kwargs_gen)
+    )
+
 
 if __name__ == "__main__":
   unittest.main()

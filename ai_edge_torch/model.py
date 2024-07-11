@@ -33,7 +33,10 @@ class Model(abc.ABC):
 
   @abc.abstractmethod
   def __call__(
-      self, *args: npt.ArrayLike, signature_name: str = cutils.DEFAULT_SIGNATURE_NAME
+      self,
+      *args: npt.ArrayLike,
+      signature_name: str = cutils.DEFAULT_SIGNATURE_NAME,
+      **kwargs,
   ) -> npt.ArrayLike | tuple[npt.ArrayLike]:
     raise NotImplementedError()
 
@@ -62,12 +65,16 @@ class TfLiteModel(Model):
     self._tflite_model = tflite_model
 
   def __call__(
-      self, *args: npt.ArrayLike, signature_name: str = cutils.DEFAULT_SIGNATURE_NAME
+      self,
+      *args: npt.ArrayLike,
+      signature_name: str = cutils.DEFAULT_SIGNATURE_NAME,
+      **kwargs,
   ) -> npt.ArrayLike | tuple[npt.ArrayLike]:
     """Runs inference on the edge model using the provided arguments.
 
     Args:
       *args: The arguments to be passed to the model for inference.
+      **kwargs: The arguments with specific names to be passed to the model for inference.
       signature_name: The name of the signature to be used for inference.
         The default signature is used if not provided.
     """
@@ -90,13 +97,14 @@ class TfLiteModel(Model):
       else:
         raise exception
 
-    if len(signature_list[signature_name]['inputs']) != len(args):
+    if len(signature_list[signature_name]['inputs']) != len(args) + len(kwargs):
       raise ValueError(
           f"The model requires {len(signature_list[signature_name]['inputs'])} arguments but {len(args)} was provided."
       )
 
     # Gather the input dictionary based on the signature.
     inputs = {f'args_{idx}': args[idx] for idx in range(len(args))}
+    inputs = {**inputs, **kwargs}
     outputs = runner(**inputs)
 
     return (
