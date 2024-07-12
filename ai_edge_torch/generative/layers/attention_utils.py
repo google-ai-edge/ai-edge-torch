@@ -74,10 +74,40 @@ def build_causal_mask_cache(
   Returns:
       torch.Tensor: Causal attention mask.
   """
+
   if device is None:
     device = torch.device('cpu')
   mask = torch.full((size, size), float('-inf'), dtype=dtype, device=device)
   return torch.triu(mask, diagonal=1).unsqueeze(0).unsqueeze(0)
+
+
+def build_sliding_window_mask_cache(
+    size: int,
+    window_size: int,
+    dtype: torch.dtype = torch.float32,
+    device: torch.device = None,
+) -> torch.Tensor:
+  """Build a cache for a sliding window mask.
+
+  Args:
+      size (int): The size of the built mask cache.
+      window_size (int): The window size that is "seen" by a token.
+      dtype (torch.dtype, optional): Output tensor's data type. Defaults to
+        torch.float32.
+      device (torch.device, optional): Output tensor's data type. Defaults to
+        None in which case "cpu" is used.
+
+  Returns:
+      torch.Tensor: Causal attention mask.
+  """
+
+  mask = build_causal_mask_cache(size, dtype, device)
+  all_ones = torch.ones_like(mask)
+  window_size = min(size, window_size)
+  sliding_mask = torch.triu(all_ones, -1 * window_size + 1) * torch.tril(
+      all_ones, window_size - 1
+  )
+  return torch.where(sliding_mask == 1, mask, -2.3819763e38)
 
 
 def relative_position_bucket(
