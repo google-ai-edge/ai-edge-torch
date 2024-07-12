@@ -15,9 +15,10 @@
 # Cache management utilities.
 
 from dataclasses import dataclass
-from typing import Tuple
+from typing import List, Tuple
 
 import torch
+import torch.utils._pytree as pytree
 
 from ai_edge_torch import hlfb
 from ai_edge_torch.generative.layers import model_config
@@ -84,8 +85,45 @@ class KVCache:
     return obj
 
 
-torch.export.register_dataclass(KVCacheEntry, serialized_type_name="kvc_entry")
-torch.export.register_dataclass(KVCache, serialized_type_name="kvc_container")
+def _flatten_kvc(kvc: KVCache) -> Tuple[List, List]:
+  flattened = []
+  flat_names = []
+  none_names = []
+  for i, kv_entry in enumerate(kvc.caches):
+    flattened.append(kv_entry.k_cache)
+    flat_names.append(f"k_{i}")
+    flattened.append(kv_entry.v_cache)
+    flat_names.append(f"v_{i}")
+  return flattened, [flat_names, none_names]
+
+
+def _flatten_kvc_with_keys(kvc: KVCache) -> Tuple[List, List]:
+  flattened, (flat_names, none_names) = _flatten_kvc(kvc)
+  return [(pytree.MappingKey(k), v) for k, v in zip(flat_names, flattened)], flat_names
+
+
+def _unflatten_kvc(values: List[torch.Tensor], context: Tuple[List, List]) -> KVCache:
+  assert len(values) % 2 == 0
+  num_layers = len(values) // 2
+  flat_names = context[0]
+  kv_entries = []
+  for i in range(num_layers):
+    k_cache_idx = flat_names.index(f"k_{i}")
+    v_cache_idx = flat_names.index(f"v_{i}")
+    kv_entries.append(
+        KVCacheEntry(k_cache=values[k_cache_idx], v_cache=values[v_cache_idx])
+    )
+  obj = KVCache(tuple(kv_entries))
+  return obj
+
+
+pytree.register_pytree_node(
+    KVCache,
+    _flatten_kvc,
+    _unflatten_kvc,
+    flatten_with_keys_fn=_flatten_kvc_with_keys,
+    serialized_type_name="",
+)
 
 
 def update(

@@ -148,8 +148,16 @@ def define_and_run() -> None:
   # in dynamic update slice op.
   print('converting toy model to tflite with 2 signatures (prefill + decode)')
   edge_model = (
-      ai_edge_torch.signature('prefill', model, (idx, input_pos, kv))
-      .signature('decode', model, (decode_idx, decode_input_pos, kv))
+      ai_edge_torch.signature(
+          'prefill',
+          model,
+          sample_kwargs={'idx': idx, 'input_pos': input_pos, 'kv_cache': kv},
+      )
+      .signature(
+          'decode',
+          model,
+          sample_kwargs={'idx': idx, 'input_pos': input_pos, 'kv_cache': kv},
+      )
       .convert()
   )
   edge_model.export('/tmp/toy_external_kv_cache.tflite')
