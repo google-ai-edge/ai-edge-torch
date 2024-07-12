@@ -55,7 +55,7 @@ class FeedForwardType(enum.Enum):
 
 @dataclass
 class AttentionConfig:
-  """Attention model's parameters."""
+  """Attention module's parameters."""
 
   num_heads: int
   head_dim: int
