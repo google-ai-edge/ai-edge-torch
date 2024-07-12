@@ -44,8 +44,8 @@ class TransformerBlock(nn.Module):
         config.attn_config,
         config.enable_hlfb,
     )
-    self.pre_ff_norm = builder.build_norm(
-        config.embedding_dim, config.pre_ff_norm_config
+    self.post_attention_norm = builder.build_norm(
+        config.embedding_dim, config.post_attention_norm_config
     )
     self.ff = builder.build_ff(config.embedding_dim, config.ff_config)
     self.config = config
@@ -81,7 +81,7 @@ class TransformerBlock(nn.Module):
       x_norm = self.pre_atten_norm(x)
       attn_out, kv = self.atten_func(x_norm, rope, mask, input_pos, kv_cache)
       x = x + attn_out
-      x_norm = self.pre_ff_norm(x)
+      x_norm = self.post_attention_norm(x)
       output = x + self.ff(x_norm)
 
     return output, kv

@@ -125,7 +125,7 @@ class ModelConfig:
       default_factory=NormalizationConfig
   )
   # The normalization applied to feed forward's input.
-  pre_ff_norm_config: NormalizationConfig = field(
+  post_attention_norm_config: NormalizationConfig = field(
       default_factory=NormalizationConfig
   )
   # The normalization applied before LM head.

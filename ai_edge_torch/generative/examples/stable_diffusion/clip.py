@@ -35,7 +35,7 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     pre_attn_norm=(
         "cond_stage_model.transformer.text_model.encoder.layers.{}.layer_norm1"
     ),
-    pre_ff_norm=(
+    post_attn_norm=(
         "cond_stage_model.transformer.text_model.encoder.layers.{}.layer_norm2"
     ),
     embedding=(
@@ -120,7 +120,7 @@ def get_model_config() -> cfg.ModelConfig:
       attn_config=attn_config,
       ff_config=ff_config,
       pre_attention_norm_config=norm_config,
-      pre_ff_norm_config=norm_config,
+      post_attention_norm_config=norm_config,
       final_norm_config=norm_config,
       enable_hlfb=True,
   )
