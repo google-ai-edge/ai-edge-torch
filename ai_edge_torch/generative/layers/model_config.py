@@ -16,7 +16,7 @@
 from dataclasses import dataclass
 from dataclasses import field
 import enum
-from typing import Optional
+from typing import Optional, Sequence
 
 
 @enum.unique
@@ -53,6 +53,11 @@ class FeedForwardType(enum.Enum):
   GATED = enum.auto()
 
 
+class AttentionType(enum.Enum):
+  GLOBAL = enum.auto()
+  LOCAL_SLIDING = enum.auto()
+
+
 @dataclass
 class AttentionConfig:
   """Attention model's parameters."""
@@ -78,6 +83,12 @@ class AttentionConfig:
   enable_kv_cache: bool = True
   relative_attention_num_buckets: int = 0
   relative_attention_max_distance: int = 0
+  # Softcap on the output logits.
+  logit_softcap: Optional[float] = None
+  # The types of attention used in the layers of the model.
+  attn_types: Optional[Sequence[AttentionType]] = None
+  # The size of the sliding window used for local attention.
+  sliding_window_size: Optional[int] = None
 
 
 @dataclass
@@ -89,16 +100,6 @@ class ActivationConfig:
 
 
 @dataclass
-class FeedForwardConfig:
-  """FeedForward module's parameters."""
-
-  type: FeedForwardType
-  activation: ActivationConfig
-  intermediate_size: int
-  use_bias: bool = False
-
-
-@dataclass
 class NormalizationConfig:
   """Normalizater parameters."""
 
@@ -107,6 +108,24 @@ class NormalizationConfig:
   zero_centered: bool = False
   # Number of groups used in group normalization.
   group_num: Optional[float] = None
+
+
+@dataclass
+class FeedForwardConfig:
+  """FeedForward module's parameters."""
+
+  type: FeedForwardType
+  activation: ActivationConfig
+  intermediate_size: int
+  use_bias: bool = False
+  # The normalization applied to feed forward's input.
+  pre_ff_norm_config: NormalizationConfig = field(
+      default_factory=NormalizationConfig
+  )
+  # The normalization applied to feed forward's output.
+  post_ff_norm_config: NormalizationConfig = field(
+      default_factory=NormalizationConfig
+  )
 
 
 @dataclass
@@ -124,7 +143,7 @@ class ModelConfig:
   pre_attention_norm_config: NormalizationConfig = field(
       default_factory=NormalizationConfig
   )
-  # The normalization applied to feed forward's input.
+  # The normalization applied to attentions's output.
   post_attention_norm_config: NormalizationConfig = field(
       default_factory=NormalizationConfig
   )
@@ -150,6 +169,9 @@ class ModelConfig:
 
   # Default batch size of the exported model. Default value is 1.
   batch_size: int = 1
+
+  # Softcap on the model output logits.
+  final_logit_softcap: Optional[float] = None
 
   @property
   def kv_cache_max(self) -> int:

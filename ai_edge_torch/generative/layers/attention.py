@@ -228,8 +228,15 @@ class CausalSelfAttention(nn.Module):
       # TODO(haoliang): Handle when execeeding max sequence length.
       k, v = self.kv_cache.update_cache(input_pos, k, v)
 
-    y = self.sdpa_func(q, k, v, self.config.head_dim, mask=mask)
-    y = y.reshape(B, T, E)
+    y = self.sdpa_func(
+        q,
+        k,
+        v,
+        self.config.head_dim,
+        mask=mask,
+        softcap=self.config.logit_softcap,
+    )
+    y = y.reshape(B, T, -1)
 
     # Compute the output projection.
     y = self.output_projection(y)
