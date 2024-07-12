@@ -68,8 +68,8 @@ class EncoderDecoderBlock(nn.Module):
     else:
       self.cross_atten_func = None
 
-    self.pre_ff_norm = builder.build_norm(
-        config.embedding_dim, config.pre_ff_norm_config
+    self.post_atten_norm = builder.build_norm(
+        config.embedding_dim, config.post_attention_norm_config
     )
     self.ff = builder.build_ff(config.embedding_dim, config.ff_config)
     self.config = config
@@ -118,7 +118,7 @@ class EncoderDecoderBlock(nn.Module):
       )
       attn_out = hidden_states + attn_out
 
-    forwarded = self.pre_ff_norm(attn_out)
+    forwarded = self.post_atten_norm(attn_out)
     forwarded = self.ff(forwarded)
     hidden_states = attn_out + forwarded
 
