@@ -13,10 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 # Example of building a Gemma model.
+#
+# Note: This is an experimental version of Gemma with external KV cache.
+# Please use with caution.
 
 import os
 from pathlib import Path
-from typing import List
+from typing import Tuple
 
 import numpy as np
 import torch
@@ -24,7 +27,7 @@ import torch.nn as nn
 
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.builder as builder
-from ai_edge_torch.generative.layers.experimental import kv_cache
+from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils
 from ai_edge_torch.generative.layers.experimental.attention import TransformerBlock  # NOQA
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
@@ -87,9 +90,8 @@ class Gemma(nn.Module):
       self,
       idx: torch.Tensor,
       input_pos: torch.Tensor,
-      k_caches: List[torch.Tensor],
-      v_caches: List[torch.Tensor],
-  ) -> torch.Tensor:
+      kv_cache: kv_utils.KVCache,
+  ) -> Tuple[torch.Tensor, kv_utils.KVCache]:
     B, T = idx.size()
     assert (
         self.config.max_seq_len >= T
@@ -105,16 +107,17 @@ class Gemma(nn.Module):
     x = self.tok_embedding(idx)
     x = x * (self.config.embedding_dim**0.5)
 
+    updated_kv_entires = []
     for i, block in enumerate(self.transformer_blocks):
-      input_k, input_v = k_caches[i], v_caches[i]
-      x, (updated_k, updated_v) = block(
-          x, (cos, sin), mask, input_pos, (input_k, input_v)
-      )
-      k_caches[i], v_caches[i] = updated_k, updated_v
+      kv_entry = kv_cache.caches[i] if kv_cache else None
+      x, kv_entry = block(x, (cos, sin), mask, input_pos, kv_entry)
+      if kv_entry:
+        updated_kv_entires.append(kv_entry)
+    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entires))
 
     x = self.final_norm(x)
     res = self.lm_head(x)  # (b, t, vocab_size)
-    return res, k_caches, v_caches
+    return res, updated_kv_cache
 
 
 def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
@@ -175,9 +178,9 @@ def define_and_run_2b() -> None:
   tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.long, device="cpu")
   tokens[0, :4] = idx
   input_pos = torch.arange(0, kv_cache_max_len)
-  kv = kv_cache.KVCache.from_model_config(model.config)
+  kv = kv_utils.KVCache.from_model_config(model.config)
   print("running an inference")
-  print(model.forward(tokens, input_pos, kv.k_caches, kv.v_caches))
+  print(model.forward(tokens, input_pos, kv))
 
 
 if __name__ == "__main__":

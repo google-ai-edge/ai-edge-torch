@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+#
+# Note: This is an experimental version of Gemma with external KV cache.
+# Please use with caution.
+
 
 import os
 from pathlib import Path
@@ -19,8 +23,8 @@ from pathlib import Path
 import torch
 
 import ai_edge_torch
-from ai_edge_torch.generative.examples.gemma import gemma_with_external_kv_cache as gemma    # NOQA
-from ai_edge_torch.generative.layers.experimental import kv_cache
+from ai_edge_torch.generative.examples.experimental.gemma import gemma
+from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils
 from ai_edge_torch.generative.quantize import quant_recipes
 
 
@@ -34,7 +38,8 @@ def convert_gemma_to_tflite(
   tflite model.
 
   Args:
-      checkpoint_path (str): The filepath to the model checkpoint, or directory holding the checkpoint.
+      checkpoint_path (str): The filepath to the model checkpoint, or directory
+        holding the checkpoint.
       prefill_seq_len (int, optional): The maximum size of prefill input tensor.
         Defaults to 512.
       kv_cache_max_len (int, optional): The maximum size of KV cache buffer,
@@ -50,25 +55,25 @@ def convert_gemma_to_tflite(
   prefill_input_pos = torch.arange(0, prefill_seq_len)
   decode_token = torch.tensor([[0]], dtype=torch.long)
   decode_input_pos = torch.tensor([0], dtype=torch.int64)
-  kv = kv_cache.KVCache.from_model_config(pytorch_model.config)
+  kv = kv_utils.KVCache.from_model_config(pytorch_model.config)
 
-  quant_config = quant_recipes.full_linear_int8_dynamic_recipe() if quantize else None
+  quant_config = quant_recipes.full_int8_dynamic_recipe() if quantize else None
   edge_model = (
       ai_edge_torch.signature(
-          'prefill',
+          "prefill",
           pytorch_model,
-          (prefill_tokens, prefill_input_pos, kv.k_caches, kv.v_caches),
+          (prefill_tokens, prefill_input_pos, kv),
       )
       .signature(
-          'decode',
+          "decode",
           pytorch_model,
-          (decode_token, decode_input_pos, kv.k_caches, kv.v_caches),
+          (decode_token, decode_input_pos, kv),
       )
       .convert(quant_config=quant_config)
   )
-  edge_model.export(f'/tmp/gemma_seq{prefill_seq_len}_kv{kv_cache_max_len}.tflite')
+  edge_model.export(f"/tmp/gemma_seq{prefill_seq_len}_ekv{kv_cache_max_len}.tflite")
 
 
-if __name__ == '__main__':
-  checkpoint_path = os.path.join(Path.home(), 'Downloads/llm_data/gemma-2b')
+if __name__ == "__main__":
+  checkpoint_path = os.path.join(Path.home(), "Downloads/llm_data/gemma-2b")
   convert_gemma_to_tflite(checkpoint_path)
