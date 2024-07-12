@@ -68,6 +68,10 @@ class AttentionConfig:
   qkv_transpose_before_split: bool = False
   # Whether to use bias with Query, Key, and Value projection.
   qkv_use_bias: bool = False
+  # Whether the fused q, k, v projection weights interleaves q, k, v heads.
+  # If True, the projection weights are in format [q_head_0, k_head_0, v_head_0, q_head_1, k_head_1, v_head_1, ...]
+  # If False, the projection weights are in format [q_head_0, q_head_1, ..., k_head_0, k_head_1, ... v_head_0, v_head_1, ...]
+  qkv_fused_interleaved: bool = True
   # Whether to use bias with attention output projection.
   output_proj_use_bias: bool = False
   enable_kv_cache: bool = True

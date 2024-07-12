@@ -167,7 +167,7 @@ def run_tflite_pipeline(
   if input_image:
     if not hasattr(model, 'encoder'):
       raise AttributeError(
-          'Stable Diffusion must be initilaized with encoder to accept input_image.'
+          'Stable Diffusion must be initialized with encoder to accept input_image.'
       )
     input_image = input_image.resize((width, height))
     input_image_np = np.array(input_image).astype(np.float32)

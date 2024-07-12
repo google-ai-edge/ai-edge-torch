@@ -23,16 +23,17 @@ import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
 
 TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
-    ff_up_proj="layers.{}.linear_1",
-    ff_down_proj="layers.{}.linear_2",
-    ff_gate_proj="layers.{}.linear_1",
-    attn_fused_qkv_proj="layers.{}.attention.in_proj",
-    attn_output_proj="layers.{}.attention.out_proj",
-    pre_attn_norm="layers.{}.layernorm_1",
-    pre_ff_norm="layers.{}.layernorm_2",
-    embedding="embedding.token_embedding",
-    embedding_position="embedding.position_value",
-    final_norm="layernorm",
+    ff_up_proj="cond_stage_model.transformer.text_model.encoder.layers.{}.mlp.fc1",
+    ff_down_proj="cond_stage_model.transformer.text_model.encoder.layers.{}.mlp.fc2",
+    attn_query_proj="cond_stage_model.transformer.text_model.encoder.layers.{}.self_attn.q_proj",
+    attn_key_proj="cond_stage_model.transformer.text_model.encoder.layers.{}.self_attn.k_proj",
+    attn_value_proj="cond_stage_model.transformer.text_model.encoder.layers.{}.self_attn.v_proj",
+    attn_output_proj="cond_stage_model.transformer.text_model.encoder.layers.{}.self_attn.out_proj",
+    pre_attn_norm="cond_stage_model.transformer.text_model.encoder.layers.{}.layer_norm1",
+    pre_ff_norm="cond_stage_model.transformer.text_model.encoder.layers.{}.layer_norm2",
+    embedding="cond_stage_model.transformer.text_model.embeddings.token_embedding",
+    embedding_position="cond_stage_model.transformer.text_model.embeddings.position_embedding.weight",
+    final_norm="cond_stage_model.transformer.text_model.final_layer_norm",
     lm_head=None,
 )
 
@@ -84,6 +85,7 @@ def get_model_config() -> cfg.ModelConfig:
       rotary_percentage=0.0,
       qkv_use_bias=True,
       qkv_transpose_before_split=True,
+      qkv_fused_interleaved=False,
       output_proj_use_bias=True,
       enable_kv_cache=False,
   )

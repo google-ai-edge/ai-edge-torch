@@ -88,16 +88,14 @@ def convert_signatures(
   _warn_training_modules(signatures)
 
   exported_programs: torch.export.ExportedProgram = [
-      torch.export.export(
-          sig.module, sig.sample_args, dynamic_shapes=sig.dynamic_shapes
-      )
+      torch.export.export(sig.module, sig.flat_args, dynamic_shapes=sig.dynamic_shapes)
       for sig in signatures
   ]
 
   # Apply default fx passes
   exported_programs = list(map(_run_convert_passes, exported_programs))
   shlo_bundles: list[stablehlo.StableHLOModelBundle] = [
-      cutils.exported_program_to_stablehlo_bundle(exported, sig.sample_args)
+      cutils.exported_program_to_stablehlo_bundle(exported, sig.flat_args)
       for exported, sig in zip(exported_programs, signatures)
   ]
 

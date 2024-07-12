@@ -101,7 +101,7 @@ def convert_t5_to_tflite_multisig(checkpoint_path: str):
   # Pad with `-inf` for any tokens indices that aren't desired.
   pad_mask = torch.zeros([seq_len], dtype=torch.float32)
   hidden_states = torch.zeros((1, 512, 768), dtype=torch.float32)
-  quant_config = quant_recipes.full_linear_int8_dynamic_recipe()
+  quant_config = quant_recipes.full_int8_dynamic_recipe()
 
   edge_model = (
       ai_edge_torch.signature(

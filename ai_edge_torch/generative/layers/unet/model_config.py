@@ -85,7 +85,7 @@ class FeedForwardBlock2DConfig:
 
 
 @dataclass
-class TransformerBlock2Dconfig:
+class TransformerBlock2DConfig:
   pre_conv_normalization_config: layers_cfg.NormalizationConfig
   attention_block_config: AttentionBlock2DConfig
   cross_attention_block_config: CrossAttentionBlock2DConfig
@@ -108,7 +108,7 @@ class UpDecoderBlock2DConfig:
   # Optional sampling config if add_upsample is True.
   sampling_config: Optional[UpSamplingConfig] = None
   # Optional config of transformer blocks interleaved with residual blocks
-  transformer_block_config: Optional[TransformerBlock2Dconfig] = None
+  transformer_block_config: Optional[TransformerBlock2DConfig] = None
   # Optional dimension of context tensor if context tensor is given as input.
   context_dim: Optional[int] = None
 
@@ -131,7 +131,7 @@ class SkipUpDecoderBlock2DConfig:
   # Optional sampling config if add_upsample is True.
   sampling_config: Optional[UpSamplingConfig] = None
   # Optional config of transformer blocks interleaved with residual blocks
-  transformer_block_config: Optional[TransformerBlock2Dconfig] = None
+  transformer_block_config: Optional[TransformerBlock2DConfig] = None
   # Optional dimension of context tensor if context tensor is given as input.
   context_dim: Optional[int] = None
 
@@ -152,7 +152,7 @@ class DownEncoderBlock2DConfig:
   # Optional sampling config if add_upsample is True.
   sampling_config: Optional[DownSamplingConfig] = None
   # Optional config of transformer blocks interleaved with residual blocks
-  transformer_block_config: Optional[TransformerBlock2Dconfig] = None
+  transformer_block_config: Optional[TransformerBlock2DConfig] = None
   # Optional dimension of context tensor if context tensor is given as input.
   context_dim: Optional[int] = None
 
@@ -168,7 +168,7 @@ class MidBlock2DConfig:
   # Optional config of attention blocks interleaved with residual blocks
   attention_block_config: Optional[AttentionBlock2DConfig] = None
   # Optional config of transformer blocks interleaved with residual blocks
-  transformer_block_config: Optional[TransformerBlock2Dconfig] = None
+  transformer_block_config: Optional[TransformerBlock2DConfig] = None
   # Optional dimension of context tensor if context tensor is given as input.
   context_dim: Optional[int] = None
 
