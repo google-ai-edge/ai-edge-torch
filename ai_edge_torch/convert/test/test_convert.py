@@ -14,8 +14,10 @@
 # ==============================================================================
 
 
+from dataclasses import dataclass
 import os
 import tempfile
+from typing import Tuple
 import unittest
 
 import torch
@@ -305,6 +307,36 @@ class TestConvert(unittest.TestCase):
     self.assertTrue(
         model_coverage.compare_tflite_torch(edge_model, model, args_gen, kwargs_gen)
     )
+
+  def test_convert_model_with_args_nested_kwargs(self):
+    """
+    Test converting a simple model with both sample_args and sample_kwargs.
+    """
+
+    @dataclass
+    class TestContainer:
+      data_1: torch.Tensor
+      data_2: Tuple[torch.Tensor, torch.Tensor]
+
+    torch.export.register_dataclass(TestContainer, serialized_type_name="TestContainer")
+
+    class SampleModel(torch.nn.Module):
+
+      def forward(self, x: torch.Tensor, y: torch.Tensor, z: TestContainer):
+        return x + y + z.data_1 + z.data_2[0] + z.data_2[1]
+
+    args_gen = lambda: (torch.randn(10, 10),)
+    kwargs_gen = lambda: dict(
+        y=torch.randn(10, 10),
+        z=TestContainer(
+            data_1=torch.randn(10, 10),
+            data_2=(torch.randn(10, 10), torch.randn(10, 10)),
+        ),
+    )
+
+    model = SampleModel().eval()
+    edge_model = ai_edge_torch.convert(model, args_gen(), kwargs_gen())
+    self.assertIsNotNone(edge_model)
 
 
 if __name__ == "__main__":
