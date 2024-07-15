@@ -60,20 +60,28 @@ def convert_gemma_to_tflite(
   quant_config = quant_recipes.full_int8_dynamic_recipe() if quantize else None
   edge_model = (
       ai_edge_torch.signature(
-          "prefill",
+          'prefill',
           pytorch_model,
-          (prefill_tokens, prefill_input_pos, kv),
+          sample_kwargs={
+              'tokens': prefill_tokens,
+              'input_pos': prefill_input_pos,
+              'kv_cache': kv,
+          },
       )
       .signature(
-          "decode",
+          'decode',
           pytorch_model,
-          (decode_token, decode_input_pos, kv),
+          sample_kwargs={
+              'tokens': decode_token,
+              'input_pos': decode_input_pos,
+              'kv_cache': kv,
+          },
       )
       .convert(quant_config=quant_config)
   )
-  edge_model.export(f"/tmp/gemma_seq{prefill_seq_len}_ekv{kv_cache_max_len}.tflite")
+  edge_model.export(f'/tmp/gemma_seq{prefill_seq_len}_ekv{kv_cache_max_len}.tflite')
 
 
-if __name__ == "__main__":
-  checkpoint_path = os.path.join(Path.home(), "Downloads/llm_data/gemma-2b")
+if __name__ == '__main__':
+  checkpoint_path = os.path.join(Path.home(), 'Downloads/llm_data/gemma-2b')
   convert_gemma_to_tflite(checkpoint_path)

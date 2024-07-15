@@ -88,11 +88,11 @@ class Gemma(nn.Module):
   @torch.inference_mode
   def forward(
       self,
-      idx: torch.Tensor,
+      tokens: torch.Tensor,
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
   ) -> Tuple[torch.Tensor, kv_utils.KVCache]:
-    B, T = idx.size()
+    B, T = tokens.size()
     assert (
         self.config.max_seq_len >= T
     ), f"Cannot forward sequence of length {T}, max seq length is only {self.config.max_seq_len}"
@@ -104,7 +104,7 @@ class Gemma(nn.Module):
     mask = mask[:, :, :, : self.config.kv_cache_max]
 
     # token embeddings of shape (b, t, n_embd)
-    x = self.tok_embedding(idx)
+    x = self.tok_embedding(tokens)
     x = x * (self.config.embedding_dim**0.5)
 
     updated_kv_entires = []

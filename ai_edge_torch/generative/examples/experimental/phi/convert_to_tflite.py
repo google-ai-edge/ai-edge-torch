@@ -57,9 +57,23 @@ def convert_phi2_to_tflite(
   quant_config = quant_recipes.full_int8_dynamic_recipe() if quantize else None
   edge_model = (
       ai_edge_torch.signature(
-          'prefill', pytorch_model, (prefill_tokens, prefill_input_pos, kv)
+          'prefill',
+          pytorch_model,
+          sample_kwargs={
+              'tokens': prefill_tokens,
+              'input_pos': prefill_input_pos,
+              'kv_cache': kv,
+          },
       )
-      .signature('decode', pytorch_model, (decode_token, decode_input_pos, kv))
+      .signature(
+          'decode',
+          pytorch_model,
+          sample_kwargs={
+              'tokens': decode_token,
+              'input_pos': decode_input_pos,
+              'kv_cache': kv,
+          },
+      )
       .convert(quant_config=quant_config)
   )
   edge_model.export(f'/tmp/phi2_seq{prefill_seq_len}_ekv{kv_cache_max_len}.tflite')

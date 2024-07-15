@@ -60,11 +60,11 @@ class ToyModelWithExternalKV(torch.nn.Module):
 
   def forward(
       self,
-      idx: torch.Tensor,
+      tokens: torch.Tensor,
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
   ) -> Tuple[torch.Tensor, kv_utils.KVCache]:
-    x = self.tok_embedding(idx)
+    x = self.tok_embedding(tokens)
     cos, sin = self.rope_cache
     cos = cos.index_select(0, input_pos)
     sin = sin.index_select(0, input_pos)
@@ -115,15 +115,15 @@ def get_model_config() -> cfg.ModelConfig:
 
 
 def get_sample_prefill_inputs() -> Tuple[torch.Tensor, torch.Tensor]:
-  idx = torch.unsqueeze(torch.arange(0, 100), 0)
+  tokens = torch.unsqueeze(torch.arange(0, 100), 0)
   input_pos = torch.arange(0, 100)
-  return idx, input_pos
+  return tokens, input_pos
 
 
 def get_sample_decode_inputs() -> Tuple[torch.Tensor, torch.Tensor]:
-  idx = torch.tensor([[1]], dtype=torch.long)
+  tokens = torch.tensor([[1]], dtype=torch.long)
   input_pos = torch.tensor([10])
-  return idx, input_pos
+  return tokens, input_pos
 
 
 def define_and_run() -> None:
@@ -134,12 +134,12 @@ def define_and_run() -> None:
   print('running an inference')
   kv = kv_utils.KVCache.from_model_config(config)
 
-  idx, input_pos = get_sample_prefill_inputs()
-  decode_idx, decode_input_pos = get_sample_decode_inputs()
-  print(model.forward(idx, input_pos, kv))
+  tokens, input_pos = get_sample_prefill_inputs()
+  decode_token, decode_input_pos = get_sample_decode_inputs()
+  print(model.forward(tokens, input_pos, kv))
 
   if dump_mlir:
-    mlir_text = _export_stablehlo_mlir(model, (idx, input_pos, kv))
+    mlir_text = _export_stablehlo_mlir(model, (tokens, input_pos, kv))
     with open('/tmp/toy_model_with_external_kv.stablehlo.mlir', 'w') as f:
       f.write(mlir_text)
 
@@ -151,16 +151,12 @@ def define_and_run() -> None:
       ai_edge_torch.signature(
           'prefill',
           model,
-          sample_kwargs={'idx': idx, 'input_pos': input_pos, 'kv_cache': kv},
+          sample_kwargs={'tokens': tokens, 'input_pos': input_pos, 'kv_cache': kv},
       )
       .signature(
           'decode',
           model,
-          sample_kwargs={
-              'idx': decode_idx,
-              'input_pos': decode_input_pos,
-              'kv_cache': kv,
-          },
+          {'tokens': decode_token, 'input_pos': decode_input_pos, 'kv_cache': kv},
       )
       .convert()
   )

@@ -83,11 +83,11 @@ class Phi2(nn.Module):
   @torch.inference_mode
   def forward(
       self,
-      idx: torch.Tensor,
+      tokens: torch.Tensor,
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
   ) -> Tuple[torch.Tensor, kv_utils.KVCache]:
-    B, T = idx.size()
+    B, T = tokens.size()
     assert (
         self.config.max_seq_len >= T
     ), f"Cannot forward sequence of length {T}, max seq length is only {self.config.max_seq_len}"
@@ -98,7 +98,7 @@ class Phi2(nn.Module):
     mask = self.mask_cache.index_select(2, input_pos)
     mask = mask[:, :, :, : self.config.kv_cache_max]
 
-    x = self.tok_embedding(idx)
+    x = self.tok_embedding(tokens)
 
     updated_kv_entires = []
     for i, block in enumerate(self.transformer_blocks):
