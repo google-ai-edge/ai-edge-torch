@@ -151,12 +151,20 @@ def define_and_run() -> None:
       ai_edge_torch.signature(
           'prefill',
           model,
-          sample_kwargs={'tokens': tokens, 'input_pos': input_pos, 'kv_cache': kv},
+          sample_kwargs={
+              'tokens': tokens,
+              'input_pos': input_pos,
+              'kv_cache': kv,
+          },
       )
       .signature(
           'decode',
           model,
-          {'tokens': decode_token, 'input_pos': decode_input_pos, 'kv_cache': kv},
+          sample_kwargs={
+              'tokens': decode_token,
+              'input_pos': decode_input_pos,
+              'kv_cache': kv,
+          },
       )
       .convert()
   )
