@@ -187,6 +187,15 @@ class TestConvertComposites(unittest.TestCase):
 
     self.assertTrue(model_coverage.compare_tflite_torch(edge_model, torch_module, args))
 
+  def test_convert_embedding_lookup(self):
+    """Tests conversion of an Embedding module."""
+
+    args = (torch.full((1, 10), 0, dtype=torch.long),)
+    torch_module = torch.nn.Embedding(10, 10)
+    edge_model = ai_edge_torch.convert(torch_module, args)
+
+    self.assertTrue(model_coverage.compare_tflite_torch(edge_model, torch_module, args))
+
 
 if __name__ == '__main__':
   unittest.main()
