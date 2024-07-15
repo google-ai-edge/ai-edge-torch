@@ -156,7 +156,11 @@ def define_and_run() -> None:
       .signature(
           'decode',
           model,
-          sample_kwargs={'idx': idx, 'input_pos': input_pos, 'kv_cache': kv},
+          sample_kwargs={
+              'idx': decode_idx,
+              'input_pos': decode_input_pos,
+              'kv_cache': kv,
+          },
       )
       .convert()
   )
