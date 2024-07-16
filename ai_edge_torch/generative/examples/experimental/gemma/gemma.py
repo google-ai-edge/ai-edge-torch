@@ -167,6 +167,7 @@ def build_2b_model(checkpoint_path, **kwargs) -> nn.Module:
   # since embedding and lm-head use the same weight, we need to set strict
   # to False.
   loader.load(model, strict=False)
+  model.eval()
   return model
 
 

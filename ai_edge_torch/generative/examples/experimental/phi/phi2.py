@@ -156,6 +156,7 @@ def build_model(checkpoint_path, **kwargs) -> nn.Module:
   model = Phi2(config)
   loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
   loader.load(model)
+  model.eval()
   return model
 
 
