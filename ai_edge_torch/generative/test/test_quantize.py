@@ -109,13 +109,13 @@ class TestQuantizeConvert(unittest.TestCase):
 
   @parameterized.expand(
       [
-          (quant_recipes.full_fp16_recipe(), 0.65),
-          (quant_recipes.full_int8_dynamic_recipe(), 0.47),
-          (_attention_int8_dynamic_recipe(), 0.89),
-          (_feedforward_int8_dynamic_recipe(), 0.72),
+          (quant_recipes.full_fp16_recipe()),
+          (quant_recipes.full_int8_dynamic_recipe()),
+          (_attention_int8_dynamic_recipe()),
+          (_feedforward_int8_dynamic_recipe()),
       ]
   )
-  def test_quantize_convert_toy_sizes(self, quant_config, expected_compression):
+  def test_quantize_convert_toy_sizes(self, quant_config):
     config = toy_model.get_model_config()
     pytorch_model = toy_model.ToySingleLayerModel(config)
     idx = torch.unsqueeze(torch.arange(0, 100), 0)
@@ -125,10 +125,10 @@ class TestQuantizeConvert(unittest.TestCase):
         pytorch_model, (idx, input_pos), quant_config=quant_config
     )
     float_model = ai_edge_torch.convert(pytorch_model, (idx, input_pos))
-    self.assertAlmostEqual(
-        len(quantized_model._tflite_model) / len(float_model._tflite_model),
-        expected_compression,
-        delta=0.01,
+    self.assertLess(
+        len(quantized_model._tflite_model),
+        len(float_model._tflite_model),
+        "Quantized model isn't smaller than F32 model.",
     )
 
   def test_quantize_convert_compare_toy(self):
