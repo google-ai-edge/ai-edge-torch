@@ -154,14 +154,18 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
-def get_fake_model_config_2b_for_test() -> cfg.ModelConfig:
-  config = get_model_config_2b()
+def get_fake_model_config_2b_for_test(**kwargs) -> cfg.ModelConfig:
+  config = get_model_config_2b(**kwargs)
   config.num_layers = 2
   return config
 
 
-def build_2b_model(checkpoint_path, **kwargs) -> nn.Module:
-  config = get_model_config_2b(**kwargs)
+def build_2b_model(checkpoint_path, test_model=False, **kwargs) -> nn.Module:
+  config = (
+      get_fake_model_config_2b_for_test(**kwargs)
+      if test_model
+      else get_model_config_2b(**kwargs)
+  )
   model = Gemma(config)
   if checkpoint_path is not None:
     loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
@@ -172,9 +176,11 @@ def build_2b_model(checkpoint_path, **kwargs) -> nn.Module:
   return model
 
 
-def define_and_run_2b(checkpoint_path) -> None:
+def define_and_run_2b(checkpoint_path, test_model=False) -> None:
   kv_cache_max_len = 1024
-  model = build_2b_model(checkpoint_path, kv_cache_max_len=kv_cache_max_len)
+  model = build_2b_model(
+      checkpoint_path, test_model=test_model, kv_cache_max_len=kv_cache_max_len
+  )
   idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
   tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.long, device="cpu")
   tokens[0, :4] = idx

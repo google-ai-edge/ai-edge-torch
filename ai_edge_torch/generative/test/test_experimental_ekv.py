@@ -24,13 +24,13 @@ from ai_edge_torch.generative.examples.experimental.tiny_llama import tiny_llama
 class TestEKVModels(unittest.TestCase):
 
   def test_can_build_gemma(self):
-    gemma.define_and_run_2b(checkpoint_path=None)
+    gemma.define_and_run_2b(checkpoint_path=None, test_model=True)
 
   def test_can_build_phi2(self):
-    phi2.define_and_run(checkpoint_path=None)
+    phi2.define_and_run(checkpoint_path=None, test_model=True)
 
   def test_can_build_tinyllama(self):
-    tiny_llama.define_and_run(checkpoint_path=None)
+    tiny_llama.define_and_run(checkpoint_path=None, test_model=True)
 
 
 if __name__ == "__main__":
