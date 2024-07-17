@@ -55,7 +55,7 @@ class KVCacheEntry:
 
 
 @dataclass
-class KVCache:
+class EKVCache:
   """A utility class for holding KV cach entries per layer."""
 
   caches: Tuple[KVCacheEntry]
@@ -66,7 +66,7 @@ class KVCache:
       config: model_config.ModelConfig,
       dtype: torch.dtype = torch.float32,
       device: torch.device = None,
-  ) -> "KVCache":
+  ) -> "EKVCache":
     """Build an instance of the class based on model config.
     Args:
         config (ModelConfig): Model config used for building the cache.
@@ -75,7 +75,7 @@ class KVCache:
         device (torch.device, optional): The device placement of the cache
           tensors. Defaults to None.
     Returns:
-        KVCache: The created cache object.
+        EKVCache: The created cache object.
     """
     caches = [
         KVCacheEntry.from_model_config(config, dtype, device)
@@ -85,7 +85,7 @@ class KVCache:
     return obj
 
 
-def _flatten_kvc(kvc: KVCache) -> Tuple[List, List]:
+def _flatten_kvc(kvc: EKVCache) -> Tuple[List, List]:
   flattened = []
   flat_names = []
   none_names = []
@@ -97,12 +97,12 @@ def _flatten_kvc(kvc: KVCache) -> Tuple[List, List]:
   return flattened, [flat_names, none_names]
 
 
-def _flatten_kvc_with_keys(kvc: KVCache) -> Tuple[List, List]:
+def _flatten_kvc_with_keys(kvc: EKVCache) -> Tuple[List, List]:
   flattened, (flat_names, none_names) = _flatten_kvc(kvc)
   return [(pytree.MappingKey(k), v) for k, v in zip(flat_names, flattened)], flat_names
 
 
-def _unflatten_kvc(values: List[torch.Tensor], context: Tuple[List, List]) -> KVCache:
+def _unflatten_kvc(values: List[torch.Tensor], context: Tuple[List, List]) -> EKVCache:
   assert len(values) % 2 == 0
   num_layers = len(values) // 2
   flat_names = context[0]
@@ -113,12 +113,12 @@ def _unflatten_kvc(values: List[torch.Tensor], context: Tuple[List, List]) -> KV
     kv_entries.append(
         KVCacheEntry(k_cache=values[k_cache_idx], v_cache=values[v_cache_idx])
     )
-  obj = KVCache(tuple(kv_entries))
+  obj = EKVCache(tuple(kv_entries))
   return obj
 
 
 pytree.register_pytree_node(
-    KVCache,
+    EKVCache,
     _flatten_kvc,
     _unflatten_kvc,
     flatten_with_keys_fn=_flatten_kvc_with_keys,
@@ -144,7 +144,7 @@ def update(
         Defaults to True.
 
   Returns:
-      KVCacheEntry: The updated KVCache entry based on the passed inputs.
+      KVCacheEntry: The updated EKVCache entry based on the passed inputs.
   """
   update_func = _update_kv_hlfb_impl if use_hlfb else _update_kv_base_impl
   return update_func(cache, input_pos, k_slice, v_slice)

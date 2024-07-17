@@ -23,8 +23,8 @@ from pathlib import Path
 import torch
 
 import ai_edge_torch
-from ai_edge_torch.generative.examples.experimental.tiny_llama import tiny_llama
-from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils
+from ai_edge_torch.generative.examples.experimental.tiny_llama import tiny_llama  # NOQA
+from ai_edge_torch.generative.layers.experimental import ekv_cache as kv_utils
 from ai_edge_torch.generative.quantize import quant_recipes
 
 
@@ -55,31 +55,33 @@ def convert_tiny_llama_to_tflite(
   prefill_input_pos = torch.arange(0, prefill_seq_len)
   decode_token = torch.tensor([[0]], dtype=torch.long)
   decode_input_pos = torch.tensor([0], dtype=torch.int64)
-  kv = kv_utils.KVCache.from_model_config(pytorch_model.config)
+  kv = kv_utils.EKVCache.from_model_config(pytorch_model.config)
 
   quant_config = quant_recipes.full_int8_dynamic_recipe() if quantize else None
   edge_model = (
-    ai_edge_torch.signature(
-        'prefill',
-        pytorch_model,
-        sample_kwargs={
-            'tokens': prefill_tokens,
-            'input_pos': prefill_input_pos,
-            'kv_cache': kv,
-        },
-    )
-    .signature(
-        'decode',
-        pytorch_model,
-        sample_kwargs={
-            'tokens': decode_token,
-            'input_pos': decode_input_pos,
-            'kv_cache': kv,
-        },
-    )
-    .convert(quant_config=quant_config)
+      ai_edge_torch.signature(
+          'prefill',
+          pytorch_model,
+          sample_kwargs={
+              'tokens': prefill_tokens,
+              'input_pos': prefill_input_pos,
+              'kv_cache': kv,
+          },
+      )
+      .signature(
+          'decode',
+          pytorch_model,
+          sample_kwargs={
+              'tokens': decode_token,
+              'input_pos': decode_input_pos,
+              'kv_cache': kv,
+          },
+      )
+      .convert(quant_config=quant_config)
   )
-  edge_model.export(f'/tmp/tiny_llama_seq{prefill_seq_len}_ekv{kv_cache_max_len}.tflite')
+  edge_model.export(
+      f'/tmp/tiny_llama_seq{prefill_seq_len}_ekv{kv_cache_max_len}.tflite'
+  )
 
 
 if __name__ == '__main__':

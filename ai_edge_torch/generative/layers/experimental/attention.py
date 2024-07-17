@@ -21,7 +21,7 @@ import torch
 from torch import nn
 
 import ai_edge_torch.generative.layers.builder as builder
-from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils
+from ai_edge_torch.generative.layers.experimental import ekv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention  # NOQA

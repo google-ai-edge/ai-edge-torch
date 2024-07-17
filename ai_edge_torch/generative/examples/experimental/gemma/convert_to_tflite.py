@@ -24,7 +24,7 @@ import torch
 
 import ai_edge_torch
 from ai_edge_torch.generative.examples.experimental.gemma import gemma
-from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils
+from ai_edge_torch.generative.layers.experimental import ekv_cache as kv_utils
 from ai_edge_torch.generative.quantize import quant_recipes
 
 
@@ -55,7 +55,7 @@ def convert_gemma_to_tflite(
   prefill_input_pos = torch.arange(0, prefill_seq_len)
   decode_token = torch.tensor([[0]], dtype=torch.long)
   decode_input_pos = torch.tensor([0], dtype=torch.int64)
-  kv = kv_utils.KVCache.from_model_config(pytorch_model.config)
+  kv = kv_utils.EKVCache.from_model_config(pytorch_model.config)
 
   quant_config = quant_recipes.full_int8_dynamic_recipe() if quantize else None
   edge_model = (

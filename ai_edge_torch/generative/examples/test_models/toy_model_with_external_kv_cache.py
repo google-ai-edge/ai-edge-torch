@@ -23,7 +23,7 @@ import torch_xla
 import ai_edge_torch
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.builder as builder
-from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils
+from ai_edge_torch.generative.layers.experimental import ekv_cache as kv_utils
 from ai_edge_torch.generative.layers.experimental.attention import TransformerBlock  # NOQA
 import ai_edge_torch.generative.layers.model_config as cfg
 
@@ -62,8 +62,8 @@ class ToyModelWithExternalKV(torch.nn.Module):
       self,
       tokens: torch.Tensor,
       input_pos: torch.Tensor,
-      kv_cache: kv_utils.KVCache,
-  ) -> Tuple[torch.Tensor, kv_utils.KVCache]:
+      kv_cache: kv_utils.EKVCache,
+  ) -> Tuple[torch.Tensor, kv_utils.EKVCache]:
     x = self.tok_embedding(tokens)
     cos, sin = self.rope_cache
     cos = cos.index_select(0, input_pos)
@@ -79,7 +79,7 @@ class ToyModelWithExternalKV(torch.nn.Module):
         updated_kv_entires.append(kv_entry)
 
     x = self.final_norm(x)
-    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entires))
+    updated_kv_cache = kv_utils.EKVCache(tuple(updated_kv_entires))
     return self.lm_head(x), updated_kv_cache
 
 
@@ -131,8 +131,9 @@ def define_and_run() -> None:
 
   config = get_model_config()
   model = ToyModelWithExternalKV(config)
+  model.eval()
   print('running an inference')
-  kv = kv_utils.KVCache.from_model_config(config)
+  kv = kv_utils.EKVCache.from_model_config(config)
 
   tokens, input_pos = get_sample_prefill_inputs()
   decode_token, decode_input_pos = get_sample_decode_inputs()
@@ -172,5 +173,4 @@ def define_and_run() -> None:
 
 
 if __name__ == '__main__':
-  with torch.inference_mode():
-    define_and_run()
+  define_and_run()

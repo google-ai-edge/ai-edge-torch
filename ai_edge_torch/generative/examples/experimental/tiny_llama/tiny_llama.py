@@ -20,17 +20,16 @@
 
 import os
 from pathlib import Path
-
 from typing import Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
 
-from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils
-from ai_edge_torch.generative.layers.experimental.attention import TransformerBlock
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.builder as builder
+from ai_edge_torch.generative.layers.experimental import ekv_cache as kv_utils
+from ai_edge_torch.generative.layers.experimental.attention import TransformerBlock  # NOQA
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
 
@@ -84,7 +83,12 @@ class TinyLLamma(nn.Module):
     self.config = config
 
   @torch.inference_mode
-  def forward(self, tokens: torch.Tensor, input_pos: torch.Tensor, kv_cache: kv_utils.KVCache) -> Tuple[torch.Tensor, kv_utils.KVCache]:
+  def forward(
+      self,
+      tokens: torch.Tensor,
+      input_pos: torch.Tensor,
+      kv_cache: kv_utils.EKVCache,
+  ) -> Tuple[torch.Tensor, kv_utils.EKVCache]:
     B, T = tokens.size()
     assert (
         self.config.max_seq_len >= T
@@ -105,7 +109,7 @@ class TinyLLamma(nn.Module):
       x, kv_entry = block(x, (cos, sin), mask, input_pos, kv_entry)
       if kv_entry:
         updated_kv_entires.append(kv_entry)
-    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entires))
+    updated_kv_cache = kv_utils.EKVCache(tuple(updated_kv_entires))
 
     x = self.final_norm(x)
     res = self.lm_head(x)  # (b, t, vocab_size)
@@ -165,7 +169,7 @@ def define_and_run() -> None:
   tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.long, device="cpu")
   tokens[0, :4] = idx
   input_pos = torch.arange(0, kv_cache_max_len)
-  kv = kv_utils.KVCache.from_model_config(model.config)
+  kv = kv_utils.EKVCache.from_model_config(model.config)
   print("running an inference")
   print(model.forward(tokens, input_pos, kv))
 
