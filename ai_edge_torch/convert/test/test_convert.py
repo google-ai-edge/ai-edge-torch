@@ -20,6 +20,8 @@ import tempfile
 from typing import Tuple
 import unittest
 
+import numpy as np
+import tensorflow as tf
 import torch
 import torchvision
 
@@ -310,7 +312,7 @@ class TestConvert(unittest.TestCase):
 
   def test_convert_model_with_args_nested_kwargs(self):
     """
-    Test converting a simple model with both sample_args and sample_kwargs.
+    Test converting a simple model with both sample_args and nested sample_kwargs.
     """
 
     @dataclass
@@ -320,23 +322,86 @@ class TestConvert(unittest.TestCase):
 
     torch.export.register_dataclass(TestContainer, serialized_type_name="TestContainer")
 
-    class SampleModel(torch.nn.Module):
+    #### case 1
+    class SampleModel1(torch.nn.Module):
 
       def forward(self, x: torch.Tensor, y: torch.Tensor, z: TestContainer):
         return x + y + z.data_1 + z.data_2[0] + z.data_2[1]
 
-    args_gen = lambda: (torch.randn(10, 10),)
-    kwargs_gen = lambda: dict(
+    args = (torch.randn(10, 10),)
+    kwargs = dict(
         y=torch.randn(10, 10),
         z=TestContainer(
             data_1=torch.randn(10, 10),
             data_2=(torch.randn(10, 10), torch.randn(10, 10)),
         ),
     )
+    flat_inputs = {
+        "args_0": args[0].numpy(),
+        "y": kwargs["y"].numpy(),
+        "z_data_1": kwargs["z"].data_1.numpy(),
+        "z_data_2_0": kwargs["z"].data_2[0].numpy(),
+        "z_data_2_1": kwargs["z"].data_2[1].numpy(),
+    }
+    self._args_kwargs_test_helper(SampleModel1(), args, kwargs, flat_inputs)
 
-    model = SampleModel().eval()
-    edge_model = ai_edge_torch.convert(model, args_gen(), kwargs_gen())
-    self.assertIsNotNone(edge_model)
+    #### case 2
+    class SampleModel2(torch.nn.Module):
+
+      def forward(self, x, y, z):
+        return x + y + z.data_1 + z.data_2[0][0] + z.data_2[1]
+
+    args = (torch.randn(10, 10),)
+    kwargs = dict(
+        y=torch.randn(10, 10),
+        z=TestContainer(
+            data_1=torch.randn(10, 10),
+            data_2=[(torch.randn(10, 10),), torch.randn(10, 10)],
+        ),
+    )
+    flat_inputs = {
+        "args_0": args[0].numpy(),
+        "y": kwargs["y"].numpy(),
+        "z_data_1": kwargs["z"].data_1.numpy(),
+        "z_data_2_0_0": kwargs["z"].data_2[0][0].numpy(),
+        "z_data_2_1": kwargs["z"].data_2[1].numpy(),
+    }
+    self._args_kwargs_test_helper(SampleModel2(), args, kwargs, flat_inputs)
+
+    ### case 3
+    class SampleModel3(torch.nn.Module):
+
+      def forward(self, x, y, z):
+        return x + y + z.data_1 + z.data_2[0]["foo"] + z.data_2[1]
+
+    args = (torch.randn(10, 10),)
+    kwargs = dict(
+        y=torch.randn(10, 10),
+        z=TestContainer(
+            data_1=torch.randn(10, 10),
+            data_2=(dict(foo=torch.randn(10, 10)), torch.randn(10, 10)),
+        ),
+    )
+    flat_inputs = {
+        "args_0": args[0].numpy(),
+        "y": kwargs["y"].numpy(),
+        "z_data_1": kwargs["z"].data_1.numpy(),
+        "z_data_2_0_foo": kwargs["z"].data_2[0]["foo"].numpy(),
+        "z_data_2_1": kwargs["z"].data_2[1].numpy(),
+    }
+    self._args_kwargs_test_helper(SampleModel3(), args, kwargs, flat_inputs)
+
+  def _args_kwargs_test_helper(self, model, args, kwargs, flat_inputs):
+    model.eval()
+    edge_model = ai_edge_torch.convert(model, args, kwargs)
+    interpreter = tf.lite.Interpreter(model_content=edge_model._tflite_model)
+    runner = interpreter.get_signature_runner("serving_default")
+    input_details = runner.get_input_details()
+    self.assertEqual(input_details.keys(), flat_inputs.keys())
+
+    reference_output = model(*args, **kwargs)
+    tflite_output = edge_model(**flat_inputs)
+    np.testing.assert_almost_equal(reference_output, tflite_output)
 
 
 if __name__ == "__main__":
