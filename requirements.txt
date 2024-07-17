@@ -4,7 +4,7 @@ numpy
 tabulate
 safetensors
 --pre
-tf-nightly>=2.18.0.dev20240607
+tf-nightly>=2.18.0.dev20240717
 -f https://download.pytorch.org/whl/nightly/torch_nightly.html
 torch==2.4.0.dev20240429+cpu
 -f https://download.pytorch.org/whl/nightly/torch_nightly.html
