@@ -155,15 +155,15 @@ def get_fake_model_config_for_test() -> cfg.ModelConfig:
 def build_model(checkpoint_path, **kwargs) -> nn.Module:
   config = get_model_config(**kwargs)
   model = TinyLLamma(config)
-  loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
-  loader.load(model)
+  if checkpoint_path is not None:
+    loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
+    loader.load(model)
   model.eval()
   return model
 
 
-def define_and_run() -> None:
+def define_and_run(checkpoint_path) -> None:
   kv_cache_max_len = 1024
-  checkpoint_path = os.path.join(Path.home(), "Downloads/llm_data/tiny_llama")
   model = build_model(checkpoint_path, kv_cache_max_len=kv_cache_max_len)
   idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
   tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.long, device="cpu")
@@ -175,4 +175,5 @@ def define_and_run() -> None:
 
 
 if __name__ == "__main__":
-  define_and_run()
+  checkpoint_path = os.path.join(Path.home(), "Downloads/tiny_llama")
+  define_and_run(checkpoint_path)

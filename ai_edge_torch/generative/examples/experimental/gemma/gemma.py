@@ -163,17 +163,17 @@ def get_fake_model_config_2b_for_test() -> cfg.ModelConfig:
 def build_2b_model(checkpoint_path, **kwargs) -> nn.Module:
   config = get_model_config_2b(**kwargs)
   model = Gemma(config)
-  loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
-  # since embedding and lm-head use the same weight, we need to set strict
-  # to False.
-  loader.load(model, strict=False)
+  if checkpoint_path is not None:
+    loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
+    # since embedding and lm-head use the same weight, we need to set strict
+    # to False.
+    loader.load(model, strict=False)
   model.eval()
   return model
 
 
-def define_and_run_2b() -> None:
+def define_and_run_2b(checkpoint_path) -> None:
   kv_cache_max_len = 1024
-  checkpoint_path = os.path.join(Path.home(), "Downloads/llm_data/gemma-2b")
   model = build_2b_model(checkpoint_path, kv_cache_max_len=kv_cache_max_len)
   idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
   tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.long, device="cpu")
@@ -185,4 +185,5 @@ def define_and_run_2b() -> None:
 
 
 if __name__ == "__main__":
-  define_and_run_2b()
+  checkpoint_path = os.path.join(Path.home(), "Downloads/gemma-2b")
+  define_and_run_2b(checkpoint_path)
