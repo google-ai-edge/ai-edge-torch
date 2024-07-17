@@ -128,6 +128,29 @@ class TestBuildAtenCompositePass(unittest.TestCase):
     )
     self.assertEqual(stablehlo.count('stablehlo.composite "aten.gelu.default"'), 1)
 
+  def test_embedding_lookup_layer(self):
+    stablehlo = _export_to_stablehlo_with_composite(
+        torch.nn.Embedding(10, 10), (torch.full((1, 10), 0, dtype=torch.long),)
+    )
+    self.assertEqual(stablehlo.count('stablehlo.composite "odml.embedding_lookup"'), 1)
+
+  def test_embedding_lookup_op(self):
+    stablehlo = _export_to_stablehlo_with_composite(
+        lambda *x: torch.ops.aten.embedding.default(*x),
+        (torch.rand(10, 10), torch.full((1, 10), 0, dtype=torch.long)),
+    )
+    self.assertEqual(stablehlo.count('stablehlo.composite "odml.embedding_lookup"'), 1)
+
+  def test_embedding_lookup_functional(self):
+    stablehlo = _export_to_stablehlo_with_composite(
+        lambda *x: torch.nn.functional.embedding(*x),
+        (
+            torch.full((1, 10), 0, dtype=torch.long),
+            torch.rand(10, 10),
+        ),
+    )
+    self.assertEqual(stablehlo.count('stablehlo.composite "odml.embedding_lookup"'), 1)
+
 
 if __name__ == '__main__':
   unittest.main()
