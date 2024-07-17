@@ -126,8 +126,9 @@ class TestQuantizeConvert(unittest.TestCase):
     )
     float_model = ai_edge_torch.convert(pytorch_model, (idx, input_pos))
     self.assertLess(
-        len(quantized_model._tflite_model), len(float_model._tflite_model),
-        "Quantized model isn't smaller than F32 model."
+        len(quantized_model._tflite_model),
+        len(float_model._tflite_model),
+        "Quantized model isn't smaller than F32 model.",
     )
 
   def test_quantize_convert_compare_toy(self):
