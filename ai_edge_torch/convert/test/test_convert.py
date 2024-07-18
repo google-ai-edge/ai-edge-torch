@@ -15,11 +15,15 @@
 
 
 from dataclasses import dataclass
+from dataclasses import dataclass
 import os
 import tempfile
 from typing import Tuple
+from typing import Tuple
 import unittest
 
+import numpy as np
+import tensorflow as tf
 import numpy as np
 import tensorflow as tf
 import torch
@@ -28,6 +32,15 @@ import torchvision
 import ai_edge_torch
 from ai_edge_torch.convert import conversion_utils as cutils
 from ai_edge_torch.testing import model_coverage
+
+
+@dataclass
+class TestContainer1:
+  data_1: torch.Tensor
+  data_2: Tuple[torch.Tensor, torch.Tensor]
+
+
+torch.export.register_dataclass(TestContainer1, serialized_type_name="TestContainer1")
 
 
 @dataclass

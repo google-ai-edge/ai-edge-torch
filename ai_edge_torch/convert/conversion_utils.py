@@ -21,6 +21,7 @@ import itertools
 import logging
 import tempfile
 from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.utils._pytree as pytree
@@ -82,6 +83,39 @@ class Signature:
     kwargs_names = flatten_kwargs_names(kwargs_spec.children_specs, kwargs_spec.context)
     names.extend(kwargs_names)
     return names
+
+  def _flat_kwarg_names(self, specs, context) -> List[str]:
+    flat_names = []
+    if context is None:
+      for i, spec in enumerate(specs):
+        if spec.children_specs:
+          flat_names.extend(
+              [
+                  f"{i}_{name}"
+                  for name in self._flat_kwarg_names(spec.children_specs, spec.context)
+              ]
+          )
+        else:
+          flat_names.append(f"{i}")
+    else:
+      flat_ctx = self._flatten_list(context)
+      for prefix, spec in zip(flat_ctx, specs):
+        leaf_flat_names = self._flat_kwarg_names(spec.children_specs, spec.context)
+        if leaf_flat_names:
+          flat_names.extend([f"{prefix}_{name}" for name in leaf_flat_names])
+        else:
+          flat_names.append(prefix)
+
+    return flat_names
+
+  def _flatten_list(self, l: List) -> List:
+    flattened = []
+    for item in l:
+      if isinstance(item, list):
+        flattened.extend(self._flatten_list(item))
+      else:
+        flattened.append(item)
+    return flattened
 
   @property
   def combined_args_kwargs(self) -> tuple[Any]:
