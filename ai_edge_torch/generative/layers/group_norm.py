@@ -43,7 +43,7 @@ def group_norm_with_hlfb(
 
   y = builder.mark_outputs(y)
 
-  B, C, H, W = y.shape
+  B, H, H, C = y.shape
   y = y.view(B, H * W, C)
   y = y.transpose(-1, -2)
   y = y.view(B, C, H, W)
