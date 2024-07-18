@@ -337,14 +337,8 @@ class TestConvert(unittest.TestCase):
             data_2=(torch.randn(10, 10), torch.randn(10, 10)),
         ),
     )
-    flat_inputs = {
-        "args_0": args[0].numpy(),
-        "y": kwargs["y"].numpy(),
-        "z_data_1": kwargs["z"].data_1.numpy(),
-        "z_data_2_0": kwargs["z"].data_2[0].numpy(),
-        "z_data_2_1": kwargs["z"].data_2[1].numpy(),
-    }
-    self._compare_tflite_torch_args_kwargs(SampleModel(), args, kwargs, flat_inputs)
+    expected_keys = ("args_0", "y", "z_data_1", "z_data_2_0", "z_data_2_1")
+    self._compare_tflite_torch_args_kwargs(SampleModel(), args, kwargs, expected_keys)
 
   def test_convert_model_with_args_nested_kwargs_2(self):
     """
@@ -364,14 +358,8 @@ class TestConvert(unittest.TestCase):
             data_2=[(torch.randn(10, 10),), torch.randn(10, 10)],
         ),
     )
-    flat_inputs = {
-        "args_0": args[0].numpy(),
-        "y": kwargs["y"].numpy(),
-        "z_data_1": kwargs["z"].data_1.numpy(),
-        "z_data_2_0_0": kwargs["z"].data_2[0][0].numpy(),
-        "z_data_2_1": kwargs["z"].data_2[1].numpy(),
-    }
-    self._compare_tflite_torch_args_kwargs(SampleModel(), args, kwargs, flat_inputs)
+    expected_keys = ("args_0", "y", "z_data_1", "z_data_2_0_0", "z_data_2_1")
+    self._compare_tflite_torch_args_kwargs(SampleModel(), args, kwargs, expected_keys)
 
   def test_convert_model_with_args_nested_kwargs_3(self):
     """
@@ -391,26 +379,19 @@ class TestConvert(unittest.TestCase):
             data_2=(dict(foo=torch.randn(10, 10)), torch.randn(10, 10)),
         ),
     )
-    flat_inputs = {
-        "args_0": args[0].numpy(),
-        "y": kwargs["y"].numpy(),
-        "z_data_1": kwargs["z"].data_1.numpy(),
-        "z_data_2_0_foo": kwargs["z"].data_2[0]["foo"].numpy(),
-        "z_data_2_1": kwargs["z"].data_2[1].numpy(),
-    }
-    self._compare_tflite_torch_args_kwargs(SampleModel(), args, kwargs, flat_inputs)
+    expected_keys = ("args_0", "y", "z_data_1", "z_data_2_0_foo", "z_data_2_1")
+    self._compare_tflite_torch_args_kwargs(SampleModel(), args, kwargs, expected_keys)
 
-  def _compare_tflite_torch_args_kwargs(self, model, args, kwargs, flat_inputs):
+  def _compare_tflite_torch_args_kwargs(self, model, args, kwargs, expected_keys):
     model.eval()
     edge_model = ai_edge_torch.convert(model, args, kwargs)
     interpreter = tf.lite.Interpreter(model_content=edge_model._tflite_model)
     runner = interpreter.get_signature_runner("serving_default")
     input_details = runner.get_input_details()
-    self.assertEqual(input_details.keys(), flat_inputs.keys())
-
-    reference_output = model(*args, **kwargs)
-    tflite_output = edge_model(**flat_inputs)
-    np.testing.assert_almost_equal(reference_output, tflite_output)
+    self.assertEqual(tuple(input_details.keys()), expected_keys)
+    self.assertTrue(
+        model_coverage.compare_tflite_torch(edge_model, model, args=args, kwargs=kwargs)
+    )
 
 
 if __name__ == "__main__":

@@ -16,6 +16,7 @@
 """Utility Functions to test TFLite models exported from PyTorch"""
 
 from collections.abc import Callable
+import dataclasses
 
 import numpy as np
 import torch
@@ -52,6 +53,9 @@ def _torch_tensors_to_np(*argv):
     for ni, di in data.items():
       out[ni] = _torch_tensors_to_np(di)
     return out
+
+  elif dataclasses.is_dataclass(data):
+    return _torch_tensors_to_np(dataclasses.asdict(data))
 
   else:
     raise ValueError("Unsupported torch.tensor type.")
