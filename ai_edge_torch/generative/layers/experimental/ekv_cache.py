@@ -26,11 +26,7 @@ from ai_edge_torch.generative.layers import model_config
 
 @dataclass
 class KVCacheEntry:
-  """A single cache entry include K and V caches.
-
-  Returns:
-      _type_: _description_
-  """
+  """A single cache entry include K and V caches."""
 
   k_cache: torch.Tensor
   v_cache: torch.Tensor
@@ -56,7 +52,7 @@ class KVCacheEntry:
 
 @dataclass
 class EKVCache:
-  """A utility class for holding KV cach entries per layer."""
+  """A utility class for holding KV cache entries per layer."""
 
   caches: Tuple[KVCacheEntry]
 
@@ -103,7 +99,7 @@ def _flatten_kvc_with_keys(kvc: EKVCache) -> Tuple[List, List]:
 
 
 def _unflatten_kvc(values: List[torch.Tensor], context: Tuple[List, List]) -> EKVCache:
-  assert len(values) % 2 == 0
+  assert len(values) % 2 == 0, "Found odd number of K and V entries."
   num_layers = len(values) // 2
   flat_names = context[0]
   kv_entries = []
@@ -133,15 +129,15 @@ def update(
     v_slice: torch.Tensor,
     use_hlfb: bool = True,
 ) -> KVCacheEntry:
-  """Out of place update of Cach buffer.
+  """Out of place update of Cache buffer.
 
   Args:
       cache (KVCacheEntry): The original cache buffer.
       input_pos (torch.Tensor): The update slice positions.
       k_slice (torch.Tensor): The K slice to be updated in the new cache.
       v_slice (torch.Tensor): The V slice to be updated in the new cache.
-      use_hlfb (bool, optional): Whether the op is annotated for export.
-        Defaults to True.
+      use_hlfb (bool, optional): Whether the op is annotated for export with
+        High Level Function Boundary. Defaults to True.
 
   Returns:
       KVCacheEntry: The updated EKVCache entry based on the passed inputs.
@@ -158,8 +154,8 @@ def _update_kv_base_impl(
 ) -> KVCacheEntry:
   k = cache.k_cache.index_copy(1, input_pos, k_slice)
   v = cache.v_cache.index_copy(1, input_pos, v_slice)
-  updated_cach = KVCacheEntry(k, v)
-  return updated_cach
+  updated_cache = KVCacheEntry(k, v)
+  return updated_cache
 
 
 def _update_kv_hlfb_impl(
@@ -167,7 +163,7 @@ def _update_kv_hlfb_impl(
     input_pos: torch.Tensor,
     k_slice: torch.Tensor,
     v_slice: torch.Tensor,
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> KVCacheEntry:
   builder = hlfb.StableHLOCompositeBuilder(name="odml.update_external_kv_cache")
   k_cache, v_cache, input_pos, k_slice, v_slice = builder.mark_inputs(
       cache.k_cache, cache.v_cache, input_pos, k_slice, v_slice
