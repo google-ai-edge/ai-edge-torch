@@ -38,12 +38,19 @@ def group_norm_with_hlfb(
       name="odml.group_norm", attr={"num_groups": num_groups, "eps": eps}
   )
   x = builder.mark_inputs(x)
+  x = x.view(B, H * W, C)
+  x = x.transpose(-1, -2)
+  x = x.view(B, C, H, W)
 
   y = F.group_norm(x, num_groups, eps=eps)
 
+  B, H, H, C = y.shape
+  y = y.view(B, C, H * W)
+  y = y.transpose(-1, -2)
+  y = y.view(B, H, W, C)
+
   y = builder.mark_outputs(y)
 
-  B, H, H, C = y.shape
   y = y.view(B, H * W, C)
   y = y.transpose(-1, -2)
   y = y.view(B, C, H, W)
