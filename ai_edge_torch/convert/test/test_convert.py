@@ -38,15 +38,6 @@ class TestContainer1:
 torch.export.register_dataclass(TestContainer1, serialized_type_name="TestContainer1")
 
 
-@dataclass
-class TestContainer1:
-  data_1: torch.Tensor
-  data_2: Tuple[torch.Tensor, torch.Tensor]
-
-
-torch.export.register_dataclass(TestContainer1, serialized_type_name="TestContainer1")
-
-
 class TestConvert(unittest.TestCase):
   """Tests conversion of various modules."""
 
