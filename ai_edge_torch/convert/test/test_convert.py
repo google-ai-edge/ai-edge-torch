@@ -30,6 +30,15 @@ from ai_edge_torch.convert import conversion_utils as cutils
 from ai_edge_torch.testing import model_coverage
 
 
+@dataclass
+class TestContainer1:
+  data_1: torch.Tensor
+  data_2: Tuple[torch.Tensor, torch.Tensor]
+
+
+torch.export.register_dataclass(TestContainer1, serialized_type_name="TestContainer1")
+
+
 class TestConvert(unittest.TestCase):
   """Tests conversion of various modules."""
 
@@ -310,28 +319,20 @@ class TestConvert(unittest.TestCase):
         model_coverage.compare_tflite_torch(edge_model, model, args_gen, kwargs_gen)
     )
 
-  def test_convert_model_with_args_nested_kwargs(self):
+  def test_convert_model_with_args_nested_kwargs_1(self):
     """
     Test converting a simple model with both sample_args and nested sample_kwargs.
     """
 
-    @dataclass
-    class TestContainer:
-      data_1: torch.Tensor
-      data_2: Tuple[torch.Tensor, torch.Tensor]
+    class SampleModel(torch.nn.Module):
 
-    torch.export.register_dataclass(TestContainer, serialized_type_name="TestContainer")
-
-    #### case 1
-    class SampleModel1(torch.nn.Module):
-
-      def forward(self, x: torch.Tensor, y: torch.Tensor, z: TestContainer):
+      def forward(self, x: torch.Tensor, y: torch.Tensor, z: TestContainer1):
         return x + y + z.data_1 + z.data_2[0] + z.data_2[1]
 
     args = (torch.randn(10, 10),)
     kwargs = dict(
         y=torch.randn(10, 10),
-        z=TestContainer(
+        z=TestContainer1(
             data_1=torch.randn(10, 10),
             data_2=(torch.randn(10, 10), torch.randn(10, 10)),
         ),
@@ -343,10 +344,14 @@ class TestConvert(unittest.TestCase):
         "z_data_2_0": kwargs["z"].data_2[0].numpy(),
         "z_data_2_1": kwargs["z"].data_2[1].numpy(),
     }
-    self._args_kwargs_test_helper(SampleModel1(), args, kwargs, flat_inputs)
+    self._compare_tflite_torch_args_kwargs(SampleModel(), args, kwargs, flat_inputs)
 
-    #### case 2
-    class SampleModel2(torch.nn.Module):
+  def test_convert_model_with_args_nested_kwargs_2(self):
+    """
+    Test converting a simple model with both sample_args and nested sample_kwargs.
+    """
+
+    class SampleModel(torch.nn.Module):
 
       def forward(self, x, y, z):
         return x + y + z.data_1 + z.data_2[0][0] + z.data_2[1]
@@ -354,7 +359,7 @@ class TestConvert(unittest.TestCase):
     args = (torch.randn(10, 10),)
     kwargs = dict(
         y=torch.randn(10, 10),
-        z=TestContainer(
+        z=TestContainer1(
             data_1=torch.randn(10, 10),
             data_2=[(torch.randn(10, 10),), torch.randn(10, 10)],
         ),
@@ -366,10 +371,14 @@ class TestConvert(unittest.TestCase):
         "z_data_2_0_0": kwargs["z"].data_2[0][0].numpy(),
         "z_data_2_1": kwargs["z"].data_2[1].numpy(),
     }
-    self._args_kwargs_test_helper(SampleModel2(), args, kwargs, flat_inputs)
+    self._compare_tflite_torch_args_kwargs(SampleModel(), args, kwargs, flat_inputs)
 
-    ### case 3
-    class SampleModel3(torch.nn.Module):
+  def test_convert_model_with_args_nested_kwargs_3(self):
+    """
+    Test converting a simple model with both sample_args and nested sample_kwargs.
+    """
+
+    class SampleModel(torch.nn.Module):
 
       def forward(self, x, y, z):
         return x + y + z.data_1 + z.data_2[0]["foo"] + z.data_2[1]
@@ -377,7 +386,7 @@ class TestConvert(unittest.TestCase):
     args = (torch.randn(10, 10),)
     kwargs = dict(
         y=torch.randn(10, 10),
-        z=TestContainer(
+        z=TestContainer1(
             data_1=torch.randn(10, 10),
             data_2=(dict(foo=torch.randn(10, 10)), torch.randn(10, 10)),
         ),
@@ -389,9 +398,9 @@ class TestConvert(unittest.TestCase):
         "z_data_2_0_foo": kwargs["z"].data_2[0]["foo"].numpy(),
         "z_data_2_1": kwargs["z"].data_2[1].numpy(),
     }
-    self._args_kwargs_test_helper(SampleModel3(), args, kwargs, flat_inputs)
+    self._compare_tflite_torch_args_kwargs(SampleModel(), args, kwargs, flat_inputs)
 
-  def _args_kwargs_test_helper(self, model, args, kwargs, flat_inputs):
+  def _compare_tflite_torch_args_kwargs(self, model, args, kwargs, flat_inputs):
     model.eval()
     edge_model = ai_edge_torch.convert(model, args, kwargs)
     interpreter = tf.lite.Interpreter(model_content=edge_model._tflite_model)
