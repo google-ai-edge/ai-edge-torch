@@ -64,7 +64,7 @@ def group_norm_with_hlfb(
   x = builder.mark_inputs(x)
 
   # x = x.permute(0, 3, 1, 2)
-  y = F.GroupNorm(x, num_groups, eps)
+  y = F.group_norm(x, num_groups, eps)
   # x = x.permute(0, 2, 3, 1)
 
   y = builder.mark_outputs(y)
