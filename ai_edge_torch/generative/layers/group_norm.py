@@ -44,7 +44,7 @@ def group_norm_with_hlfb(
 
   y = F.group_norm(x, num_groups, eps=eps)
 
-  B, H, H, C = y.shape
+  B, C, H, W = y.shape
   y = y.view(B, C, H * W)
   y = y.transpose(-1, -2)
   y = y.view(B, H, W, C)
