@@ -15,16 +15,11 @@
 
 
 from dataclasses import dataclass
-from dataclasses import dataclass
 import os
 import tempfile
 from typing import Tuple
-from typing import Tuple
 import unittest
 
-import numpy as np
-import tensorflow as tf
-import numpy as np
 import tensorflow as tf
 import torch
 import torchvision

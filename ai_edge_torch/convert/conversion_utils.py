@@ -13,14 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 
-import collections
 import copy
 from dataclasses import dataclass
 import gc
 import itertools
 import logging
 import tempfile
-from typing import Any, Dict, List, Optional, Tuple, Union
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
