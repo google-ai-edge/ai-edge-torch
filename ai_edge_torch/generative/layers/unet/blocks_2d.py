@@ -79,7 +79,7 @@ class ResidualBlock2D(nn.Module):
     """
     residual = input_tensor
     # x = self.norm_1(input_tensor)
-    x = group_norm_with_hlfb(x, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
+    x = group_norm_with_hlfb(input_tensor, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
     x = self.act_fn(x)
     x = self.conv_1(x)
     if self.time_emb_proj is not None:
