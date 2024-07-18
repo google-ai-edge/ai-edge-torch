@@ -25,6 +25,8 @@ import ai_edge_torch.generative.layers.model_config as layers_cfg
 import ai_edge_torch.generative.layers.unet.builder as unet_builder
 import ai_edge_torch.generative.layers.unet.model_config as unet_cfg
 
+from ai_edge_torch.generative.layers.group_norm import group_norm_with_hlfb  # NOQA
+
 
 class ResidualBlock2D(nn.Module):
   """2D Residual block containing two Conv2D with optional time embedding as input."""
@@ -127,7 +129,8 @@ class AttentionBlock2D(nn.Module):
     B, C, H, W = input_tensor.shape
     x = input_tensor
     if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
-      x = self.norm(x)
+      # x = self.norm(x)
+      x = group_norm_with_hlfb(x, self.config.dim, self.config.normalization_config)
       x = input_tensor.view(B, C, H * W)
       x = x.transpose(-1, -2)
     else:
@@ -183,7 +186,8 @@ class CrossAttentionBlock2D(nn.Module):
     B, C, H, W = input_tensor.shape
     x = input_tensor
     if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
-      x = self.norm(x)
+      # x = self.norm(x)
+      x = group_norm_with_hlfb(x, self.config.dim, self.config.normalization_config)
       x = input_tensor.view(B, C, H * W)
       x = x.transpose(-1, -2)
     else:
@@ -224,7 +228,8 @@ class FeedForwardBlock2D(nn.Module):
     B, C, H, W = input_tensor.shape
     x = input_tensor
     if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
-      x = self.norm(x)
+      # x = self.norm(x)
+      x = group_norm_with_hlfb(x, self.config.dim, self.config.normalization_config)
       x = input_tensor.view(B, C, H * W)
       x = x.transpose(-1, -2)
     else:
