@@ -78,14 +78,16 @@ class ResidualBlock2D(nn.Module):
       output hidden_states tensor after ResidualBlock2D.
     """
     residual = input_tensor
-    x = self.norm_1(input_tensor)
+    # x = self.norm_1(input_tensor)
+    x = group_norm_with_hlfb(x, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
     x = self.act_fn(x)
     x = self.conv_1(x)
     if self.time_emb_proj is not None:
       time_emb = self.act_fn(time_emb)
       time_emb = self.time_emb_proj(time_emb)[:, :, None, None]
       x = x + time_emb
-    x = self.norm_2(x)
+    # x = self.norm_2(x)
+    x = group_norm_with_hlfb(x, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
     x = self.act_fn(x)
     x = self.conv_2(x)
     x = x + self.residual_layer(residual)
@@ -130,7 +132,7 @@ class AttentionBlock2D(nn.Module):
     x = input_tensor
     if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
       # x = self.norm(x)
-      x = group_norm_with_hlfb(x, self.config.dim, self.config.normalization_config.epsilon)
+      x = group_norm_with_hlfb(x, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
       x = input_tensor.view(B, C, H * W)
       x = x.transpose(-1, -2)
     else:
@@ -187,7 +189,7 @@ class CrossAttentionBlock2D(nn.Module):
     x = input_tensor
     if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
       # x = self.norm(x)
-      x = group_norm_with_hlfb(x, self.config.dim, self.config.normalization_config.epsilon)
+      x = group_norm_with_hlfb(x, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
       x = input_tensor.view(B, C, H * W)
       x = x.transpose(-1, -2)
     else:
@@ -229,7 +231,7 @@ class FeedForwardBlock2D(nn.Module):
     x = input_tensor
     if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
       # x = self.norm(x)
-      x = group_norm_with_hlfb(x, self.config.dim, self.config.normalization_config.epsilon)
+      x = group_norm_with_hlfb(x, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
       x = input_tensor.view(B, C, H * W)
       x = x.transpose(-1, -2)
     else:
@@ -316,7 +318,9 @@ class TransformerBlock2D(nn.Module):
     """
     residual_long = x
 
-    x = self.pre_conv_norm(x)
+    # x = self.pre_conv_norm(x)
+
+    x = group_norm_with_hlfb(x, self.config.pre_conv_normalization_config.group_num, self.config.pre_conv_normalization_config.epsilon)
     x = self.conv_in(x)
     x = self.self_attention(x)
     x = self.cross_attention(x, context)
