@@ -1,10 +1,10 @@
-ai-edge-quantizer-nightly==0.0.1.dev202407012233
+ai-edge-quantizer-nightly==0.0.1.dev20240718
 scipy
 numpy
 tabulate
 safetensors
 --pre
-tf-nightly>=2.18.0.dev20240607
+tf-nightly>=2.18.0.dev20240717
 -f https://download.pytorch.org/whl/nightly/torch_nightly.html
 torch==2.4.0.dev20240429+cpu
 -f https://download.pytorch.org/whl/nightly/torch_nightly.html
