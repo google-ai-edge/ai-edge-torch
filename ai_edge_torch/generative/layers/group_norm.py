@@ -29,6 +29,11 @@ def group_norm_with_hlfb(
     eps: float,
 ):
 
+  B, C, H, W = x.shape
+  x = x.view(B, C, H * W)
+  x = x.transpose(-1, -2)
+  x = x.view(B, H, W, C)
+
   builder = StableHLOCompositeBuilder(
       name="odml.group_norm", attr={"num_groups": num_groups, "eps": eps}
   )
@@ -37,4 +42,9 @@ def group_norm_with_hlfb(
   y = F.group_norm(x, num_groups, eps=eps)
 
   y = builder.mark_outputs(y)
+
+  B, C, H, W = y.shape
+  y = y.view(B, H * W, C)
+  y = y.transpose(-1, -2)
+  y = y.view(B, C, H, W)
   return y
