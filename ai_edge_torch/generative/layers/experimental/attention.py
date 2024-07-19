@@ -19,16 +19,13 @@ from typing import Optional, Tuple
 
 import torch
 from torch import nn
-import torch.nn.functional as F
 
 import ai_edge_torch.generative.layers.builder as builder
+from ai_edge_torch.generative.layers.experimental import ekv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention  # NOQA
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention_with_hlfb  # NOQA
-
-# data structure for KV cache (modeled as a continguous tensor separately).
-KVCache = tuple[torch.Tensor, torch.Tensor]
 
 
 class TransformerBlock(nn.Module):
@@ -40,7 +37,6 @@ class TransformerBlock(nn.Module):
       config (cfg.ModelConfig): the configuration object
         for this transformer block.
     """
-
     super().__init__()
     self.pre_atten_norm = builder.build_norm(
         config.embedding_dim, config.pre_attention_norm_config
@@ -62,8 +58,8 @@ class TransformerBlock(nn.Module):
       rope: Tuple[torch.Tensor, torch.Tensor],
       mask: Optional[torch.Tensor] = None,
       input_pos: Optional[torch.Tensor] = None,
-      kv_cache: Optional[KVCache] = None,
-  ) -> (torch.Tensor, KVCache):
+      kv_cache: kv_utils.KVCacheEntry = None,
+  ) -> torch.Tensor:
     """Forward function of the TransformerBlock.
 
     Args:
@@ -71,7 +67,7 @@ class TransformerBlock(nn.Module):
       rope (Tuple[torch.Tensor, torch.Tensor]): the input rope tensor.
       mask (torch.Tensor): the optional mask tensor.
       input_pos (torch.Tensor): the optional input position tensor.
-      kv_cache (Tuple[torch.Tensor, torch.Tensor]): the optional kv cache tensors.
+      kv_cache (KVCacheEntry): the optional kv cache entry.
 
     Returns:
       output activation from this transformer block, and updated kv cache (if passed in).
@@ -79,17 +75,17 @@ class TransformerBlock(nn.Module):
 
     if self.config.parallel_residual:
       x_norm = self.pre_atten_norm(x)
-      attn_out, kv_cache = self.atten_func(x_norm, rope, mask, input_pos, kv_cache)
+      attn_out, kv = self.atten_func(x_norm, rope, mask, input_pos, kv_cache)
       ff_out = self.ff(x_norm)
       output = x + attn_out + ff_out
     else:
       x_norm = self.pre_atten_norm(x)
-      attn_out, kv_cache = self.atten_func(x_norm, rope, mask, input_pos, kv_cache)
+      attn_out, kv = self.atten_func(x_norm, rope, mask, input_pos, kv_cache)
       x = x + attn_out
       x_norm = self.pre_ff_norm(x)
       output = x + self.ff(x_norm)
 
-    return output, kv_cache
+    return output, kv
 
 
 class CausalSelfAttention(nn.Module):
@@ -114,11 +110,12 @@ class CausalSelfAttention(nn.Module):
     self.qkv_projection = nn.Linear(dim, shape, bias=config.qkv_use_bias)
     self.output_projection = nn.Linear(dim, dim, bias=config.output_proj_use_bias)
     self.config = config
-
-    if enable_hlfb:
-      self.sdpa_func = scaled_dot_product_attention_with_hlfb
-    else:
-      self.sdpa_func = scaled_dot_product_attention
+    self.enable_hlfb = enable_hlfb
+    self.sdpa_func = (
+        scaled_dot_product_attention_with_hlfb
+        if enable_hlfb
+        else scaled_dot_product_attention
+    )
 
   def forward(
       self,
@@ -126,8 +123,8 @@ class CausalSelfAttention(nn.Module):
       rope: Tuple[torch.Tensor, torch.Tensor],
       mask: Optional[torch.Tensor] = None,
       input_pos: Optional[torch.Tensor] = None,
-      kv_cache: Optional[KVCache] = None,
-  ) -> (torch.Tensor, KVCache):
+      kv_cache: Optional[kv_utils.KVCacheEntry] = None,
+  ) -> Tuple[torch.Tensor, Optional[kv_utils.KVCacheEntry]]:
     """Forward function of the CausalSelfAttention layer, which can support
        MQA, GQA and MHA.
 
@@ -136,10 +133,11 @@ class CausalSelfAttention(nn.Module):
       rope (Tuple[torch.Tensor, torch.Tensor]): the input rope tensor.
       mask (torch.Tensor): the optional mask tensor.
       input_pos (torch.Tensor): the optional input position tensor.
-      kv_cache (Tuple[torch.Tensor, torch.Tensor]): the optional kv cache tensors.
+      kv_cache (KVCacheEntry): The KV cache entry corresponding to this module.
 
     Returns:
-      output activation from this self attention layer, and the updated kv cache(if passed in).
+      output activation from this self attention layer, and the updated
+        KV Cach Entry (if passed in).
     """
     # Batch size, sequence length, embedding dimensionality.
     B, T, E = x.size()
@@ -174,10 +172,9 @@ class CausalSelfAttention(nn.Module):
     k = torch.cat((k_roped, k[..., n_elem:]), dim=-1)
 
     if kv_cache is not None:
-      k_cache, v_cache = kv_cache
-      k = k_cache.index_copy_(1, input_pos, k)
-      v = v_cache.index_copy_(1, input_pos, v)
-      kv_cache = k, v
+      kv_cache = kv_utils.update(kv_cache, input_pos, k, v, use_hlfb=self.enable_hlfb)
+      k = kv_cache.k_cache
+      v = kv_cache.v_cache
 
     y = self.sdpa_func(q, k, v, self.head_dim, mask=mask)
     y = y.reshape(B, T, E)
