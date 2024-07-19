@@ -557,7 +557,8 @@ def get_sample_encoder_input_ids() -> torch.Tensor:
 
 
 def define_and_run_t5(checkpoint_path: str) -> None:
-  t5_goldens = torch.load("t5_lm_logits.pt")
+  current_dir = Path(__file__).parent.resolve()
+  t5_goldens = torch.load(current_dir / "t5_lm_logits.pt")
 
   model = build_t5_model(checkpoint_path)
 
@@ -579,7 +580,9 @@ def define_and_run_t5(checkpoint_path: str) -> None:
 
 # TODO(haoliang): Move those tests.
 def define_and_run_t5_split(checkpoint_path: str) -> None:
-  t5_goldens = torch.load("t5_lm_logits.pt")
+  current_dir = Path(__file__).parent.resolve()
+  t5_goldens = torch.load(current_dir / "t5_lm_logits.pt")
+
   config = get_model_config_t5()
   embedding_layer = nn.Embedding(config.vocab_size, config.embedding_dim, padding_idx=0)
   t5_encoder_model = build_t5_encoder_model(config, embedding_layer, checkpoint_path)
