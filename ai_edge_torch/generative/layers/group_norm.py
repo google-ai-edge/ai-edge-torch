@@ -35,9 +35,7 @@ def group_norm_with_hlfb(
   builder = StableHLOCompositeBuilder(
       name="odml.group_norm", attr={"num_groups": num_groups, "eps": eps}
   )
-  x = builder.mark_inputs(x)
-  w = builder.mark_inputs(w)
-  b = builder.mark_inputs(b)
+  x, w, b = builder.mark_inputs(x, w, b)
   x = torch.permute(x, (0, 3, 1, 2))
   y = F.group_norm(x, num_groups, weight=w, bias=b, eps=eps)
   y = torch.permute(y, (0, 2, 3, 1))
