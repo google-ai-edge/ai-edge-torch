@@ -28,30 +28,16 @@ def group_norm_with_hlfb(
     num_groups: int,
     eps: float,
 ):
-
-  B, C, H, W = x.shape
-  x = x.view(B, C, H * W)
-  x = x.transpose(-1, -2)
-  x = x.view(B, H, W, C)
+  x = torch.permute(x, (0, 2, 3, 1))
 
   builder = StableHLOCompositeBuilder(
       name="odml.group_norm", attr={"num_groups": num_groups, "eps": eps}
   )
   x = builder.mark_inputs(x)
-  x = x.view(B, H * W, C)
-  x = x.transpose(-1, -2)
-  x = x.view(B, C, H, W)
-
+  x = torch.permute(x, (0, 3, 1, 2))
   y = F.group_norm(x, num_groups, eps=eps)
-
-  B, C, H, W = y.shape
-  y = y.view(B, C, H * W)
-  y = y.transpose(-1, -2)
-  y = y.view(B, H, W, C)
-
+  y = torch.permute(y, (0, 2, 3, 1))
   y = builder.mark_outputs(y)
 
-  y = y.view(B, H * W, C)
-  y = y.transpose(-1, -2)
-  y = y.view(B, C, H, W)
+  y = torch.permute(y, (0, 3, 1, 2))
   return y
