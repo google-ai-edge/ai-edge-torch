@@ -113,6 +113,10 @@ def is_4d(node: Node):
   val = node.meta.get("val")
   if val is None:
     return False
+
+  if isinstance(val, (list, tuple)) and val:
+    val = val[0]
+
   if not hasattr(val, "shape"):
     return False
 
@@ -171,8 +175,6 @@ def _all_layout_sensitive_inputs_are_4d_checker(node: Node):
 @nhwcable_node_checkers.register(aten.native_group_norm)
 def _aten_norm_checker(node):
   val = node.meta.get("val")
-  if not isinstance(val, (list, tuple)) or not val or not hasattr(val[0], "shape"):
-    return NHWCable(can_be=False, must_be=False)
   return NHWCable(can_be=len(val[0].shape) == 4, must_be=False)
 
 

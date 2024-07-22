@@ -347,6 +347,21 @@ def _aten_native_group_norm(node):
       num_groups: int,
       eps: float,
   ):
+    if weight is not None or bias is not None:
+      input = utils.tensor_to_nchw(input)
+      out, mean, rstd = torch.ops.aten.native_group_norm.default(
+          input,
+          weight,
+          bias,
+          batch_size,
+          num_channels,
+          flattened_inner_size,
+          num_groups,
+          eps,
+      )
+      out = utils.tensor_to_nhwc(out)
+      return out, mean, rstd
+
     input_reshaped = torch.reshape(
         input,
         [batch_size, flattened_inner_size, num_groups, num_channels // num_groups],
