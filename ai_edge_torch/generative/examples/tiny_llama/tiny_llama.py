@@ -149,6 +149,8 @@ def build_model(checkpoint_path, **kwargs) -> nn.Module:
 
 
 def define_and_run() -> None:
+  current_dir = Path(__file__).parent.resolve()
+  tiny_llama_goldens = torch.load(current_dir / "tiny_llama_lm_logits.pt")
   kv_cache_max_len = 1024
   checkpoint_path = os.path.join(Path.home(), "Downloads/llm_data/tiny_llama")
   model = build_model(checkpoint_path, kv_cache_max_len=kv_cache_max_len)
@@ -156,8 +158,10 @@ def define_and_run() -> None:
   tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.long, device="cpu")
   tokens[0, :4] = idx
   input_pos = torch.arange(0, kv_cache_max_len)
-  print("running an inference")
-  print(model.forward(tokens, input_pos))
+  lm_logits = model.forward(tokens, input_pos)
+  assert torch.allclose(
+      tiny_llama_goldens, lm_logits[0, idx.shape[1] - 1, :], atol=1e-05
+  )
 
 
 if __name__ == "__main__":
