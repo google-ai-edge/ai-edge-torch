@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+import operator
 import os
 from typing import Optional, Tuple, Union
 
@@ -274,6 +275,14 @@ class OptimizeLayoutTransposesPass(ExportedProgramPassBase):
         graph_module = layout_partitioners.greedy.partition(graph_module)
 
     graph = graph_module.graph
+    for node in list(graph.nodes):
+      if node.target == operator.getitem:
+        # force the layout mark of a getitem node to follow its producer.
+        if layout_mark.is_nchw_node(node.args[0]):
+          layout_mark.mark_as_nchw_node(node)
+        else:
+          layout_mark.mark_as_nhwc_node(node)
+
     for node in list(graph.nodes):
       if layout_mark.is_nhwc_node(node):
         for input_node in layout_check.get_layout_sensitive_inputs(node):
