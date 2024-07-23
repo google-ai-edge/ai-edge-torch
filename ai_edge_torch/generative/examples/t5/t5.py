@@ -371,6 +371,7 @@ class T5Decoder(nn.Module):
 def get_model_config_t5() -> cfg.ModelConfig:
   attn_config = cfg.AttentionConfig(
       num_heads=12,
+      head_dim=64,
       num_query_groups=12,
       qkv_use_bias=False,
       relative_attention_num_buckets=32,
