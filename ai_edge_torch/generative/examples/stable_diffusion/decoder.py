@@ -264,7 +264,7 @@ class Decoder(nn.Module):
     x = self.mid_block(x)
     for up_decoder_block in self.up_decoder_blocks:
       x = up_decoder_block(x)
-    x = self.final_norm(x)
+    # x = self.final_norm(x)
     x = group_norm_with_hlfb(x, self.final_norm.weight, self.final_norm.bias, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
     x = self.act_fn(x)
     x = self.conv_out(x)
