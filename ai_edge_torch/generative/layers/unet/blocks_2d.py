@@ -125,10 +125,9 @@ class AttentionBlock2D(nn.Module):
     """
     residual = input_tensor
     B, C, H, W = input_tensor.shape
-    x = input_tensor
     if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
-      x = self.norm(x)
-      x = input_tensor.view(B, C, H * W)
+      x = self.norm(input_tensor)
+      x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
     else:
       x = input_tensor.view(B, C, H * W)
@@ -181,10 +180,9 @@ class CrossAttentionBlock2D(nn.Module):
     """
     residual = input_tensor
     B, C, H, W = input_tensor.shape
-    x = input_tensor
     if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
-      x = self.norm(x)
-      x = input_tensor.view(B, C, H * W)
+      x = self.norm(input_tensor)
+      x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
     else:
       x = input_tensor.view(B, C, H * W)
@@ -222,10 +220,9 @@ class FeedForwardBlock2D(nn.Module):
   def forward(self, input_tensor: torch.Tensor) -> torch.Tensor:
     residual = input_tensor
     B, C, H, W = input_tensor.shape
-    x = input_tensor
     if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
-      x = self.norm(x)
-      x = input_tensor.view(B, C, H * W)
+      x = self.norm(input_tensor)
+      x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
     else:
       x = input_tensor.view(B, C, H * W)

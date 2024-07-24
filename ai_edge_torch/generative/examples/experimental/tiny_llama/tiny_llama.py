@@ -12,18 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# Example of building a Gemma model.
+# Example of building a TinyLlama model from the Edge Generative API layers.
+#
+# Note: This is an experimental version of TinyLlama with external KV cache.
+# Please use with caution.
+
 
 import os
 from pathlib import Path
+from typing import Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
 
-from ai_edge_torch.generative.layers.attention import TransformerBlock
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.builder as builder
+from ai_edge_torch.generative.layers.experimental import ekv_cache as kv_utils
+from ai_edge_torch.generative.layers.experimental.attention import TransformerBlock  # NOQA
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
 
@@ -39,27 +45,23 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     pre_ff_norm="model.layers.{}.post_attention_layernorm",
     embedding="model.embed_tokens",
     final_norm="model.norm",
-    lm_head=None,
+    lm_head="lm_head",
 )
 
 
-class Gemma(nn.Module):
+class TinyLLamma(nn.Module):
 
   def __init__(self, config: cfg.ModelConfig):
     super().__init__()
 
     self.config = config
     # Construct model layers.
+    self.lm_head = nn.Linear(
+        config.embedding_dim, config.vocab_size, bias=config.lm_head_use_bias
+    )
     self.tok_embedding = nn.Embedding(
         config.vocab_size, config.embedding_dim, padding_idx=0
     )
-    self.lm_head = nn.Linear(
-        config.embedding_dim,
-        config.vocab_size,
-        bias=config.lm_head_use_bias,
-    )
-    # Gemma re-uses the embedding as the head projection layer.
-    self.lm_head.weight.data = self.tok_embedding.weight.data
     self.transformer_blocks = nn.ModuleList(
         TransformerBlock(config) for _ in range(config.num_layers)
     )
@@ -80,12 +82,14 @@ class Gemma(nn.Module):
     )
     self.config = config
 
-  # The model's forward function takes in additional k/v cache tensors
-  # and returns the updated k/v cache tensors to the caller.
-  # This can be eliminated if we handle k/v cache updates inside the model itself.
   @torch.inference_mode
-  def forward(self, idx: torch.Tensor, input_pos: torch.Tensor) -> torch.Tensor:
-    B, T = idx.size()
+  def forward(
+      self,
+      tokens: torch.Tensor,
+      input_pos: torch.Tensor,
+      kv_cache: kv_utils.EKVCache,
+  ) -> Tuple[torch.Tensor, kv_utils.EKVCache]:
+    B, T = tokens.size()
     assert (
         self.config.max_seq_len >= T
     ), f"Cannot forward sequence of length {T}, max seq length is only {self.config.max_seq_len}"
@@ -97,37 +101,37 @@ class Gemma(nn.Module):
     mask = mask[:, :, :, : self.config.kv_cache_max]
 
     # token embeddings of shape (b, t, n_embd)
-    x = self.tok_embedding(idx)
-    x = x * (self.config.embedding_dim**0.5)
+    x = self.tok_embedding(tokens)
 
+    updated_kv_entires = []
     for i, block in enumerate(self.transformer_blocks):
-      x = block(x, (cos, sin), mask, input_pos)
+      kv_entry = kv_cache.caches[i] if kv_cache else None
+      x, kv_entry = block(x, (cos, sin), mask, input_pos, kv_entry)
+      if kv_entry:
+        updated_kv_entires.append(kv_entry)
+    updated_kv_cache = kv_utils.EKVCache(tuple(updated_kv_entires))
 
     x = self.final_norm(x)
     res = self.lm_head(x)  # (b, t, vocab_size)
-    return res
+    return res, updated_kv_cache
 
 
-def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   attn_config = cfg.AttentionConfig(
-      num_heads=8,
-      num_query_groups=1,
+      num_heads=32,
+      num_query_groups=4,
       rotary_percentage=1.0,
   )
   ff_config = cfg.FeedForwardConfig(
       type=cfg.FeedForwardType.GATED,
-      activation=cfg.ActivationConfig(cfg.ActivationType.GELU_TANH),
-      intermediate_size=16384,
+      activation=cfg.ActivationConfig(cfg.ActivationType.SILU),
+      intermediate_size=5632,
   )
-  norm_config = cfg.NormalizationConfig(
-      type=cfg.NormalizationType.RMS_NORM,
-      epsilon=1e-6,
-      zero_centered=True,
-  )
+  norm_config = cfg.NormalizationConfig(type=cfg.NormalizationType.RMS_NORM)
   config = cfg.ModelConfig(
-      vocab_size=256000,
-      num_layers=18,
-      max_seq_len=8192,
+      vocab_size=32000,
+      num_layers=22,
+      max_seq_len=2048,
       embedding_dim=2048,
       kv_cache_max_len=kv_cache_max_len,
       attn_config=attn_config,
@@ -135,44 +139,47 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       pre_attention_norm_config=norm_config,
       pre_ff_norm_config=norm_config,
       final_norm_config=norm_config,
-      parallel_residual=False,
-      lm_head_use_bias=False,
       enable_hlfb=True,
   )
   return config
 
 
-def get_fake_model_config_2b_for_test() -> cfg.ModelConfig:
-  config = get_model_config_2b()
+def get_fake_model_config_for_test(**kwargs) -> cfg.ModelConfig:
+  config = get_model_config(**kwargs)
+  config.vocab_size = 128
   config.num_layers = 2
+  config.ff_config.intermediate_size = 256
   return config
 
 
-def build_2b_model(checkpoint_path, **kwargs) -> nn.Module:
-  config = get_model_config_2b(**kwargs)
-  model = Gemma(config)
-  loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
-  # since embedding and lm-head use the same weight, we need to set strict
-  # to False.
-  loader.load(model, strict=False)
+def build_model(checkpoint_path, test_model=False, **kwargs) -> nn.Module:
+  config = (
+      get_fake_model_config_for_test(**kwargs)
+      if test_model
+      else get_model_config(**kwargs)
+  )
+  model = TinyLLamma(config)
+  if checkpoint_path is not None:
+    loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
+    loader.load(model)
+  model.eval()
   return model
 
 
-def define_and_run_2b() -> None:
-  current_dir = Path(__file__).parent.resolve()
-  gemma_goldens = torch.load(current_dir / "gemma_lm_logits.pt")
-
+def define_and_run(checkpoint_path, test_model=False) -> None:
   kv_cache_max_len = 1024
-  checkpoint_path = os.path.join(Path.home(), "Downloads/llm_data/gemma-2b")
-  model = build_2b_model(checkpoint_path, kv_cache_max_len=kv_cache_max_len)
+  model = build_model(
+      checkpoint_path, test_model=test_model, kv_cache_max_len=kv_cache_max_len
+  )
   idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
   tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.long, device="cpu")
   tokens[0, :4] = idx
   input_pos = torch.arange(0, kv_cache_max_len)
-  lm_logits = model.forward(tokens, input_pos)
-  print("comparing with goldens..")
-  assert torch.allclose(gemma_goldens, lm_logits[0, idx.shape[1] - 1, :], atol=1e-05)
+  kv = kv_utils.EKVCache.from_model_config(model.config)
+  print("running an inference")
+  print(model.forward(tokens, input_pos, kv))
 
 
 if __name__ == "__main__":
-  define_and_run_2b()
+  checkpoint_path = os.path.join(Path.home(), "Downloads/tiny_llama")
+  define_and_run(checkpoint_path)
