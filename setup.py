@@ -77,6 +77,6 @@ setup(
         "torch>=2.4.0",
         "torch_xla>=2.4.0",
         "ai-edge-quantizer-nightly==0.0.1.dev20240718",
-        "tf-nightly>=2.18.0.dev20240724",
+        "tf-nightly>=2.18.0.dev20240722",
     ],
 )
