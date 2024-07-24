@@ -62,18 +62,18 @@ def convert_stable_diffusion_to_tflite(
     image_width: int = 512,
 ):
 
-  clip_model = clip.CLIP(clip.get_model_config())
-  loader = stable_diffusion_loader.ClipModelLoader(
-      clip_ckpt_path,
-      clip.TENSOR_NAMES,
-  )
-  loader.load(clip_model, strict=False)
+#   clip_model = clip.CLIP(clip.get_model_config())
+#   loader = stable_diffusion_loader.ClipModelLoader(
+#       clip_ckpt_path,
+#       clip.TENSOR_NAMES,
+#   )
+#   loader.load(clip_model, strict=False)
 
-  diffusion_model = diffusion.Diffusion(diffusion.get_model_config(2))
-  diffusion_loader = stable_diffusion_loader.DiffusionModelLoader(
-      diffusion_ckpt_path, diffusion.TENSOR_NAMES
-  )
-  diffusion_loader.load(diffusion_model, strict=False)
+#   diffusion_model = diffusion.Diffusion(diffusion.get_model_config(2))
+#   diffusion_loader = stable_diffusion_loader.DiffusionModelLoader(
+#       diffusion_ckpt_path, diffusion.TENSOR_NAMES
+#   )
+#   diffusion_loader.load(diffusion_model, strict=False)
 
   decoder_model = decoder.Decoder(decoder.get_model_config())
   decoder_loader = stable_diffusion_loader.AutoEncoderModelLoader(
@@ -97,32 +97,32 @@ def convert_stable_diffusion_to_tflite(
   )
 
   input_latents = torch.zeros_like(noise)
-  context_cond = clip_model(prompt_tokens)
-  context_uncond = torch.zeros_like(context_cond)
-  context = torch.cat([context_cond, context_uncond], axis=0)
-  time_embedding = util.get_time_embedding(timestamp)
+#   context_cond = clip_model(prompt_tokens)
+#   context_uncond = torch.zeros_like(context_cond)
+#   context = torch.cat([context_cond, context_uncond], axis=0)
+#   time_embedding = util.get_time_embedding(timestamp)
 
   if not os.path.exists(output_dir):
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-  # TODO(yichunk): convert to multi signature tflite model.
-  # CLIP text encoder
-  ai_edge_torch.signature('encode', clip_model, (prompt_tokens,)).convert().export(
-      f'{output_dir}/clip.tflite'
-  )
+#   # TODO(yichunk): convert to multi signature tflite model.
+#   # CLIP text encoder
+#   ai_edge_torch.signature('encode', clip_model, (prompt_tokens,)).convert().export(
+#       f'{output_dir}/clip.tflite'
+#   )
 
-  # TODO(yichunk): enable image encoder conversion
-  # Image encoder
-  # ai_edge_torch.signature('encode', encoder, (input_image, noise)).convert().export(
-  #     f'{output_dir}/encoder.tflite'
-  # )
+#   # TODO(yichunk): enable image encoder conversion
+#   # Image encoder
+#   # ai_edge_torch.signature('encode', encoder, (input_image, noise)).convert().export(
+#   #     f'{output_dir}/encoder.tflite'
+#   # )
 
-  # Diffusion
-  ai_edge_torch.signature(
-      'diffusion',
-      diffusion_model,
-      (torch.repeat_interleave(input_latents, 2, 0), context, time_embedding),
-  ).convert().export(f'{output_dir}/diffusion.tflite')
+#   # Diffusion
+#   ai_edge_torch.signature(
+#       'diffusion',
+#       diffusion_model,
+#       (torch.repeat_interleave(input_latents, 2, 0), context, time_embedding),
+#   ).convert().export(f'{output_dir}/diffusion.tflite')
 
   # Image decoder
   ai_edge_torch.signature('decode', decoder_model, (input_latents,)).convert().export(
