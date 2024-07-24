@@ -33,7 +33,7 @@ and additional details are in the AI Edge Torch
 """.lstrip()
 
 name = "ai-edge-torch"
-version = "0.2.0"
+version = "0.3.0"
 if nightly_release_date := os.environ.get("NIGHTLY_RELEASE_DATE"):
   name += "-nightly"
   version += ".dev" + nightly_release_date
@@ -74,6 +74,9 @@ setup(
         "scipy",
         "safetensors",
         "tabulate",
-        "torch>2.3",  # 2.4.0 stable release does not exist. Force using torch nightly.
+        "torch>=2.4.0",
+        "torch_xla>=2.4.0",
+        "ai-edge-quantizer-nightly==0.0.1.dev20240718",
+        "tf-nightly>=2.18.0.dev20240724",
     ],
 )

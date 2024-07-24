@@ -79,7 +79,7 @@ Nightly Release    | [![](https://github.com/google-ai-edge/ai-edge-torch/action
 
  * Python versions:  3.9, 3.10, 3.11
  * Operating system: Linux
- * PyTorch: ![torch](https://img.shields.io/badge/torch-2.4.0.dev20240429-blue)
+ * PyTorch: ![[torch](https://img.shields.io/badge/torch->=2.4.0-blue)](https://pypi.org/project/torch/)
  * TensorFlow: [![tf-nightly](https://img.shields.io/badge/tf--nightly-latest-blue)](https://pypi.org/project/tf-nightly/)
 
 <!-- requirement badges are updated by ci/update_nightly_versions.py -->
@@ -92,15 +92,13 @@ python -m venv --prompt ai-edge-torch venv
 source venv/bin/activate
 ```
 
-A specific release (for example 0.1.1) can be installed with:
+The latest stable release can be installed with:
 ```bash
-pip install -r https://github.com/google-ai-edge/ai-edge-torch/releases/download/v0.1.1/requirements.txt
-pip install ai-edge-torch==0.1.1
+pip install ai-edge-torch
 ```
 
 Alternately, the nightly version can be installed with:
 ```bash
-pip install -r https://raw.githubusercontent.com/google-ai-edge/ai-edge-torch/main/requirements.txt
 pip install ai-edge-torch-nightly
 ```
 
