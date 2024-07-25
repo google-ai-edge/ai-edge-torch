@@ -393,7 +393,9 @@ def _search_model(
       del os.environ["XLA_HLO_DEBUG"]
 
     create_minified_hlo_graph = torch._functorch.fx_minifier.create_minified_hlo_graph
-    torch._functorch.fx_minifier.create_minified_hlo_graph = lambda *args, **kwargs: None
+    torch._functorch.fx_minifier.create_minified_hlo_graph = (
+        lambda *args, **kwargs: None
+    )
 
     try:
       yield
