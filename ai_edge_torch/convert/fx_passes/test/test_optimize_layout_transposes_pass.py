@@ -90,7 +90,67 @@ class TestOptimizeLayoutTransposesPass(unittest.TestCase):
     exported_program = export_with_pass(model, forward_args())
     self.assert_outputs_allclose(model, exported_program.module(), forward_args())
 
-  # TODO(cnchan): Add more tests.
+  def test_native_group_norm_no_weight_bias(self):
+    batch_size = 16
+    num_channels = 640
+    flattened_inner_size = 256
+    num_groups = 32
+    eps = 1e-6
+
+    class SampleModel(torch.nn.Module):
+
+      def forward(self, x):
+        x = torch.nn.AvgPool2d(2)(x)
+        x = torch.ops.aten.native_group_norm(
+            x,
+            None,
+            None,
+            batch_size,
+            num_channels,
+            flattened_inner_size,
+            num_groups,
+            eps,
+        )[0]
+        x = torch.nn.AvgPool2d(2)(x)
+        return x
+
+    model = SampleModel().eval()
+    forward_args = lambda: (torch.rand(16, 640, 32, 32) * 1000,)
+    exported_program = export_with_pass(model, forward_args())
+    self.assert_outputs_allclose(model, exported_program.module(), forward_args())
+
+  def test_native_group_norm_large_weight_bias(self):
+    batch_size = 16
+    num_channels = 640
+    flattened_inner_size = 256
+    num_groups = 32
+    eps = 1e-6
+
+    class SampleModel(torch.nn.Module):
+
+      def forward(self, x, weight, bias):
+        x = torch.nn.AvgPool2d(2)(x)
+        x = torch.ops.aten.native_group_norm(
+            x,
+            weight,
+            bias,
+            batch_size,
+            num_channels,
+            flattened_inner_size,
+            num_groups,
+            eps,
+        )[0]
+        x = torch.nn.AvgPool2d(2)(x)
+        return x
+
+    model = SampleModel().eval()
+    forward_args = lambda: (
+        torch.rand(16, 640, 32, 32) * 1000,
+        torch.rand([640]) * 1000,
+        torch.rand([640]) * 1000,
+    )
+    exported_program = export_with_pass(model, forward_args())
+    self.assert_outputs_allclose(model, exported_program.module(), forward_args())
 
 
 if __name__ == '__main__':

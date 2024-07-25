@@ -129,10 +129,9 @@ class AttentionBlock2D(nn.Module):
     """
     residual = input_tensor
     B, C, H, W = input_tensor.shape
-    x = input_tensor
     if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
       # x = self.norm(x)
-      x = group_norm_with_hlfb(x, self.norm.weight, self.norm.bias, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
+      x = group_norm_with_hlfb(input_tensor, self.norm.weight, self.norm.bias, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
       x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
     else:
@@ -186,10 +185,9 @@ class CrossAttentionBlock2D(nn.Module):
     """
     residual = input_tensor
     B, C, H, W = input_tensor.shape
-    x = input_tensor
     if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
-      # x = self.norm(x)
-      x = group_norm_with_hlfb(x, self.norm.weight, self.norm.bias, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
+      # x = self.norm(input_tensor)
+      x = group_norm_with_hlfb(input_tensor, self.norm.weight, self.norm.bias, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
       x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
     else:
@@ -228,10 +226,9 @@ class FeedForwardBlock2D(nn.Module):
   def forward(self, input_tensor: torch.Tensor) -> torch.Tensor:
     residual = input_tensor
     B, C, H, W = input_tensor.shape
-    x = input_tensor
     if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
       # x = self.norm(x)
-      x = group_norm_with_hlfb(x, self.norm.weight, self.norm.bias, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
+      x = group_norm_with_hlfb(input_tensor, self.norm.weight, self.norm.bias, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
       x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
     else:

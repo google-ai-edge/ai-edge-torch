@@ -354,7 +354,7 @@ def _search_model(
     max_granularity: Optional[int] = None,
     enable_fx_minifier_logging: bool = False,
 ) -> Generator[SearchResult, None, None]:
-  """Finds subgraphs in the torch model that satify a certain predicate function provided by the users.
+  """Finds subgraphs in the torch model that satisfy a certain predicate function provided by the users.
 
   Args:
     predicate_f: a predicate function the users specify.
@@ -382,26 +382,33 @@ def _search_model(
   fx_gm, fx_inputs = utils.exported_program_to_fx_graph_module_and_inputs(ep)
   fx_gm = _normalize_getitem_nodes(fx_gm)
 
-  # HACK: temporarily disable XLA_HLO_DEBUG so that fx_minifier won't dump
-  # intermediate stablehlo files to storage.
+  # HACK: temporarily disable XLA_HLO_DEBUG and create_minified_hlo_graph so that
+  # fx_minifier won't dump intermediate stablehlo files to storage.
   # https://github.com/pytorch/pytorch/blob/main/torch/_functorch/fx_minifier.py#L440
   @contextlib.contextmanager
-  def disable_xla_hlo_debug():
+  def disable_minifier_xla_debug():
     xla_hlo_debug_value = None
     if "XLA_HLO_DEBUG" in os.environ:
       xla_hlo_debug_value = os.environ["XLA_HLO_DEBUG"]
       del os.environ["XLA_HLO_DEBUG"]
 
+    create_minified_hlo_graph = torch._functorch.fx_minifier.create_minified_hlo_graph
+    torch._functorch.fx_minifier.create_minified_hlo_graph = (
+        lambda *args, **kwargs: None
+    )
+
     try:
-      yield None
+      yield
     finally:
       if xla_hlo_debug_value is not None:
         os.environ["XLA_HLO_DEBUG"] = xla_hlo_debug_value
 
+      torch._functorch.fx_minifier.create_minified_hlo_graph = create_minified_hlo_graph
+
   found_culprits_num = 0
   while True:
     try:
-      with disable_xla_hlo_debug(), open(os.devnull, "w") as devnull:
+      with disable_minifier_xla_debug(), open(os.devnull, "w") as devnull:
         with contextlib.nullcontext() if enable_fx_minifier_logging else utils.redirect_stdio(
             stdout=devnull,
             stderr=devnull,
