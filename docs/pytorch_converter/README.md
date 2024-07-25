@@ -8,13 +8,14 @@
    * [Multi-Signature Conversion](#multi-signature-conversion)
    * [Quantization](#quantization)
    * [Providing a Wrapper](#providing-a-wrapper)
+   * [Convert Model with NHWC (Channel Last) Inputs/Outputs](#convert-model-with-nhwc-channel-last-inputsoutputs)
 * [Debugging &amp; Reporting Errors](#debugging--reporting-errors)
    * [Error during torch.export.export](#error-during-torchexportexport)
    * [Error during ExportedProgram to edge model lowering](#error-during-exportedprogram-to-edge-model-lowering)
 * [Visualization](#visualization)
 
 <!-- Created by https://github.com/ekalinin/github-markdown-toc -->
-<!-- Added by: advaitjain, at: Sun May 12 12:00:13 AM PDT 2024 -->
+<!-- Added by: cnchan, at: Wed Jul 24 09:51:17 PM PDT 2024 -->
 
 <!--te-->
 
@@ -181,6 +182,33 @@ class MyModelWrapper(torch.nn.Module):
 ```
 
 The instance in evaluation mode, `MyModelWrapper().eval()`, would be the right argument to pass to `ai_edge_torch.convert`.
+
+## Convert Model with NHWC (Channel Last) Inputs/Outputs
+
+`ai_edge_torch.to_channel_last_io` is a helper function facilitates the conversion of
+PyTorch models (typically using NCHW channel first ordering) to TFLite models with
+channel last (NHWC) input/output layouts. It achieves this by wrapping the original model
+with layout transformation transposes, ensuring compatibility with target
+deployment environments. This is particularly useful for deploying models,
+such as image classifiers, to mobile environments that expect NHWC (channel last)
+image data.
+
+Here is an example of converting ResNet18 with NHWC image input:
+```python
+import torch
+import torchvision
+import ai_edge_torch
+
+# Use resnet18 with pre-trained weights.
+resnet18 = torchvision.models.resnet18(torchvision.models.ResNet18_Weights.IMAGENET1K_V1)
+
+# Transform the first input to NHWC.
+nhwc_resnet18 = ai_edge_torch.to_channel_last_io(resnet18, args=[0])
+
+# Convert the transformed model with NHWC input(s).
+edge_model = ai_edge_torch.convert(nhwc_resnet18, (torch.randn(1, 224, 224, 3),))
+edge_model.export("resnet18.tflite")
+```
 
 # Debugging & Reporting Errors
 
