@@ -77,10 +77,6 @@ jobs:
           python -m pip cache purge
           python -m pip install --upgrade pip
 
-      - name: Install requirements
-        run: |
-          python -m pip install -r https://raw.githubusercontent.com/google-ai-edge/ai-edge-torch/main/requirements.txt
-
       - name: Install ai-edge-torch-nightly
         run: |
           python -m pip install ai-edge-torch-nightly
