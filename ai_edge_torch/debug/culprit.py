@@ -392,8 +392,8 @@ def _search_model(
       xla_hlo_debug_value = os.environ["XLA_HLO_DEBUG"]
       del os.environ["XLA_HLO_DEBUG"]
 
-    create_minified_hlo_graph = torch._functorch.create_minified_hlo_graph
-    torch._functorch.create_minified_hlo_graph = lambda *args, **kwargs: None
+    create_minified_hlo_graph = torch._functorch.fx_minifier.create_minified_hlo_graph
+    torch._functorch.fx_minifier.create_minified_hlo_graph = lambda *args, **kwargs: None
 
     try:
       yield
@@ -401,7 +401,7 @@ def _search_model(
       if xla_hlo_debug_value is not None:
         os.environ["XLA_HLO_DEBUG"] = xla_hlo_debug_value
 
-      torch._functorch.create_minified_hlo_graph = create_minified_hlo_graph
+      torch._functorch.fx_minifier.create_minified_hlo_graph = create_minified_hlo_graph
 
   found_culprits_num = 0
   while True:
