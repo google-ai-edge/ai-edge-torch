@@ -33,7 +33,7 @@ and additional details are in the AI Edge Torch
 """.lstrip()
 
 name = "ai-edge-torch"
-version = "0.3.0"
+version = "0.2.0"
 if nightly_release_date := os.environ.get("NIGHTLY_RELEASE_DATE"):
   name += "-nightly"
   version += ".dev" + nightly_release_date
