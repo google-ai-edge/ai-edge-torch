@@ -1,9 +1,11 @@
-ai-edge-quantizer-nightly==0.0.1.dev20240718
---pre
-tf-nightly>=2.18.0.dev20240722
-torch==2.4.0
+-f https://download.pytorch.org/whl/torch
+torch==2.4.0+cpu
+torch_xla==2.4.0
 torchvision==0.19.0
 torchaudio==2.4.0
+--pre
+tf-nightly>=2.18.0.dev20240722
+ai-edge-quantizer-nightly==0.0.1.dev20240718
 scipy
 numpy
 tabulate
