@@ -75,11 +75,11 @@ def convert_stable_diffusion_to_tflite(
   )
   diffusion_loader.load(diffusion_model, strict=False)
 
-#   decoder_model = decoder.Decoder(decoder.get_model_config())
-#   decoder_loader = stable_diffusion_loader.AutoEncoderModelLoader(
-#       decoder_ckpt_path, decoder.TENSOR_NAMES
-#   )
-#   decoder_loader.load(decoder_model, strict=False)
+  decoder_model = decoder.Decoder(decoder.get_model_config())
+  decoder_loader = stable_diffusion_loader.AutoEncoderModelLoader(
+      decoder_ckpt_path, decoder.TENSOR_NAMES
+  )
+  decoder_loader.load(decoder_model, strict=False)
 
   # TODO(yichunk): enable image encoder conversion
   # if encoder_ckpt_path is not None:
@@ -124,10 +124,10 @@ def convert_stable_diffusion_to_tflite(
       (torch.repeat_interleave(input_latents, 2, 0), context, time_embedding),
   ).convert().export(f'{output_dir}/diffusion.tflite')
 
-#   # Image decoder
-#   ai_edge_torch.signature('decode', decoder_model, (input_latents,)).convert().export(
-#       f'{output_dir}/decoder.tflite'
-#   )
+  # Image decoder
+  ai_edge_torch.signature('decode', decoder_model, (input_latents,)).convert().export(
+      f'{output_dir}/decoder.tflite'
+  )
 
 
 if __name__ == '__main__':
