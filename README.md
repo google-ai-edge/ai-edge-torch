@@ -79,7 +79,7 @@ Nightly Release    | [![](https://github.com/google-ai-edge/ai-edge-torch/action
 
  * Python versions:  3.9, 3.10, 3.11
  * Operating system: Linux
- * PyTorch: ![[torch](https://img.shields.io/badge/torch->=2.4.0-blue)](https://pypi.org/project/torch/)
+ * PyTorch: [![torch](https://img.shields.io/badge/torch->=2.4.0-blue)](https://pypi.org/project/torch/)
  * TensorFlow: [![tf-nightly](https://img.shields.io/badge/tf--nightly-latest-blue)](https://pypi.org/project/tf-nightly/)
 
 <!-- requirement badges are updated by ci/update_nightly_versions.py -->
