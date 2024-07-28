@@ -1,16 +1,14 @@
+-f https://download.pytorch.org/whl/torch/
+torch==2.4.0+cpu
+-f https://download.pytorch.org/whl/torchvision/
+torchvision==0.19.0+cpu
+-f https://download.pytorch.org/whl/torchaudio/
+torchaudio==2.4.0+cpu
+torch_xla==2.4.0
+--pre
+tf-nightly>=2.18.0.dev20240722
 ai-edge-quantizer-nightly==0.0.1.dev20240718
 scipy
 numpy
 tabulate
 safetensors
---pre
-tf-nightly>=2.18.0.dev20240717
--f https://download.pytorch.org/whl/nightly/torch_nightly.html
-torch==2.4.0.dev20240429+cpu
--f https://download.pytorch.org/whl/nightly/torch_nightly.html
-torchvision==0.19.0.dev20240429+cpu
--f https://download.pytorch.org/whl/nightly/torch_nightly.html
-torchaudio==2.2.0.dev20240429+cpu
-torch_xla@https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-nightly+20240429-cp311-cp311-linux_x86_64.whl; python_version=="3.11"
-torch_xla@https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-nightly+20240429-cp310-cp310-linux_x86_64.whl; python_version=="3.10"
-torch_xla@https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-nightly+20240429-cp39-cp39-linux_x86_64.whl; python_version=="3.9"
