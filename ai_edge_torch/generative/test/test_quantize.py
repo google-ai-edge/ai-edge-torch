@@ -111,6 +111,7 @@ class TestQuantizeConvert(unittest.TestCase):
       [
           (quant_recipes.full_fp16_recipe()),
           (quant_recipes.full_int8_dynamic_recipe()),
+          (quant_recipes.full_int8_weight_only_recipe()),
           (_attention_int8_dynamic_recipe()),
           (_feedforward_int8_dynamic_recipe()),
       ]
