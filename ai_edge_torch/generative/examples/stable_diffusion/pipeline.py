@@ -65,6 +65,12 @@ arg_parser.add_argument(
     choices=['k_euler', 'k_euler_ancestral', 'k_lms'],
     help='A sampler to be used to denoise the encoded image latents. Can be one of `k_lms, `k_euler`, or `k_euler_ancestral`.',
 )
+arg_parser.add_argument(
+    '--seed',
+    default=None,
+    type=int,
+    help='A seed to make generation deterministic. A random number is used if unspecified.',
+)
 
 
 class StableDiffusion:
@@ -219,4 +225,5 @@ if __name__ == '__main__':
       output_path=args.output_path,
       sampler=args.sampler,
       n_inference_steps=args.n_inference_steps,
+      seed=args.seed,
   )
