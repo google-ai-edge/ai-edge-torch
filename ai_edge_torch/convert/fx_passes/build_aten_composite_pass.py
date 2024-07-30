@@ -223,21 +223,25 @@ def _aten_embedding(gm: GraphModule, node: Node):
     full_kwargs = args_mapper.get_full_kwargs(args, kwargs)
     _, embedding_dim = full_kwargs["weight"].size()
     idx = full_kwargs["indices"]
-    idx = idx.type(torch.int)
-    B, T = idx.size()
+    # TODO(b/356458830): Handle relative positional encoding
+    if len(idx.size()) == 2:
+      idx = idx.type(torch.int)
+      B, T = idx.size()
 
-    idx = torch.reshape(idx, (B * T,))
+      idx = torch.reshape(idx, (B * T,))
 
-    builder = StableHLOCompositeBuilder("odml.embedding_lookup")
-    full_kwargs["indices"], full_kwargs["weight"] = builder.mark_inputs(
-        idx,
-        full_kwargs["weight"],
-    )
-    output = op(**full_kwargs)
-    output = builder.mark_outputs(output)
+      builder = StableHLOCompositeBuilder("odml.embedding_lookup")
+      full_kwargs["indices"], full_kwargs["weight"] = builder.mark_inputs(
+          idx,
+          full_kwargs["weight"],
+      )
+      output = op(**full_kwargs)
+      output = builder.mark_outputs(output)
 
-    output = torch.reshape(output, (B, T, embedding_dim))
-    return output
+      output = torch.reshape(output, (B, T, embedding_dim))
+      return output
+    else:
+      return op(**full_kwargs)
 
   node.target = embedding
 
