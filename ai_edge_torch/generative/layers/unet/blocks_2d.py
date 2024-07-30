@@ -138,7 +138,7 @@ class AttentionBlock2D(nn.Module):
       x = input_tensor.view(B, C, H * W)
       x = x.transpose(-1, -2)
       # x = self.norm(x)
-      x = layer_norm_with_hlfb(x, self.norm.weight, self.norm.bias, self.config.normalization_config.epsilon)
+      x = layer_norm_with_hlfb(x, self.config.dim, self.norm.weight, self.norm.bias, self.config.normalization_config.epsilon)
     x = x.contiguous()  # Prevent BATCH_MATMUL op in converted tflite.
     x = self.attention(x)
     x = x.transpose(-1, -2)

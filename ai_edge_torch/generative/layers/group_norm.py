@@ -46,20 +46,15 @@ def group_norm_with_hlfb(
 
 def layer_norm_with_hlfb(
     x: torch.Tensor,
+    dim: int,
     w: torch.Tensor,
     b: torch.Tensor,
     eps: float,
 ):
-  x = torch.permute(x, (0, 2, 3, 1))
-
   builder = StableHLOCompositeBuilder(
       name="odml.layer_norm", attr={"eps": eps}
   )
   x, w, b = builder.mark_inputs(x, w, b)
-  x = torch.permute(x, (0, 3, 1, 2))
-  y = F.layer_norm(x, x.shapem, weight=w, bias=b, eps=eps)
-  y = torch.permute(y, (0, 2, 3, 1))
+  y = F.layer_norm(x, x.shape, weight=w.broadcast_to(x.shape), bias=b.broadcast_to(x.shape), eps=eps)
   y = builder.mark_outputs(y)
-
-  y = torch.permute(y, (0, 3, 1, 2))
   return y
