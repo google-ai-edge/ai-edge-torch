@@ -25,7 +25,7 @@ import ai_edge_torch.generative.layers.model_config as layers_cfg
 import ai_edge_torch.generative.layers.unet.builder as unet_builder
 import ai_edge_torch.generative.layers.unet.model_config as unet_cfg
 
-from ai_edge_torch.generative.layers.group_norm import group_norm_with_hlfb  # NOQA
+from ai_edge_torch.generative.layers.group_norm import group_norm_with_hlfb, layer_norm_with_hlfb  # NOQA
 
 
 class ResidualBlock2D(nn.Module):
@@ -137,7 +137,8 @@ class AttentionBlock2D(nn.Module):
     else:
       x = input_tensor.view(B, C, H * W)
       x = x.transpose(-1, -2)
-      x = self.norm(x)
+      # x = self.norm(x)
+      x = layer_norm_with_hlfb(x, self.norm.weight, self.norm.bias, self.config.normalization_config.epsilon)
     x = x.contiguous()  # Prevent BATCH_MATMUL op in converted tflite.
     x = self.attention(x)
     x = x.transpose(-1, -2)
