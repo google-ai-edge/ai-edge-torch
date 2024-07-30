@@ -111,11 +111,11 @@ def convert_stable_diffusion_to_tflite(
       f'{output_dir}/clip.tflite'
   )
 
-  # TODO(yichunk): enable image encoder conversion
-  # Image encoder
-  # ai_edge_torch.signature('encode', encoder, (input_image, noise)).convert().export(
-  #     f'{output_dir}/encoder.tflite'
-  # )
+#   # TODO(yichunk): enable image encoder conversion
+#   # Image encoder
+#   # ai_edge_torch.signature('encode', encoder, (input_image, noise)).convert().export(
+#   #     f'{output_dir}/encoder.tflite'
+#   # )
 
   # Diffusion
   ai_edge_torch.signature(

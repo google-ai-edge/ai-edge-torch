@@ -22,6 +22,8 @@ import ai_edge_torch.generative.layers.unet.blocks_2d as blocks_2d
 import ai_edge_torch.generative.layers.unet.model_config as unet_cfg
 import ai_edge_torch.generative.utilities.stable_diffusion_loader as stable_diffusion_loader
 
+from ai_edge_torch.generative.layers.group_norm import group_norm_with_hlfb # NOQA
+
 _down_encoder_blocks_tensor_names = [
     stable_diffusion_loader.DownEncoderBlockTensorNames(
         residual_block_tensor_names=[
@@ -498,7 +500,8 @@ class Diffusion(nn.Module):
           skip_connection_tensors.pop() for i in range(self.config.layers_per_block + 1)
       ]
       x = decoder(x, encoder_tensors, time_emb, context)
-    x = self.final_norm(x)
+    # x = self.final_norm(x)
+    x = group_norm_with_hlfb(x, self.final_norm.weight, self.final_norm.bias, self.config.final_norm_config.group_num, self.config.final_norm_config.epsilon)
     x = self.final_act(x)
     x = self.conv_out(x)
     return x
