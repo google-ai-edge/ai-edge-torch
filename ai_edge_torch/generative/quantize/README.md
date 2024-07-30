@@ -18,17 +18,17 @@ Once converted, you will get a quantized `.tflite` model which will be ready for
 
 In the current release, the following schemes are supported:
 
-* Dynamic range quantization: FP32 activations, INT8 weights, and INT8 computation
-* Weight-only quantization: FP32 activations, INT8 weights, and FP32 computation
-* FP16 quantization: FP16 weights, FP32 activations and computation for all ops
+* Dynamic range quantization: FP32 activations, INT8 weights, and integer computation
+* Weight-only quantization: FP32 activations, INT8 weights, and floating point computation
+* FP16 quantization: FP16 weights, FP32 activations and floating point computation for all ops
 
 These correspond to the available recipes in `quant_recipes.py`.
 
 ## Advanced usage
 
-In addition to configuring quantization using pre-configured recipes in `quant_recipes.py`. Users can also customize their recipes according to their specific needs using the `LayerQuantRecipe` and `GenerativeQuantRecipe` API in `quant_recipe.py`:
+In addition to configuring quantization using pre-configured recipes in `quant_recipes.py`, users can also customize their recipes according to their specific needs using the `LayerQuantRecipe` and `GenerativeQuantRecipe` API.
 
-`LayerQuantRecipe` specifies at a Generative API layer (`ai_edge_torch/generative/layers`) level how ops within should be quantized. `GenerativeQuantRecipe` specifies at a model level how each component of a Generative API model should be quantized. With these selective quantization can be configured as follows:
+`LayerQuantRecipe` specifies at a Generative API layer (`ai_edge_torch/generative/layers`) level how ops within should be quantized. `GenerativeQuantRecipe` specifies at a model level how each component of a Generative API model should be quantized. With these configuration classes, selective quantization can be configured as follows:
 
 ```
 def custom_selective_quantization_recipe() -> quant_config.QuantConfig:
