@@ -26,6 +26,7 @@ import ai_edge_torch.generative.examples.stable_diffusion.decoder as decoder
 import ai_edge_torch.generative.examples.stable_diffusion.diffusion as diffusion
 from ai_edge_torch.generative.examples.stable_diffusion.encoder import Encoder
 import ai_edge_torch.generative.examples.stable_diffusion.util as util
+from ai_edge_torch.generative.quantize import quant_recipes
 import ai_edge_torch.generative.utilities.stable_diffusion_loader as stable_diffusion_loader
 
 arg_parser = argparse.ArgumentParser()
@@ -60,6 +61,7 @@ def convert_stable_diffusion_to_tflite(
     decoder_ckpt_path: str,
     image_height: int = 512,
     image_width: int = 512,
+    quantize: bool = True,
 ):
 
   clip_model = clip.CLIP(clip.get_model_config())
@@ -105,15 +107,17 @@ def convert_stable_diffusion_to_tflite(
   if not os.path.exists(output_dir):
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
+  quant_config = quant_recipes.full_int8_weight_only_recipe() if quantize else None
+
   # TODO(yichunk): convert to multi signature tflite model.
   # CLIP text encoder
-  ai_edge_torch.signature('encode', clip_model, (prompt_tokens,)).convert().export(
-      f'{output_dir}/clip.tflite'
-  )
+  ai_edge_torch.signature('encode', clip_model, (prompt_tokens,)).convert(
+      quant_config=quant_config
+  ).export(f'{output_dir}/clip.tflite')
 
   # TODO(yichunk): enable image encoder conversion
   # Image encoder
-  # ai_edge_torch.signature('encode', encoder, (input_image, noise)).convert().export(
+  # ai_edge_torch.signature('encode', encoder, (input_image, noise)).convert(quant_config=quant_config).export(
   #     f'{output_dir}/encoder.tflite'
   # )
 
@@ -122,12 +126,12 @@ def convert_stable_diffusion_to_tflite(
       'diffusion',
       diffusion_model,
       (torch.repeat_interleave(input_latents, 2, 0), context, time_embedding),
-  ).convert().export(f'{output_dir}/diffusion.tflite')
+  ).convert(quant_config=quant_config).export(f'{output_dir}/diffusion.tflite')
 
   # Image decoder
-  ai_edge_torch.signature('decode', decoder_model, (input_latents,)).convert().export(
-      f'{output_dir}/decoder.tflite'
-  )
+  ai_edge_torch.signature('decode', decoder_model, (input_latents,)).convert(
+      quant_config=quant_config
+  ).export(f'{output_dir}/decoder.tflite')
 
 
 if __name__ == '__main__':
@@ -139,4 +143,5 @@ if __name__ == '__main__':
       decoder_ckpt_path=args.decoder_ckpt,
       image_height=512,
       image_width=512,
+      quantize=True,
   )

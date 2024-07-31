@@ -43,4 +43,3 @@ def custom_selective_quantization_recipe() -> quant_config.QuantConfig:
 ```
 
 For example, this recipe specifies that the embedding table, attention, and feedforward layers should be quantized to INT8. Specifically, for attention layers the computation should be in FP32. All other ops should be quantized to the default scheme which is specified as FP16.
-
