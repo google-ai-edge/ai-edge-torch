@@ -20,6 +20,7 @@ PyTorch models can be converted to this representation through `ai_edge_torch.co
 from __future__ import annotations
 
 import abc
+from typing import Dict
 
 import numpy as np
 import numpy.typing as npt
@@ -97,21 +98,23 @@ class TfLiteModel(Model):
       else:
         raise exception
 
-    if len(signature_list[signature_name]['inputs']) != len(args) + len(kwargs):
+    inputs = self._normalize_inputs(args, kwargs)
+    if len(signature_list[signature_name]['inputs']) != len(inputs):
       raise ValueError(
-          f"The model requires {len(signature_list[signature_name]['inputs'])} arguments but {len(args)} was provided."
+          f"The model requires {len(signature_list[signature_name]['inputs'])} arguments but {len(inputs)} was provided."
       )
-
-    # Gather the input dictionary based on the signature.
-    inputs = {f'args_{idx}': args[idx] for idx in range(len(args))}
-    inputs = {**inputs, **kwargs}
     outputs = runner(**inputs)
-
     return (
         outputs['output_0']
         if len(outputs) == 1
         else [outputs[f'output_{idx}'] for idx in range(len(outputs))]
     )
+
+  @staticmethod
+  def _normalize_inputs(args: npt.ArrayLike, kwargs: Dict) -> Dict:
+    inputs = {f'args_{idx}': args[idx] for idx in range(len(args))}
+    inputs = {**inputs, **cutils.flatten_kwarg(kwargs)}
+    return inputs
 
   def export(self, path: str) -> None:
     """Serializes the edge model to disk.

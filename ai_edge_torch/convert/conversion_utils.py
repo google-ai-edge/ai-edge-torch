@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-import collections
 import copy
 from dataclasses import dataclass
 import gc
@@ -79,49 +78,56 @@ class Signature:
     for i in range(args_spec.num_leaves):
       names.append(f"args_{i}")
 
-    kwargs_names = self._flat_kwarg_names(
-        kwargs_spec.children_specs, kwargs_spec.context
-    )
+    kwargs_names = flatten_kwargs_names(kwargs_spec.children_specs, kwargs_spec.context)
     names.extend(kwargs_names)
     return names
 
-  def _flat_kwarg_names(self, specs, context) -> List[str]:
-    flat_names = []
-    if context is None:
-      for i, spec in enumerate(specs):
-        if spec.children_specs:
-          flat_names.extend(
-              [
-                  f"{i}_{name}"
-                  for name in self._flat_kwarg_names(spec.children_specs, spec.context)
-              ]
-          )
-        else:
-          flat_names.append(f"{i}")
-    else:
-      flat_ctx = self._flatten_list(context)
-      for prefix, spec in zip(flat_ctx, specs):
-        leaf_flat_names = self._flat_kwarg_names(spec.children_specs, spec.context)
-        if leaf_flat_names:
-          flat_names.extend([f"{prefix}_{name}" for name in leaf_flat_names])
-        else:
-          flat_names.append(prefix)
-
-    return flat_names
-
-  def _flatten_list(self, l: List) -> List:
-    flattened = []
-    for item in l:
-      if isinstance(item, list):
-        flattened.extend(self._flatten_list(item))
-      else:
-        flattened.append(item)
-    return flattened
-
   @property
-  def flat_args(self) -> tuple[Any]:
+  def combined_args_kwargs(self) -> tuple[Any]:
     args, kwargs = self._normalized_sample_args_kwargs
     return tuple([*args, *kwargs.values()])
+
+
+def flatten_kwarg(kwargs: Dict) -> Dict:
+  spec, ctx = pytree.tree_flatten(kwargs)
+  flat_names = flatten_kwargs_names(ctx.children_specs, ctx.context)
+  assert len(spec) == len(flat_names)
+  return {k: v for k, v in zip(flat_names, spec)}
+
+
+def flatten_kwargs_names(specs: List[Any], context: pytree.TreeSpec) -> List[str]:
+  flat_names = []
+  if context is None:
+    for i, spec in enumerate(specs):
+      if spec.children_specs:
+        flat_names.extend(
+            [
+                f"{i}_{name}"
+                for name in flatten_kwargs_names(spec.children_specs, spec.context)
+            ]
+        )
+      else:
+        flat_names.append(f"{i}")
+  else:
+    flat_ctx = flatten_list(context)
+    for prefix, spec in zip(flat_ctx, specs):
+      leaf_flat_names = flatten_kwargs_names(spec.children_specs, spec.context)
+      if leaf_flat_names:
+        flat_names.extend([f"{prefix}_{name}" for name in leaf_flat_names])
+      else:
+        flat_names.append(prefix)
+
+  return flat_names
+
+
+def flatten_list(l: List) -> List:
+  flattened = []
+  for item in l:
+    if isinstance(item, list):
+      flattened.extend(flatten_list(item))
+    else:
+      flattened.append(item)
+  return flattened
 
 
 def exported_program_to_stablehlo_bundle(
