@@ -294,6 +294,7 @@ class Diffusion(nn.Module):
                             attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
                             attention_config=attention_config,
+                            enable_hlfb=False,
                         ),
                         cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                             query_dim=output_channel,
@@ -301,6 +302,7 @@ class Diffusion(nn.Module):
                             attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
                             attention_config=attention_config,
+                            enable_hlfb=False,
                         ),
                         pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
                         feed_forward_block_config=unet_cfg.FeedForwardBlock2DConfig(
@@ -354,6 +356,7 @@ class Diffusion(nn.Module):
                     attention_batch_size=config.transformer_batch_size,
                     normalization_config=config.transformer_norm_config,
                     attention_config=attention_config,
+                    enable_hlfb=False,
                 ),
                 cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                     query_dim=mid_block_channels,
@@ -361,6 +364,7 @@ class Diffusion(nn.Module):
                     attention_batch_size=config.transformer_batch_size,
                     normalization_config=config.transformer_norm_config,
                     attention_config=attention_config,
+                    enable_hlfb=False,
                 ),
                 pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
                 feed_forward_block_config=unet_cfg.FeedForwardBlock2DConfig(
@@ -415,6 +419,7 @@ class Diffusion(nn.Module):
                             attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
                             attention_config=attention_config,
+                            enable_hlfb=False,
                         ),
                         cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                             query_dim=output_channel,
@@ -422,6 +427,7 @@ class Diffusion(nn.Module):
                             attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
                             attention_config=attention_config,
+                            enable_hlfb=False,
                         ),
                         pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
                         feed_forward_block_config=unet_cfg.FeedForwardBlock2DConfig(
