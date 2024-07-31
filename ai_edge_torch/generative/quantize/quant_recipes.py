@@ -40,6 +40,14 @@ def full_int8_dynamic_recipe() -> quant_config.QuantConfig:
   )
 
 
+def full_int8_weight_only_recipe() -> quant_config.QuantConfig:
+  return quant_config.QuantConfig(
+      generative_recipe=quant_recipe.GenerativeQuantRecipe(
+          default=quant_recipe_utils.create_layer_quant_int8_weight_only(),
+      )
+  )
+
+
 def full_fp16_recipe() -> quant_config.QuantConfig:
   return quant_config.QuantConfig(
       generative_recipe=quant_recipe.GenerativeQuantRecipe(

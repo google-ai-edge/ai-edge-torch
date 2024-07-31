@@ -41,6 +41,16 @@ def create_layer_quant_int8_dynamic() -> quant_recipe.LayerQuantRecipe:
   )
 
 
+def create_layer_quant_int8_weight_only() -> quant_recipe.LayerQuantRecipe:
+  return quant_recipe.LayerQuantRecipe(
+      activation_dtype=quant_attrs.Dtype.FP32,
+      weight_dtype=quant_attrs.Dtype.INT8,
+      mode=quant_attrs.Mode.WEIGHT_ONLY,
+      algorithm=quant_attrs.Algorithm.MIN_MAX,
+      granularity=quant_attrs.Granularity.CHANNELWISE,
+  )
+
+
 def create_layer_quant_fp16() -> quant_recipe.LayerQuantRecipe:
   return quant_recipe.LayerQuantRecipe(
       activation_dtype=quant_attrs.Dtype.FP32,
