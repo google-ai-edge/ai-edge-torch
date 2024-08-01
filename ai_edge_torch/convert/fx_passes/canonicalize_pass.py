@@ -13,11 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
-import torch
-from torch.export import ExportedProgram
-
 from ai_edge_torch.convert.fx_passes._pass_base import ExportedProgramPassBase
 from ai_edge_torch.convert.fx_passes._pass_base import ExportedProgramPassResult  # NOQA
+import torch
+from torch.export import ExportedProgram
 
 # A dummy decomp table for running ExportedProgram.run_decompositions without
 # any op decompositions but just aot_export_module. Due to the check in

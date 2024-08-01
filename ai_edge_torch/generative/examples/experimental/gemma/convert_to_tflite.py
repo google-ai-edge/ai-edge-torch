@@ -20,12 +20,11 @@
 import os
 from pathlib import Path
 
-import torch
-
 import ai_edge_torch
 from ai_edge_torch.generative.examples.experimental.gemma import gemma
 from ai_edge_torch.generative.layers.experimental import ekv_cache as kv_utils
 from ai_edge_torch.generative.quantize import quant_recipes
+import torch
 
 
 def convert_gemma_to_tflite(
@@ -79,7 +78,9 @@ def convert_gemma_to_tflite(
       )
       .convert(quant_config=quant_config)
   )
-  edge_model.export(f'/tmp/gemma_seq{prefill_seq_len}_ekv{kv_cache_max_len}.tflite')
+  edge_model.export(
+      f'/tmp/gemma_seq{prefill_seq_len}_ekv{kv_cache_max_len}.tflite'
+  )
 
 
 if __name__ == '__main__':

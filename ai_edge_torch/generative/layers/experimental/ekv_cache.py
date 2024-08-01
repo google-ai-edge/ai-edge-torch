@@ -17,11 +17,10 @@
 from dataclasses import dataclass
 from typing import List, Tuple
 
-import torch
-import torch.utils._pytree as pytree
-
 from ai_edge_torch import hlfb
 from ai_edge_torch.generative.layers import model_config
+import torch
+import torch.utils._pytree as pytree
 
 
 @dataclass
@@ -95,10 +94,14 @@ def _flatten_kvc(kvc: EKVCache) -> Tuple[List, List]:
 
 def _flatten_kvc_with_keys(kvc: EKVCache) -> Tuple[List, List]:
   flattened, (flat_names, none_names) = _flatten_kvc(kvc)
-  return [(pytree.MappingKey(k), v) for k, v in zip(flat_names, flattened)], flat_names
+  return [
+      (pytree.MappingKey(k), v) for k, v in zip(flat_names, flattened)
+  ], flat_names
 
 
-def _unflatten_kvc(values: List[torch.Tensor], context: Tuple[List, List]) -> EKVCache:
+def _unflatten_kvc(
+    values: List[torch.Tensor], context: Tuple[List, List]
+) -> EKVCache:
   assert len(values) % 2 == 0, "Found odd number of K and V entries."
   num_layers = len(values) // 2
   flat_names = context[0]

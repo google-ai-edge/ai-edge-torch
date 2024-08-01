@@ -18,10 +18,6 @@ import logging
 import os
 from typing import Optional
 
-import torch
-from torch.export import ExportedProgram
-from torch_xla import stablehlo
-
 from ai_edge_torch import model
 from ai_edge_torch.convert import conversion_utils as cutils
 from ai_edge_torch.convert.fx_passes import BuildAtenCompositePass
@@ -32,6 +28,9 @@ from ai_edge_torch.convert.fx_passes import OptimizeLayoutTransposesPass
 from ai_edge_torch.convert.fx_passes import run_passes
 from ai_edge_torch.generative.fx_passes import run_generative_passes
 from ai_edge_torch.quantize import quant_config as qcfg
+import torch
+from torch.export import ExportedProgram
+from torch_xla import stablehlo
 
 os.environ["EXPERIMENTAL_XLA_UNBOUNDED_DYNAMISM"] = "1"
 
@@ -61,8 +60,9 @@ def _warn_training_modules(signatures: list[cutils.Signature]):
       continue
 
     message = (
-        "Your model {sig_name}is converted in training mode. "
-        "Please set the module in evaluation mode with `module.eval()` for better on-device performance and compatibility."
+        "Your model {sig_name}is converted in training mode. Please set the"
+        " module in evaluation mode with `module.eval()` for better on-device"
+        " performance and compatibility."
     )
     if len(signatures) == 1 and sig.name == cutils.DEFAULT_SIGNATURE_NAME:
       # User does not specify any signature names explicitly.
@@ -88,7 +88,9 @@ def convert_signatures(
   _warn_training_modules(signatures)
 
   exported_programs: torch.export.ExportedProgram = [
-      torch.export.export(sig.module, sig.flat_args, dynamic_shapes=sig.dynamic_shapes)
+      torch.export.export(
+          sig.module, sig.flat_args, dynamic_shapes=sig.dynamic_shapes
+      )
       for sig in signatures
   ]
 
@@ -100,7 +102,9 @@ def convert_signatures(
   ]
 
   merged_shlo_graph_module: stablehlo.StableHLOGraphModule = (
-      cutils.merge_stablehlo_bundles(shlo_bundles, signatures, exported_programs)
+      cutils.merge_stablehlo_bundles(
+          shlo_bundles, signatures, exported_programs
+      )
   )
   del exported_programs
   del shlo_bundles

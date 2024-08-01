@@ -16,9 +16,6 @@ import re
 from typing import Callable, Union
 import unittest
 
-import torch
-import torch_xla
-
 from ai_edge_torch.convert.fx_passes import CanonicalizePass
 from ai_edge_torch.convert.fx_passes import run_passes
 from ai_edge_torch.generative.fx_passes import RemoveSDPACompositeZeroMaskPass
@@ -26,6 +23,8 @@ from ai_edge_torch.generative.layers.attention import SelfAttention
 import ai_edge_torch.generative.layers.model_config as layers_cfg
 import ai_edge_torch.generative.layers.unet.builder as unet_builder
 import ai_edge_torch.generative.layers.unet.model_config as unet_cfg
+import torch
+import torch_xla
 
 
 def _export_to_stablehlo(func: Union[torch.nn.Module, Callable], export_args):
@@ -110,12 +109,14 @@ class TestRemoveSDPAZeroMaskPass(unittest.TestCase):
       )
 
     stablehlo = _export_to_stablehlo(
-        SampleSdpaBlock(get_model_config()).eval(), (torch.rand(1, 512, 64, 64),)
+        SampleSdpaBlock(get_model_config()).eval(),
+        (torch.rand(1, 512, 64, 64),),
     )
     print(stablehlo)
     self.assertTrue(
         re.search(
-            'stablehlo\.composite "odml\.scaled_dot_product_attention" %\d+, %\d+, %\d+ {',
+            'stablehlo\.composite "odml\.scaled_dot_product_attention" %\d+,'
+            ' %\d+, %\d+ {',
             stablehlo,
         )
     )

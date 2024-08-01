@@ -16,11 +16,10 @@
 from typing import Callable, Union
 import unittest
 
-import torch
-import torch_xla
-
 from ai_edge_torch.convert.fx_passes import BuildInterpolateCompositePass  # NOQA
 from ai_edge_torch.convert.fx_passes import run_passes
+import torch
+import torch_xla
 
 
 def _export_to_stablehlo_with_composite(
@@ -38,7 +37,9 @@ def _export_to_stablehlo_with_composite(
     module = func
 
   exported_program = torch.export.export(module, export_args)
-  exported_program = run_passes(exported_program, [BuildInterpolateCompositePass()])
+  exported_program = run_passes(
+      exported_program, [BuildInterpolateCompositePass()]
+  )
 
   return torch_xla.stablehlo.exported_program_to_stablehlo(
       exported_program
@@ -49,7 +50,9 @@ class TestBuildAtenCompositePass(unittest.TestCase):
 
   def test_nn_functional_upsample_bilinear(self):
     stablehlo = _export_to_stablehlo_with_composite(
-        lambda x: torch.nn.functional.upsample(x, scale_factor=3.0, mode='bilinear'),
+        lambda x: torch.nn.functional.upsample(
+            x, scale_factor=3.0, mode='bilinear'
+        ),
         (torch.rand(1, 3, 10, 10),),
     )
     self.assertTrue(
@@ -57,7 +60,8 @@ class TestBuildAtenCompositePass(unittest.TestCase):
     )
     self.assertTrue(
         stablehlo.count(
-            'composite_attributes = {align_corners = false, output = dense<30> : tensor<2xi64>}'
+            'composite_attributes = {align_corners = false, output = dense<30>'
+            ' : tensor<2xi64>}'
         ),
         1,
     )
@@ -74,14 +78,17 @@ class TestBuildAtenCompositePass(unittest.TestCase):
     )
     self.assertTrue(
         stablehlo.count(
-            'composite_attributes = {align_corners = true, output = dense<30> : tensor<2xi64>}'
+            'composite_attributes = {align_corners = true, output = dense<30> :'
+            ' tensor<2xi64>}'
         ),
         1,
     )
 
   def test_nn_functional_upsample_bilinear_size(self):
     stablehlo = _export_to_stablehlo_with_composite(
-        lambda x: torch.nn.functional.upsample(x, size=[15, 20], mode='bilinear'),
+        lambda x: torch.nn.functional.upsample(
+            x, size=[15, 20], mode='bilinear'
+        ),
         (torch.rand(1, 3, 10, 10),),
     )
     self.assertTrue(
@@ -89,7 +96,8 @@ class TestBuildAtenCompositePass(unittest.TestCase):
     )
     self.assertTrue(
         stablehlo.count(
-            'composite_attributes = {align_corners = false, output = dense<[15, 20]> : tensor<2xi64>}'
+            'composite_attributes = {align_corners = false, output = dense<[15,'
+            ' 20]> : tensor<2xi64>}'
         ),
         1,
     )
@@ -106,7 +114,8 @@ class TestBuildAtenCompositePass(unittest.TestCase):
     )
     self.assertTrue(
         stablehlo.count(
-            'composite_attributes = {align_corners = true, output = dense<[15, 20]> : tensor<2xi64>}'
+            'composite_attributes = {align_corners = true, output = dense<[15,'
+            ' 20]> : tensor<2xi64>}'
         ),
         1,
     )
@@ -121,14 +130,17 @@ class TestBuildAtenCompositePass(unittest.TestCase):
     )
     self.assertTrue(
         stablehlo.count(
-            'composite_attributes = {align_corners = false, output = dense<30> : tensor<2xi64>}'
+            'composite_attributes = {align_corners = false, output = dense<30>'
+            ' : tensor<2xi64>}'
         ),
         1,
     )
 
   def test_nn_functional_interpolate_bilinear(self):
     stablehlo = _export_to_stablehlo_with_composite(
-        lambda x: torch.nn.functional.interpolate(x, scale_factor=3.0, mode='bilinear'),
+        lambda x: torch.nn.functional.interpolate(
+            x, scale_factor=3.0, mode='bilinear'
+        ),
         (torch.rand(1, 3, 10, 10),),
     )
     self.assertTrue(
@@ -136,7 +148,8 @@ class TestBuildAtenCompositePass(unittest.TestCase):
     )
     self.assertTrue(
         stablehlo.count(
-            'composite_attributes = {align_corners = false, output = dense<30> : tensor<2xi64>}'
+            'composite_attributes = {align_corners = false, output = dense<30>'
+            ' : tensor<2xi64>}'
         ),
         1,
     )
@@ -153,14 +166,17 @@ class TestBuildAtenCompositePass(unittest.TestCase):
     )
     self.assertTrue(
         stablehlo.count(
-            'composite_attributes = {align_corners = true, output = dense<30> : tensor<2xi64>}'
+            'composite_attributes = {align_corners = true, output = dense<30> :'
+            ' tensor<2xi64>}'
         ),
         1,
     )
 
   def test_nn_functional_interpolate_bilinear_size(self):
     stablehlo = _export_to_stablehlo_with_composite(
-        lambda x: torch.nn.functional.interpolate(x, size=[15, 20], mode='bilinear'),
+        lambda x: torch.nn.functional.interpolate(
+            x, size=[15, 20], mode='bilinear'
+        ),
         (torch.rand(1, 3, 10, 10),),
     )
     self.assertTrue(
@@ -168,7 +184,8 @@ class TestBuildAtenCompositePass(unittest.TestCase):
     )
     self.assertTrue(
         stablehlo.count(
-            'composite_attributes = {align_corners = false, output = dense<[15, 20]> : tensor<2xi64>}'
+            'composite_attributes = {align_corners = false, output = dense<[15,'
+            ' 20]> : tensor<2xi64>}'
         ),
         1,
     )
@@ -185,14 +202,17 @@ class TestBuildAtenCompositePass(unittest.TestCase):
     )
     self.assertTrue(
         stablehlo.count(
-            'composite_attributes = {align_corners = true, output = dense<[15, 20]> : tensor<2xi64>}'
+            'composite_attributes = {align_corners = true, output = dense<[15,'
+            ' 20]> : tensor<2xi64>}'
         ),
         1,
     )
 
   def test_nn_functional_interpolate_nearest(self):
     stablehlo = _export_to_stablehlo_with_composite(
-        lambda x: torch.nn.functional.interpolate(x, scale_factor=3.0, mode='nearest'),
+        lambda x: torch.nn.functional.interpolate(
+            x, scale_factor=3.0, mode='nearest'
+        ),
         (torch.rand(1, 3, 10, 10),),
     )
     self.assertTrue(
@@ -200,14 +220,17 @@ class TestBuildAtenCompositePass(unittest.TestCase):
     )
     self.assertTrue(
         stablehlo.count(
-            'composite_attributes = {is_nchw_op = true, size = dense<30> : tensor<2xi64>}'
+            'composite_attributes = {is_nchw_op = true, size = dense<30> :'
+            ' tensor<2xi64>}'
         ),
         1,
     )
 
   def test_nn_functional_interpolate_nearest_size(self):
     stablehlo = _export_to_stablehlo_with_composite(
-        lambda x: torch.nn.functional.interpolate(x, size=[15, 20], mode='nearest'),
+        lambda x: torch.nn.functional.interpolate(
+            x, size=[15, 20], mode='nearest'
+        ),
         (torch.rand(1, 3, 10, 10),),
     )
     self.assertTrue(
@@ -215,7 +238,8 @@ class TestBuildAtenCompositePass(unittest.TestCase):
     )
     self.assertTrue(
         stablehlo.count(
-            'composite_attributes = {is_nchw_op = true, size = dense<[15, 20]> : tensor<2xi64>}'
+            'composite_attributes = {is_nchw_op = true, size = dense<[15, 20]>'
+            ' : tensor<2xi64>}'
         ),
         1,
     )

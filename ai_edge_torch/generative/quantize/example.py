@@ -13,12 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-import numpy as np
-import torch
-
 import ai_edge_torch
 from ai_edge_torch.generative.examples.gemma import gemma
 from ai_edge_torch.generative.quantize import quant_recipes
+import numpy as np
+import torch
 
 
 def main():

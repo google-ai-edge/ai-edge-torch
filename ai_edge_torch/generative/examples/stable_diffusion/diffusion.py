@@ -13,14 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 
-import torch
-from torch import nn
-
 import ai_edge_torch.generative.layers.builder as layers_builder
 import ai_edge_torch.generative.layers.model_config as layers_cfg
 import ai_edge_torch.generative.layers.unet.blocks_2d as blocks_2d
 import ai_edge_torch.generative.layers.unet.model_config as unet_cfg
 import ai_edge_torch.generative.utilities.stable_diffusion_loader as stable_diffusion_loader
+import torch
+from torch import nn
 
 _down_encoder_blocks_tensor_names = [
     stable_diffusion_loader.DownEncoderBlockTensorNames(
@@ -39,9 +38,15 @@ _down_encoder_blocks_tensor_names = [
         ],
         transformer_block_tensor_names=[
             stable_diffusion_loader.TransformerBlockTensorNames(
-                pre_conv_norm=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.norm",
-                conv_in=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.proj_in",
-                conv_out=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.proj_out",
+                pre_conv_norm=(
+                    f"model.diffusion_model.input_blocks.{i*3+j+1}.1.norm"
+                ),
+                conv_in=(
+                    f"model.diffusion_model.input_blocks.{i*3+j+1}.1.proj_in"
+                ),
+                conv_out=(
+                    f"model.diffusion_model.input_blocks.{i*3+j+1}.1.proj_out"
+                ),
                 self_attention=stable_diffusion_loader.AttentionBlockTensorNames(
                     norm=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.transformer_blocks.0.norm1",
                     q_proj=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.transformer_blocks.0.attn1.to_q",
@@ -80,7 +85,9 @@ _mid_block_tensor_names = stable_diffusion_loader.MidBlockTensorNames(
             conv_1=f"model.diffusion_model.middle_block.{i}.in_layers.2",
             norm_2=f"model.diffusion_model.middle_block.{i}.out_layers.0",
             conv_2=f"model.diffusion_model.middle_block.{i}.out_layers.3",
-            time_embedding=f"model.diffusion_model.middle_block.{i}.emb_layers.1",
+            time_embedding=(
+                f"model.diffusion_model.middle_block.{i}.emb_layers.1"
+            ),
         )
         for i in [0, 2]
     ],
@@ -117,8 +124,12 @@ _up_decoder_blocks_tensor_names = [
     stable_diffusion_loader.SkipUpDecoderBlockTensorNames(
         residual_block_tensor_names=[
             stable_diffusion_loader.ResidualBlockTensorNames(
-                norm_1=f"model.diffusion_model.output_blocks.{i*3+j}.0.in_layers.0",
-                conv_1=f"model.diffusion_model.output_blocks.{i*3+j}.0.in_layers.2",
+                norm_1=(
+                    f"model.diffusion_model.output_blocks.{i*3+j}.0.in_layers.0"
+                ),
+                conv_1=(
+                    f"model.diffusion_model.output_blocks.{i*3+j}.0.in_layers.2"
+                ),
                 norm_2=f"model.diffusion_model.output_blocks.{i*3+j}.0.out_layers.0",
                 conv_2=f"model.diffusion_model.output_blocks.{i*3+j}.0.out_layers.3",
                 time_embedding=f"model.diffusion_model.output_blocks.{i*3+j}.0.emb_layers.1",
@@ -128,9 +139,15 @@ _up_decoder_blocks_tensor_names = [
         ],
         transformer_block_tensor_names=[
             stable_diffusion_loader.TransformerBlockTensorNames(
-                pre_conv_norm=f"model.diffusion_model.output_blocks.{i*3+j}.1.norm",
-                conv_in=f"model.diffusion_model.output_blocks.{i*3+j}.1.proj_in",
-                conv_out=f"model.diffusion_model.output_blocks.{i*3+j}.1.proj_out",
+                pre_conv_norm=(
+                    f"model.diffusion_model.output_blocks.{i*3+j}.1.norm"
+                ),
+                conv_in=(
+                    f"model.diffusion_model.output_blocks.{i*3+j}.1.proj_in"
+                ),
+                conv_out=(
+                    f"model.diffusion_model.output_blocks.{i*3+j}.1.proj_out"
+                ),
                 self_attention=stable_diffusion_loader.AttentionBlockTensorNames(
                     norm=f"model.diffusion_model.output_blocks.{i*3+j}.1.transformer_blocks.0.norm1",
                     q_proj=f"model.diffusion_model.output_blocks.{i*3+j}.1.transformer_blocks.0.attn1.to_q",
@@ -157,7 +174,9 @@ _up_decoder_blocks_tensor_names = [
         else None,
         upsample_conv=f"model.diffusion_model.output_blocks.{i*3+2}.2.conv"
         if 0 < i < 3
-        else (f"model.diffusion_model.output_blocks.2.1.conv" if i == 0 else None),
+        else (
+            f"model.diffusion_model.output_blocks.2.1.conv" if i == 0 else None
+        ),
     )
     for i in range(4)
 ]
@@ -475,7 +494,10 @@ class Diffusion(nn.Module):
         layers_cfg.ActivationConfig(config.final_activation_type)
     )
     self.conv_out = nn.Conv2d(
-        reversed_block_out_channels[-1], config.out_channels, kernel_size=3, padding=1
+        reversed_block_out_channels[-1],
+        config.out_channels,
+        kernel_size=3,
+        padding=1,
     )
 
   @torch.inference_mode
@@ -496,12 +518,15 @@ class Diffusion(nn.Module):
     x = self.conv_in(latents)
     skip_connection_tensors = [x]
     for encoder in self.down_encoders:
-      x, hidden_states = encoder(x, time_emb, context, output_hidden_states=True)
+      x, hidden_states = encoder(
+          x, time_emb, context, output_hidden_states=True
+      )
       skip_connection_tensors.extend(hidden_states)
     x = self.mid_block(x, time_emb, context)
     for decoder in self.up_decoders:
       encoder_tensors = [
-          skip_connection_tensors.pop() for i in range(self.config.layers_per_block + 1)
+          skip_connection_tensors.pop()
+          for i in range(self.config.layers_per_block + 1)
       ]
       x = decoder(x, encoder_tensors, time_emb, context)
     x = self.final_norm(x)

@@ -18,15 +18,14 @@ import os
 import tempfile
 import unittest
 
-import torch
-from torch.ao.quantization.quantize_pt2e import convert_pt2e
-from torch.ao.quantization.quantize_pt2e import prepare_pt2e
-import torchvision
-
 import ai_edge_torch
 from ai_edge_torch.quantize.pt2e_quantizer import get_symmetric_quantization_config  # NOQA
 from ai_edge_torch.quantize.pt2e_quantizer import PT2EQuantizer
 from ai_edge_torch.quantize.quant_config import QuantConfig
+import torch
+from torch.ao.quantization.quantize_pt2e import convert_pt2e
+from torch.ao.quantization.quantize_pt2e import prepare_pt2e
+import torchvision
 
 
 class TestQuantizerSanityBasic(unittest.TestCase):
@@ -53,7 +52,9 @@ class TestQuantizerSanityBasic(unittest.TestCase):
     )
 
     with tempfile.TemporaryDirectory() as tmp_dir_name:
-      without_quantizer_path = os.path.join(tmp_dir_name, "without_quantizer.model")
+      without_quantizer_path = os.path.join(
+          tmp_dir_name, "without_quantizer.model"
+      )
       with_quantizer_path = os.path.join(tmp_dir_name, "with_quantizer.model")
       without_quantizer.export(without_quantizer_path)
       with_quantizer.export(with_quantizer_path)

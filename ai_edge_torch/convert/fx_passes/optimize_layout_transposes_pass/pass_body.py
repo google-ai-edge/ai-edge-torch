@@ -16,13 +16,6 @@ import operator
 import os
 from typing import Optional, Tuple, Union
 
-import torch
-import torch.ao.quantization.quantize_pt2e
-from torch.export import ExportedProgram
-from torch.fx import GraphModule
-from torch.fx import Node
-import torch.utils._pytree as pytree
-
 from ai_edge_torch.convert.fx_passes import ExportedProgramPassBase
 from ai_edge_torch.convert.fx_passes import ExportedProgramPassResult
 from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import layout_check  # NOQA
@@ -30,6 +23,12 @@ from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import layo
 from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import layout_partitioners  # NOQA
 from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import layout_rewrite  # NOQA
 from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import utils  # NOQA
+import torch
+import torch.ao.quantization.quantize_pt2e
+from torch.export import ExportedProgram
+from torch.fx import GraphModule
+from torch.fx import Node
+import torch.utils._pytree as pytree
 
 TransposeFunc = Union[utils.tensor_to_nchw, utils.tensor_to_nhwc]
 
@@ -208,7 +207,8 @@ class OptimizeLayoutTransposesPass(ExportedProgramPassBase):
 
     if not layout_check.is_4d(input_node):
       raise AssertionError(
-          f"Attempting to convert non-NHWC compatible node to NHWC: {input_node}"
+          "Attempting to convert non-NHWC compatible node to NHWC:"
+          f" {input_node}"
       )
 
     # Assign target node's source meta to the to_NHWC node, because the transpose
@@ -250,7 +250,9 @@ class OptimizeLayoutTransposesPass(ExportedProgramPassBase):
 
     for node in graph.nodes:
       has_input_nodes = len(node.all_input_nodes) > 0
-      all_inputs_are_const = all(map(layout_mark.is_const_node, node.all_input_nodes))
+      all_inputs_are_const = all(
+          map(layout_mark.is_const_node, node.all_input_nodes)
+      )
       if (
           node.name in non_user_input_names
           or (has_input_nodes and all_inputs_are_const)
@@ -262,7 +264,9 @@ class OptimizeLayoutTransposesPass(ExportedProgramPassBase):
     self.mark_const_nodes(exported_program)
 
     graph_module = exported_program.graph_module
-    partitioner = os.environ.get("AIEDGETORCH_LAYOUT_OPTIMIZE_PARTITIONER", None)
+    partitioner = os.environ.get(
+        "AIEDGETORCH_LAYOUT_OPTIMIZE_PARTITIONER", None
+    )
     if partitioner == "MINCUT":
       graph_module = layout_partitioners.min_cut.partition(graph_module)
     elif partitioner == "GREEDY":

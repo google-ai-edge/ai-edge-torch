@@ -15,15 +15,14 @@
 
 from typing import List, Optional, Tuple
 
-import torch
-from torch import nn
-
 from ai_edge_torch.generative.layers.attention import CrossAttention
 from ai_edge_torch.generative.layers.attention import SelfAttention
 import ai_edge_torch.generative.layers.builder as layers_builder
 import ai_edge_torch.generative.layers.model_config as layers_cfg
 import ai_edge_torch.generative.layers.unet.builder as unet_builder
 import ai_edge_torch.generative.layers.unet.model_config as unet_cfg
+import torch
+from torch import nn
 
 
 class ResidualBlock2D(nn.Module):
@@ -41,7 +40,11 @@ class ResidualBlock2D(nn.Module):
         config.in_channels, config.normalization_config
     )
     self.conv_1 = nn.Conv2d(
-        config.in_channels, config.out_channels, kernel_size=3, stride=1, padding=1
+        config.in_channels,
+        config.out_channels,
+        kernel_size=3,
+        stride=1,
+        padding=1,
     )
     if config.time_embedding_channels is not None:
       self.time_emb_proj = nn.Linear(
@@ -53,14 +56,22 @@ class ResidualBlock2D(nn.Module):
         config.out_channels, config.normalization_config
     )
     self.conv_2 = nn.Conv2d(
-        config.out_channels, config.out_channels, kernel_size=3, stride=1, padding=1
+        config.out_channels,
+        config.out_channels,
+        kernel_size=3,
+        stride=1,
+        padding=1,
     )
     self.act_fn = layers_builder.get_activation(config.activation_config)
     if config.in_channels == config.out_channels:
       self.residual_layer = nn.Identity()
     else:
       self.residual_layer = nn.Conv2d(
-          config.in_channels, config.out_channels, kernel_size=1, stride=1, padding=0
+          config.in_channels,
+          config.out_channels,
+          kernel_size=1,
+          stride=1,
+          padding=0,
       )
 
   def forward(
@@ -105,7 +116,9 @@ class AttentionBlock2D(nn.Module):
     """
     super().__init__()
     self.config = config
-    self.norm = layers_builder.build_norm(config.dim, config.normalization_config)
+    self.norm = layers_builder.build_norm(
+        config.dim, config.normalization_config
+    )
     self.attention = SelfAttention(
         config.attention_batch_size,
         config.dim,
@@ -125,7 +138,10 @@ class AttentionBlock2D(nn.Module):
     """
     residual = input_tensor
     B, C, H, W = input_tensor.shape
-    if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
+    if (
+        self.config.normalization_config.type
+        == layers_cfg.NormalizationType.GROUP_NORM
+    ):
       x = self.norm(input_tensor)
       x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
@@ -156,7 +172,9 @@ class CrossAttentionBlock2D(nn.Module):
     """
     super().__init__()
     self.config = config
-    self.norm = layers_builder.build_norm(config.query_dim, config.normalization_config)
+    self.norm = layers_builder.build_norm(
+        config.query_dim, config.normalization_config
+    )
     self.attention = CrossAttention(
         config.attention_batch_size,
         config.query_dim,
@@ -180,7 +198,10 @@ class CrossAttentionBlock2D(nn.Module):
     """
     residual = input_tensor
     B, C, H, W = input_tensor.shape
-    if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
+    if (
+        self.config.normalization_config.type
+        == layers_cfg.NormalizationType.GROUP_NORM
+    ):
       x = self.norm(input_tensor)
       x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
@@ -209,7 +230,9 @@ class FeedForwardBlock2D(nn.Module):
     super().__init__()
     self.config = config
     self.act = layers_builder.get_activation(config.activation_config)
-    self.norm = layers_builder.build_norm(config.dim, config.normalization_config)
+    self.norm = layers_builder.build_norm(
+        config.dim, config.normalization_config
+    )
     if config.activation_config.type == layers_cfg.ActivationType.GE_GLU:
       self.w1 = nn.Identity()
       self.w2 = nn.Linear(config.hidden_dim, config.dim)
@@ -220,7 +243,10 @@ class FeedForwardBlock2D(nn.Module):
   def forward(self, input_tensor: torch.Tensor) -> torch.Tensor:
     residual = input_tensor
     B, C, H, W = input_tensor.shape
-    if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
+    if (
+        self.config.normalization_config.type
+        == layers_cfg.NormalizationType.GROUP_NORM
+    ):
       x = self.norm(input_tensor)
       x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
@@ -287,7 +313,9 @@ class TransformerBlock2D(nn.Module):
         padding=0,
     )
     self.self_attention = AttentionBlock2D(config.attention_block_config)
-    self.cross_attention = CrossAttentionBlock2D(config.cross_attention_block_config)
+    self.cross_attention = CrossAttentionBlock2D(
+        config.cross_attention_block_config
+    )
     self.feed_forward = FeedForwardBlock2D(config.feed_forward_block_config)
     self.conv_out = nn.Conv2d(
         config.attention_block_config.dim,
@@ -371,7 +399,9 @@ class DownEncoderBlock2D(nn.Module):
       if config.transformer_block_config:
         transformers.append(TransformerBlock2D(config.transformer_block_config))
     self.resnets = nn.ModuleList(resnets)
-    self.transformers = nn.ModuleList(transformers) if len(transformers) > 0 else None
+    self.transformers = (
+        nn.ModuleList(transformers) if len(transformers) > 0 else None
+    )
     if config.add_downsample:
       self.downsampler = unet_builder.build_downsampling(config.sampling_config)
     else:
@@ -467,12 +497,18 @@ class UpDecoderBlock2D(nn.Module):
       if config.transformer_block_config:
         transformers.append(TransformerBlock2D(config.transformer_block_config))
     self.resnets = nn.ModuleList(resnets)
-    self.transformers = nn.ModuleList(transformers) if len(transformers) > 0 else None
+    self.transformers = (
+        nn.ModuleList(transformers) if len(transformers) > 0 else None
+    )
     if config.add_upsample:
       self.upsampler = unet_builder.build_upsampling(config.sampling_config)
       if config.upsample_conv:
         self.upsample_conv = nn.Conv2d(
-            config.out_channels, config.out_channels, kernel_size=3, stride=1, padding=1
+            config.out_channels,
+            config.out_channels,
+            kernel_size=3,
+            stride=1,
+            padding=1,
         )
     else:
       self.upsampler = None
@@ -548,9 +584,13 @@ class SkipUpDecoderBlock2D(nn.Module):
     transformers = []
     for i in range(config.num_layers):
       res_skip_channels = (
-          config.in_channels if (i == config.num_layers - 1) else config.out_channels
+          config.in_channels
+          if (i == config.num_layers - 1)
+          else config.out_channels
       )
-      resnet_in_channels = config.prev_out_channels if i == 0 else config.out_channels
+      resnet_in_channels = (
+          config.prev_out_channels if i == 0 else config.out_channels
+      )
       resnets.append(
           ResidualBlock2D(
               unet_cfg.ResidualBlock2DConfig(
@@ -565,12 +605,18 @@ class SkipUpDecoderBlock2D(nn.Module):
       if config.transformer_block_config:
         transformers.append(TransformerBlock2D(config.transformer_block_config))
     self.resnets = nn.ModuleList(resnets)
-    self.transformers = nn.ModuleList(transformers) if len(transformers) > 0 else None
+    self.transformers = (
+        nn.ModuleList(transformers) if len(transformers) > 0 else None
+    )
     if config.add_upsample:
       self.upsampler = unet_builder.build_upsampling(config.sampling_config)
       if config.upsample_conv:
         self.upsample_conv = nn.Conv2d(
-            config.out_channels, config.out_channels, kernel_size=3, stride=1, padding=1
+            config.out_channels,
+            config.out_channels,
+            kernel_size=3,
+            stride=1,
+            padding=1,
         )
     else:
       self.upsampler = None
@@ -678,7 +724,9 @@ class MidBlock2D(nn.Module):
       )
     self.resnets = nn.ModuleList(resnets)
     self.attentions = nn.ModuleList(attentions) if len(attentions) > 0 else None
-    self.transformers = nn.ModuleList(transformers) if len(transformers) > 0 else None
+    self.transformers = (
+        nn.ModuleList(transformers) if len(transformers) > 0 else None
+    )
 
   def forward(
       self,

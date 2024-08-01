@@ -20,14 +20,20 @@ import torch
 
 
 def get_time_embedding(timestep):
-  freqs = torch.pow(10000, -torch.arange(start=0, end=160, dtype=torch.float32) / 160)
+  freqs = torch.pow(
+      10000, -torch.arange(start=0, end=160, dtype=torch.float32) / 160
+  )
   x = torch.tensor([timestep], dtype=torch.float32)[:, None] * freqs[None]
   return torch.cat([torch.cos(x), torch.sin(x)], dim=-1)
 
 
-def get_alphas_cumprod(beta_start=0.00085, beta_end=0.0120, n_training_steps=1000):
+def get_alphas_cumprod(
+    beta_start=0.00085, beta_end=0.0120, n_training_steps=1000
+):
   betas = (
-      np.linspace(beta_start**0.5, beta_end**0.5, n_training_steps, dtype=np.float32)
+      np.linspace(
+          beta_start**0.5, beta_end**0.5, n_training_steps, dtype=np.float32
+      )
       ** 2
   )
   alphas = 1.0 - betas

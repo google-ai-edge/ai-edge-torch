@@ -16,16 +16,15 @@
 
 from typing import Optional, Tuple
 
-import torch
-from torch import nn
-import torch.nn.functional as F
-
 from ai_edge_torch.generative.layers.attention import CrossAttention
 import ai_edge_torch.generative.layers.builder as builder
 from ai_edge_torch.generative.layers.kv_cache import KVCache
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention  # NOQA
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention_with_hlfb  # NOQA
+import torch
+from torch import nn
+import torch.nn.functional as F
 
 BATCH_SIZE = 1
 
@@ -181,9 +180,13 @@ class T5Attention(CrossAttention):
     """
 
     x = self.pre_atten_norm(x)
-    B, T, C = x.size()  # batch size, sequence length, embedding dimensionality (n_embd)
+    B, T, C = (
+        x.size()
+    )  # batch size, sequence length, embedding dimensionality (n_embd)
     query_states = self.q_projection(x)
-    query_states = query_states.reshape(B, T, -1, self.head_dim)  # (B, T, nh_q, hs)
+    query_states = query_states.reshape(
+        B, T, -1, self.head_dim
+    )  # (B, T, nh_q, hs)
 
     if key_value_states is not None:
       (
@@ -223,7 +226,12 @@ class T5Attention(CrossAttention):
 
     mask = mask + position_bias
     y = self.sdpa_func(
-        query_states, key_states, value_states, self.head_dim, mask=mask, scale=1.0
+        query_states,
+        key_states,
+        value_states,
+        self.head_dim,
+        mask=mask,
+        scale=1.0,
     )
     y = y.reshape(B, T, C)  # re-assemble all head outputs side by side
     # output projection

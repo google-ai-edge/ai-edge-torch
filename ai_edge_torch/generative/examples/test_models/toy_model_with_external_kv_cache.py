@@ -16,16 +16,15 @@
 
 from typing import Tuple
 
-import torch
-import torch.nn as nn
-import torch_xla
-
 import ai_edge_torch
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.builder as builder
 from ai_edge_torch.generative.layers.experimental import ekv_cache as kv_utils
 from ai_edge_torch.generative.layers.experimental.attention import TransformerBlock  # NOQA
 import ai_edge_torch.generative.layers.model_config as cfg
+import torch
+import torch.nn as nn
+import torch_xla
 
 RoPECache = Tuple[torch.Tensor, torch.Tensor]
 

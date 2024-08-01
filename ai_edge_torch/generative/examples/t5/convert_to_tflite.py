@@ -16,12 +16,11 @@
 import os
 from pathlib import Path
 
-import numpy as np
-import torch
-
 import ai_edge_torch
 from ai_edge_torch.generative.examples.t5 import t5
 from ai_edge_torch.generative.quantize import quant_recipes
+import numpy as np
+import torch
 
 
 # TODO(haoliang): clean this up untile 2-sig model is validated e2e.
@@ -73,8 +72,12 @@ def convert_t5_to_tflite_multisig(checkpoint_path: str):
   embedding_layer = torch.nn.Embedding(
       config.vocab_size, config.embedding_dim, padding_idx=0
   )
-  t5_encoder_model = t5.build_t5_encoder_model(config, embedding_layer, checkpoint_path)
-  t5_decoder_model = t5.build_t5_decoder_model(config, embedding_layer, checkpoint_path)
+  t5_encoder_model = t5.build_t5_encoder_model(
+      config, embedding_layer, checkpoint_path
+  )
+  t5_decoder_model = t5.build_t5_decoder_model(
+      config, embedding_layer, checkpoint_path
+  )
 
   # encoder
   seq_len = 512

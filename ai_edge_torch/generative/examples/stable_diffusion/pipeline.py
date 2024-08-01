@@ -18,30 +18,41 @@ import os
 from pathlib import Path
 from typing import Dict, Optional
 
-import numpy as np
-from PIL import Image
-from tqdm import tqdm
-
 import ai_edge_torch.generative.examples.stable_diffusion.samplers as samplers
 from ai_edge_torch.generative.examples.stable_diffusion.tokenizer import Tokenizer  # NOQA
 import ai_edge_torch.generative.examples.stable_diffusion.util as util
 from ai_edge_torch.model import TfLiteModel
+import numpy as np
+from PIL import Image
+from tqdm import tqdm
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument(
     '--tokenizer_vocab_dir',
     type=str,
-    help='Directory to the tokenizer vocabulary files, which include `merges.txt` and `vocab.json`',
+    help=(
+        'Directory to the tokenizer vocabulary files, which include'
+        ' `merges.txt` and `vocab.json`'
+    ),
     required=True,
 )
 arg_parser.add_argument(
-    '--clip_ckpt', type=str, help='Path to CLIP TFLite tflite file', required=True
+    '--clip_ckpt',
+    type=str,
+    help='Path to CLIP TFLite tflite file',
+    required=True,
 )
 arg_parser.add_argument(
-    '--diffusion_ckpt', type=str, help='Path to diffusion tflite file', required=True
+    '--diffusion_ckpt',
+    type=str,
+    help='Path to diffusion tflite file',
+    required=True,
 )
 arg_parser.add_argument(
-    '--decoder_ckpt', type=str, help='Path to decoder tflite file', required=True
+    '--decoder_ckpt',
+    type=str,
+    help='Path to decoder tflite file',
+    required=True,
 )
 arg_parser.add_argument(
     '--output_path',
@@ -56,20 +67,29 @@ arg_parser.add_argument(
     help='The prompt to guide the image generation.',
 )
 arg_parser.add_argument(
-    '--n_inference_steps', default=20, type=int, help='The number of denoising steps.'
+    '--n_inference_steps',
+    default=20,
+    type=int,
+    help='The number of denoising steps.',
 )
 arg_parser.add_argument(
     '--sampler',
     default='k_euler',
     type=str,
     choices=['k_euler', 'k_euler_ancestral', 'k_lms'],
-    help='A sampler to be used to denoise the encoded image latents. Can be one of `k_lms, `k_euler`, or `k_euler_ancestral`.',
+    help=(
+        'A sampler to be used to denoise the encoded image latents. Can be one'
+        ' of `k_lms, `k_euler`, or `k_euler_ancestral`.'
+    ),
 )
 arg_parser.add_argument(
     '--seed',
     default=None,
     type=int,
-    help='A seed to make generation deterministic. A random number is used if unspecified.',
+    help=(
+        'A seed to make generation deterministic. A random number is used if'
+        ' unspecified.'
+    ),
 )
 
 
@@ -154,7 +174,9 @@ def run_tflite_pipeline(
   elif sampler == 'k_euler':
     sampler = samplers.KEulerSampler(n_inference_steps=n_inference_steps)
   elif sampler == 'k_euler_ancestral':
-    sampler = samplers.KEulerAncestralSampler(n_inference_steps=n_inference_steps)
+    sampler = samplers.KEulerAncestralSampler(
+        n_inference_steps=n_inference_steps
+    )
   else:
     raise ValueError(
         'Unknown sampler value %s. '
@@ -173,7 +195,8 @@ def run_tflite_pipeline(
   if input_image:
     if not hasattr(model, 'encoder'):
       raise AttributeError(
-          'Stable Diffusion must be initialized with encoder to accept input_image.'
+          'Stable Diffusion must be initialized with encoder to accept'
+          ' input_image.'
       )
     input_image = input_image.resize((width, height))
     input_image_np = np.array(input_image).astype(np.float32)

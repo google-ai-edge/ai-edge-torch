@@ -15,11 +15,10 @@
 import math
 import unittest
 
+from ai_edge_torch.hlfb import StableHLOCompositeBuilder
 import torch
 import torch.nn.functional as F
 import torch_xla
-
-from ai_edge_torch.hlfb import StableHLOCompositeBuilder
 
 
 def _export_stablehlo_mlir(model, args):
@@ -80,7 +79,9 @@ class TestStableHLOCompositeBuilder(unittest.TestCase):
         super().__init__()
 
       def log_softmax(self, x: torch.Tensor, dim: int):
-        builder = StableHLOCompositeBuilder(name="test.log_softmax", attr={"dim": dim})
+        builder = StableHLOCompositeBuilder(
+            name="test.log_softmax", attr={"dim": dim}
+        )
         x = builder.mark_inputs(x)
         y = torch.nn.functional.log_softmax(x, dim=dim)
         y = builder.mark_outputs(y)
@@ -126,7 +127,8 @@ class TestStableHLOCompositeBuilder(unittest.TestCase):
     self.assertEqual(mlir.count('stablehlo.composite "test.log_softmax"'), 1)
     self.assertEqual(
         mlir.count(
-            'composite_attributes = {dim = 0 : i64, source = "torch.nn", version = 1.000000e+00 : f32}'
+            'composite_attributes = {dim = 0 : i64, source = "torch.nn",'
+            " version = 1.000000e+00 : f32}"
         ),
         1,
     )
@@ -236,8 +238,12 @@ class TestStableHLOCompositeBuilder(unittest.TestCase):
     self.assertEqual(
         mlir.count('stablehlo.composite "test.scaled_dot_product_attention"'), 2
     )
-    self.assertEqual(mlir.count("composite_attributes = {include_captanh = true}"), 1)
-    self.assertEqual(mlir.count("composite_attributes = {include_captanh = false}"), 1)
+    self.assertEqual(
+        mlir.count("composite_attributes = {include_captanh = true}"), 1
+    )
+    self.assertEqual(
+        mlir.count("composite_attributes = {include_captanh = false}"), 1
+    )
 
   def test_build_composite_with_multiple_inputs_outputs(self):
     class SampleModel(torch.nn.Module):

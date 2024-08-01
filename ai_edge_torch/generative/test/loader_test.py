@@ -18,11 +18,10 @@ import os
 import tempfile
 import unittest
 
-import safetensors.torch
-import torch
-
 from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
 from ai_edge_torch.generative.utilities import loader as loading_utils
+import safetensors.torch
+import torch
 
 
 class TestLoader(unittest.TestCase):
@@ -59,7 +58,9 @@ class TestLoader(unittest.TestCase):
           "model.layers.0.mlp.down_proj.weight": torch.randn((2048, 5632)),
           "model.layers.0.mlp.gate_proj.weight": torch.randn((5632, 2048)),
           "model.layers.0.mlp.up_proj.weight": torch.randn((5632, 2048)),
-          "model.layers.0.post_attention_layernorm.weight": torch.randn((2048,)),
+          "model.layers.0.post_attention_layernorm.weight": torch.randn((
+              2048,
+          )),
           "model.layers.0.self_attn.k_proj.weight": torch.randn((256, 2048)),
           "model.layers.0.self_attn.o_proj.weight": torch.randn((2048, 2048)),
           "model.layers.0.self_attn.q_proj.weight": torch.randn((2048, 2048)),

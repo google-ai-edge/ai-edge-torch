@@ -18,15 +18,14 @@ import os
 import tempfile
 import unittest
 
-import numpy as np
-import torch
-
 import ai_edge_torch
 from ai_edge_torch.generative.examples.gemma import gemma
 from ai_edge_torch.generative.examples.phi2 import phi2
 from ai_edge_torch.generative.examples.test_models import toy_model_with_kv_cache  # NOQA
 from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
 from ai_edge_torch.testing import model_coverage
+import numpy as np
+import torch
 
 
 class TestModelConversion(unittest.TestCase):

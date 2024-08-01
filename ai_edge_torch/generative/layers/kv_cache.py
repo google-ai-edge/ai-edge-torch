@@ -14,16 +14,17 @@
 # ==============================================================================
 # `nn.Module` which implements a KV cache.
 
+from ai_edge_torch.hlfb import StableHLOCompositeBuilder
 import torch
 from torch import nn
 import torch_xla
 
-from ai_edge_torch.hlfb import StableHLOCompositeBuilder
-
 
 class KVCache(nn.Module):
 
-  def __init__(self, batch_size, kv_cache_max, n_heads, head_dim, enable_hlfb=False):
+  def __init__(
+      self, batch_size, kv_cache_max, n_heads, head_dim, enable_hlfb=False
+  ):
     """Initializes the KVCache layer.
 
     Args:

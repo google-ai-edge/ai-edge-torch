@@ -19,15 +19,14 @@ import os
 from pathlib import Path
 from typing import Optional, Tuple
 
-import numpy as np
-import torch
-import torch.nn as nn
-
 from ai_edge_torch.generative.examples.t5.t5_attention import EncoderDecoderBlock  # NOQA
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.builder as builder
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.t5_loader as loading_utils
+import numpy as np
+import torch
+import torch.nn as nn
 
 ENCDEC_TENSOR_NAMES = {
     "ff_up_proj": "{prefix}.block.{}.layer.{num}.DenseReluDense.wi",
@@ -36,7 +35,9 @@ ENCDEC_TENSOR_NAMES = {
     "attn_key_proj": "{prefix}.block.{}.layer.0.SelfAttention.k",
     "attn_value_proj": "{prefix}.block.{}.layer.0.SelfAttention.v",
     "attn_output_proj": "{prefix}.block.{}.layer.0.SelfAttention.o",
-    "relative_attn_bias": "{prefix}.block.0.layer.0.SelfAttention.relative_attention_bias",
+    "relative_attn_bias": (
+        "{prefix}.block.0.layer.0.SelfAttention.relative_attention_bias"
+    ),
     "pre_attn_norm": "{prefix}.block.{}.layer.0.layer_norm",
     "pre_ff_norm": "{prefix}.block.{}.layer.1.layer_norm",
     "final_norm": "{prefix}.final_layer_norm",
@@ -52,13 +53,13 @@ class T5Stack(nn.Module):
     self.config = config
     self.embed_tokens = embed_tokens
     self.is_decoder = config.is_decoder
-    self.transformer_blocks = nn.ModuleList(
-        [
-            EncoderDecoderBlock(config, has_relative_attention_bias=bool(i == 0))
-            for i in range(config.num_layers)
-        ]
+    self.transformer_blocks = nn.ModuleList([
+        EncoderDecoderBlock(config, has_relative_attention_bias=bool(i == 0))
+        for i in range(config.num_layers)
+    ])
+    self.final_norm = builder.build_norm(
+        config.embedding_dim, config.final_norm_config
     )
-    self.final_norm = builder.build_norm(config.embedding_dim, config.final_norm_config)
 
   def forward(
       self,
@@ -81,15 +82,17 @@ class T5Stack(nn.Module):
     encoder_decoder_position_bias = None
     for i, layer_module in enumerate(self.transformer_blocks):
       # EncoderDecoderBlock.forward
-      hidden_states, position_bias, encoder_decoder_position_bias = layer_module(
-          hidden_states,
-          input_pos,
-          mask=attention_mask,
-          relative_position=relative_position,
-          position_bias=position_bias,
-          encoder_hidden_states=encoder_hidden_states,
-          encoder_attention_mask=encoder_attention_mask,
-          encoder_decoder_position_bias=encoder_decoder_position_bias,
+      hidden_states, position_bias, encoder_decoder_position_bias = (
+          layer_module(
+              hidden_states,
+              input_pos,
+              mask=attention_mask,
+              relative_position=relative_position,
+              position_bias=position_bias,
+              encoder_hidden_states=encoder_hidden_states,
+              encoder_attention_mask=encoder_attention_mask,
+              encoder_decoder_position_bias=encoder_decoder_position_bias,
+          )
       )
 
     hidden_states = self.final_norm(hidden_states)
@@ -130,7 +133,9 @@ class T5(nn.Module):
     )
 
     self.dec_attn_mask_cache = attn_utils.build_causal_mask_cache(
-        size=config.kv_cache_max, dtype=torch.float32, device=torch.device("cpu")
+        size=config.kv_cache_max,
+        dtype=torch.float32,
+        device=torch.device("cpu"),
     )
 
     self.enc_rel_pos_mask = attn_utils.build_relative_position_buckets(
@@ -159,9 +164,10 @@ class T5(nn.Module):
       pad_mask: torch.Tensor,
   ) -> torch.Tensor:
     B, T = input_ids.size()
-    assert (
-        self.config.max_seq_len >= T
-    ), f"Cannot forward sequence of length {T}, max seq length is only {self.config.max_seq_len}"
+    assert self.config.max_seq_len >= T, (
+        f"Cannot forward sequence of length {T}, max seq length is only"
+        f" {self.config.max_seq_len}"
+    )
 
     enc_mask = self.enc_attn_mask_cache.index_select(2, input_pos)
     enc_mask = enc_mask[:, :, :, : self.config.kv_cache_max]
@@ -170,10 +176,18 @@ class T5(nn.Module):
     dec_mask = self.dec_attn_mask_cache.index_select(2, decoder_input_pos)
     dec_mask = dec_mask[:, :, :, : self.config.kv_cache_max]
     enc_relative_position = self.enc_rel_pos_mask.index_select(2, input_pos)
-    enc_relative_position = enc_relative_position[:, :, :, : self.config.kv_cache_max]
-    dec_relative_position = self.enc_rel_pos_mask.index_select(2, decoder_input_pos)
-    dec_relative_position = dec_relative_position[:, :, :, : self.config.kv_cache_max]
-    enc_attention_mask = self.enc_attn_mask_cache.index_select(2, decoder_input_pos)
+    enc_relative_position = enc_relative_position[
+        :, :, :, : self.config.kv_cache_max
+    ]
+    dec_relative_position = self.enc_rel_pos_mask.index_select(
+        2, decoder_input_pos
+    )
+    dec_relative_position = dec_relative_position[
+        :, :, :, : self.config.kv_cache_max
+    ]
+    enc_attention_mask = self.enc_attn_mask_cache.index_select(
+        2, decoder_input_pos
+    )
     # Mask off any "pad" tokens that shouldn't contribute to cross attention
     enc_attention_mask[:, :, :, :] += pad_mask
 
@@ -210,7 +224,9 @@ class T5Encoder(nn.Module):
 
     self.config = config
     # Construct model layers.
-    assert embedding_layer != None, "Passed in embedding layer should not be None!"
+    assert (
+        embedding_layer != None
+    ), "Passed in embedding layer should not be None!"
     self.tok_embedding = embedding_layer
 
     encoder_config = copy.deepcopy(config)
@@ -244,16 +260,19 @@ class T5Encoder(nn.Module):
       pad_mask: torch.Tensor,
   ) -> torch.Tensor:
     B, T = input_ids.size()
-    assert (
-        self.config.max_seq_len >= T
-    ), f"Cannot forward sequence of length {T}, max seq length is only {self.config.max_seq_len}"
+    assert self.config.max_seq_len >= T, (
+        f"Cannot forward sequence of length {T}, max seq length is only"
+        f" {self.config.max_seq_len}"
+    )
 
     enc_mask = self.enc_attn_mask_cache.index_select(2, input_pos)
     enc_mask = enc_mask[:, :, :, : self.config.kv_cache_max]
     # Mask off any "pad" tokens that shouldn't contribute to self-attention
     enc_mask[:, :, :, :] += pad_mask
     enc_relative_position = self.enc_rel_pos_mask.index_select(2, input_pos)
-    enc_relative_position = enc_relative_position[:, :, :, : self.config.kv_cache_max]
+    enc_relative_position = enc_relative_position[
+        :, :, :, : self.config.kv_cache_max
+    ]
 
     # Convert encoder inputs in embeddings if needed
     encoder_hidden_states = self.encoder(
@@ -273,7 +292,9 @@ class T5Decoder(nn.Module):
 
     self.config = config
     # Construct model layers.
-    assert embedding_layer != None, "Passed in embedding layer should not be None!"
+    assert (
+        embedding_layer != None
+    ), "Passed in embedding layer should not be None!"
     self.tok_embedding = embedding_layer
 
     decoder_config = copy.deepcopy(config)
@@ -302,7 +323,9 @@ class T5Decoder(nn.Module):
     )
 
     self.dec_attn_mask_cache = attn_utils.build_causal_mask_cache(
-        size=config.kv_cache_max, dtype=torch.float32, device=torch.device("cpu")
+        size=config.kv_cache_max,
+        dtype=torch.float32,
+        device=torch.device("cpu"),
     )
 
   @torch.inference_mode
@@ -315,9 +338,15 @@ class T5Decoder(nn.Module):
   ) -> torch.Tensor:
     dec_mask = self.dec_attn_mask_cache.index_select(2, decoder_input_pos)
     dec_mask = dec_mask[:, :, :, : self.config.kv_cache_max]
-    dec_relative_position = self.enc_rel_pos_mask.index_select(2, decoder_input_pos)
-    dec_relative_position = dec_relative_position[:, :, :, : self.config.kv_cache_max]
-    enc_attention_mask = self.enc_attn_mask_cache.index_select(2, decoder_input_pos)
+    dec_relative_position = self.enc_rel_pos_mask.index_select(
+        2, decoder_input_pos
+    )
+    dec_relative_position = dec_relative_position[
+        :, :, :, : self.config.kv_cache_max
+    ]
+    enc_attention_mask = self.enc_attn_mask_cache.index_select(
+        2, decoder_input_pos
+    )
     # Mask off any "pad" tokens that shouldn't contribute to cross attention
     enc_attention_mask[:, :, :, :] += pad_mask
 
@@ -470,89 +499,85 @@ def build_t5_decoder_model(
 
 
 def get_sample_encoder_input_ids() -> torch.Tensor:
-  idx = torch.tensor(
-      [
-          [
-              3856,
-              27111,
-              10,
-              4425,
-              51,
-              4008,
-              31,
-              7,
-              2306,
-              16576,
-              47,
-              4381,
-              16,
-              8,
-              3414,
-              13,
-              1410,
-              16,
-              932,
-              11,
-              1515,
-              2766,
-              6,
-              11,
-              4838,
-              16,
-              23964,
-              16,
-              1797,
-              13,
-              24,
-              215,
-              5,
-              94,
-              47,
-              2017,
-              168,
-              1204,
-              57,
-              6800,
-              7,
-              11,
-              9443,
-              38,
-              3673,
-              8,
-              4016,
-              13,
-              66,
-              70,
-              14234,
-              5,
-              2449,
-              1215,
-              83,
-              17,
-              16,
-              8782,
-              70,
-              723,
-              30,
-              8,
-              6162,
-              13,
-              1410,
-              12,
-              48,
-              833,
-              250,
-              13,
-              149,
-              231,
-              79,
-              1858,
-              16576,
-              5,
-              1,
-          ]
-      ]
-  )
+  idx = torch.tensor([[
+      3856,
+      27111,
+      10,
+      4425,
+      51,
+      4008,
+      31,
+      7,
+      2306,
+      16576,
+      47,
+      4381,
+      16,
+      8,
+      3414,
+      13,
+      1410,
+      16,
+      932,
+      11,
+      1515,
+      2766,
+      6,
+      11,
+      4838,
+      16,
+      23964,
+      16,
+      1797,
+      13,
+      24,
+      215,
+      5,
+      94,
+      47,
+      2017,
+      168,
+      1204,
+      57,
+      6800,
+      7,
+      11,
+      9443,
+      38,
+      3673,
+      8,
+      4016,
+      13,
+      66,
+      70,
+      14234,
+      5,
+      2449,
+      1215,
+      83,
+      17,
+      16,
+      8782,
+      70,
+      723,
+      30,
+      8,
+      6162,
+      13,
+      1410,
+      12,
+      48,
+      833,
+      250,
+      13,
+      149,
+      231,
+      79,
+      1858,
+      16576,
+      5,
+      1,
+  ]])
   return idx
 
 
@@ -584,9 +609,15 @@ def define_and_run_t5_split(checkpoint_path: str) -> None:
   t5_goldens = torch.load(current_dir / "t5_lm_logits.pt")
 
   config = get_model_config_t5()
-  embedding_layer = nn.Embedding(config.vocab_size, config.embedding_dim, padding_idx=0)
-  t5_encoder_model = build_t5_encoder_model(config, embedding_layer, checkpoint_path)
-  t5_decoder_model = build_t5_decoder_model(config, embedding_layer, checkpoint_path)
+  embedding_layer = nn.Embedding(
+      config.vocab_size, config.embedding_dim, padding_idx=0
+  )
+  t5_encoder_model = build_t5_encoder_model(
+      config, embedding_layer, checkpoint_path
+  )
+  t5_decoder_model = build_t5_decoder_model(
+      config, embedding_layer, checkpoint_path
+  )
   idx = get_sample_encoder_input_ids()
 
   tokens = torch.full((1, 512), 0, dtype=torch.long, device="cpu")
@@ -595,7 +626,9 @@ def define_and_run_t5_split(checkpoint_path: str) -> None:
 
   decode_d_token = torch.tensor([[0]], dtype=torch.int64)
   decode_d_input_pos = torch.tensor([0], dtype=torch.int64)
-  pad_mask = torch.zeros([t5_encoder_model.config.kv_cache_max], dtype=torch.float32)
+  pad_mask = torch.zeros(
+      [t5_encoder_model.config.kv_cache_max], dtype=torch.float32
+  )
   pad_mask[77:] = float("-inf")
   hidden_states = t5_encoder_model.forward(tokens, input_pos, pad_mask)
   lm_logits = t5_decoder_model.forward(

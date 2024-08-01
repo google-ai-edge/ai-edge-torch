@@ -15,15 +15,14 @@
 # A toy example which has a single-layer transformer block.
 from typing import Tuple
 
-import numpy as np
-import torch
-import torch.nn as nn
-
 import ai_edge_torch
 from ai_edge_torch.generative.layers.attention import TransformerBlock
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.builder as builder
 import ai_edge_torch.generative.layers.model_config as cfg
+import numpy as np
+import torch
+import torch.nn as nn
 
 RoPECache = Tuple[torch.Tensor, torch.Tensor]
 KV_CACHE_MAX_LEN = 100
@@ -72,7 +71,10 @@ class ToySingleLayerModel(torch.nn.Module):
 
 def get_model_config() -> cfg.ModelConfig:
   attn_config = cfg.AttentionConfig(
-      num_heads=32, num_query_groups=4, rotary_percentage=1.0, enable_kv_cache=False
+      num_heads=32,
+      num_query_groups=4,
+      rotary_percentage=1.0,
+      enable_kv_cache=False,
   )
   ff_config = cfg.FeedForwardConfig(
       type=cfg.FeedForwardType.GATED,
