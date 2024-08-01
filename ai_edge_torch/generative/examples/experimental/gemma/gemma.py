@@ -125,6 +125,7 @@ class Gemma(nn.Module):
 def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   attn_config = cfg.AttentionConfig(
       num_heads=8,
+      head_dim=256,
       num_query_groups=1,
       rotary_percentage=1.0,
   )

@@ -45,7 +45,9 @@ class ToyModelWithKV(torch.nn.Module):
     )
     self.rope_cache = attn_utils.build_rope_cache(
         size=config.max_seq_len,
-        dim=int(config.attn_config.rotary_percentage * config.attn_config.head_dim),
+        dim=int(
+            config.attn_config.rotary_percentage * config.attn_config.head_dim
+        ),
         base=10_000,
         condense_ratio=1,
         dtype=torch.float32,

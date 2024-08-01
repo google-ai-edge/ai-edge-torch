@@ -743,7 +743,10 @@ class DiffusionModelLoader(BaseLoader):
 
     attention_config = layers_config.AttentionConfig(
         num_heads=config.transformer_num_attention_heads,
-        head_dim=config.block_out_channels[0] // config.transformer_num_attention_heads,
+        head_dim=(
+            config.block_out_channels[0]
+            // config.transformer_num_attention_heads
+        ),
         num_query_groups=config.transformer_num_attention_heads,
         rotary_percentage=0.0,
         qkv_transpose_before_split=True,
