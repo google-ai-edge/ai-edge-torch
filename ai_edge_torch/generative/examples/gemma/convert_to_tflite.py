@@ -16,11 +16,10 @@
 import os
 from pathlib import Path
 
-import torch
-
 import ai_edge_torch
 from ai_edge_torch.generative.examples.gemma import gemma
 from ai_edge_torch.generative.quantize import quant_recipes
+import torch
 
 
 def convert_gemma_to_tflite(
@@ -58,7 +57,9 @@ def convert_gemma_to_tflite(
       .signature('decode', pytorch_model, (decode_token, decode_input_pos))
       .convert(quant_config=quant_config)
   )
-  edge_model.export(f'/tmp/gemma_seq{prefill_seq_len}_kv{kv_cache_max_len}.tflite')
+  edge_model.export(
+      f'/tmp/gemma_seq{prefill_seq_len}_kv{kv_cache_max_len}.tflite'
+  )
 
 
 if __name__ == '__main__':

@@ -17,12 +17,11 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional, Tuple, Union
 
-import torch
-
 from ai_edge_torch import model
 from ai_edge_torch.convert import conversion
 from ai_edge_torch.convert import conversion_utils as cutils
 from ai_edge_torch.quantize import quant_config as qcfg
+import torch
 
 
 class Converter:
@@ -68,14 +67,20 @@ class Converter:
     """
 
     if name in [sig.name for sig in self._signatures]:
-      raise ValueError(f"A signature with the provided name ({name}) is already added.")
+      raise ValueError(
+          f"A signature with the provided name ({name}) is already added."
+      )
 
     if sample_args is None and sample_kwargs is None:
       raise ValueError("sample_args or sample_kwargs must be provided.")
 
     self._signatures.append(
         cutils.Signature(
-            name, module, sample_args, sample_kwargs, dynamic_shapes=dynamic_shapes
+            name,
+            module,
+            sample_args,
+            sample_kwargs,
+            dynamic_shapes=dynamic_shapes,
         )
     )
     return self
@@ -128,7 +133,8 @@ class Converter:
         )
       else:  # module is provided but not args
         raise ValueError(
-            "sample_args or sample_kwargs must be provided if a module is specified."
+            "sample_args or sample_kwargs must be provided if a module is"
+            " specified."
         )
 
     return conversion.convert_signatures(

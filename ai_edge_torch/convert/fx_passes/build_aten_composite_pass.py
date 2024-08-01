@@ -17,14 +17,13 @@ import copy
 import functools
 from typing import Any, Callable
 
+from ai_edge_torch.hlfb import StableHLOCompositeBuilder
 import torch
 from torch.fx import GraphModule
 from torch.fx import Node
 from torch.fx.passes.infra.pass_base import PassBase
 from torch.fx.passes.infra.pass_base import PassResult
 import torch.utils._pytree as pytree
-
-from ai_edge_torch.hlfb import StableHLOCompositeBuilder
 
 _composite_builders: dict[Callable, Callable[[GraphModule, Node], None]] = {}
 
@@ -41,7 +40,9 @@ def _register_composite_builder(op):
   return inner
 
 
-def _tree_map_to_composite_attr_values(values, *, stringify_incompatible_values=True):
+def _tree_map_to_composite_attr_values(
+    values, *, stringify_incompatible_values=True
+):
 
   def convert(value):
     nonlocal stringify_incompatible_values
@@ -65,7 +66,9 @@ class TorchOpArgumentsMapper:
 
     assert hasattr(op, "_schema")
     self.op = op
-    self.arg_specs = [(spec.name, spec.default_value) for spec in op._schema.arguments]
+    self.arg_specs = [
+        (spec.name, spec.default_value) for spec in op._schema.arguments
+    ]
 
   def get_full_kwargs(self, args, kwargs=None) -> dict[str, Any]:
     """Inspect the op's schema and extract all its args and kwargs
@@ -110,16 +113,17 @@ def _aten_gelu(gm: GraphModule, node: Node):
     full_kwargs = args_mapper.get_full_kwargs(args, kwargs)
 
     # TFLite supports exact and tanh approximate.
-    if full_kwargs["approximate"] != "none" and full_kwargs["approximate"] != "tanh":
+    if (
+        full_kwargs["approximate"] != "none"
+        and full_kwargs["approximate"] != "tanh"
+    ):
       return op(*args, **kwargs)
 
     builder = StableHLOCompositeBuilder(
         "aten.gelu.default",
-        attr=_tree_map_to_composite_attr_values(
-            {
-                "approximate": full_kwargs["approximate"],
-            }
-        ),
+        attr=_tree_map_to_composite_attr_values({
+            "approximate": full_kwargs["approximate"],
+        }),
     )
     full_kwargs["self"] = builder.mark_inputs(full_kwargs["self"])
     output = op(full_kwargs["self"])
@@ -150,7 +154,10 @@ def _aten_avg_pool2d(gm: GraphModule, node: Node):
       ):
         dim_output_size = int((dim_input_size + dim_stride - 1) / dim_stride)
         padding_needed = max(
-            0, (dim_output_size - 1) * dim_stride + dim_kernel_size - dim_input_size
+            0,
+            (dim_output_size - 1) * dim_stride
+            + dim_kernel_size
+            - dim_input_size,
         )
         if padding_needed % 2 != 0:
           return False
@@ -193,16 +200,14 @@ def _aten_avg_pool2d(gm: GraphModule, node: Node):
 
     builder = StableHLOCompositeBuilder(
         "aten.avg_pool2d.default",
-        attr=_tree_map_to_composite_attr_values(
-            {
-                "kernel_size": full_kwargs["kernel_size"],
-                "stride": full_kwargs["stride"],
-                "padding": full_kwargs["padding"],
-                "ceil_mode": full_kwargs["ceil_mode"],
-                "count_include_pad": full_kwargs["count_include_pad"],
-                "divisor_override": full_kwargs["divisor_override"],
-            }
-        ),
+        attr=_tree_map_to_composite_attr_values({
+            "kernel_size": full_kwargs["kernel_size"],
+            "stride": full_kwargs["stride"],
+            "padding": full_kwargs["padding"],
+            "ceil_mode": full_kwargs["ceil_mode"],
+            "count_include_pad": full_kwargs["count_include_pad"],
+            "divisor_override": full_kwargs["divisor_override"],
+        }),
     )
 
     full_kwargs["self"] = builder.mark_inputs(full_kwargs["self"])

@@ -15,10 +15,9 @@
 
 import unittest
 
+from ai_edge_torch.hlfb import mark_pattern
 import torch
 import torch_xla
-
-from ai_edge_torch.hlfb import mark_pattern
 
 
 def _export_stablehlo_mlir(model, args=None):
@@ -73,7 +72,9 @@ class TestMarkPattern(unittest.TestCase):
     mlir = _export_stablehlo_mlir(exported_program)
 
     self.assertEqual(mlir.count('stablehlo.composite "test.add"'), 2)
-    self.assertEqual(mlir.count('composite_attributes = {alias = "test.test_add"}'), 2)
+    self.assertEqual(
+        mlir.count('composite_attributes = {alias = "test.test_add"}'), 2
+    )
 
   def test_mark_pattern_with_scalar_attr_tracker(self):
     class TestModel(torch.nn.Module):

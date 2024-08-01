@@ -16,7 +16,9 @@
 import torch
 
 
-def apply_rope(x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> torch.Tensor:
+def apply_rope(
+    x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor
+) -> torch.Tensor:
   """Computes rotary positional embedding.
 
   Args:

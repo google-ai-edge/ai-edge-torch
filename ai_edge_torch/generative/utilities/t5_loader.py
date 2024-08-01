@@ -18,10 +18,9 @@ import glob
 import os
 from typing import Callable, Dict
 
+from ai_edge_torch.generative.layers import model_config
 from safetensors import safe_open
 import torch
-
-from ai_edge_torch.generative.layers import model_config
 
 
 def load_safetensors(full_path: str):
@@ -71,7 +70,11 @@ def load_pytorch_statedict(full_path: str):
   Raises:
     ValueError: If no tensors are loaded from the provided directory or file.
   """
-  pattern = os.path.join(full_path, "*.bin") if os.path.isdir(full_path) else full_path
+  pattern = (
+      os.path.join(full_path, "*.bin")
+      if os.path.isdir(full_path)
+      else full_path
+  )
   files = []
   for file in glob.glob(pattern):
     files.append(file)
@@ -131,7 +134,10 @@ class ModelLoader:
     self._loader = self._get_loader()
 
   def load(
-      self, model: torch.nn.Module, strict: bool = True, fuse_attention: bool = True
+      self,
+      model: torch.nn.Module,
+      strict: bool = True,
+      fuse_attention: bool = True,
   ):
     """Load the model from the checkpoint
 
@@ -166,11 +172,14 @@ class ModelLoader:
 
     if strict and state:
       raise ValueError(
-          f"Failed to map all tensor. Remaining tensor are: {list(state.keys())}"
+          "Failed to map all tensor. Remaining tensor are:"
+          f" {list(state.keys())}"
       )
     model.load_state_dict(converted_state, strict=strict)
 
-  def _do_load(self, model, state, names, additional_prefix="", fuse_attention=True):
+  def _do_load(
+      self, model, state, names, additional_prefix="", fuse_attention=True
+  ):
     """Load the model from the checkpoint
 
     Args:
@@ -183,7 +192,9 @@ class ModelLoader:
     """
     converted_state = dict()
     if names.embedding is not None:
-      converted_state["tok_embedding.weight"] = state.pop(f"{names.embedding}.weight")
+      converted_state["tok_embedding.weight"] = state.pop(
+          f"{names.embedding}.weight"
+      )
     if names.lm_head is not None:
       converted_state["lm_head.weight"] = state.pop(f"{names.lm_head}.weight")
       if model.config.lm_head_use_bias:
@@ -195,7 +206,9 @@ class ModelLoader:
           f"{final_norm_name}.weight"
       )
       if f"{final_norm_name}.bias" in state:
-        converted_state["final_norm.bias"] = state.pop(f"{final_norm_name}.bias")
+        converted_state["final_norm.bias"] = state.pop(
+            f"{final_norm_name}.bias"
+        )
 
     if names.relative_attn_bias:
       rel_attn_name = names.relative_attn_bias
@@ -205,7 +218,9 @@ class ModelLoader:
       )
 
     for i in range(model.config.num_layers):
-      self._map_norm(i, model.config, state, converted_state, names, additional_prefix)
+      self._map_norm(
+          i, model.config, state, converted_state, names, additional_prefix
+      )
       self._map_feedforward(
           i, model.config, state, converted_state, names, additional_prefix
       )
@@ -268,13 +283,19 @@ class ModelLoader:
     if config.ff_config.type == model_config.FeedForwardType.SEQUENTIAL:
       ff_up_proj_name = names.ff_up_proj.format(idx)
       ff_down_proj_name = names.ff_down_proj.format(idx)
-      converted_state[f"{prefix}.ff.w1.weight"] = state.pop(f"{ff_up_proj_name}.weight")
+      converted_state[f"{prefix}.ff.w1.weight"] = state.pop(
+          f"{ff_up_proj_name}.weight"
+      )
       converted_state[f"{prefix}.ff.w2.weight"] = state.pop(
           f"{ff_down_proj_name}.weight"
       )
       if config.ff_config.use_bias:
-        converted_state[f"{prefix}.ff.w1.bias"] = state.pop(f"{ff_up_proj_name}.bias")
-        converted_state[f"{prefix}.ff.w2.bias"] = state.pop(f"{ff_down_proj_name}.bias")
+        converted_state[f"{prefix}.ff.w1.bias"] = state.pop(
+            f"{ff_up_proj_name}.bias"
+        )
+        converted_state[f"{prefix}.ff.w2.bias"] = state.pop(
+            f"{ff_down_proj_name}.bias"
+        )
     else:
       if names.ff_gate_proj is not None:
         ff_up_proj_name = names.ff_up_proj.format(idx)
@@ -290,7 +311,9 @@ class ModelLoader:
             f"{ff_gate_proj_name}.weight"
         )
         if config.ff_config.use_bias:
-          converted_state[f"{prefix}.ff.w3.bias"] = state.pop(f"{ff_up_proj_name}.bias")
+          converted_state[f"{prefix}.ff.w3.bias"] = state.pop(
+              f"{ff_up_proj_name}.bias"
+          )
           converted_state[f"{prefix}.ff.w2.bias"] = state.pop(
               f"{ff_down_proj_name}.bias"
           )
@@ -355,12 +378,12 @@ class ModelLoader:
         )
 
     o_name = names.attn_output_proj.format(idx)
-    converted_state[f"{prefix}.atten_func.output_projection.weight"] = state.pop(
-        f"{o_name}.weight"
+    converted_state[f"{prefix}.atten_func.output_projection.weight"] = (
+        state.pop(f"{o_name}.weight")
     )
     if config.attn_config.output_proj_use_bias:
-      converted_state[f"{prefix}.atten_func.output_projection.bias"] = state.pop(
-          f"{o_name}.bias"
+      converted_state[f"{prefix}.atten_func.output_projection.bias"] = (
+          state.pop(f"{o_name}.bias")
       )
 
   def _map_cross_attention(
@@ -385,47 +408,51 @@ class ModelLoader:
     v_name = names.cross_attn_value_proj.format(idx)
 
     if fuse_attention:
-      converted_state[f"{prefix}.cross_atten_func.attn.weight"] = self._fuse_qkv(
-          config,
-          state.pop(f"{q_name}.weight"),
-          state.pop(f"{k_name}.weight"),
-          state.pop(f"{v_name}.weight"),
+      converted_state[f"{prefix}.cross_atten_func.attn.weight"] = (
+          self._fuse_qkv(
+              config,
+              state.pop(f"{q_name}.weight"),
+              state.pop(f"{k_name}.weight"),
+              state.pop(f"{v_name}.weight"),
+          )
       )
       if config.attn_config.qkv_use_bias:
-        converted_state[f"{prefix}.cross_atten_func.attn.bias"] = self._fuse_qkv(
-            config,
-            state.pop(f"{q_name}.bias"),
-            state.pop(f"{k_name}.bias"),
-            state.pop(f"{v_name}.bias"),
+        converted_state[f"{prefix}.cross_atten_func.attn.bias"] = (
+            self._fuse_qkv(
+                config,
+                state.pop(f"{q_name}.bias"),
+                state.pop(f"{k_name}.bias"),
+                state.pop(f"{v_name}.bias"),
+            )
         )
     else:
-      converted_state[f"{prefix}.cross_atten_func.q_projection.weight"] = state.pop(
-          f"{q_name}.weight"
+      converted_state[f"{prefix}.cross_atten_func.q_projection.weight"] = (
+          state.pop(f"{q_name}.weight")
       )
-      converted_state[f"{prefix}.cross_atten_func.k_projection.weight"] = state.pop(
-          f"{k_name}.weight"
+      converted_state[f"{prefix}.cross_atten_func.k_projection.weight"] = (
+          state.pop(f"{k_name}.weight")
       )
-      converted_state[f"{prefix}.cross_atten_func.v_projection.weight"] = state.pop(
-          f"{v_name}.weight"
+      converted_state[f"{prefix}.cross_atten_func.v_projection.weight"] = (
+          state.pop(f"{v_name}.weight")
       )
       if config.attn_config.qkv_use_bias:
-        converted_state[f"{prefix}.cross_atten_func.q_projection.bias"] = state.pop(
-            f"{q_name}.bias"
+        converted_state[f"{prefix}.cross_atten_func.q_projection.bias"] = (
+            state.pop(f"{q_name}.bias")
         )
-        converted_state[f"{prefix}.cross_atten_func.k_projection.bias"] = state.pop(
-            f"{k_name}.bias"
+        converted_state[f"{prefix}.cross_atten_func.k_projection.bias"] = (
+            state.pop(f"{k_name}.bias")
         )
-        converted_state[f"{prefix}.cross_atten_func.v_projection.bias"] = state.pop(
-            f"{v_name}.bias"
+        converted_state[f"{prefix}.cross_atten_func.v_projection.bias"] = (
+            state.pop(f"{v_name}.bias")
         )
 
     o_name = names.cross_attn_output_proj.format(idx)
-    converted_state[f"{prefix}.cross_atten_func.output_projection.weight"] = state.pop(
-        f"{o_name}.weight"
+    converted_state[f"{prefix}.cross_atten_func.output_projection.weight"] = (
+        state.pop(f"{o_name}.weight")
     )
     if config.attn_config.output_proj_use_bias:
-      converted_state[f"{prefix}.cross_atten_func.output_projection.bias"] = state.pop(
-          f"{o_name}.bias"
+      converted_state[f"{prefix}.cross_atten_func.output_projection.bias"] = (
+          state.pop(f"{o_name}.bias")
       )
 
   def _map_norm(
@@ -450,12 +477,12 @@ class ModelLoader:
 
     if names.pre_cross_attn_norm:
       pre_cross_attn_norm_name = names.pre_cross_attn_norm.format(idx)
-      converted_state[f"{prefix}.cross_atten_func.pre_atten_norm.weight"] = state.pop(
-          f"{pre_cross_attn_norm_name}.weight"
+      converted_state[f"{prefix}.cross_atten_func.pre_atten_norm.weight"] = (
+          state.pop(f"{pre_cross_attn_norm_name}.weight")
       )
       if f"{pre_cross_attn_norm_name}.bias" in state:
-        converted_state[f"{prefix}.cross_atten_func.pre_atten_norm.bias"] = state.pop(
-            f"{pre_cross_attn_norm_name}.bias"
+        converted_state[f"{prefix}.cross_atten_func.pre_atten_norm.bias"] = (
+            state.pop(f"{pre_cross_attn_norm_name}.bias")
         )
 
     if names.pre_ff_norm is not None:
@@ -475,7 +502,9 @@ class ModelLoader:
       k: torch.Tensor,
       v: torch.Tensor,
   ) -> torch.Tensor:
-    q_per_kv = config.attn_config.num_heads // config.attn_config.num_query_groups
+    q_per_kv = (
+        config.attn_config.num_heads // config.attn_config.num_query_groups
+    )
     qs = torch.split(q, config.head_dim * q_per_kv)
     ks = torch.split(k, config.head_dim)
     vs = torch.split(v, config.head_dim)

@@ -14,13 +14,12 @@
 # ==============================================================================
 import operator
 
-import torch
-from torch.fx import Node
-import torch.utils._pytree as pytree
-
 from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import layout_mark  # NOQA
 from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import utils  # NOQA
 from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass.op_func_registry import OpFuncRegistry  # NOQA
+import torch
+from torch.fx import Node
+import torch.utils._pytree as pytree
 
 aten = torch.ops.aten
 
@@ -349,7 +348,12 @@ def _aten_native_group_norm(node):
   ):
     input_reshaped = torch.reshape(
         input,
-        [batch_size, flattened_inner_size, num_groups, num_channels // num_groups],
+        [
+            batch_size,
+            flattened_inner_size,
+            num_groups,
+            num_channels // num_groups,
+        ],
     )
     reduction_dims = [1, 3]
 

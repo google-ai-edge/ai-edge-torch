@@ -16,16 +16,15 @@
 
 from typing import Optional, Tuple
 
-import torch
-from torch import nn
-import torch.nn.functional as F
-
 import ai_edge_torch.generative.layers.builder as builder
 from ai_edge_torch.generative.layers.kv_cache import KVCache
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention  # NOQA
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention_with_hlfb  # NOQA
+import torch
+from torch import nn
+import torch.nn.functional as F
 
 
 def _embed_rope(
@@ -140,7 +139,9 @@ class CausalSelfAttention(nn.Module):
     shape = (config.num_heads + 2 * config.num_query_groups) * self.head_dim
     # Key, query, value projections for all heads.
     self.qkv_projection = nn.Linear(dim, shape, bias=config.qkv_use_bias)
-    self.output_projection = nn.Linear(dim, dim, bias=config.output_proj_use_bias)
+    self.output_projection = nn.Linear(
+        dim, dim, bias=config.output_proj_use_bias
+    )
     self.config = config
     self.kv_cache = None
     self.batch_size = batch_size
@@ -181,9 +182,10 @@ class CausalSelfAttention(nn.Module):
     """
     # Batch size, sequence length, embedding dimensionality.
     B, T, E = x.size()
-    assert (
-        B == self.batch_size
-    ), "batch size of input tensor must match with the batch size specified in the model configuration."
+    assert B == self.batch_size, (
+        "batch size of input tensor must match with the batch size specified in"
+        " the model configuration."
+    )
 
     qkv = self.qkv_projection(x)
 
@@ -279,9 +281,15 @@ class CrossAttention(nn.Module):
     self.config = config
     self.head_dim = query_dim // config.num_heads
     self.n_heads = config.num_heads
-    self.q_projection = nn.Linear(query_dim, query_dim, bias=config.qkv_use_bias)
-    self.k_projection = nn.Linear(cross_dim, query_dim, bias=config.qkv_use_bias)
-    self.v_projection = nn.Linear(cross_dim, query_dim, bias=config.qkv_use_bias)
+    self.q_projection = nn.Linear(
+        query_dim, query_dim, bias=config.qkv_use_bias
+    )
+    self.k_projection = nn.Linear(
+        cross_dim, query_dim, bias=config.qkv_use_bias
+    )
+    self.v_projection = nn.Linear(
+        cross_dim, query_dim, bias=config.qkv_use_bias
+    )
     self.output_projection = nn.Linear(
         query_dim, query_dim, bias=config.output_proj_use_bias
     )

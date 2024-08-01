@@ -42,7 +42,9 @@ if nightly_release_date := os.environ.get("NIGHTLY_RELEASE_DATE"):
 setup(
     name=name,
     version=version,
-    description="Supporting PyTorch models with the Google AI Edge TFLite runtime.",
+    description=(
+        "Supporting PyTorch models with the Google AI Edge TFLite runtime."
+    ),
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/google-ai-edge/ai-edge-torch",

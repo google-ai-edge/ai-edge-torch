@@ -15,13 +15,12 @@
 import dataclasses
 import operator
 
-import torch
-from torch.fx import Node
-
 from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import layout_mark  # NOQA
 from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import layout_rewrite  # NOQA
 from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import utils  # NOQA
 from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass.op_func_registry import OpFuncRegistry  # NOQA
+import torch
+from torch.fx import Node
 
 aten = torch.ops.aten
 
@@ -150,7 +149,9 @@ def _qdq_layout_sensitive_inputs_getter(node: Node):
 
 
 @layout_sensitive_inputs_getters.register(aten.convolution)
-@layout_sensitive_inputs_getters.register(aten._native_batch_norm_legit_no_training)
+@layout_sensitive_inputs_getters.register(
+    aten._native_batch_norm_legit_no_training
+)
 @layout_sensitive_inputs_getters.register(aten.native_group_norm)
 def _first_arg_getter(node):
   return [node.args[0]]
@@ -174,7 +175,11 @@ def _all_layout_sensitive_inputs_are_4d_checker(node: Node):
 @nhwcable_node_checkers.register(aten._native_batch_norm_legit_no_training)
 def _aten_norm_checker(node):
   val = node.meta.get("val")
-  if not isinstance(val, (list, tuple)) or not val or not hasattr(val[0], "shape"):
+  if (
+      not isinstance(val, (list, tuple))
+      or not val
+      or not hasattr(val[0], "shape")
+  ):
     return NHWCable(can_be=False, must_be=False)
   return NHWCable(can_be=len(val[0].shape) == 4, must_be=False)
 
@@ -182,9 +187,15 @@ def _aten_norm_checker(node):
 @nhwcable_node_checkers.register(aten.native_group_norm)
 def _aten_native_group_norm_checker(node):
   val = node.meta.get("val")
-  if not isinstance(val, (list, tuple)) or not val or not hasattr(val[0], "shape"):
+  if (
+      not isinstance(val, (list, tuple))
+      or not val
+      or not hasattr(val[0], "shape")
+  ):
     return NHWCable(can_be=False, must_be=False)
-  if len(node.args) >= 3 and (node.args[1] is not None or node.args[2] is not None):
+  if len(node.args) >= 3 and (
+      node.args[1] is not None or node.args[2] is not None
+  ):
     # Disable NHWC rewriter due to precision issue with weight and bias.
     # TODO(b/354780253): Re-enable NHWC rewriter with proper lowering.
     return NHWCable(can_be=False, must_be=False)

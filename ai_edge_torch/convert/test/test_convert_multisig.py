@@ -15,11 +15,10 @@
 
 import unittest
 
-import torch
-import torchvision
-
 import ai_edge_torch
 from ai_edge_torch.testing import model_coverage
+import torch
+import torchvision
 
 
 class TestConvertMultiSignature(unittest.TestCase):
@@ -41,7 +40,9 @@ class TestConvertMultiSignature(unittest.TestCase):
         signature_name, torch_module, large_args
     ).convert(torch_module, args)
 
-    self.assertTrue(model_coverage.compare_tflite_torch(edge_model, torch_module, args))
+    self.assertTrue(
+        model_coverage.compare_tflite_torch(edge_model, torch_module, args)
+    )
     self.assertTrue(
         model_coverage.compare_tflite_torch(
             edge_model, torch_module, large_args, signature_name=signature_name
@@ -74,7 +75,10 @@ class TestConvertMultiSignature(unittest.TestCase):
     )
     self.assertTrue(
         model_coverage.compare_tflite_torch(
-            edge_model, torch_module, large_args, signature_name=signature_name_2
+            edge_model,
+            torch_module,
+            large_args,
+            signature_name=signature_name_2,
         )
     )
 
@@ -87,11 +91,13 @@ class TestConvertMultiSignature(unittest.TestCase):
 
     signature_name = "large_input"
 
-    edge_model = ai_edge_torch.signature(signature_name, torch_module, args).convert(
-        torch_module, large_args
-    )
+    edge_model = ai_edge_torch.signature(
+        signature_name, torch_module, args
+    ).convert(torch_module, large_args)
 
-    self.assertTrue(model_coverage.compare_tflite_torch(edge_model, torch_module, args))
+    self.assertTrue(
+        model_coverage.compare_tflite_torch(edge_model, torch_module, args)
+    )
     self.assertTrue(
         model_coverage.compare_tflite_torch(
             edge_model, torch_module, large_args, signature_name=signature_name
@@ -110,7 +116,9 @@ class TestConvertMultiSignature(unittest.TestCase):
     resnet_signature_name = "resnet18"
 
     edge_model = (
-        ai_edge_torch.signature(mobilenet_signature_name, mobilentv2, mobilenet_args)
+        ai_edge_torch.signature(
+            mobilenet_signature_name, mobilentv2, mobilenet_args
+        )
         .signature(resnet_signature_name, resnet18, resnet_args)
         .convert(resnet18, resnet_args)
     )

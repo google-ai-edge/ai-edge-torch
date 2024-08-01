@@ -13,10 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
-import torch
-
 from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import layout_check  # NOQA
 from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import layout_mark  # NOQA
+import torch
 
 
 def partition(graph_module: torch.fx.GraphModule):
@@ -45,7 +44,9 @@ def partition(graph_module: torch.fx.GraphModule):
 
       layout_sensitive_inputs = layout_check.get_layout_sensitive_inputs(node)
 
-      should_be_nhwc = any(map(layout_mark.is_nhwc_node, layout_sensitive_inputs))
+      should_be_nhwc = any(
+          map(layout_mark.is_nhwc_node, layout_sensitive_inputs)
+      )
       for input_node in layout_sensitive_inputs:
         if not layout_mark.is_nhwc_node(input_node) and not layout_check.is_4d(
             input_node

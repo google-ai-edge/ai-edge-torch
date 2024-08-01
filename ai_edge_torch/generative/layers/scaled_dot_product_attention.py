@@ -17,10 +17,9 @@
 import math
 from typing import Optional
 
+from ai_edge_torch.hlfb import StableHLOCompositeBuilder
 import torch
 import torch.nn.functional as F
-
-from ai_edge_torch.hlfb import StableHLOCompositeBuilder
 
 
 def scaled_dot_product_attention(

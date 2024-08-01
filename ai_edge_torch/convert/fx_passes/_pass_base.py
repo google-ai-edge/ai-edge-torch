@@ -32,14 +32,18 @@ class ExportedProgramPassResult(
 
 class ExportedProgramPassBase(abc.ABC):
 
-  def __call__(self, exported_program: ExportedProgram) -> ExportedProgramPassResult:
+  def __call__(
+      self, exported_program: ExportedProgram
+  ) -> ExportedProgramPassResult:
     self.requires(exported_program)
     res = self.call(exported_program)
     self.ensures(exported_program)
     return res
 
   @abc.abstractmethod
-  def call(self, exported_program: ExportedProgram) -> ExportedProgramPassResult:
+  def call(
+      self, exported_program: ExportedProgram
+  ) -> ExportedProgramPassResult:
     pass
 
   def requires(self, exported_program: ExportedProgram) -> None:

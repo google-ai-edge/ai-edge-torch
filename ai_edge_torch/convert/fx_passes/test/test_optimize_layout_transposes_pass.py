@@ -16,13 +16,12 @@
 from typing import Callable, Union
 import unittest
 
-import torch
-import torch.utils._pytree as pytree
-import torchvision
-
 from ai_edge_torch.convert.fx_passes import CanonicalizePass
 from ai_edge_torch.convert.fx_passes import OptimizeLayoutTransposesPass
 from ai_edge_torch.convert.fx_passes import run_passes
+import torch
+import torch.utils._pytree as pytree
+import torchvision
 
 
 def export_with_pass(
@@ -81,14 +80,18 @@ class TestOptimizeLayoutTransposesPass(unittest.TestCase):
     forward_args = lambda: (torch.rand(1, 3, 224, 224),)
 
     exported_program = export_with_pass(model, forward_args())
-    self.assert_outputs_allclose(model, exported_program.module(), forward_args())
+    self.assert_outputs_allclose(
+        model, exported_program.module(), forward_args()
+    )
 
   def test_torchvision_resnet18(self):
     model = torchvision.models.resnet18().eval()
     forward_args = lambda: (torch.rand(1, 3, 224, 224),)
 
     exported_program = export_with_pass(model, forward_args())
-    self.assert_outputs_allclose(model, exported_program.module(), forward_args())
+    self.assert_outputs_allclose(
+        model, exported_program.module(), forward_args()
+    )
 
   def test_native_group_norm_no_weight_bias(self):
     batch_size = 16
@@ -117,7 +120,9 @@ class TestOptimizeLayoutTransposesPass(unittest.TestCase):
     model = SampleModel().eval()
     forward_args = lambda: (torch.rand(16, 640, 32, 32) * 1000,)
     exported_program = export_with_pass(model, forward_args())
-    self.assert_outputs_allclose(model, exported_program.module(), forward_args())
+    self.assert_outputs_allclose(
+        model, exported_program.module(), forward_args()
+    )
 
   def test_native_group_norm_large_weight_bias(self):
     batch_size = 16
@@ -150,7 +155,9 @@ class TestOptimizeLayoutTransposesPass(unittest.TestCase):
         torch.rand([640]) * 1000,
     )
     exported_program = export_with_pass(model, forward_args())
-    self.assert_outputs_allclose(model, exported_program.module(), forward_args())
+    self.assert_outputs_allclose(
+        model, exported_program.module(), forward_args()
+    )
 
 
 if __name__ == '__main__':

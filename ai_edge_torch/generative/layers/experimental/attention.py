@@ -17,15 +17,14 @@
 import math
 from typing import Optional, Tuple
 
-import torch
-from torch import nn
-
 import ai_edge_torch.generative.layers.builder as builder
 from ai_edge_torch.generative.layers.experimental import ekv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention  # NOQA
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention_with_hlfb  # NOQA
+import torch
+from torch import nn
 
 
 class TransformerBlock(nn.Module):
@@ -108,7 +107,9 @@ class CausalSelfAttention(nn.Module):
     shape = (config.num_heads + 2 * config.num_query_groups) * self.head_dim
     # Key, query, value projections for all heads.
     self.qkv_projection = nn.Linear(dim, shape, bias=config.qkv_use_bias)
-    self.output_projection = nn.Linear(dim, dim, bias=config.output_proj_use_bias)
+    self.output_projection = nn.Linear(
+        dim, dim, bias=config.output_proj_use_bias
+    )
     self.config = config
     self.enable_hlfb = enable_hlfb
     self.sdpa_func = (
@@ -172,7 +173,9 @@ class CausalSelfAttention(nn.Module):
     k = torch.cat((k_roped, k[..., n_elem:]), dim=-1)
 
     if kv_cache is not None:
-      kv_cache = kv_utils.update(kv_cache, input_pos, k, v, use_hlfb=self.enable_hlfb)
+      kv_cache = kv_utils.update(
+          kv_cache, input_pos, k, v, use_hlfb=self.enable_hlfb
+      )
       k = kv_cache.k_cache
       v = kv_cache.v_cache
 

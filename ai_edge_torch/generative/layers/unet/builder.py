@@ -14,9 +14,8 @@
 # ==============================================================================
 # Builder utils for individual components.
 
-from torch import nn
-
 import ai_edge_torch.generative.layers.unet.model_config as unet_config
+from torch import nn
 
 
 def build_upsampling(config: unet_config.UpSamplingConfig):
@@ -30,10 +29,14 @@ def build_upsampling(config: unet_config.UpSamplingConfig):
 
 def build_downsampling(config: unet_config.DownSamplingConfig):
   if config.mode == unet_config.SamplingType.AVERAGE:
-    return nn.AvgPool2d(config.kernel_size, config.stride, padding=config.padding)
+    return nn.AvgPool2d(
+        config.kernel_size, config.stride, padding=config.padding
+    )
   elif config.mode == unet_config.SamplingType.CONVOLUTION:
     out_channels = (
-        config.in_channels if config.out_channels is None else config.out_channels
+        config.in_channels
+        if config.out_channels is None
+        else config.out_channels
     )
     padding = (0, 1, 0, 1) if config.padding == 0 else config.padding
     return nn.Conv2d(

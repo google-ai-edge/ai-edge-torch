@@ -19,12 +19,11 @@
 import os
 from pathlib import Path
 
-import torch
-
 import ai_edge_torch
 from ai_edge_torch.generative.examples.experimental.phi import phi2
 from ai_edge_torch.generative.layers.experimental import ekv_cache
 from ai_edge_torch.generative.quantize import quant_recipes
+import torch
 
 
 def convert_phi2_to_tflite(
@@ -46,7 +45,9 @@ def convert_phi2_to_tflite(
       quantize (bool, optional): Whether the model should be quanized.
         Defaults to True.
   """
-  pytorch_model = phi2.build_model(checkpoint_path, kv_cache_max_len=kv_cache_max_len)
+  pytorch_model = phi2.build_model(
+      checkpoint_path, kv_cache_max_len=kv_cache_max_len
+  )
   # Tensors used to trace the model graph during conversion.
   prefill_tokens = torch.full((1, prefill_seq_len), 0, dtype=torch.long)
   prefill_input_pos = torch.arange(0, prefill_seq_len)
@@ -76,7 +77,9 @@ def convert_phi2_to_tflite(
       )
       .convert(quant_config=quant_config)
   )
-  edge_model.export(f'/tmp/phi2_seq{prefill_seq_len}_ekv{kv_cache_max_len}.tflite')
+  edge_model.export(
+      f'/tmp/phi2_seq{prefill_seq_len}_ekv{kv_cache_max_len}.tflite'
+  )
 
 
 if __name__ == '__main__':

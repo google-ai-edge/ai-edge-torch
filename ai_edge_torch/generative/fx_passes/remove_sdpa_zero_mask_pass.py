@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-import torch
-
 from ai_edge_torch.convert.fx_passes._pass_base import ExportedProgramPassBase
 from ai_edge_torch.convert.fx_passes._pass_base import ExportedProgramPassResult  # NOQA
+import torch
 
 
 class RemoveSDPACompositeZeroMaskPass(ExportedProgramPassBase):
@@ -36,7 +35,11 @@ class RemoveSDPACompositeZeroMaskPass(ExportedProgramPassBase):
       # Composite info:
       # - name: odml.scaled_dot_product_attention
       # - inputs: q, k, v, mask
-      if name == "odml.scaled_dot_product_attention" and is_input and io_position == 3:
+      if (
+          name == "odml.scaled_dot_product_attention"
+          and is_input
+          and io_position == 3
+      ):
         if self.is_zero_tensor_node(source):
           # Remove the mark_tensor call on the mask input by
           # replacing the target with an identity function.

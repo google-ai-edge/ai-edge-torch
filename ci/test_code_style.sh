@@ -39,6 +39,7 @@ FIX_FORMAT_FLAG=${1}
   -e .downloads \
   -e .github \
   -e CODEOWNERS \
+  -e bazel \
   -e third_party \
   -e venv \
   -e "\.md" \
@@ -56,12 +57,16 @@ LICENSE_CHECK_RESULT=$?
 # Python formatting
 ############################################################
 
-PYINK_COMMAND="pyink --pyink-use-majority-quotes --pyink-indentation 2 --extend-exclude third_party --extend-exclude .downloads --check ./"
+PYINK_COMMAND="pyink --pyink-use-majority-quotes --pyink-indentation=2 --preview --unstable --line-length 80 
+      --extend-exclude bazel 
+      --extend-exclude .downloads 
+      --extend-exclude test/image_segmentation/android --check ./"
+
 echo "Testing python formatting with ${PYINK_COMMAND}"
 ${PYINK_COMMAND}
 PYTHON_FORMAT_RESULT=$?
 
-ISORT_COMMAND="isort --profile google --multi-line 7 --skip .downloads --skip venv --skip third_party --skip .downloads --check ./"
+ISORT_COMMAND="isort --check ./"
 echo "Testing python imports with ${ISORT_COMMAND}"
 ${ISORT_COMMAND}
 ISORT_RESULT=$?
