@@ -227,11 +227,9 @@ def _aten_embedding(gm: GraphModule, node: Node):
 
     # Explicitly cast to INT32. This places the CastOp outside of the HLFB.
     idx = idx.type(torch.int)
-    idx_size = idx.size()
-    idx_num_elements = reduce(lambda x, y: x * y, idx_size)
 
     # Explicitly reshape to 1D. This places the ReshapeOp outside of the HLFB.
-    idx = torch.reshape(idx, (idx_num_elements,))
+    idx = torch.reshape(idx, (idx.numel(),))
 
     builder = StableHLOCompositeBuilder("odml.embedding_lookup")
     full_kwargs["indices"], full_kwargs["weight"] = builder.mark_inputs(
@@ -242,7 +240,7 @@ def _aten_embedding(gm: GraphModule, node: Node):
     output = builder.mark_outputs(output)
 
     # Explicitly reshape back to the original shape. This places the ReshapeOp outside of the HLFB.
-    output = torch.reshape(output, (*(idx_size), embedding_dim))
+    output = torch.reshape(output, (*(idx.size()), embedding_dim))
     return output
 
   node.target = embedding
