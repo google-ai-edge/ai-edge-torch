@@ -16,12 +16,11 @@
 from typing import Callable, Union
 import unittest
 
-import torch
-import torch_xla
-
 from ai_edge_torch.convert.fx_passes import BuildAtenCompositePass
 from ai_edge_torch.convert.fx_passes import CanonicalizePass
 from ai_edge_torch.convert.fx_passes import run_passes
+import torch
+import torch_xla
 
 
 def _export_to_stablehlo_with_composite(
@@ -58,13 +57,17 @@ class TestBuildAtenCompositePass(unittest.TestCase):
     stablehlo = _export_to_stablehlo_with_composite(
         lambda x: torch.nn.Hardswish()(x), (torch.rand(10, 10),)
     )
-    self.assertEqual(stablehlo.count('stablehlo.composite "aten.hardswish.default"'), 1)
+    self.assertEqual(
+        stablehlo.count('stablehlo.composite "aten.hardswish.default"'), 1
+    )
 
   def test_hardswish_op(self):
     stablehlo = _export_to_stablehlo_with_composite(
         lambda x: torch.ops.aten.hardswish.default(x), (torch.rand(10, 10),)
     )
-    self.assertEqual(stablehlo.count('stablehlo.composite "aten.hardswish.default"'), 1)
+    self.assertEqual(
+        stablehlo.count('stablehlo.composite "aten.hardswish.default"'), 1
+    )
 
   def test_avg_pool2d_layer(self):
     stablehlo = _export_to_stablehlo_with_composite(
@@ -120,26 +123,34 @@ class TestBuildAtenCompositePass(unittest.TestCase):
     stablehlo = _export_to_stablehlo_with_composite(
         lambda x: torch.nn.GELU()(x), (torch.rand(10, 10),)
     )
-    self.assertEqual(stablehlo.count('stablehlo.composite "aten.gelu.default"'), 1)
+    self.assertEqual(
+        stablehlo.count('stablehlo.composite "aten.gelu.default"'), 1
+    )
 
   def test_approximate_gelu_layer(self):
     stablehlo = _export_to_stablehlo_with_composite(
         lambda x: torch.nn.GELU('tanh')(x), (torch.rand(10, 10),)
     )
-    self.assertEqual(stablehlo.count('stablehlo.composite "aten.gelu.default"'), 1)
+    self.assertEqual(
+        stablehlo.count('stablehlo.composite "aten.gelu.default"'), 1
+    )
 
   def test_embedding_lookup_layer(self):
     stablehlo = _export_to_stablehlo_with_composite(
         torch.nn.Embedding(10, 10), (torch.full((1, 10), 0, dtype=torch.long),)
     )
-    self.assertEqual(stablehlo.count('stablehlo.composite "odml.embedding_lookup"'), 1)
+    self.assertEqual(
+        stablehlo.count('stablehlo.composite "odml.embedding_lookup"'), 1
+    )
 
   def test_embedding_lookup_op(self):
     stablehlo = _export_to_stablehlo_with_composite(
         lambda *x: torch.ops.aten.embedding.default(*x),
         (torch.rand(10, 10), torch.full((1, 10), 0, dtype=torch.long)),
     )
-    self.assertEqual(stablehlo.count('stablehlo.composite "odml.embedding_lookup"'), 1)
+    self.assertEqual(
+        stablehlo.count('stablehlo.composite "odml.embedding_lookup"'), 1
+    )
 
   def test_embedding_lookup_functional(self):
     stablehlo = _export_to_stablehlo_with_composite(
@@ -149,7 +160,9 @@ class TestBuildAtenCompositePass(unittest.TestCase):
             torch.rand(10, 10),
         ),
     )
-    self.assertEqual(stablehlo.count('stablehlo.composite "odml.embedding_lookup"'), 1)
+    self.assertEqual(
+        stablehlo.count('stablehlo.composite "odml.embedding_lookup"'), 1
+    )
 
 
 if __name__ == '__main__':

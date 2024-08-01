@@ -76,6 +76,10 @@ class QuantConfig:
     elif generative_recipe is not None:
       generative_recipe.verify()
       object.__setattr__(self, 'generative_recipe', generative_recipe)
-      object.__setattr__(self, '_quantizer_mode', self._QuantizerMode.AI_EDGE_QUANTIZER)
+      object.__setattr__(
+          self, '_quantizer_mode', self._QuantizerMode.AI_EDGE_QUANTIZER
+      )
     else:
-      raise ValueError('Either pt2e_quantizer or generative_recipe must be set.')
+      raise ValueError(
+          'Either pt2e_quantizer or generative_recipe must be set.'
+      )

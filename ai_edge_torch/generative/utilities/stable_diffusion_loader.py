@@ -16,11 +16,10 @@
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
-import torch
-
 import ai_edge_torch.generative.layers.model_config as layers_config
 import ai_edge_torch.generative.layers.unet.model_config as unet_config
 import ai_edge_torch.generative.utilities.loader as loader
+import torch
 
 
 @dataclass
@@ -80,27 +79,35 @@ class TransformerBlockTensorNames:
 class MidBlockTensorNames:
   residual_block_tensor_names: List[ResidualBlockTensorNames]
   attention_block_tensor_names: Optional[List[AttentionBlockTensorNames]] = None
-  transformer_block_tensor_names: Optional[List[TransformerBlockTensorNames]] = None
+  transformer_block_tensor_names: Optional[
+      List[TransformerBlockTensorNames]
+  ] = None
 
 
 @dataclass
 class DownEncoderBlockTensorNames:
   residual_block_tensor_names: List[ResidualBlockTensorNames]
-  transformer_block_tensor_names: Optional[List[TransformerBlockTensorNames]] = None
+  transformer_block_tensor_names: Optional[
+      List[TransformerBlockTensorNames]
+  ] = None
   downsample_conv: str = None
 
 
 @dataclass
 class UpDecoderBlockTensorNames:
   residual_block_tensor_names: List[ResidualBlockTensorNames]
-  transformer_block_tensor_names: Optional[List[TransformerBlockTensorNames]] = None
+  transformer_block_tensor_names: Optional[
+      List[TransformerBlockTensorNames]
+  ] = None
   upsample_conv: str = None
 
 
 @dataclass
 class SkipUpDecoderBlockTensorNames:
   residual_block_tensor_names: List[ResidualBlockTensorNames]
-  transformer_block_tensor_names: Optional[List[TransformerBlockTensorNames]] = None
+  transformer_block_tensor_names: Optional[
+      List[TransformerBlockTensorNames]
+  ] = None
   upsample_conv: str = None
 
 
@@ -119,7 +126,9 @@ def _map_to_converted_state(
         converted_state[f"{converted_state_param}.weight"]
     )
   if f"{state_param}.bias" in state:
-    converted_state[f"{converted_state_param}.bias"] = state.pop(f"{state_param}.bias")
+    converted_state[f"{converted_state_param}.bias"] = state.pop(
+        f"{state_param}.bias"
+    )
     if squeeze_dims:
       converted_state[f"{converted_state_param}.bias"] = torch.squeeze(
           converted_state[f"{converted_state_param}.bias"]
@@ -220,25 +229,41 @@ class BaseLoader(loader.ModelLoader):
           f"{attention_layer_prefix}.v_projection",
           squeeze_dims=True,
       )
-      converted_state[f"{attention_layer_prefix}.qkv_projection.weight"] = torch.concat(
-          [
-              converted_state[f"{attention_layer_prefix}.q_projection.weight"],
-              converted_state[f"{attention_layer_prefix}.k_projection.weight"],
-              converted_state[f"{attention_layer_prefix}.v_projection.weight"],
-          ],
-          axis=0,
+      converted_state[f"{attention_layer_prefix}.qkv_projection.weight"] = (
+          torch.concat(
+              [
+                  converted_state[
+                      f"{attention_layer_prefix}.q_projection.weight"
+                  ],
+                  converted_state[
+                      f"{attention_layer_prefix}.k_projection.weight"
+                  ],
+                  converted_state[
+                      f"{attention_layer_prefix}.v_projection.weight"
+                  ],
+              ],
+              axis=0,
+          )
       )
       del converted_state[f"{attention_layer_prefix}.q_projection.weight"]
       del converted_state[f"{attention_layer_prefix}.k_projection.weight"]
       del converted_state[f"{attention_layer_prefix}.v_projection.weight"]
       if config.attention_config.qkv_use_bias:
-        converted_state[f"{attention_layer_prefix}.qkv_projection.bias"] = torch.concat(
-            [
-                converted_state[f"{attention_layer_prefix}.q_projection.bias"],
-                converted_state[f"{attention_layer_prefix}.k_projection.bias"],
-                converted_state[f"{attention_layer_prefix}.v_projection.bias"],
-            ],
-            axis=0,
+        converted_state[f"{attention_layer_prefix}.qkv_projection.bias"] = (
+            torch.concat(
+                [
+                    converted_state[
+                        f"{attention_layer_prefix}.q_projection.bias"
+                    ],
+                    converted_state[
+                        f"{attention_layer_prefix}.k_projection.bias"
+                    ],
+                    converted_state[
+                        f"{attention_layer_prefix}.v_projection.bias"
+                    ],
+                ],
+                axis=0,
+            )
         )
         del converted_state[f"{attention_layer_prefix}.q_projection.bias"]
         del converted_state[f"{attention_layer_prefix}.k_projection.bias"]
@@ -316,11 +341,17 @@ class BaseLoader(loader.ModelLoader):
       )
     else:
       _map_to_converted_state(
-          state, tensor_names.w1, converted_state, f"{converted_state_param_prefix}.w1"
+          state,
+          tensor_names.w1,
+          converted_state,
+          f"{converted_state_param_prefix}.w1",
       )
 
     _map_to_converted_state(
-        state, tensor_names.w2, converted_state, f"{converted_state_param_prefix}.w2"
+        state,
+        tensor_names.w2,
+        converted_state,
+        f"{converted_state_param_prefix}.w2",
     )
 
   def _map_transformer_block(
@@ -509,9 +540,13 @@ class BaseLoader(loader.ModelLoader):
   ):
     for i in range(config.num_layers):
       res_skip_channels = (
-          config.in_channels if (i == config.num_layers - 1) else config.out_channels
+          config.in_channels
+          if (i == config.num_layers - 1)
+          else config.out_channels
       )
-      resnet_in_channels = config.prev_out_channels if i == 0 else config.out_channels
+      resnet_in_channels = (
+          config.prev_out_channels if i == 0 else config.out_channels
+      )
       self._map_residual_block(
           state,
           converted_state,
@@ -599,9 +634,13 @@ class AutoEncoderModelLoader(BaseLoader):
           state, self._names.post_quant_conv, converted_state, "post_quant_conv"
       )
     if self._names.conv_in is not None:
-      _map_to_converted_state(state, self._names.conv_in, converted_state, "conv_in")
+      _map_to_converted_state(
+          state, self._names.conv_in, converted_state, "conv_in"
+      )
     if self._names.conv_out is not None:
-      _map_to_converted_state(state, self._names.conv_out, converted_state, "conv_out")
+      _map_to_converted_state(
+          state, self._names.conv_out, converted_state, "conv_out"
+      )
     if self._names.final_norm is not None:
       _map_to_converted_state(
           state, self._names.final_norm, converted_state, "final_norm"
@@ -614,7 +653,9 @@ class AutoEncoderModelLoader(BaseLoader):
         model.config.mid_block_config,
     )
 
-    reversed_block_out_channels = list(reversed(model.config.block_out_channels))
+    reversed_block_out_channels = list(
+        reversed(model.config.block_out_channels)
+    )
     block_out_channels = reversed_block_out_channels[0]
     for i, out_channels in enumerate(reversed_block_out_channels):
       prev_output_channel = block_out_channels
@@ -690,8 +731,12 @@ class DiffusionModelLoader(BaseLoader):
     self._map_time_embedding(
         state, converted_state, "time_embedding", self._names.time_embedding
     )
-    _map_to_converted_state(state, self._names.conv_in, converted_state, "conv_in")
-    _map_to_converted_state(state, self._names.conv_out, converted_state, "conv_out")
+    _map_to_converted_state(
+        state, self._names.conv_in, converted_state, "conv_in"
+    )
+    _map_to_converted_state(
+        state, self._names.conv_out, converted_state, "conv_out"
+    )
     _map_to_converted_state(
         state, self._names.final_norm, converted_state, "final_norm"
     )
@@ -825,7 +870,9 @@ class DiffusionModelLoader(BaseLoader):
     )
 
     # Map up_decoders.
-    reversed_block_out_channels = list(reversed(model.config.block_out_channels))
+    reversed_block_out_channels = list(
+        reversed(model.config.block_out_channels)
+    )
     up_decoder_layers_per_block = config.layers_per_block + 1
     output_channel = reversed_block_out_channels[0]
     for i, block_out_channel in enumerate(reversed_block_out_channels):
@@ -917,8 +964,14 @@ class DiffusionModelLoader(BaseLoader):
       tensor_names: TimeEmbeddingTensorNames,
   ):
     _map_to_converted_state(
-        state, tensor_names.w1, converted_state, f"{converted_state_param_prefix}.w1"
+        state,
+        tensor_names.w1,
+        converted_state,
+        f"{converted_state_param_prefix}.w1",
     )
     _map_to_converted_state(
-        state, tensor_names.w2, converted_state, f"{converted_state_param_prefix}.w2"
+        state,
+        tensor_names.w2,
+        converted_state,
+        f"{converted_state_param_prefix}.w2",
     )

@@ -15,9 +15,8 @@
 
 import unittest
 
-import torch
-
 import ai_edge_torch
+import torch
 
 
 class Identity(torch.nn.Module):

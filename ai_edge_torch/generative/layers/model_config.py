@@ -124,9 +124,13 @@ class ModelConfig:
       default_factory=NormalizationConfig
   )
   # The normalization applied to feed forward's input.
-  pre_ff_norm_config: NormalizationConfig = field(default_factory=NormalizationConfig)
+  pre_ff_norm_config: NormalizationConfig = field(
+      default_factory=NormalizationConfig
+  )
   # The normalization applied before LM head.
-  final_norm_config: NormalizationConfig = field(default_factory=NormalizationConfig)
+  final_norm_config: NormalizationConfig = field(
+      default_factory=NormalizationConfig
+  )
 
   # If set to True, only pre_attention_norm is applied to the input and the
   # decode's output is computed as `output = input + attn_out + ff_out` where

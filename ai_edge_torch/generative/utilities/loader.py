@@ -18,10 +18,9 @@ import glob
 import os
 from typing import Callable, Dict, List, Tuple
 
+from ai_edge_torch.generative.layers import model_config
 from safetensors import safe_open
 import torch
-
-from ai_edge_torch.generative.layers import model_config
 
 
 def load_safetensors(full_path: str):
@@ -158,14 +157,22 @@ class ModelLoader:
             f"{self._names.embedding_position}"
         )
     if self._names.lm_head is not None:
-      converted_state["lm_head.weight"] = state.pop(f"{self._names.lm_head}.weight")
+      converted_state["lm_head.weight"] = state.pop(
+          f"{self._names.lm_head}.weight"
+      )
       if model.config.lm_head_use_bias:
-        converted_state["lm_head.bias"] = state.pop(f"{self._names.lm_head}.bias")
+        converted_state["lm_head.bias"] = state.pop(
+            f"{self._names.lm_head}.bias"
+        )
     if self._names.final_norm is not None:
       final_norm_name = self._names.final_norm
-      converted_state["final_norm.weight"] = state.pop(f"{final_norm_name}.weight")
+      converted_state["final_norm.weight"] = state.pop(
+          f"{final_norm_name}.weight"
+      )
       if f"{final_norm_name}.bias" in state:
-        converted_state["final_norm.bias"] = state.pop(f"{final_norm_name}.bias")
+        converted_state["final_norm.bias"] = state.pop(
+            f"{final_norm_name}.bias"
+        )
 
     for i in range(model.config.num_layers):
       self._map_norm(i, model.config, state, converted_state)
@@ -214,18 +221,26 @@ class ModelLoader:
     if config.ff_config.type == model_config.FeedForwardType.SEQUENTIAL:
       ff_up_proj_name = self._names.ff_up_proj.format(idx)
       ff_down_proj_name = self._names.ff_down_proj.format(idx)
-      converted_state[f"{prefix}.ff.w1.weight"] = state.pop(f"{ff_up_proj_name}.weight")
+      converted_state[f"{prefix}.ff.w1.weight"] = state.pop(
+          f"{ff_up_proj_name}.weight"
+      )
       converted_state[f"{prefix}.ff.w2.weight"] = state.pop(
           f"{ff_down_proj_name}.weight"
       )
       if config.ff_config.use_bias:
-        converted_state[f"{prefix}.ff.w1.bias"] = state.pop(f"{ff_up_proj_name}.bias")
-        converted_state[f"{prefix}.ff.w2.bias"] = state.pop(f"{ff_down_proj_name}.bias")
+        converted_state[f"{prefix}.ff.w1.bias"] = state.pop(
+            f"{ff_up_proj_name}.bias"
+        )
+        converted_state[f"{prefix}.ff.w2.bias"] = state.pop(
+            f"{ff_down_proj_name}.bias"
+        )
     else:
       ff_up_proj_name = self._names.ff_up_proj.format(idx)
       ff_down_proj_name = self._names.ff_down_proj.format(idx)
       ff_gate_proj_name = self._names.ff_gate_proj.format(idx)
-      converted_state[f"{prefix}.ff.w3.weight"] = state.pop(f"{ff_up_proj_name}.weight")
+      converted_state[f"{prefix}.ff.w3.weight"] = state.pop(
+          f"{ff_up_proj_name}.weight"
+      )
       converted_state[f"{prefix}.ff.w2.weight"] = state.pop(
           f"{ff_down_proj_name}.weight"
       )
@@ -233,9 +248,15 @@ class ModelLoader:
           f"{ff_gate_proj_name}.weight"
       )
       if config.ff_config.use_bias:
-        converted_state[f"{prefix}.ff.w3.bias"] = state.pop(f"{ff_up_proj_name}.bias")
-        converted_state[f"{prefix}.ff.w2.bias"] = state.pop(f"{ff_down_proj_name}.bias")
-        converted_state[f"{prefix}.ff.w1.bias"] = state.pop(f"{ff_gate_proj_name}.bias")
+        converted_state[f"{prefix}.ff.w3.bias"] = state.pop(
+            f"{ff_up_proj_name}.bias"
+        )
+        converted_state[f"{prefix}.ff.w2.bias"] = state.pop(
+            f"{ff_down_proj_name}.bias"
+        )
+        converted_state[f"{prefix}.ff.w1.bias"] = state.pop(
+            f"{ff_gate_proj_name}.bias"
+        )
 
   def _map_attention(
       self,
@@ -254,11 +275,13 @@ class ModelLoader:
       q_name = self._names.attn_query_proj.format(idx)
       k_name = self._names.attn_key_proj.format(idx)
       v_name = self._names.attn_value_proj.format(idx)
-      converted_state[f"{prefix}.atten_func.qkv_projection.weight"] = self._fuse_qkv(
-          config,
-          state.pop(f"{q_name}.weight"),
-          state.pop(f"{k_name}.weight"),
-          state.pop(f"{v_name}.weight"),
+      converted_state[f"{prefix}.atten_func.qkv_projection.weight"] = (
+          self._fuse_qkv(
+              config,
+              state.pop(f"{q_name}.weight"),
+              state.pop(f"{k_name}.weight"),
+              state.pop(f"{v_name}.weight"),
+          )
       )
     if config.attn_config.qkv_use_bias:
       if self._names.attn_fused_qkv_proj:
@@ -266,20 +289,22 @@ class ModelLoader:
             f"{fused_qkv_name}.bias"
         )
       else:
-        converted_state[f"{prefix}.atten_func.qkv_projection.bias"] = self._fuse_qkv(
-            config,
-            state.pop(f"{q_name}.bias"),
-            state.pop(f"{k_name}.bias"),
-            state.pop(f"{v_name}.bias"),
+        converted_state[f"{prefix}.atten_func.qkv_projection.bias"] = (
+            self._fuse_qkv(
+                config,
+                state.pop(f"{q_name}.bias"),
+                state.pop(f"{k_name}.bias"),
+                state.pop(f"{v_name}.bias"),
+            )
         )
 
     o_name = self._names.attn_output_proj.format(idx)
-    converted_state[f"{prefix}.atten_func.output_projection.weight"] = state.pop(
-        f"{o_name}.weight"
+    converted_state[f"{prefix}.atten_func.output_projection.weight"] = (
+        state.pop(f"{o_name}.weight")
     )
     if config.attn_config.output_proj_use_bias:
-      converted_state[f"{prefix}.atten_func.output_projection.bias"] = state.pop(
-          f"{o_name}.bias"
+      converted_state[f"{prefix}.atten_func.output_projection.bias"] = (
+          state.pop(f"{o_name}.bias")
       )
 
   def _map_norm(
@@ -318,7 +343,9 @@ class ModelLoader:
       v: torch.Tensor,
   ) -> torch.Tensor:
     if config.attn_config.qkv_fused_interleaved:
-      q_per_kv = config.attn_config.num_heads // config.attn_config.num_query_groups
+      q_per_kv = (
+          config.attn_config.num_heads // config.attn_config.num_query_groups
+      )
       qs = torch.split(q, config.head_dim * q_per_kv)
       ks = torch.split(k, config.head_dim)
       vs = torch.split(v, config.head_dim)

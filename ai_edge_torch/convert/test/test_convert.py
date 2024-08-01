@@ -20,14 +20,13 @@ import tempfile
 from typing import Tuple
 import unittest
 
+import ai_edge_torch
+from ai_edge_torch.convert import conversion_utils as cutils
+from ai_edge_torch.testing import model_coverage
 import numpy as np
 import tensorflow as tf
 import torch
 import torchvision
-
-import ai_edge_torch
-from ai_edge_torch.convert import conversion_utils as cutils
-from ai_edge_torch.testing import model_coverage
 
 
 @dataclass
@@ -36,7 +35,9 @@ class TestContainer1:
   data_2: Tuple[torch.Tensor, torch.Tensor]
 
 
-torch.export.register_dataclass(TestContainer1, serialized_type_name="TestContainer1")
+torch.export.register_dataclass(
+    TestContainer1, serialized_type_name="TestContainer1"
+)
 
 
 class TestConvert(unittest.TestCase):
@@ -60,7 +61,9 @@ class TestConvert(unittest.TestCase):
     torch_module = Add().eval()
     edge_model = ai_edge_torch.convert(torch_module, args)
 
-    self.assertTrue(model_coverage.compare_tflite_torch(edge_model, torch_module, args))
+    self.assertTrue(
+        model_coverage.compare_tflite_torch(edge_model, torch_module, args)
+    )
 
   def test_convert_dot_add(self):
     class DotAdd(torch.nn.Module):
@@ -77,14 +80,18 @@ class TestConvert(unittest.TestCase):
     torch_module = DotAdd().eval()
     edge_model = ai_edge_torch.convert(torch_module, args)
 
-    self.assertTrue(model_coverage.compare_tflite_torch(edge_model, torch_module, args))
+    self.assertTrue(
+        model_coverage.compare_tflite_torch(edge_model, torch_module, args)
+    )
 
   def test_convert_resnet18(self):
     args = (torch.randn(4, 3, 224, 224),)
     torch_module = torchvision.models.resnet18().eval()
     edge_model = ai_edge_torch.convert(torch_module, args)
 
-    self.assertTrue(model_coverage.compare_tflite_torch(edge_model, torch_module, args))
+    self.assertTrue(
+        model_coverage.compare_tflite_torch(edge_model, torch_module, args)
+    )
 
   def test_signature_args_ordering(self):
     """Tests conversion of a model with more than 10 arguments."""
@@ -156,7 +163,9 @@ class TestConvert(unittest.TestCase):
     torch_model = BasicAddModelWithMultipleOutputs().eval()
     edge_model = ai_edge_torch.convert(torch_model, sample_input)
 
-    result = model_coverage.compare_tflite_torch(edge_model, torch_model, sample_input)
+    result = model_coverage.compare_tflite_torch(
+        edge_model, torch_model, sample_input
+    )
     self.assertTrue(result)
 
   def test_12_outputs_model(self):
@@ -201,7 +210,9 @@ class TestConvert(unittest.TestCase):
     torch_model = BasicAddModelWithMultipleOutputs().eval()
     edge_model = ai_edge_torch.convert(torch_model, sample_input)
 
-    result = model_coverage.compare_tflite_torch(edge_model, torch_model, sample_input)
+    result = model_coverage.compare_tflite_torch(
+        edge_model, torch_model, sample_input
+    )
     self.assertTrue(result)
 
   def test_apply_tfl_backdoor_flags(self):
@@ -244,7 +255,9 @@ class TestConvert(unittest.TestCase):
           tmp_dir_path, "test_convert_add_backdoor_flags_mlir_dump"
       )
       ai_edge_torch.convert(
-          torch_module, args, _ai_edge_converter_flags={"ir_dump_dir": ir_dump_path}
+          torch_module,
+          args,
+          _ai_edge_converter_flags={"ir_dump_dir": ir_dump_path},
       )
       self.assertTrue(os.path.isdir(ir_dump_path))
 
@@ -296,7 +309,9 @@ class TestConvert(unittest.TestCase):
     edge_model = ai_edge_torch.convert(model, sample_kwargs=kwargs_gen())
 
     self.assertTrue(
-        model_coverage.compare_tflite_torch(edge_model, model, kwargs=kwargs_gen)
+        model_coverage.compare_tflite_torch(
+            edge_model, model, kwargs=kwargs_gen
+        )
     )
 
   def test_convert_model_with_args_kwargs(self):
@@ -316,7 +331,9 @@ class TestConvert(unittest.TestCase):
     edge_model = ai_edge_torch.convert(model, args_gen(), kwargs_gen())
 
     self.assertTrue(
-        model_coverage.compare_tflite_torch(edge_model, model, args_gen, kwargs_gen)
+        model_coverage.compare_tflite_torch(
+            edge_model, model, args_gen, kwargs_gen
+        )
     )
 
   def test_convert_model_with_args_nested_kwargs_1(self):
@@ -344,7 +361,9 @@ class TestConvert(unittest.TestCase):
         "z_data_2_0": kwargs["z"].data_2[0].numpy(),
         "z_data_2_1": kwargs["z"].data_2[1].numpy(),
     }
-    self._compare_tflite_torch_args_kwargs(SampleModel(), args, kwargs, flat_inputs)
+    self._compare_tflite_torch_args_kwargs(
+        SampleModel(), args, kwargs, flat_inputs
+    )
 
   def test_convert_model_with_args_nested_kwargs_2(self):
     """
@@ -371,7 +390,9 @@ class TestConvert(unittest.TestCase):
         "z_data_2_0_0": kwargs["z"].data_2[0][0].numpy(),
         "z_data_2_1": kwargs["z"].data_2[1].numpy(),
     }
-    self._compare_tflite_torch_args_kwargs(SampleModel(), args, kwargs, flat_inputs)
+    self._compare_tflite_torch_args_kwargs(
+        SampleModel(), args, kwargs, flat_inputs
+    )
 
   def test_convert_model_with_args_nested_kwargs_3(self):
     """
@@ -398,7 +419,9 @@ class TestConvert(unittest.TestCase):
         "z_data_2_0_foo": kwargs["z"].data_2[0]["foo"].numpy(),
         "z_data_2_1": kwargs["z"].data_2[1].numpy(),
     }
-    self._compare_tflite_torch_args_kwargs(SampleModel(), args, kwargs, flat_inputs)
+    self._compare_tflite_torch_args_kwargs(
+        SampleModel(), args, kwargs, flat_inputs
+    )
 
   def _compare_tflite_torch_args_kwargs(self, model, args, kwargs, flat_inputs):
     model.eval()

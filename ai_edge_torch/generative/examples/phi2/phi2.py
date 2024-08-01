@@ -18,15 +18,14 @@
 import os
 from pathlib import Path
 
-import numpy as np
-import torch
-import torch.nn as nn
-
 from ai_edge_torch.generative.layers.attention import TransformerBlock
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.builder as builder
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
+import numpy as np
+import torch
+import torch.nn as nn
 
 TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.fc1",
@@ -71,7 +70,9 @@ class Phi2(nn.Module):
         device=torch.device("cpu"),
     )
     self.mask_cache = attn_utils.build_causal_mask_cache(
-        size=config.kv_cache_max, dtype=torch.float32, device=torch.device("cpu")
+        size=config.kv_cache_max,
+        dtype=torch.float32,
+        device=torch.device("cpu"),
     )
     self.config = config
 
@@ -81,9 +82,10 @@ class Phi2(nn.Module):
   @torch.inference_mode
   def forward(self, idx: torch.Tensor, input_pos: torch.Tensor) -> torch.Tensor:
     B, T = idx.size()
-    assert (
-        self.config.max_seq_len >= T
-    ), f"Cannot forward sequence of length {T}, max seq length is only {self.config.max_seq_len}"
+    assert self.config.max_seq_len >= T, (
+        f"Cannot forward sequence of length {T}, max seq length is only"
+        f" {self.config.max_seq_len}"
+    )
 
     cos, sin = self.rope_cache
     cos = cos.index_select(0, input_pos)
@@ -160,7 +162,9 @@ def define_and_run() -> None:
   input_pos = torch.arange(0, kv_cache_max_len)
   lm_logits = model.forward(tokens, input_pos)
   print("comparing with goldens..")
-  assert torch.allclose(phi2_goldens, lm_logits[0, idx.shape[1] - 1, :], atol=1e-05)
+  assert torch.allclose(
+      phi2_goldens, lm_logits[0, idx.shape[1] - 1, :], atol=1e-05
+  )
 
 
 if __name__ == "__main__":

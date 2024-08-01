@@ -16,11 +16,10 @@ import copy
 from typing import Any
 import uuid
 
-import torch
-from torch_xla.experimental import xla_marker
-
 from ai_edge_torch.hlfb.mark_pattern.pattern import Pattern
 from ai_edge_torch.hlfb.mark_pattern.pattern import ScalarAttrTracker  # NOQA
+import torch
+from torch_xla.experimental import xla_marker
 
 
 @torch._dynamo.assume_constant_result

@@ -16,7 +16,6 @@
 import json
 
 from ai_edge_quantizer import quantizer
-
 from ai_edge_torch.generative.quantize import quant_attrs
 from ai_edge_torch.generative.quantize import quant_recipe
 
@@ -44,7 +43,9 @@ def _get_nbits_from_dtype(dtype: quant_attrs.Dtype) -> int:
   raise ValueError('Unimplemented number of bits')
 
 
-def _get_dtype_from_dtype(dtype: quant_attrs.Dtype) -> quantizer.qtyping.TensorDataType:
+def _get_dtype_from_dtype(
+    dtype: quant_attrs.Dtype,
+) -> quantizer.qtyping.TensorDataType:
   if dtype == quant_attrs.Dtype.FP32 or dtype == quant_attrs.Dtype.FP16:
     return quantizer.qtyping.TensorDataType.FLOAT
   else:
@@ -59,7 +60,9 @@ def _get_execution_mode_from_mode(mode: quant_attrs.Mode) -> _OpExecutionMode:
   raise ValueError('Unimplemented execution mode')
 
 
-def _get_channelwise_from_granularity(granularity: quant_attrs.Granularity) -> bool:
+def _get_channelwise_from_granularity(
+    granularity: quant_attrs.Granularity,
+) -> bool:
   if granularity == quant_attrs.Granularity.CHANNELWISE:
     return True
   elif granularity == quant_attrs.Granularity.NONE:
@@ -87,7 +90,9 @@ def _set_quant_config(
           weight_tensor_config=_TensorQuantConfig(
               num_bits=_get_nbits_from_dtype(layer_recipe.weight_dtype),
               symmetric=True,
-              channel_wise=_get_channelwise_from_granularity(layer_recipe.granularity),
+              channel_wise=_get_channelwise_from_granularity(
+                  layer_recipe.granularity
+              ),
               dtype=_get_dtype_from_dtype(layer_recipe.weight_dtype),
           ),
           execution_mode=_get_execution_mode_from_mode(layer_recipe.mode),

@@ -15,10 +15,6 @@
 
 from typing import Sequence, Union
 
-from torch.export import ExportedProgram
-from torch.fx.passes.infra.pass_manager import pass_result_wrapper
-import torch.utils._pytree as pytree
-
 from ai_edge_torch.convert.fx_passes._pass_base import ExportedProgramPassBase
 from ai_edge_torch.convert.fx_passes._pass_base import ExportedProgramPassResult  # NOQA
 from ai_edge_torch.convert.fx_passes._pass_base import FxPassBase
@@ -28,6 +24,9 @@ from ai_edge_torch.convert.fx_passes.build_interpolate_composite_pass import Bui
 from ai_edge_torch.convert.fx_passes.canonicalize_pass import CanonicalizePass
 from ai_edge_torch.convert.fx_passes.inject_mlir_debuginfo_pass import InjectMlirDebuginfoPass  # NOQA
 from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import OptimizeLayoutTransposesPass  # NOQA
+from torch.export import ExportedProgram
+from torch.fx.passes.infra.pass_manager import pass_result_wrapper
+import torch.utils._pytree as pytree
 
 
 # TODO(cnchan): make a PassManager class.

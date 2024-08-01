@@ -16,20 +16,23 @@
 
 import unittest
 
-import numpy as np
-import torch
-
 from ai_edge_torch.generative.examples.experimental.gemma import gemma
 from ai_edge_torch.generative.examples.experimental.phi import phi2
 from ai_edge_torch.generative.examples.experimental.tiny_llama import tiny_llama  # NOQA
 from ai_edge_torch.generative.layers.experimental import ekv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
+import numpy as np
+import torch
 
 
 class TestExternalKVLayers(unittest.TestCase):
 
-  def _get_test_config(self, num_layers, head_dim, num_query_groups, kv_cache_max_len):
-    attn_config = cfg.AttentionConfig(num_heads=1, num_query_groups=num_query_groups)
+  def _get_test_config(
+      self, num_layers, head_dim, num_query_groups, kv_cache_max_len
+  ):
+    attn_config = cfg.AttentionConfig(
+        num_heads=1, num_query_groups=num_query_groups
+    )
     config = cfg.ModelConfig(
         kv_cache_max_len=kv_cache_max_len,
         embedding_dim=head_dim,
@@ -56,23 +59,31 @@ class TestExternalKVLayers(unittest.TestCase):
     entry = kv.caches[0]
     # single-slice update
     input_pos = torch.tensor([1])
-    k_slice = v_slice = torch.full((1, 1, NUM_QG, HEAD_DIM), 5, dtype=torch.float)
+    k_slice = v_slice = torch.full(
+        (1, 1, NUM_QG, HEAD_DIM), 5, dtype=torch.float
+    )
     updated_entry = kv_utils.update(entry, input_pos, k_slice, v_slice)
     self.assertEqual(
-        updated_entry.k_cache.numpy().flatten().tolist(), [0, 0, 5, 5, 0, 0, 0, 0]
+        updated_entry.k_cache.numpy().flatten().tolist(),
+        [0, 0, 5, 5, 0, 0, 0, 0],
     )
     self.assertEqual(
-        updated_entry.v_cache.numpy().flatten().tolist(), [0, 0, 5, 5, 0, 0, 0, 0]
+        updated_entry.v_cache.numpy().flatten().tolist(),
+        [0, 0, 5, 5, 0, 0, 0, 0],
     )
     # multi-slice update
     input_pos = torch.tensor([0, 3])
-    k_slice = v_slice = torch.full((1, 2, NUM_QG, HEAD_DIM), 7, dtype=torch.float)
+    k_slice = v_slice = torch.full(
+        (1, 2, NUM_QG, HEAD_DIM), 7, dtype=torch.float
+    )
     updated_entry = kv_utils.update(entry, input_pos, k_slice, v_slice)
     self.assertEqual(
-        updated_entry.k_cache.numpy().flatten().tolist(), [7, 7, 0, 0, 0, 0, 7, 7]
+        updated_entry.k_cache.numpy().flatten().tolist(),
+        [7, 7, 0, 0, 0, 0, 7, 7],
     )
     self.assertEqual(
-        updated_entry.v_cache.numpy().flatten().tolist(), [7, 7, 0, 0, 0, 0, 7, 7]
+        updated_entry.v_cache.numpy().flatten().tolist(),
+        [7, 7, 0, 0, 0, 0, 7, 7],
     )
 
   def test_serialization(self):

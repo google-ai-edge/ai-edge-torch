@@ -13,10 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
-import numpy as np
-
 from ai_edge_torch.generative.examples.stable_diffusion import util
 from ai_edge_torch.generative.examples.stable_diffusion.samplers.sampler import SamplerInterface  # NOQA
+import numpy as np
 
 
 class KEulerSampler(SamplerInterface):
@@ -46,7 +45,9 @@ class KEulerSampler(SamplerInterface):
 
   def set_strength(self, strength=1):
     start_step = self.n_inference_steps - int(self.n_inference_steps * strength)
-    self.timesteps = np.linspace(self.n_training_steps - 1, 0, self.n_inference_steps)
+    self.timesteps = np.linspace(
+        self.n_training_steps - 1, 0, self.n_inference_steps
+    )
     self.timesteps = self.timesteps[start_step:]
     self.initial_scale = self.sigmas[start_step]
     self.step_count = start_step

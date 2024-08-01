@@ -20,12 +20,11 @@
 import os
 from pathlib import Path
 
-import torch
-
 import ai_edge_torch
 from ai_edge_torch.generative.examples.experimental.tiny_llama import tiny_llama  # NOQA
 from ai_edge_torch.generative.layers.experimental import ekv_cache as kv_utils
 from ai_edge_torch.generative.quantize import quant_recipes
+import torch
 
 
 def convert_tiny_llama_to_tflite(

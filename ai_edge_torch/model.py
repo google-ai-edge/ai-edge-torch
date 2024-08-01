@@ -21,11 +21,10 @@ from __future__ import annotations
 
 import abc
 
+from ai_edge_torch.convert import conversion_utils as cutils
 import numpy as np
 import numpy.typing as npt
 import tensorflow as tf
-
-from ai_edge_torch.convert import conversion_utils as cutils
 
 
 class Model(abc.ABC):
@@ -84,7 +83,8 @@ class TfLiteModel(Model):
     signature_list = interpreter.get_signature_list()
     if signature_name not in signature_list:
       raise ValueError(
-          f"Invalid signature name provided. Available signatures: {', '.join(signature_list.keys())}"
+          'Invalid signature name provided. Available signatures:'
+          f' {", ".join(signature_list.keys())}'
       )
 
     try:
@@ -92,14 +92,17 @@ class TfLiteModel(Model):
     except ValueError as exception:
       if 'Invalid signature_key provided.' in str(exception):
         raise ValueError(
-            f'Invalid signature key provided. Available signatures: {list(signature_list.keys())}'
+            'Invalid signature key provided. Available signatures:'
+            f' {list(signature_list.keys())}'
         )
       else:
         raise exception
 
     if len(signature_list[signature_name]['inputs']) != len(args) + len(kwargs):
       raise ValueError(
-          f"The model requires {len(signature_list[signature_name]['inputs'])} arguments but {len(args)} was provided."
+          'The model requires'
+          f' {len(signature_list[signature_name]["inputs"])} arguments but'
+          f' {len(args)} was provided.'
       )
 
     # Gather the input dictionary based on the signature.

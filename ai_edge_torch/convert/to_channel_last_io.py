@@ -31,7 +31,9 @@ class ChannelLastIOWrapper(nn.Module):
     if not torch.is_tensor(x):
       raise ValueError("Input must be a torch tensor")
     if x.ndim < 3:
-      raise ValueError("Input must be a tensor with rank >= 3 in layout (N, C, ...)")
+      raise ValueError(
+          "Input must be a tensor with rank >= 3 in layout (N, C, ...)"
+      )
     dims = [0, *range(2, x.ndim), 1]
     return torch.permute(x, dims)
 
@@ -39,7 +41,9 @@ class ChannelLastIOWrapper(nn.Module):
     if not torch.is_tensor(x):
       raise ValueError("Input must be a torch tensor.")
     if x.ndim < 3:
-      raise ValueError("Input must be a tensor with rank >= 3 in layout (N, ..., C)")
+      raise ValueError(
+          "Input must be a tensor with rank >= 3 in layout (N, ..., C)"
+      )
     dims = [0, x.ndim - 1, *range(1, x.ndim - 1)]
     return torch.permute(x, dims)
 

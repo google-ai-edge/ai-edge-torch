@@ -22,15 +22,15 @@ import logging
 import tempfile
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from ai_edge_torch.generative.quantize.ai_edge_quantizer_glue import translate_recipe  # NOQA
+from ai_edge_torch.quantize import quant_config as qcfg
 import torch
 import torch.utils._pytree as pytree
 from torch_xla import stablehlo
 
-from ai_edge_torch.generative.quantize.ai_edge_quantizer_glue import translate_recipe  # NOQA
-from ai_edge_torch.quantize import quant_config as qcfg
-
 try:
   import tensorflow as tf
+
   from tensorflow.compiler.tf2xla.python import xla as tfxla
 
   from tensorflow.lite.python import conversion_metadata_schema_py_generated as conversion_metadata_fb  # isort:skip
@@ -90,18 +90,20 @@ class Signature:
     if context is None:
       for i, spec in enumerate(specs):
         if spec.children_specs:
-          flat_names.extend(
-              [
-                  f"{i}_{name}"
-                  for name in self._flat_kwarg_names(spec.children_specs, spec.context)
-              ]
-          )
+          flat_names.extend([
+              f"{i}_{name}"
+              for name in self._flat_kwarg_names(
+                  spec.children_specs, spec.context
+              )
+          ])
         else:
           flat_names.append(f"{i}")
     else:
       flat_ctx = self._flatten_list(context)
       for prefix, spec in zip(flat_ctx, specs):
-        leaf_flat_names = self._flat_kwarg_names(spec.children_specs, spec.context)
+        leaf_flat_names = self._flat_kwarg_names(
+            spec.children_specs, spec.context
+        )
         if leaf_flat_names:
           flat_names.extend([f"{prefix}_{name}" for name in leaf_flat_names])
         else:
@@ -125,7 +127,8 @@ class Signature:
 
 
 def exported_program_to_stablehlo_bundle(
-    exported_program: torch.export.ExportedProgram, sample_args: tuple[torch.Tensor]
+    exported_program: torch.export.ExportedProgram,
+    sample_args: tuple[torch.Tensor],
 ) -> stablehlo.StableHLOModelBundle:
   # Setting export_weights to False here so that pytorch/xla avoids copying the weights
   # to a numpy array which would lead to memory bloat. This means that the state_dict
@@ -146,7 +149,9 @@ def _torch_to_tf_tensor(torch_tensor: torch.Tensor):
     dlpack_capsule = torch.utils.dlpack.to_dlpack(torch_tensor)
     tf_tensor = tf.experimental.dlpack.from_dlpack(dlpack_capsule)
   except Exception:
-    logging.info("Can not use dlpack to convert torch tensors. Falling back to numpy.")
+    logging.info(
+        "Can not use dlpack to convert torch tensors. Falling back to numpy."
+    )
     nparray = torch_tensor.cpu().detach().numpy()
     tf_tensor = tf.convert_to_tensor(nparray)
 
@@ -154,7 +159,8 @@ def _torch_to_tf_tensor(torch_tensor: torch.Tensor):
 
 
 def _get_states(
-    exported_programs: list[torch.export.ExportedProgram], signatures: list[Signature]
+    exported_programs: list[torch.export.ExportedProgram],
+    signatures: list[Signature],
 ):
   for exported_program, signature in zip(exported_programs, signatures):
     args, _ = exported_program.example_inputs
@@ -166,7 +172,8 @@ def _get_states(
       # Only interested in Tensors that are part of the state (and not user input).
       if (
           not isinstance(tensor, torch.Tensor)
-          or input_spec.kind == torch.export.graph_signature.InputKind.USER_INPUT
+          or input_spec.kind
+          == torch.export.graph_signature.InputKind.USER_INPUT
       ):
         continue
       yield signature, tensor, input_spec
@@ -192,9 +199,13 @@ def _gather_state_dict(
     deduped_tensor_map[unique_id] = _torch_to_tf_tensor(tensor)
 
   state_dict = {}
-  for signature, tensor, input_spec in _get_states(exported_programs, signatures):
+  for signature, tensor, input_spec in _get_states(
+      exported_programs, signatures
+  ):
     unique_id = _tensor_unique_id(tensor)
-    state_dict[signature.name + "_" + input_spec.target] = deduped_tensor_map[unique_id]
+    state_dict[signature.name + "_" + input_spec.target] = deduped_tensor_map[
+        unique_id
+    ]
 
   return state_dict
 
@@ -236,7 +247,9 @@ def _wrap_as_tf_func(
 ):
   def inner(*args):
     type_info = [sig.dtype for sig in func.meta.output_signature]
-    shape_info = [_get_shape_with_dynamic(sig) for sig in func.meta.output_signature]
+    shape_info = [
+        _get_shape_with_dynamic(sig) for sig in func.meta.output_signature
+    ]
     call_args = stablehlo._extract_call_parameters(args, func.meta, bundle)
     return tfxla.call_module(
         tuple(call_args),
@@ -369,7 +382,9 @@ def convert_stablehlo_to_tflite(
         )
     )
 
-  tf_module._variables = list(bundle.state_dict.values()) + bundle.additional_constants
+  tf_module._variables = (
+      list(bundle.state_dict.values()) + bundle.additional_constants
+  )
   del bundle
   gc.collect()
 
@@ -385,7 +400,8 @@ def convert_stablehlo_to_tflite(
         tf_module,
         temp_dir_path,
         signatures={
-            sig.name: tf_concrete_funcs[idx] for idx, sig in enumerate(signatures)
+            sig.name: tf_concrete_funcs[idx]
+            for idx, sig in enumerate(signatures)
         },
     )
     # Clean up intermediate memory early.
@@ -416,6 +432,8 @@ def convert_stablehlo_to_tflite(
         and quant_config._quantizer_mode
         == quant_config._QuantizerMode.AI_EDGE_QUANTIZER
     ):
-      tflite_model = translate_recipe.quantize_model(tflite_model, translated_recipe)
+      tflite_model = translate_recipe.quantize_model(
+          tflite_model, translated_recipe
+      )
 
   return tflite_model

@@ -16,14 +16,13 @@ import copy
 import dataclasses
 from typing import Any, Callable, Optional, Union
 
+from ai_edge_torch.hlfb.mark_pattern import passes
 import torch
 from torch.export.graph_signature import TensorArgument
 from torch.fx import Graph
 from torch.fx import GraphModule
 from torch.fx.passes.utils.matcher_utils import InternalMatch
 from torch.fx.passes.utils.matcher_utils import SubgraphMatcher
-
-from ai_edge_torch.hlfb.mark_pattern import passes
 
 
 def _are_equal(x: Any, y: Any) -> bool:
@@ -69,7 +68,9 @@ class ScalarAttrTracker:
   pattern_arg_pos: int
   transform: Callable = lambda x: x
   inverse_transform: Callable = lambda x: x
-  _source_targets: list[tuple[Any, Any]] = dataclasses.field(default_factory=list)
+  _source_targets: list[tuple[Any, Any]] = dataclasses.field(
+      default_factory=list
+  )
 
   def track(self, *sources):
     """Register magic values to track the (transformed) attr values in
@@ -78,7 +79,9 @@ class ScalarAttrTracker:
     for source in sources:
       target = self.transform(source)
       if not _are_equal(self.inverse_transform(target), source):
-        raise Exception(f"Invalid transform/inverse_transform for {self.attr_name}")
+        raise Exception(
+            f"Invalid transform/inverse_transform for {self.attr_name}"
+        )
       self._source_targets.append([source, target])
     return self
 
@@ -189,7 +192,9 @@ class Pattern:
 
     self.name = name
     self.attr_builder = attr_builder
-    self._scalar_attr_trackers = scalar_attr_trackers if scalar_attr_trackers else []
+    self._scalar_attr_trackers = (
+        scalar_attr_trackers if scalar_attr_trackers else []
+    )
 
     exported_program = torch.export.export(module, export_args)
     if decomp_table is not None:
@@ -201,7 +206,9 @@ class Pattern:
     self._scalar_attr_locations = []
     for tracker in self._scalar_attr_trackers:
       self._scalar_attr_locations.append(
-          _find_scalar_attr(module, export_args, tracker, decomp_table=decomp_table)
+          _find_scalar_attr(
+              module, export_args, tracker, decomp_table=decomp_table
+          )
       )
 
     # Sanitize graph_module for more precise pattern matching.
@@ -251,7 +258,9 @@ class Pattern:
         attrs = {}
 
       for loc in self._scalar_attr_locations:
-        attrs[loc.attr_name] = self._get_attr_value_from_pattern_match(match, loc)
+        attrs[loc.attr_name] = self._get_attr_value_from_pattern_match(
+            match, loc
+        )
 
       attrs = attrs if attrs else None
       match_with_attrs.append((match, attrs))

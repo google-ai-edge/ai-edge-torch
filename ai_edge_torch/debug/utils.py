@@ -21,7 +21,9 @@ import torch.fx._pytree as fx_pytree
 from torch.utils import _pytree as pytree
 
 
-def exported_program_to_fx_graph_module_and_inputs(ep: torch.export.ExportedProgram):
+def exported_program_to_fx_graph_module_and_inputs(
+    ep: torch.export.ExportedProgram,
+):
   fx_gm = ep.graph_module
   fx_inputs = pytree.tree_map(
       torch.tensor, ep._graph_module_flat_inputs(*ep.example_inputs)

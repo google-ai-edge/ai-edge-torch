@@ -17,12 +17,11 @@ import collections
 import dataclasses
 import itertools
 
+from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import layout_check  # NOQA
+from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import layout_mark  # NOQA
 import numpy as np
 import scipy
 import torch
-
-from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import layout_check  # NOQA
-from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import layout_mark  # NOQA
 
 
 def can_partition(graph_module: torch.fx.GraphModule):
@@ -83,7 +82,10 @@ class MinCutSolver:
   def graph(self):
     edges = np.array(self.edges)
     return scipy.sparse.csr_matrix(
-        (np.minimum(edges[:, 2], MinCutSolver.INF_COST), (edges[:, 0], edges[:, 1])),
+        (
+            np.minimum(edges[:, 2], MinCutSolver.INF_COST),
+            (edges[:, 0], edges[:, 1]),
+        ),
         shape=(self._nodes_cnt, self._nodes_cnt),
         dtype=np.int32,
     )

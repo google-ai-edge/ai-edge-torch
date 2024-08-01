@@ -17,12 +17,11 @@ import os
 import tempfile
 import unittest
 
+import ai_edge_torch
+from ai_edge_torch.testing import model_coverage
 import numpy.testing
 import torch
 import torchvision
-
-import ai_edge_torch
-from ai_edge_torch.testing import model_coverage
 
 
 class TestSerialization(unittest.TestCase):
@@ -43,9 +42,13 @@ class TestSerialization(unittest.TestCase):
 
     with tempfile.TemporaryDirectory() as tmp_dir_name:
       edge_model.export(os.path.join(tmp_dir_name, "test.model"))
-      loaded_model = ai_edge_torch.load(os.path.join(tmp_dir_name, "test.model"))
+      loaded_model = ai_edge_torch.load(
+          os.path.join(tmp_dir_name, "test.model")
+      )
 
-    result = model_coverage.compare_tflite_torch(loaded_model, resnet18, sample_input)
+    result = model_coverage.compare_tflite_torch(
+        loaded_model, resnet18, sample_input
+    )
     self.assertTrue(result)
 
   def test_wrong_model_raises(self):

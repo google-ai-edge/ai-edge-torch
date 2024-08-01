@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-import torch
-
 from ai_edge_torch.convert.fx_passes.optimize_layout_transposes_pass import utils  # NOQA
+import torch
 
 
 class OpFuncRegistry(dict):

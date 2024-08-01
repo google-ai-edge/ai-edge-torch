@@ -154,7 +154,9 @@ def get_weight_qspec(quantization_config: Optional[QuantizationConfig]):
       torch.per_tensor_symmetric,
       torch.per_channel_symmetric,
   ]:
-    raise ValueError(f"Unsupported quantization_spec {quantization_spec} for weight")
+    raise ValueError(
+        f"Unsupported quantization_spec {quantization_spec} for weight"
+    )
   return quantization_spec
 
 
@@ -193,7 +195,10 @@ def _annotate_linear(
   weight_qspec = get_weight_qspec(quantization_config)
   bias_qspec = get_bias_qspec(quantization_config)
   for node in gm.graph.nodes:
-    if node.op != "call_function" or node.target != torch.ops.aten.linear.default:
+    if (
+        node.op != "call_function"
+        or node.target != torch.ops.aten.linear.default
+    ):
       continue
     if filter_fn and not filter_fn(node):
       continue
@@ -417,7 +422,9 @@ def _annotate_conv_bn(
   Find conv + batchnorm parititions
   Note: This is only used for QAT. In PTQ, batchnorm should already be fused into the conv.
   """
-  return _do_annotate_conv_bn(gm, quantization_config, filter_fn, has_relu=False)
+  return _do_annotate_conv_bn(
+      gm, quantization_config, filter_fn, has_relu=False
+  )
 
 
 @register_annotator("conv_bn_relu")
@@ -486,7 +493,9 @@ def _do_annotate_conv_bn(
   # Match against all conv dimensions and cuda variants
   for (conv_fn, example_inputs), is_cuda, relu_is_inplace in combinations:
     pattern = get_pattern(conv_fn, relu_is_inplace)
-    pattern = _get_aten_graph_module_for_pattern(pattern, example_inputs, is_cuda)
+    pattern = _get_aten_graph_module_for_pattern(
+        pattern, example_inputs, is_cuda
+    )
     pattern.graph.eliminate_dead_code()
     pattern.recompile()
     matcher = SubgraphMatcherWithNameNodeMap(pattern, ignore_literals=True)
@@ -676,7 +685,9 @@ def _annotate_adaptive_avg_pool2d(
         and pool_node.target != torch.ops.aten.mean.dim
         and pool_node.target != torch.ops.aten.as_strided_.default
     ):
-      raise ValueError(f"{pool_node} is not an aten adaptive_avg_pool2d operator")
+      raise ValueError(
+          f"{pool_node} is not an aten adaptive_avg_pool2d operator"
+      )
 
     if _is_annotated([pool_node]):
       continue
@@ -741,7 +752,8 @@ def _annotate_fixed_qparams(
       continue
 
     node.meta["quantization_annotation"] = QuantizationAnnotation(
-        output_qspec=get_fixed_qparams_qspec(quantization_config), _annotated=True
+        output_qspec=get_fixed_qparams_qspec(quantization_config),
+        _annotated=True,
     )
     _mark_nodes_as_annotated(partition)
     annotated_partitions.append(partition)
@@ -885,7 +897,9 @@ def _annotate_mul(
     filter_fn: Optional[Callable[[Node], bool]] = None,
 ) -> Optional[List[List[Node]]]:
   mul_partitions = get_source_partitions(
-      gm.graph, ["mul", "mul_", operator.mul, torch.mul, operator.imul], filter_fn
+      gm.graph,
+      ["mul", "mul_", operator.mul, torch.mul, operator.imul],
+      filter_fn,
   )
   mul_partitions = list(itertools.chain(*mul_partitions.values()))
   annotated_partitions = []
@@ -932,8 +946,9 @@ def _annotate_cat(
 
     if cat_node.target != torch.ops.aten.cat.default:
       raise Exception(
-          f"Expected cat node: torch.ops.aten.cat.default, but found {cat_node.target}"
-          " please check if you are calling the correct capture API"
+          "Expected cat node: torch.ops.aten.cat.default, but found"
+          f" {cat_node.target} please check if you are calling the correct"
+          " capture API"
       )
 
     annotated_partitions.append(cat_partition.nodes)
@@ -987,7 +1002,9 @@ def propagate_annotation(model: torch.fx.GraphModule) -> None:
     if not isinstance(prev_node, Node):
       continue
 
-    quantization_annotation = prev_node.meta.get("quantization_annotation", None)
+    quantization_annotation = prev_node.meta.get(
+        "quantization_annotation", None
+    )
     if not quantization_annotation:
       continue
 
@@ -1014,7 +1031,9 @@ def propagate_annotation(model: torch.fx.GraphModule) -> None:
 
 
 # TODO: make the list of ops customizable
-def _convert_scalars_to_attrs(model: torch.fx.GraphModule) -> torch.fx.GraphModule:
+def _convert_scalars_to_attrs(
+    model: torch.fx.GraphModule,
+) -> torch.fx.GraphModule:
   for n in model.graph.nodes:
     if n.op != "call_function" or n.target not in [
         torch.ops.aten.add.Tensor,

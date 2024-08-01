@@ -74,7 +74,8 @@ class LayerQuantRecipe:
 
     if not is_valid:
       raise ValueError(
-          'Unsupported LayerQuantRecipe configuration. See get_supported_recipe_matrix()'
+          'Unsupported LayerQuantRecipe configuration. See'
+          ' get_supported_recipe_matrix()'
       )
 
 

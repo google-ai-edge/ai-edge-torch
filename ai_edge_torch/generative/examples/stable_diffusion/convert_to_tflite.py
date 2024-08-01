@@ -18,8 +18,6 @@ import os
 from pathlib import Path
 from typing import Optional
 
-import torch
-
 import ai_edge_torch
 import ai_edge_torch.generative.examples.stable_diffusion.clip as clip
 import ai_edge_torch.generative.examples.stable_diffusion.decoder as decoder
@@ -28,10 +26,14 @@ from ai_edge_torch.generative.examples.stable_diffusion.encoder import Encoder
 import ai_edge_torch.generative.examples.stable_diffusion.util as util
 from ai_edge_torch.generative.quantize import quant_recipes
 import ai_edge_torch.generative.utilities.stable_diffusion_loader as stable_diffusion_loader
+import torch
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument(
-    '--clip_ckpt', type=str, help='Path to source CLIP model checkpoint', required=True
+    '--clip_ckpt',
+    type=str,
+    help='Path to source CLIP model checkpoint',
+    required=True,
 )
 arg_parser.add_argument(
     '--diffusion_ckpt',
@@ -93,9 +95,13 @@ def convert_stable_diffusion_to_tflite(
   timestamp = 0
   len_prompt = 1
   prompt_tokens = torch.full((1, n_tokens), 0, dtype=torch.long)
-  input_image = torch.full((1, 3, image_height, image_width), 0, dtype=torch.float32)
+  input_image = torch.full(
+      (1, 3, image_height, image_width), 0, dtype=torch.float32
+  )
   noise = torch.full(
-      (len_prompt, 4, image_height // 8, image_width // 8), 0, dtype=torch.float32
+      (len_prompt, 4, image_height // 8, image_width // 8),
+      0,
+      dtype=torch.float32,
   )
 
   input_latents = torch.zeros_like(noise)
@@ -107,7 +113,9 @@ def convert_stable_diffusion_to_tflite(
   if not os.path.exists(output_dir):
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-  quant_config = quant_recipes.full_int8_weight_only_recipe() if quantize else None
+  quant_config = (
+      quant_recipes.full_int8_weight_only_recipe() if quantize else None
+  )
 
   # TODO(yichunk): convert to multi signature tflite model.
   # CLIP text encoder

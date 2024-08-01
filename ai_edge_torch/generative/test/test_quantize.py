@@ -15,9 +15,6 @@
 
 import unittest
 
-from parameterized import parameterized
-import torch
-
 import ai_edge_torch
 from ai_edge_torch.generative.examples.test_models import toy_model  # NOQA
 from ai_edge_torch.generative.quantize import quant_recipe
@@ -29,20 +26,20 @@ from ai_edge_torch.generative.quantize.quant_attrs import Granularity
 from ai_edge_torch.generative.quantize.quant_attrs import Mode
 from ai_edge_torch.quantize import quant_config
 from ai_edge_torch.testing import model_coverage
+from parameterized import parameterized
+import torch
 
 
 class TestVerifyRecipes(unittest.TestCase):
   """Unit tests that check for model quantization recipes."""
 
-  @parameterized.expand(
-      [
-          (Dtype.FP32, Dtype.FP32),
-          (Dtype.INT8, Dtype.INT8),
-          (Dtype.INT8, Dtype.FP16),
-          (Dtype.FP16, Dtype.INT8),
-          (Dtype.FP16, Dtype.FP16),
-      ]
-  )
+  @parameterized.expand([
+      (Dtype.FP32, Dtype.FP32),
+      (Dtype.INT8, Dtype.INT8),
+      (Dtype.INT8, Dtype.FP16),
+      (Dtype.FP16, Dtype.INT8),
+      (Dtype.FP16, Dtype.FP16),
+  ])
   def test_verify_invalid_recipes(
       self,
       activation,
@@ -54,31 +51,29 @@ class TestVerifyRecipes(unittest.TestCase):
           with self.assertRaises(ValueError):
             quant_recipe.LayerQuantRecipe(activation, weight, m, a, g).verify()
 
-  @parameterized.expand(
-      [
-          (
-              Dtype.FP32,
-              Dtype.INT8,
-              Mode.DYNAMIC_RANGE,
-              Algorithm.MIN_MAX,
-              Granularity.CHANNELWISE,
-          ),
-          (
-              Dtype.FP32,
-              Dtype.INT8,
-              Mode.WEIGHT_ONLY,
-              Algorithm.MIN_MAX,
-              Granularity.CHANNELWISE,
-          ),
-          (
-              Dtype.FP32,
-              Dtype.FP16,
-              Mode.WEIGHT_ONLY,
-              Algorithm.FLOAT_CAST,
-              Granularity.NONE,
-          ),
-      ]
-  )
+  @parameterized.expand([
+      (
+          Dtype.FP32,
+          Dtype.INT8,
+          Mode.DYNAMIC_RANGE,
+          Algorithm.MIN_MAX,
+          Granularity.CHANNELWISE,
+      ),
+      (
+          Dtype.FP32,
+          Dtype.INT8,
+          Mode.WEIGHT_ONLY,
+          Algorithm.MIN_MAX,
+          Granularity.CHANNELWISE,
+      ),
+      (
+          Dtype.FP32,
+          Dtype.FP16,
+          Mode.WEIGHT_ONLY,
+          Algorithm.FLOAT_CAST,
+          Granularity.NONE,
+      ),
+  ])
   def test_verify_valid_recipes(
       self,
       activation,
@@ -87,7 +82,9 @@ class TestVerifyRecipes(unittest.TestCase):
       algo,
       granularity,
   ):
-    quant_recipe.LayerQuantRecipe(activation, weight, mode, algo, granularity).verify()
+    quant_recipe.LayerQuantRecipe(
+        activation, weight, mode, algo, granularity
+    ).verify()
 
 
 class TestQuantizeConvert(unittest.TestCase):
@@ -107,15 +104,13 @@ class TestQuantizeConvert(unittest.TestCase):
         )
     )
 
-  @parameterized.expand(
-      [
-          (quant_recipes.full_fp16_recipe()),
-          (quant_recipes.full_int8_dynamic_recipe()),
-          (quant_recipes.full_int8_weight_only_recipe()),
-          (_attention_int8_dynamic_recipe()),
-          (_feedforward_int8_dynamic_recipe()),
-      ]
-  )
+  @parameterized.expand([
+      (quant_recipes.full_fp16_recipe()),
+      (quant_recipes.full_int8_dynamic_recipe()),
+      (quant_recipes.full_int8_weight_only_recipe()),
+      (_attention_int8_dynamic_recipe()),
+      (_feedforward_int8_dynamic_recipe()),
+  ])
   def test_quantize_convert_toy_sizes(self, quant_config):
     config = toy_model.get_model_config()
     pytorch_model = toy_model.ToySingleLayerModel(config)
@@ -146,7 +141,9 @@ class TestQuantizeConvert(unittest.TestCase):
     )
     float_model = ai_edge_torch.convert(pytorch_model, (idx, input_pos))
 
-    self.assertLess(len(quantized_model._tflite_model), len(float_model._tflite_model))
+    self.assertLess(
+        len(quantized_model._tflite_model), len(float_model._tflite_model)
+    )
     self.assertTrue(
         model_coverage.compare_tflite_torch(
             quantized_model,

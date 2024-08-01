@@ -17,11 +17,10 @@
 
 from collections.abc import Callable
 
+from ai_edge_torch.model import Model
 import numpy as np
 import torch
 from torch.utils import _pytree as pytree
-
-from ai_edge_torch.model import Model
 
 
 # Utility to flatten the order to make it deterministic.
@@ -94,7 +93,9 @@ def compare_tflite_torch(
       )
       for _ in range(num_valid_inputs)
   ]
-  torch_outputs = [torch_eval_func(*args, **kwargs) for args, kwargs in torch_inputs]
+  torch_outputs = [
+      torch_eval_func(*args, **kwargs) for args, kwargs in torch_inputs
+  ]
   np_inputs = [
       (_torch_tensors_to_np(args), _torch_tensors_to_np(kwargs))
       for args, kwargs in torch_inputs
@@ -110,7 +111,9 @@ def compare_tflite_torch(
     if signature_name is None:
       return _flatten(edge_model(*args, **kwargs))
     else:
-      return _flatten(edge_model(*args, **kwargs, signature_name=signature_name))
+      return _flatten(
+          edge_model(*args, **kwargs, signature_name=signature_name)
+      )
 
   for idx, np_input in enumerate(np_inputs):
     output = get_edge_output(np_input)
@@ -123,9 +126,10 @@ def compare_tflite_torch(
 
     # Append the results of each invoke to a function-global variable
     # used to store the comparison final results
-    is_equal = is_output_len_eq and all(
-        [equal_fn(out, golden_out) for out, golden_out in zip(output, golden_output)]
-    )
+    is_equal = is_output_len_eq and all([
+        equal_fn(out, golden_out)
+        for out, golden_out in zip(output, golden_output)
+    ])
     if not is_equal:
       return False
 

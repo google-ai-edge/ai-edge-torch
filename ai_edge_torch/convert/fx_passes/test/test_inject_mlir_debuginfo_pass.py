@@ -16,12 +16,11 @@
 from typing import Callable, Union
 import unittest
 
-import torch
-import torch_xla
-
 from ai_edge_torch.convert.fx_passes import CanonicalizePass
 from ai_edge_torch.convert.fx_passes import InjectMlirDebuginfoPass
 from ai_edge_torch.convert.fx_passes import run_passes
+import torch
+import torch_xla
 
 
 def _export_to_stablehlo_with_composite(
