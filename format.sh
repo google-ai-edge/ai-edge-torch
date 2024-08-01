@@ -18,5 +18,10 @@
 
 set -ex
 
-pyink --pyink-use-majority-quotes --pyink-indentation 2 --extend-exclude third_party --extend-exclude .downloads ./
-isort --profile google --multi-line 7 --skip .downloads --skip venv --skip third_party ./
+pyink --pyink-use-majority-quotes --pyink-indentation=2 --preview --unstable --line-length 80 \
+      --extend-exclude bazel \
+      --extend-exclude third_party \
+      --extend-exclude .downloads \
+      --extend-exclude test/image_segmentation/android \
+    ./
+isort ./
