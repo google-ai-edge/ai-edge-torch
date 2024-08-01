@@ -15,9 +15,9 @@
 
 import ai_edge_torch.generative.layers.builder as layers_builder
 import ai_edge_torch.generative.layers.model_config as layers_cfg
-import ai_edge_torch.generative.layers.unet.blocks_2d as blocks_2d
+from ai_edge_torch.generative.layers.unet import blocks_2d
 import ai_edge_torch.generative.layers.unet.model_config as unet_cfg
-import ai_edge_torch.generative.utilities.stable_diffusion_loader as stable_diffusion_loader
+from ai_edge_torch.generative.utilities import stable_diffusion_loader
 import torch
 from torch import nn
 
@@ -313,7 +313,6 @@ class Diffusion(nn.Module):
                             attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
                             attention_config=attention_config,
-                            enable_hlfb=False,
                         ),
                         cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                             query_dim=output_channel,
@@ -321,7 +320,6 @@ class Diffusion(nn.Module):
                             attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
                             attention_config=attention_config,
-                            enable_hlfb=False,
                         ),
                         pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
                         feed_forward_block_config=unet_cfg.FeedForwardBlock2DConfig(
@@ -375,7 +373,6 @@ class Diffusion(nn.Module):
                     attention_batch_size=config.transformer_batch_size,
                     normalization_config=config.transformer_norm_config,
                     attention_config=attention_config,
-                    enable_hlfb=False,
                 ),
                 cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                     query_dim=mid_block_channels,
@@ -383,7 +380,6 @@ class Diffusion(nn.Module):
                     attention_batch_size=config.transformer_batch_size,
                     normalization_config=config.transformer_norm_config,
                     attention_config=attention_config,
-                    enable_hlfb=False,
                 ),
                 pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
                 feed_forward_block_config=unet_cfg.FeedForwardBlock2DConfig(
@@ -438,7 +434,6 @@ class Diffusion(nn.Module):
                             attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
                             attention_config=attention_config,
-                            enable_hlfb=False,
                         ),
                         cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                             query_dim=output_channel,
@@ -446,7 +441,6 @@ class Diffusion(nn.Module):
                             attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
                             attention_config=attention_config,
-                            enable_hlfb=False,
                         ),
                         pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
                         feed_forward_block_config=unet_cfg.FeedForwardBlock2DConfig(
@@ -543,7 +537,6 @@ def get_model_config(batch_size: int) -> unet_cfg.DiffusionModelConfig:
 
   Retruns:
     The configuration of diffusion model of Stable Diffusion v1.5.
-
   """
   in_channels = 4
   out_channels = 4

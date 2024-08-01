@@ -16,7 +16,7 @@
 
 from typing import Optional, Tuple
 
-from ai_edge_torch.generative.layers.attention import CrossAttention
+from ai_edge_torch.generative.layers import attention
 import ai_edge_torch.generative.layers.builder as builder
 from ai_edge_torch.generative.layers.kv_cache import KVCache
 import ai_edge_torch.generative.layers.model_config as cfg
@@ -37,10 +37,10 @@ class EncoderDecoderBlock(nn.Module):
     """Initialize an instance of the EncoderDecoderBlock.
 
     Args:
-      config (cfg.ModelConfig): the configuration object
-        for this transformer block.
-      has_relative_attention_bias (bool): whether the
-        self attention block has relative bias.
+      config (cfg.ModelConfig): the configuration object for this transformer
+        block.
+      has_relative_attention_bias (bool): whether the self attention block has
+        relative bias.
     """
 
     super().__init__()
@@ -126,7 +126,7 @@ class EncoderDecoderBlock(nn.Module):
     return hidden_states, position_bias, encoder_decoder_position_bias
 
 
-class T5Attention(CrossAttention):
+class T5Attention(attention.CrossAttention):
 
   def __init__(
       self,
@@ -143,8 +143,10 @@ class T5Attention(CrossAttention):
     Args:
       dim (int): causal attention's input/output dimmension.
       config (cfg.AttentionConfig): attention specific configurations.
-      norm_config (cfg.NormalizationConfig): normalization configure before attention.
-      kv_cache_max (int): determines the size of the KV Cache buffer, if enabled.
+      norm_config (cfg.NormalizationConfig): normalization configure before
+        attention.
+      kv_cache_max (int): determines the size of the KV Cache buffer, if
+        enabled.
       enable_hlfb (bool): whether hlfb is enabled or not.
       has_relative_attention_bias (bool): whether we compute relative bias.
     """
@@ -153,6 +155,7 @@ class T5Attention(CrossAttention):
 
     self.has_relative_attention_bias = has_relative_attention_bias
     self.relative_attention_num_buckets = config.relative_attention_num_buckets
+
     if self.has_relative_attention_bias:
       self.relative_attention_bias = nn.Embedding(
           self.relative_attention_num_buckets, self.n_heads

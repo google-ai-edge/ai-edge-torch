@@ -46,14 +46,14 @@ http_archive(
     urls = [
         "https://github.com/google/sentencepiece/archive/refs/tags/v0.1.96.zip"
     ],
-    build_file = "@//third_party:sentencepiece.BUILD",
-    patches = ["@//third_party:com_google_sentencepiece.diff"],
+    build_file = "@//bazel:sentencepiece.BUILD",
+    patches = ["@//bazel:com_google_sentencepiece.diff"],
     patch_args = ["-p1"],
 )
 
 http_archive(
     name = "darts_clone",
-    build_file = "@//third_party:darts_clone.BUILD",
+    build_file = "@//bazel:darts_clone.BUILD",
     sha256 = "c97f55d05c98da6fcaf7f9ecc6a6dc6bc5b18b8564465f77abff8879d446491c",
     strip_prefix = "darts-clone-e40ce4627526985a7767444b6ed6893ab6ff8983",
     urls = [
@@ -92,7 +92,7 @@ http_archive(
       "https://github.com/tensorflow/tensorflow/archive/%s.tar.gz" % _TENSORFLOW_GIT_COMMIT,
     ],
     patches = [
-        "@//third_party:org_tensorflow_system_python.diff",
+        "@//bazel:org_tensorflow_system_python.diff",
     ],
     patch_args = [
         "-p1",

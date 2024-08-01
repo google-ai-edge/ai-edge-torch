@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Quantizer for PyTorch to Edge model (TFLite) quantization."""
 
 from __future__ import annotations
 
@@ -19,25 +20,12 @@ import copy
 import functools
 from typing import Any, Callable, Dict, List, Optional, Set
 
-from ai_edge_torch.quantize.pt2e_quantizer_utils import _convert_scalars_to_attrs  # NOQA
-from ai_edge_torch.quantize.pt2e_quantizer_utils import OP_TO_ANNOTATOR
-from ai_edge_torch.quantize.pt2e_quantizer_utils import OperatorConfig
-from ai_edge_torch.quantize.pt2e_quantizer_utils import OperatorPatternType
-from ai_edge_torch.quantize.pt2e_quantizer_utils import propagate_annotation
-from ai_edge_torch.quantize.pt2e_quantizer_utils import QuantizationConfig
+from ai_edge_torch.quantize import pt2e_quantizer_utils
 import torch
-from torch.ao.quantization.fake_quantize import FusedMovingAvgObsFakeQuantize
-from torch.ao.quantization.observer import HistogramObserver
-from torch.ao.quantization.observer import MinMaxObserver
-from torch.ao.quantization.observer import MovingAverageMinMaxObserver
-from torch.ao.quantization.observer import MovingAveragePerChannelMinMaxObserver  # NOQA
-from torch.ao.quantization.observer import PerChannelMinMaxObserver
-from torch.ao.quantization.observer import PlaceholderObserver
-from torch.ao.quantization.qconfig import _ObserverOrFakeQuantizeConstructor
-from torch.ao.quantization.quantizer import FixedQParamsQuantizationSpec
-from torch.ao.quantization.quantizer import QuantizationSpec
-from torch.ao.quantization.quantizer import Quantizer
-from torch.fx import Node
+from torch.ao.quantization import fake_quantize
+from torch.ao.quantization import observer
+from torch.ao.quantization import qconfig
+from torch.ao.quantization import quantizer
 import torch.nn.functional as F
 
 __all__ = [
@@ -47,11 +35,18 @@ __all__ = [
 
 
 def _supported_symmetric_quantized_operators() -> (
-    Dict[str, List[OperatorPatternType]]
+    Dict[str, List[pt2e_quantizer_utils.OperatorPatternType]]
 ):
-  supported_operators: Dict[str, List[OperatorPatternType]] = {
-      # Both conv and linear should be able to handle relu + hardtanh fusion since
-      # those are clamp ops
+  """Get the supported operators for symmetric quantization.
+
+  Returns:
+    A dictionary of supported operators for symmetric quantization.
+  """
+  supported_operators: Dict[
+      str, List[pt2e_quantizer_utils.OperatorPatternType]
+  ] = {
+      # Both conv and linear should be able to handle relu + hardtanh fusion
+      # since those are clamp ops
       "conv2d": [
           [torch.nn.Conv2d, torch.nn.ReLU],
           [torch.nn.Conv2d, F.relu],
@@ -69,8 +64,15 @@ def _supported_symmetric_quantized_operators() -> (
   return copy.deepcopy(supported_operators)
 
 
-def _get_supported_symmetric_config_and_operators() -> List[OperatorConfig]:
-  supported_config_and_operators: List[OperatorConfig] = []
+def _get_supported_symmetric_config_and_operators() -> (
+    List[pt2e_quantizer_utils.OperatorConfig]
+):
+  """Get the supported operators for symmetric quantization.
+
+  Returns:
+    A list of supported operators for symmetric quantization.
+  """
+  supported_config_and_operators: List[pt2e_quantizer_utils.OperatorConfig] = []
   for quantization_config in [
       get_symmetric_quantization_config(),
       get_symmetric_quantization_config(is_qat=True),
@@ -80,7 +82,7 @@ def _get_supported_symmetric_config_and_operators() -> List[OperatorConfig]:
     ops = _supported_symmetric_quantized_operators()
     for pattern_list in ops.values():
       supported_config_and_operators.append(
-          OperatorConfig(quantization_config, pattern_list)
+          pt2e_quantizer_utils.OperatorConfig(quantization_config, pattern_list)
       )
   return copy.deepcopy(supported_config_and_operators)
 
@@ -91,19 +93,29 @@ def get_symmetric_quantization_config(
     is_qat: bool = False,
     is_dynamic: bool = False,
 ):
+  """Get the symmetric quantization config.
+
+  Args:
+    is_per_channel: whether to use per channel quantization
+    is_qat: whether to use quantization aware training
+    is_dynamic: whether to use dynamic quantization
+
+  Returns:
+    A quantization config.
+  """
   if is_qat:
     if is_dynamic:
       raise NotImplementedError(
           "dynamic quantization for qat is not yet implemented."
       )
-    act_observer_or_fake_quant_ctr = FusedMovingAvgObsFakeQuantize
+    act_observer_or_fake_quant_ctr = fake_quantize.FusedMovingAvgObsFakeQuantize
   else:
     if is_dynamic:
-      act_observer_or_fake_quant_ctr = PlaceholderObserver  # type: ignore[assignment]
+      act_observer_or_fake_quant_ctr = observer.PlaceholderObserver  # type: ignore[assignment]
     else:
-      act_observer_or_fake_quant_ctr = HistogramObserver  # type: ignore[assignment]
+      act_observer_or_fake_quant_ctr = observer.HistogramObserver  # type: ignore[assignment]
 
-  act_quantization_spec = QuantizationSpec(
+  act_quantization_spec = quantizer.QuantizationSpec(
       dtype=torch.int8,
       quant_min=-128,
       quant_max=127,
@@ -118,21 +130,23 @@ def get_symmetric_quantization_config(
       if is_per_channel
       else torch.per_tensor_symmetric
   )
-  weight_observer_or_fake_quant_ctr: _ObserverOrFakeQuantizeConstructor = (
-      MinMaxObserver
-  )
+  weight_observer_or_fake_quant_ctr: (
+      qconfig._ObserverOrFakeQuantizeConstructor
+  ) = observer.MinMaxObserver
   if is_qat:
-    weight_observer_or_fake_quant_ctr = FusedMovingAvgObsFakeQuantize
+    weight_observer_or_fake_quant_ctr = (
+        fake_quantize.FusedMovingAvgObsFakeQuantize
+    )
   elif is_per_channel:
-    weight_observer_or_fake_quant_ctr = PerChannelMinMaxObserver
+    weight_observer_or_fake_quant_ctr = observer.PerChannelMinMaxObserver
 
   extra_args: Dict[str, Any] = {"eps": 2**-12}
   if is_qat:
     if qscheme == torch.per_tensor_symmetric:
-      extra_args["observer"] = MovingAverageMinMaxObserver
+      extra_args["observer"] = observer.MovingAverageMinMaxObserver
     else:
-      extra_args["observer"] = MovingAveragePerChannelMinMaxObserver  # type: ignore[dict-item]
-  weight_quantization_spec = QuantizationSpec(
+      extra_args["observer"] = observer.MovingAveragePerChannelMinMaxObserver  # type: ignore[dict-item]
+  weight_quantization_spec = quantizer.QuantizationSpec(
       dtype=torch.int8,
       quant_min=-127,
       quant_max=127,
@@ -147,7 +161,7 @@ def get_symmetric_quantization_config(
   bias_quantization_spec = None
 
   # Some TFLite ops (e.g. Logistic, Softmax) have fixed qparams requirements
-  fixed_qparams_spec = FixedQParamsQuantizationSpec(
+  fixed_qparams_spec = quantizer.FixedQParamsQuantizationSpec(
       dtype=torch.int8,
       scale=1 / 256,
       zero_point=-128,
@@ -160,7 +174,7 @@ def get_symmetric_quantization_config(
     # Only valid for TFLite downstream to have no input activation quantization
     # because dynamic quantization should be legalized to TFLite DRQ kernels
     # which calculate quantization parameters during runtime inside the kernels
-    quantization_config = QuantizationConfig(
+    quantization_config = pt2e_quantizer_utils.QuantizationConfig(
         None,
         None,
         weight_quantization_spec,
@@ -170,7 +184,7 @@ def get_symmetric_quantization_config(
         True,
     )
   else:
-    quantization_config = QuantizationConfig(
+    quantization_config = pt2e_quantizer_utils.QuantizationConfig(
         act_quantization_spec,
         act_quantization_spec,
         weight_quantization_spec,
@@ -182,24 +196,38 @@ def get_symmetric_quantization_config(
   return quantization_config
 
 
-def _get_supported_config_and_operators() -> List[OperatorConfig]:
+def _get_supported_config_and_operators() -> (
+    List[pt2e_quantizer_utils.OperatorConfig]
+):
   return _get_supported_symmetric_config_and_operators()
 
 
 def _get_module_name_filter(module_name: str):
-  """Get the module_name_filter function for a given module name, the filter accepts
-  a node and checks if the node comes from a module that has certain module name
+  """Get the module_name_filter function for a given module name.
+
+  Get the module_name_filter function for a given module name the filter accepts
+  a node and checks if the node comes from a module that has certain module
+  name.
 
   For example:
-      node: linear_op = call_function[...](...)  # comes from a module with name blocks.sub.linear1
+      node: linear_op = call_function[...](...)  # comes from a module with name
+      blocks.sub.linear1
 
 
   >> module_name_filter = _get_module_name_filter("blocks.sub")
   >> print(module_name_filter(node))
-  True  # the node is from "blocks.sub" based on the fully qualified name "blocks.sub.linear1"
+  True  # the node is from "blocks.sub" based on the fully qualified name
+  "blocks.sub.linear1"
+
+  Args:
+    module_name: the module name to filter
+
+  Returns:
+    A function that accepts a node and checks if the node comes from a module
+    that has certain module name.
   """
 
-  def module_name_filter(n: Node) -> bool:
+  def module_name_filter(n: torch.fx.Node) -> bool:
     # example: {
     #    'L__self___sub': ("L['self'].sub", <class '....Sub'>),
     #    'L__self___sub_linear': ("L['self'].sub.linear", <class 'torch.nn.modules.linear.Linear'>)
@@ -214,20 +242,32 @@ def _get_module_name_filter(module_name: str):
   return module_name_filter
 
 
-def _get_module_type_filter(tp: Callable):
-  """Get the module_type_filter function for a given module type, the filter accepts
+def _get_module_type_filter(tp: Callable[..., Any]):
+  """Get the module_type_filter function for a given module type.
+
+  Get the module_type_filter function for a given module type the filter accepts
   a node and checks if the node comes from a module that has certain module type
 
   For example:
-      node: linear_op = call_function[...](...)  # comes from a module with type Block -> Sub -> Linear
+      node: linear_op = call_function[...](...)  # comes from a module with type
+      Block -> Sub -> Linear
 
 
-  >> module_type_filter = _get_module_type_filter(Sub)  # submodule with type `Sub`, under the `Block` submodule
+  >> module_type_filter = _get_module_type_filter(Sub)  # submodule with type
+  `Sub`, under the `Block` submodule
   >> print(module_type_filter(node))
-  True  # the node is from the submodule `Sub` (same for `Block` and `Linear` as well)
+  True  # the node is from the submodule `Sub` (same for `Block` and `Linear` as
+  well)
+
+  Args:
+    tp: the module type to filter
+
+  Returns:
+    A function that accepts a node and checks if the node comes from a module
+    that has certain module type
   """
 
-  def module_type_filter(n: Node) -> bool:
+  def module_type_filter(n: torch.fx.Node) -> bool:
     # example: {
     #     'L__self___sub': ("L['self'].sub", <class '....Sub'>),
     #     'L__self___sub_linear': ("L['self'].sub.linear", <class 'torch.nn.modules.linear.Linear'>)
@@ -241,19 +281,21 @@ def _get_module_type_filter(tp: Callable):
 
 def _get_not_module_type_or_name_filter(
     tp_list: List[Callable], module_name_list: List[str]
-) -> Callable[[Node], bool]:
+) -> Callable[[torch.fx.Node], bool]:
   module_type_filters = [_get_module_type_filter(tp) for tp in tp_list]
   module_name_list_filters = [
       _get_module_name_filter(m) for m in module_name_list
   ]
 
-  def not_module_type_or_name_filter(n: Node) -> bool:
+  def not_module_type_or_name_filter(n: torch.fx.Node) -> bool:
     return not any(f(n) for f in module_type_filters + module_name_list_filters)
 
   return not_module_type_or_name_filter
 
 
-class PT2EQuantizer(Quantizer):
+class PT2EQuantizer(quantizer.Quantizer):
+  """Quantizer for PyTorch to Edge model (TFLite) quantization."""
+
   supported_config_and_operators = _get_supported_config_and_operators()
   STATIC_QAT_ONLY_OPS = [
       "conv_bn_relu",
@@ -286,24 +328,32 @@ class PT2EQuantizer(Quantizer):
 
   def __init__(self):
     super().__init__()
-    self.global_config: Optional[QuantizationConfig] = None
+    self.global_config: Optional[pt2e_quantizer_utils.QuantizationConfig] = None
     self.operator_type_config: Dict[
-        torch._ops.OpOverloadPacket, Optional[QuantizationConfig]
+        torch._ops.OpOverloadPacket,
+        Optional[pt2e_quantizer_utils.QuantizationConfig],
     ] = {}
-    self.module_type_config: Dict[Callable, Optional[QuantizationConfig]] = {}
-    self.module_name_config: Dict[str, Optional[QuantizationConfig]] = {}
+    self.module_type_config: Dict[
+        Callable, Optional[pt2e_quantizer_utils.QuantizationConfig]
+    ] = {}
+    self.module_name_config: Dict[
+        str, Optional[pt2e_quantizer_utils.QuantizationConfig]
+    ] = {}
 
   @classmethod
-  def get_supported_quantization_configs(cls) -> List[QuantizationConfig]:
-    op_configs: Set[QuantizationConfig] = set({})
+  def get_supported_quantization_configs(
+      cls,
+  ) -> List[pt2e_quantizer_utils.QuantizationConfig]:
+    op_configs: Set[pt2e_quantizer_utils.QuantizationConfig] = set({})
     for spec, _ in cls.supported_config_and_operators:
       op_configs.add(spec)
     return list(op_configs)
 
   @classmethod
   def get_supported_operator_for_quantization_config(
-      cls, quantization_config: Optional[QuantizationConfig]
-  ) -> List[OperatorPatternType]:
+      cls,
+      quantization_config: Optional[pt2e_quantizer_utils.QuantizationConfig],
+  ) -> List[pt2e_quantizer_utils.OperatorPatternType]:
     if quantization_config is None:
       all_ops = []
       for _, ops in cls.supported_config_and_operators:
@@ -321,7 +371,7 @@ class PT2EQuantizer(Quantizer):
     return []
 
   def set_global(
-      self, quantization_config: QuantizationConfig
+      self, quantization_config: pt2e_quantizer_utils.QuantizationConfig
   ) -> PT2EQuantizer:
     self.global_config = quantization_config
     return self
@@ -329,27 +379,37 @@ class PT2EQuantizer(Quantizer):
   def set_operator_type(
       self,
       operator_type: torch._ops.OpOverloadPacket,
-      quantization_config: QuantizationConfig,
+      quantization_config: pt2e_quantizer_utils.QuantizationConfig,
   ) -> PT2EQuantizer:
     self.operator_type_config[operator_type] = quantization_config
     return self
 
   def set_module_type(
-      self, module_type: Callable, quantization_config: QuantizationConfig
+      self,
+      module_type: Callable,
+      quantization_config: pt2e_quantizer_utils.QuantizationConfig,
   ):
-    """Set quantization_config for a submodule with type: `module_type`, for example:
-    quantizer.set_module_name(Sub) or quantizer.set_module_name(nn.Linear), it will quantize all supported operator/operator
-    patterns in the submodule with this module type with the given `quantization_config`
+    """Set quantization_config for a submodule with type: `module_type`.
+
+    for example: quantizer.set_module_name(Sub) or
+    quantizer.set_module_name(nn.Linear), it will quantize all supported
+    operator/operator patterns in the submodule with this module type with the
+    given `quantization_config`
     """
     self.module_type_config[module_type] = quantization_config
     return self
 
   def set_module_name(
-      self, module_name: str, quantization_config: Optional[QuantizationConfig]
+      self,
+      module_name: str,
+      quantization_config: Optional[pt2e_quantizer_utils.QuantizationConfig],
   ):
-    """Set quantization_config for a submodule with name: `module_name`, for example:
-    quantizer.set_module_name("blocks.sub"), it will quantize all supported operator/operator
-    patterns in the submodule with this module name with the given `quantization_config`
+    """Set quantization_config for a submodule.
+
+    Set quantization_config for a submodule with name: `module_name`, for
+    example: quantizer.set_module_name("blocks.sub"), it will quantize all
+    supported operator/operator patterns in the submodule with this module name
+    with the given `quantization_config`
     """
     assert (
         quantization_config is not None
@@ -361,7 +421,7 @@ class PT2EQuantizer(Quantizer):
       self, model: torch.fx.GraphModule
   ) -> torch.fx.GraphModule:
     """Transforms scalar values to tensor attributes"""
-    return _convert_scalars_to_attrs(model)
+    return pt2e_quantizer_utils._convert_scalars_to_attrs(model)
 
   def annotate(self, model: torch.fx.GraphModule) -> torch.fx.GraphModule:
     """just handling global spec for now"""
@@ -369,36 +429,42 @@ class PT2EQuantizer(Quantizer):
       model = self._annotate_for_dynamic_quantization_config(model)
     else:
       model = self._annotate_for_static_quantization_config(model)
-    propagate_annotation(model)
+    pt2e_quantizer_utils.propagate_annotation(model)
     return model
 
   def _annotate_all_static_patterns(
       self,
       model: torch.fx.GraphModule,
-      quantization_config: Optional[QuantizationConfig],
-      filter_fn: Optional[Callable[[Node], bool]] = None,
+      quantization_config: Optional[pt2e_quantizer_utils.QuantizationConfig],
+      filter_fn: Optional[Callable[[torch.fx.Node], bool]] = None,
   ) -> torch.fx.GraphModule:
     if quantization_config is None:
       return model
 
     if quantization_config.is_qat:
       for op in self.STATIC_QAT_ONLY_OPS:
-        OP_TO_ANNOTATOR[op](model, quantization_config, filter_fn)
+        pt2e_quantizer_utils.OP_TO_ANNOTATOR[op](
+            model, quantization_config, filter_fn
+        )
     for op in self.STATIC_OPS:
-      OP_TO_ANNOTATOR[op](model, quantization_config, filter_fn)
+      pt2e_quantizer_utils.OP_TO_ANNOTATOR[op](
+          model, quantization_config, filter_fn
+      )
     return model
 
   def _annotate_all_dynamic_patterns(
       self,
       model: torch.fx.GraphModule,
-      quantization_config: Optional[QuantizationConfig],
-      filter_fn: Optional[Callable[[Node], bool]] = None,
+      quantization_config: Optional[pt2e_quantizer_utils.QuantizationConfig],
+      filter_fn: Optional[Callable[[torch.fx.Node], bool]] = None,
   ) -> torch.fx.GraphModule:
     if quantization_config is None:
       return model
 
     for op in self.DYNAMIC_OPS:
-      OP_TO_ANNOTATOR[op](model, quantization_config, filter_fn)
+      pt2e_quantizer_utils.OP_TO_ANNOTATOR[op](
+          model, quantization_config, filter_fn
+      )
     return model
 
   def _annotate_for_static_quantization_config(
@@ -449,5 +515,5 @@ class PT2EQuantizer(Quantizer):
     pass
 
   @classmethod
-  def get_supported_operators(cls) -> List[OperatorConfig]:
+  def get_supported_operators(cls) -> List[pt2e_quantizer_utils.OperatorConfig]:
     return cls.supported_config_and_operators

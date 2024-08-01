@@ -14,7 +14,7 @@
 # ==============================================================================
 # Cache management utilities.
 
-from dataclasses import dataclass
+import dataclasses
 from typing import List, Tuple
 
 from ai_edge_torch import hlfb
@@ -23,7 +23,7 @@ import torch
 import torch.utils._pytree as pytree
 
 
-@dataclass
+@dataclasses.dataclass
 class KVCacheEntry:
   """A single cache entry include K and V caches."""
 
@@ -49,7 +49,7 @@ class KVCacheEntry:
     return obj
 
 
-@dataclass
+@dataclasses.dataclass
 class EKVCache:
   """A utility class for holding KV cache entries per layer."""
 
@@ -63,12 +63,14 @@ class EKVCache:
       device: torch.device = None,
   ) -> "EKVCache":
     """Build an instance of the class based on model config.
+
     Args:
         config (ModelConfig): Model config used for building the cache.
         dtype (torch.dtype, optional): The data type of the cache tensor.
           Defaults to torch.float32.
         device (torch.device, optional): The device placement of the cache
           tensors. Defaults to None.
+
     Returns:
         EKVCache: The created cache object.
     """

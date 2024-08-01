@@ -13,10 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
-from .convert.converter import convert
-from .convert.converter import signature
-from .convert.to_channel_last_io import to_channel_last_io
-from .model import Model
+from ai_edge_torch._convert.converter import convert
+from ai_edge_torch._convert.converter import signature
+from ai_edge_torch._convert.to_channel_last_io import to_channel_last_io
+from ai_edge_torch.model import Model
 
 
 def load(path: str) -> Model:

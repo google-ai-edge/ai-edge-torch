@@ -28,6 +28,7 @@ class SamplerInterface(abc.ABC):
   @abc.abstractmethod
   def set_strength(self, strength: float = 1) -> None:
     """Set the strength of initial step.
+
     Conceptually, indicates how much to transform the reference `input_images`.
     """
     return NotImplemented

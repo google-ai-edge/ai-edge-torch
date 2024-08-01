@@ -14,7 +14,6 @@
 # ==============================================================================
 # Common building blocks for Attention layer with externalized KV Cache.
 
-import math
 from typing import Optional, Tuple
 
 import ai_edge_torch.generative.layers.builder as builder
@@ -33,8 +32,8 @@ class TransformerBlock(nn.Module):
     """Initialize an instance of the TransformerBlock.
 
     Args:
-      config (cfg.ModelConfig): the configuration object
-        for this transformer block.
+      config (cfg.ModelConfig): the configuration object for this transformer
+        block.
     """
     super().__init__()
     self.pre_atten_norm = builder.build_norm(
@@ -69,7 +68,8 @@ class TransformerBlock(nn.Module):
       kv_cache (KVCacheEntry): the optional kv cache entry.
 
     Returns:
-      output activation from this transformer block, and updated kv cache (if passed in).
+      output activation from this transformer block, and updated kv cache (if
+      passed in).
     """
 
     if self.config.parallel_residual:
@@ -127,6 +127,7 @@ class CausalSelfAttention(nn.Module):
       kv_cache: Optional[kv_utils.KVCacheEntry] = None,
   ) -> Tuple[torch.Tensor, Optional[kv_utils.KVCacheEntry]]:
     """Forward function of the CausalSelfAttention layer, which can support
+
        MQA, GQA and MHA.
 
     Args:

@@ -16,7 +16,8 @@
 """Helper functions to construct custom quantization recipes.
 
 These are intended for more advanced users who want to configure their own
-quantization recipes. For pre-constructed recipes, use `quant_recipes.py` instead.
+quantization recipes. For pre-constructed recipes, use `quant_recipes.py`
+instead.
 
 Typical usage example:
 
@@ -36,16 +37,6 @@ def create_layer_quant_int8_dynamic() -> quant_recipe.LayerQuantRecipe:
       activation_dtype=quant_attrs.Dtype.FP32,
       weight_dtype=quant_attrs.Dtype.INT8,
       mode=quant_attrs.Mode.DYNAMIC_RANGE,
-      algorithm=quant_attrs.Algorithm.MIN_MAX,
-      granularity=quant_attrs.Granularity.CHANNELWISE,
-  )
-
-
-def create_layer_quant_int8_weight_only() -> quant_recipe.LayerQuantRecipe:
-  return quant_recipe.LayerQuantRecipe(
-      activation_dtype=quant_attrs.Dtype.FP32,
-      weight_dtype=quant_attrs.Dtype.INT8,
-      mode=quant_attrs.Mode.WEIGHT_ONLY,
       algorithm=quant_attrs.Algorithm.MIN_MAX,
       granularity=quant_attrs.Granularity.CHANNELWISE,
   )

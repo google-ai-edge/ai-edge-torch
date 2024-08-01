@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-import copy
+"""Mark pattern."""
+
 import dataclasses
 from typing import Any, Callable, Optional, Union
 
@@ -45,6 +46,7 @@ def _are_equal(x: Any, y: Any) -> bool:
 @dataclasses.dataclass
 class ScalarAttrTracker:
   """ScalarAttrTracker is used to track the occurrence of a pattern's
+
   scalar arg/attr in the pattern decomposed graph. Since a scalar attr
   to the pattern can be transformed and turned into a/some ops' scalar
   arg in the decomposed graph, it would be hard to programmatically get
@@ -57,11 +59,10 @@ class ScalarAttrTracker:
     pattern_arg_pos (int): the index of the attr to track in the pattern's
       export_args.
     transform (Callable): the transform function used when targeting the
-      occurrence of the attr value in the decomposed graph. An attr value
-      may be transformed during the decomposition and appear as a derived
-      value.
-    inverse_transform (Callable): the inverse transform function that maps
-      the transformed value back to the original attr value.
+      occurrence of the attr value in the decomposed graph. An attr value may be
+      transformed during the decomposition and appear as a derived value.
+    inverse_transform (Callable): the inverse transform function that maps the
+      transformed value back to the original attr value.
   """
 
   attr_name: str
@@ -74,6 +75,7 @@ class ScalarAttrTracker:
 
   def track(self, *sources):
     """Register magic values to track the (transformed) attr values in
+
     the pattern decomposed graph.
     """
     for source in sources:
@@ -158,24 +160,22 @@ class Pattern:
     """The PyTorch computation pattern to match against a model.
 
     Args:
-      name (str): the name of the pattern. It would be propagated to
-        the `name` attr in StableHLO composite ops for the matched
-        model subgraphs in the lowering.
+      name (str): the name of the pattern. It would be propagated to the `name`
+        attr in StableHLO composite ops for the matched model subgraphs in the
+        lowering.
       module (torch.nn.Module or Callable): the PyTorch computation.
-      export_args (tuple[Any]): the args used to export the pattern module
-        with torch.export.export. If export_args contains non-tensor
-        Python scalars, there must be a corresponding attr tracker
-        in `scalar_attr_trackers` for each scalar arg.
-      attr_builder (Callable[[Pattern, GraphModule, InternalMatch], Optional[dict[str, Any]]]):
-        the callable that produces the a scalar attrs dict, which would be
-        propagated to `attr` in StableHLO composite ops for the matched
-        model subgraphs in the lowering.
-      scalar_attr_trackers (list[ScalarAttrTracker]): the trackers
-        for scalar args in `export_args`, which are used to track
-        the attr occurrence(s) and retrieve their values from the
-        matched subgraph.
-      decomp_table (Optional[dict[torch._ops.OperatorBase, Callable]]):
-        The decomposition table to be run on the pattern's exported program.
+      export_args (tuple[Any]): the args used to export the pattern module with
+        torch.export.export. If export_args contains non-tensor Python scalars,
+        there must be a corresponding attr tracker in `scalar_attr_trackers` for
+        each scalar arg. attr_builder (Callable[[Pattern, GraphModule,
+        InternalMatch], Optional[dict[str, Any]]]): the callable that produces
+        the a scalar attrs dict, which would be propagated to `attr` in
+        StableHLO composite ops for the matched model subgraphs in the lowering.
+      scalar_attr_trackers (list[ScalarAttrTracker]): the trackers for scalar
+        args in `export_args`, which are used to track the attr occurrence(s)
+        and retrieve their values from the matched subgraph.
+      decomp_table (Optional[dict[torch._ops.OperatorBase, Callable]]): The
+        decomposition table to be run on the pattern's exported program.
     """
     if not isinstance(module, torch.nn.Module):
 

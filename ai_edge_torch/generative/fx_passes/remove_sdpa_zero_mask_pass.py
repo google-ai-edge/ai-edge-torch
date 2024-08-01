@@ -12,25 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from ai_edge_torch.convert.fx_passes._pass_base import ExportedProgramPassBase
-from ai_edge_torch.convert.fx_passes._pass_base import ExportedProgramPassResult  # NOQA
+from ai_edge_torch import lowertools
+from ai_edge_torch._convert.fx_passes._pass_base import ExportedProgramPassBase
+from ai_edge_torch._convert.fx_passes._pass_base import ExportedProgramPassResult  # NOQA
+import numpy as np
 import torch
 
 
 class RemoveSDPACompositeZeroMaskPass(ExportedProgramPassBase):
 
   def is_zero_tensor_node(self, node: torch.fx.Node):
-    return node.target == torch.ops.aten.zeros.default
+    return node.target == torch.ops.aten.zeros.default or (
+        node.target == torch.ops.aten.full.default
+        and np.isclose(node.args[0], 0)
+    )
 
   def call(self, exported_program: torch.export.ExportedProgram):
     graph = exported_program.graph_module.graph
     for node in graph.nodes:
       if not (
           node.op == "call_function"
-          and node.target == torch.ops.xla.mark_tensor.default
+          and node.target == lowertools.mark_tensor_op
       ):
         continue
-
       source, name, io_position, id, is_input = node.args[:5]
       # Composite info:
       # - name: odml.scaled_dot_product_attention

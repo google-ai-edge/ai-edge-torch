@@ -17,10 +17,11 @@
 import ast
 import io
 import sys
-import unittest
 
 from ai_edge_torch.debug import find_culprits
 import torch
+
+from tensorflow.python.platform import googletest
 
 _test_culprit_lib = torch.library.Library("test_culprit", "DEF")
 
@@ -49,7 +50,7 @@ class BadModel(torch.nn.Module):
     return x
 
 
-class TestCulprit(unittest.TestCase):
+class TestCulprit(googletest.TestCase):
 
   def test_find_culprits(self):
     model = BadModel().eval()
@@ -131,4 +132,4 @@ class TestCulprit(unittest.TestCase):
 
 
 if __name__ == "__main__":
-  unittest.main()
+  googletest.main()

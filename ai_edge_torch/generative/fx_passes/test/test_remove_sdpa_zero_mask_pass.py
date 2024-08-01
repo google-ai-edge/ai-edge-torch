@@ -14,17 +14,18 @@
 # ==============================================================================
 import re
 from typing import Callable, Union
-import unittest
 
-from ai_edge_torch.convert.fx_passes import CanonicalizePass
-from ai_edge_torch.convert.fx_passes import run_passes
+from ai_edge_torch import config
+from ai_edge_torch import lowertools
+from ai_edge_torch._convert.fx_passes import CanonicalizePass
+from ai_edge_torch._convert.fx_passes import run_passes
 from ai_edge_torch.generative.fx_passes import RemoveSDPACompositeZeroMaskPass
 from ai_edge_torch.generative.layers.attention import SelfAttention
 import ai_edge_torch.generative.layers.model_config as layers_cfg
-import ai_edge_torch.generative.layers.unet.builder as unet_builder
 import ai_edge_torch.generative.layers.unet.model_config as unet_cfg
 import torch
-import torch_xla
+
+from tensorflow.python.platform import googletest
 
 
 def _export_to_stablehlo(func: Union[torch.nn.Module, Callable], export_args):
@@ -48,13 +49,15 @@ def _export_to_stablehlo(func: Union[torch.nn.Module, Callable], export_args):
       ],
   )
 
-  return torch_xla.stablehlo.exported_program_to_stablehlo(
-      exported_program
-  ).get_stablehlo_text()
+  return lowertools.exported_program_to_mlir_text(exported_program)
 
 
-class TestRemoveSDPAZeroMaskPass(unittest.TestCase):
+class TestRemoveSDPAZeroMaskPass(googletest.TestCase):
 
+  @googletest.skipIf(
+      not config.Config.use_torch_xla,
+      reason='b/354771906 failing with odml_torch.',
+  )
   def test_self_attention_no_zero_mask_composite_input(self):
     class SampleSdpaBlock(torch.nn.Module):
       """Sample attention block with SDPA"""
@@ -112,7 +115,6 @@ class TestRemoveSDPAZeroMaskPass(unittest.TestCase):
         SampleSdpaBlock(get_model_config()).eval(),
         (torch.rand(1, 512, 64, 64),),
     )
-    print(stablehlo)
     self.assertTrue(
         re.search(
             'stablehlo\.composite "odml\.scaled_dot_product_attention" %\d+,'
@@ -123,4 +125,4 @@ class TestRemoveSDPAZeroMaskPass(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  unittest.main()
+  googletest.main()

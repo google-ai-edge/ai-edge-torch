@@ -24,7 +24,6 @@ from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention_with_hlfb  # NOQA
 import torch
 from torch import nn
-import torch.nn.functional as F
 
 
 def _embed_rope(
@@ -60,8 +59,8 @@ class TransformerBlock(nn.Module):
     """Initialize an instance of the TransformerBlock.
 
     Args:
-      config (cfg.ModelConfig): the configuration object
-        for this transformer block.
+      config (cfg.ModelConfig): the configuration object for this transformer
+        block.
     """
 
     super().__init__()
@@ -131,7 +130,8 @@ class CausalSelfAttention(nn.Module):
       batch_size (int): batch size of the input tensor.
       dim (int): causal attention's input/output dimmension.
       config (cfg.AttentionConfig): attention specific configurations.
-      kv_cache_max (int): determines the size of the KV Cache buffer, if enabled.
+      kv_cache_max (int): determines the size of the KV Cache buffer, if
+        enabled.
       enable_hlfb (bool): whether hlfb is enabled or not.
     """
     super().__init__()
@@ -169,6 +169,7 @@ class CausalSelfAttention(nn.Module):
       input_pos: Optional[torch.Tensor] = None,
   ) -> torch.Tensor:
     """Forward function of the CausalSelfAttention layer, which can support
+
        MQA, GQA and MHA.
 
     Args:
@@ -274,7 +275,8 @@ class CrossAttention(nn.Module):
       query_dim (int): query tensor's dimension.
       cross_dim (int): cross attention's dimensions, for key and value tensors.
       config (cfg.AttentionConfig): attention specific configurations.
-      kv_cache_max (int): determines the size of the KV Cache buffer, if enabled.
+      kv_cache_max (int): determines the size of the KV Cache buffer, if
+        enabled.
       enable_hlfb (bool): whether hlfb is enabled or not.
     """
     super().__init__()
@@ -324,7 +326,8 @@ class CrossAttention(nn.Module):
       x (torch.Tensor): the target tensor, with shape [B, target_seq_len, ...].
       y (torch.Tensor): the source tensor, with shape [B, source_seq_len, ...].
       rope (Tuple[torch.Tensor, torch.Tensor]): the optional input rope tensor.
-      mask (torch.Tensor): the optional mask tensor can be broadcaseted to shape [B, n_heads, target_seq_len, source_seq_len].
+      mask (torch.Tensor): the optional mask tensor can be broadcaseted to shape
+        [B, n_heads, target_seq_len, source_seq_len].
       input_pos (torch.Tensor): the optional input position tensor.
 
     Returns:

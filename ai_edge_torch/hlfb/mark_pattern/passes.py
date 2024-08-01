@@ -12,13 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Passes to clean up the model graph for pattern matching."""
+
 import torch
 
 
 def remove_clone_ops(gm: torch.fx.GraphModule):
-  # torch export adds additional aten.clone nodes to produce contiguous in memory tensors
-  # depending on tensor sizes for runtime efficiency. However, these unpredictable clone
-  # nodes can break the pattern matching. Thus remove all clones in model and pattern graphs.
+  """Removes clone ops from the graph.
+
+  torch export adds additional aten.clone nodes to produce contiguous in memory
+  tensors depending on tensor sizes for runtime efficiency. However, these
+  unpredictable clone nodes can break the pattern matching. Thus remove all
+  clones in model and pattern graphs.
+
+  Args:
+    gm: The graph module to remove clone ops from.
+
+  Returns:
+    The graph module with clone ops removed.
+  """
   for node in gm.graph.nodes:
     if node.op == "call_function" and node.name.startswith("clone"):
       node.replace_all_uses_with(node.args[0])
@@ -30,6 +42,14 @@ def remove_clone_ops(gm: torch.fx.GraphModule):
 
 
 def remove_dangling_args(gm: torch.fx.GraphModule):
+  """Removes dangling args from the graph.
+
+  Args:
+    gm: The graph module to remove dangling args from.
+
+  Returns:
+    The graph module with dangling args removed.
+  """
   nodes_to_erase = []
   for node in gm.graph.nodes:
     if node.op == "placeholder" and len(node.users) == 0:

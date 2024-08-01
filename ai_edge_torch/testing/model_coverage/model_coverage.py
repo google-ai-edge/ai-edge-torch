@@ -13,11 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-"""Utility Functions to test TFLite models exported from PyTorch"""
+"""Contains utility functions to test TFLite models exported from PyTorch."""
 
 from collections.abc import Callable
 
-from ai_edge_torch.model import Model
+from ai_edge_torch import model
 import numpy as np
 import torch
 from torch.utils import _pytree as pytree
@@ -26,12 +26,20 @@ from torch.utils import _pytree as pytree
 # Utility to flatten the order to make it deterministic.
 # Ordering is done in left-to-right depth-first tree traversal.
 def _flatten(data):
-  out, spec = pytree.tree_flatten(data)
+  out, _ = pytree.tree_flatten(data)
   return out
 
 
 # Convert a Torch Tensor to a numpy array
 def _torch_tensors_to_np(*argv):
+  """Converts a Torch Tensor to a numpy array.
+
+  Args:
+    *argv: A list of torch.tensor or a single torch.tensor.
+
+  Returns:
+    A list of numpy array or a single numpy array.
+  """
   if len(argv) > 1:
     data = list(argv)
   else:
@@ -57,7 +65,7 @@ def _torch_tensors_to_np(*argv):
 
 
 def compare_tflite_torch(
-    edge_model: Model,
+    edge_model: model.Model,
     torch_eval_func: Callable,
     args=None,
     kwargs=None,
@@ -68,15 +76,17 @@ def compare_tflite_torch(
     rtol: float = 1e-5
 ):
   """Compares torch models and TFLite models.
+
   Args:
     edge_model: Serialized ai_edge_torch.model.Model object.
     torch_eval_func: Callable function to evaluate torch model.
-    args: torch.tensor array or a callable to generate a torch.tensor array
-      with random data, to pass into models during inference. (default None).
+    args: torch.tensor array or a callable to generate a torch.tensor array with
+      random data, to pass into models during inference. (default None).
     kwargs: dict of str to torch.tensor, or a callable to generate such.
-    num_valid_inputs: Defines the number of times the random inputs will be generated (if a callable is provided for input_data).
-    signature_name: If provided, specifies the name for the signature of the edge_model to run.
-      Calls the default signature if not provided.
+    num_valid_inputs: Defines the number of times the random inputs will be
+      generated (if a callable is provided for input_data).
+    signature_name: If provided, specifies the name for the signature of the
+      edge_model to run. Calls the default signature if not provided.
     atol: Absolute tolerance (see `numpy.allclose`)
     rtol: Relative tolerance (see `numpy.allclose`)
   """
@@ -118,7 +128,6 @@ def compare_tflite_torch(
   for idx, np_input in enumerate(np_inputs):
     output = get_edge_output(np_input)
     golden_output = np_outputs[idx]
-
     is_output_len_eq = len(golden_output) == len(output)
 
     output = [v.astype(np.float32) for v in output]

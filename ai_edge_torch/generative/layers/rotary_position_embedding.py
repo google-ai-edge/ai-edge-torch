@@ -21,10 +21,8 @@ def apply_rope(
 ) -> torch.Tensor:
   """Computes rotary positional embedding.
 
-  Args:
-    x(torch.Tensor): the input tensor.
-    cos(torch.Tensor): cosine value for the rope.
-    sin(torch.Tensor): sin value for the rope.
+  Args: x(torch.Tensor): the input tensor. cos(torch.Tensor): cosine value for
+  the rope. sin(torch.Tensor): sin value for the rope.
 
   Returns:
     output tensor of RoPE.

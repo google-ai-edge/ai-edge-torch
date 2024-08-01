@@ -31,7 +31,7 @@ from torch.ao.quantization.quantizer import SharedQuantizationSpec
 from torch.ao.quantization.quantizer.utils import _annotate_input_qspec_map
 from torch.ao.quantization.quantizer.utils import _annotate_output_qspec
 from torch.fx import Node
-from torch.fx.passes.utils.matcher_with_name_node_map_utils import SubgraphMatcherWithNameNodeMap  # NOQA
+from torch.fx.passes.utils.matcher_with_name_node_map_utils import SubgraphMatcherWithNameNodeMap
 from torch.fx.passes.utils.source_matcher_utils import get_source_partitions
 import torch.nn.functional as F
 
@@ -95,9 +95,10 @@ class OperatorConfig(NamedTuple):
 
 
 def _is_annotated(nodes: List[Node]):
-  """
-  Given a list of nodes (that represents an operator pattern),
-  check if any of the node is annotated, return True if any of the node
+  """Checks if a list of nodes is annotated.
+
+  Given a list of nodes (that represents an operator pattern), check if any of
+  the node is annotated, return True if any of the node
   is annotated, otherwise return False
   """
   annotated = False
@@ -418,9 +419,9 @@ def _annotate_conv_bn(
     quantization_config: Optional[QuantizationConfig],
     filter_fn: Optional[Callable[[Node], bool]] = None,
 ) -> Optional[List[List[Node]]]:
-  """
-  Find conv + batchnorm parititions
-  Note: This is only used for QAT. In PTQ, batchnorm should already be fused into the conv.
+  """Find conv + batchnorm parititions Note: This is only used for QAT.
+
+  In PTQ, batchnorm should already be fused into the conv.
   """
   return _do_annotate_conv_bn(
       gm, quantization_config, filter_fn, has_relu=False
@@ -433,9 +434,9 @@ def _annotate_conv_bn_relu(
     quantization_config: Optional[QuantizationConfig],
     filter_fn: Optional[Callable[[Node], bool]] = None,
 ) -> Optional[List[List[Node]]]:
-  """
-  Find conv + batchnorm + relu parititions
-  Note: This is only used for QAT. In PTQ, batchnorm should already be fused into the conv.
+  """Find conv + batchnorm + relu parititions Note: This is only used for QAT.
+
+  In PTQ, batchnorm should already be fused into the conv.
   """
   return _do_annotate_conv_bn(gm, quantization_config, filter_fn, has_relu=True)
 
@@ -446,8 +447,8 @@ def _do_annotate_conv_bn(
     filter_fn: Optional[Callable[[Node], bool]],
     has_relu: bool,
 ) -> List[List[Node]]:
-  """
-  Given a function that takes in a `conv_fn` and returns a conv-bn[-relu] pattern,
+  """Given a function that takes in a `conv_fn` and returns a conv-bn[-relu] pattern,
+
   return a list of annotated partitions.
 
   The output of the pattern must include a dictionary from string name to node
