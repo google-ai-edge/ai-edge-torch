@@ -13,20 +13,4 @@
 # limitations under the License.
 # ==============================================================================
 
-from .convert.converter import convert
-from .convert.converter import signature
-from .convert.to_channel_last_io import to_channel_last_io
-from .model import Model
-from .version import __version__
-
-
-def load(path: str) -> Model:
-  """Imports an ai_edge_torch model from disk.
-
-  Args:
-    path: The path to the serialized ai_edge_torch model.
-
-  Returns:
-    An ai_edge_torch.model.Model object.
-  """
-  return Model.load(path)
+__version__ = "0.2.0"
