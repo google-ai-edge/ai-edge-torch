@@ -15,6 +15,7 @@
 
 import copy
 import functools
+from functools import reduce
 from typing import Any, Callable
 
 from ai_edge_torch.hlfb import StableHLOCompositeBuilder
@@ -228,25 +229,25 @@ def _aten_embedding(gm: GraphModule, node: Node):
     full_kwargs = args_mapper.get_full_kwargs(args, kwargs)
     _, embedding_dim = full_kwargs["weight"].size()
     idx = full_kwargs["indices"]
-    # TODO(b/356458830): Handle relative positional encoding
-    if len(idx.size()) == 2:
-      idx = idx.type(torch.int)
-      B, T = idx.size()
 
-      idx = torch.reshape(idx, (B * T,))
+    # Explicitly cast to INT32. This places the CastOp outside of the HLFB.
+    idx = idx.type(torch.int)
+    original_idx_shape = idx.size()
 
-      builder = StableHLOCompositeBuilder("odml.embedding_lookup")
-      full_kwargs["indices"], full_kwargs["weight"] = builder.mark_inputs(
-          idx,
-          full_kwargs["weight"],
-      )
-      output = op(**full_kwargs)
-      output = builder.mark_outputs(output)
+    # Explicitly reshape to 1D. This places the ReshapeOp outside of the HLFB.
+    idx = torch.reshape(idx, (idx.numel(),))
 
-      output = torch.reshape(output, (B, T, embedding_dim))
-      return output
-    else:
-      return op(**full_kwargs)
+    builder = StableHLOCompositeBuilder("odml.embedding_lookup")
+    full_kwargs["indices"], full_kwargs["weight"] = builder.mark_inputs(
+        idx,
+        full_kwargs["weight"],
+    )
+    output = op(**full_kwargs)
+    output = builder.mark_outputs(output)
+
+    # Explicitly reshape back to the original shape. This places the ReshapeOp outside of the HLFB.
+    output = torch.reshape(output, (*(original_idx_shape), embedding_dim))
+    return output
 
   node.target = embedding
 
