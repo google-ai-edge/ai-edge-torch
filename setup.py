@@ -34,6 +34,7 @@ and additional details are in the AI Edge Torch
 """.lstrip()
 
 name = "ai-edge-torch"
+# TODO(b/357076369): move version updating logics to version.py
 version_py = here / "ai_edge_torch" / "version.py"
 version_regex = "__version__\s*=\s*(\"|')(?P<version>[^\"']+)(\"|')"
 version = re.search(version_regex, version_py.read_text()).group("version")
