@@ -41,7 +41,7 @@ class KVCacheEntry:
         1,
         config.kv_cache_max,
         config.attn_config.num_query_groups,
-        config.head_dim,
+        config.attn_config.head_dim,
     )
     k = torch.zeros(shape, dtype=dtype, device=device)
     v = torch.zeros(shape, dtype=dtype, device=device)
