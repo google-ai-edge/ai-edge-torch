@@ -13,27 +13,27 @@
 # limitations under the License.
 # ==============================================================================
 
-from dataclasses import dataclass
+import dataclasses
 import enum
 from typing import Optional
 
-from ai_edge_torch.generative.quantize import quant_attrs
 from ai_edge_torch.generative.quantize import quant_recipe
 from ai_edge_torch.quantize import pt2e_quantizer as pt2eq
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class QuantConfig:
-  """
+  """Encapsulates a quantization configuration.
+
   Encapsulates all different quantization methods and schemes available for
   models converted with ai_edge_torch.
 
-  Args:
+  Attributes:
     pt2e_quantizer: The instance of PT2EQuantizer used to quantize the model
       with PT2E quantization. This method of quantization is not applicable to
       models created with the Edge Generative API.
-    generative_recipe: Quantization recipe to be applied on a model created
-      with the Edge Generative API.
+    generative_recipe: Quantization recipe to be applied on a model created with
+      the Edge Generative API.
   """
 
   pt2e_quantizer: pt2eq.PT2EQuantizer = None

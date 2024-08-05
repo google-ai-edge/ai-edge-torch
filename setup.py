@@ -15,7 +15,6 @@
 
 import os
 import pathlib
-import re
 
 from setuptools import find_packages
 from setuptools import setup
@@ -34,19 +33,11 @@ and additional details are in the AI Edge Torch
 """.lstrip()
 
 name = "ai-edge-torch"
-# TODO(b/357076369): move version updating logics to version.py
-version_py = here / "ai_edge_torch" / "version.py"
-version_regex = "__version__\s*=\s*(\"|')(?P<version>[^\"']+)(\"|')"
-version = re.search(version_regex, version_py.read_text()).group("version")
-
+version = "0.2.0"
 if nightly_release_date := os.environ.get("NIGHTLY_RELEASE_DATE"):
   name += "-nightly"
   version += ".dev" + nightly_release_date
-  version_py.write_text(
-      re.sub(
-          version_regex, f'__version__ = "{version}"', version_py.read_text()
-      )
-  )
+
 
 setup(
     name=name,

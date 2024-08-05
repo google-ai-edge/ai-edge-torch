@@ -127,7 +127,9 @@ def run_tflite_pipeline(
     input_image: Optional[Image.Image] = None,
 ):
   """Run stable diffusion pipeline with tflite model.
+
   model:
+
     StableDiffsuion model.
   prompt:
     The prompt to guide the image generation.
@@ -136,27 +138,36 @@ def run_tflite_pipeline(
   uncond_prompt:
     The prompt not to guide the image generation.
   cfg_scale:
-    Guidance scale of classifier-free guidance. Higher guidance scale encourages to generate
-    images that are closely linked to the text `prompt`, usually at the expense of lower
+    Guidance scale of classifier-free guidance. Higher guidance scale encourages
+    to generate
+    images that are closely linked to the text `prompt`, usually at the expense
+    of lower
     image quality.
   height:
     The height in pixels of the generated image.
   width:
     The width in pixels of the generated image.
   sampler:
-    A sampler to be used to denoise the encoded image latents. Can be one of `k_lms, `k_euler`,
+    A sampler to be used to denoise the encoded image latents. Can be one of
+    `k_lms, `k_euler`,
     or `k_euler_ancestral`.
   n_inference_steps:
-    The number of denoising steps. More denoising steps usually lead to a higher quality image at the
+    The number of denoising steps. More denoising steps usually lead to a higher
+    quality image at the
     expense of slower inference. This parameter will be modulated by `strength`.
   seed:
     A seed to make generation deterministic.
   strength:
-    Conceptually, indicates how much to transform the reference `input_image`. Must be between 0 and 1.
-    `input_image` will be used as a starting point, adding more noise to it the larger the `strength`.
-    The number of denoising steps depends on the amount of noise initially added. When `strength` is 1,
-    added noise will be maximum and the denoising process will run for the full number of iterations
-    specified in `n_inference_steps`. A value of 1, therefore, essentially ignores `input_image`.
+    Conceptually, indicates how much to transform the reference `input_image`.
+    Must be between 0 and 1.
+    `input_image` will be used as a starting point, adding more noise to it the
+    larger the `strength`.
+    The number of denoising steps depends on the amount of noise initially
+    added. When `strength` is 1,
+    added noise will be maximum and the denoising process will run for the full
+    number of iterations
+    specified in `n_inference_steps`. A value of 1, therefore, essentially
+    ignores `input_image`.
   input_image:
     Image which is served as the starting point for the image generation.
   """

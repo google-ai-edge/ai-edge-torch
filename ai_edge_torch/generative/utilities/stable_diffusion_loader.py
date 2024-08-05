@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 # Common utility functions for data loading etc.
-from dataclasses import dataclass
+import dataclasses
 from typing import Dict, List, Optional, Tuple
 
 import ai_edge_torch.generative.layers.model_config as layers_config
@@ -22,7 +22,7 @@ import ai_edge_torch.generative.utilities.loader as loader
 import torch
 
 
-@dataclass
+@dataclasses.dataclass
 class ResidualBlockTensorNames:
   norm_1: str = None
   conv_1: str = None
@@ -32,7 +32,7 @@ class ResidualBlockTensorNames:
   time_embedding: str = None
 
 
-@dataclass
+@dataclasses.dataclass
 class AttentionBlockTensorNames:
   norm: str = None
   fused_qkv_proj: str = None
@@ -42,7 +42,7 @@ class AttentionBlockTensorNames:
   output_proj: str = None
 
 
-@dataclass
+@dataclasses.dataclass
 class CrossAttentionBlockTensorNames:
   norm: str = None
   q_proj: str = None
@@ -51,13 +51,13 @@ class CrossAttentionBlockTensorNames:
   output_proj: str = None
 
 
-@dataclass
+@dataclasses.dataclass
 class TimeEmbeddingTensorNames:
   w1: str = None
   w2: str = None
 
 
-@dataclass
+@dataclasses.dataclass
 class FeedForwardBlockTensorNames:
   w1: str = None
   w2: str = None
@@ -65,7 +65,7 @@ class FeedForwardBlockTensorNames:
   ge_glu: str = None
 
 
-@dataclass
+@dataclasses.dataclass
 class TransformerBlockTensorNames:
   pre_conv_norm: str
   conv_in: str
@@ -75,7 +75,7 @@ class TransformerBlockTensorNames:
   conv_out: str
 
 
-@dataclass
+@dataclasses.dataclass
 class MidBlockTensorNames:
   residual_block_tensor_names: List[ResidualBlockTensorNames]
   attention_block_tensor_names: Optional[List[AttentionBlockTensorNames]] = None
@@ -84,7 +84,7 @@ class MidBlockTensorNames:
   ] = None
 
 
-@dataclass
+@dataclasses.dataclass
 class DownEncoderBlockTensorNames:
   residual_block_tensor_names: List[ResidualBlockTensorNames]
   transformer_block_tensor_names: Optional[
@@ -93,7 +93,7 @@ class DownEncoderBlockTensorNames:
   downsample_conv: str = None
 
 
-@dataclass
+@dataclasses.dataclass
 class UpDecoderBlockTensorNames:
   residual_block_tensor_names: List[ResidualBlockTensorNames]
   transformer_block_tensor_names: Optional[
@@ -102,7 +102,7 @@ class UpDecoderBlockTensorNames:
   upsample_conv: str = None
 
 
-@dataclass
+@dataclasses.dataclass
 class SkipUpDecoderBlockTensorNames:
   residual_block_tensor_names: List[ResidualBlockTensorNames]
   transformer_block_tensor_names: Optional[
@@ -583,7 +583,7 @@ ClipModelLoader = BaseLoader
 
 class AutoEncoderModelLoader(BaseLoader):
 
-  @dataclass
+  @dataclasses.dataclass
   class TensorNames:
     quant_conv: str = None
     post_quant_conv: str = None
@@ -594,11 +594,13 @@ class AutoEncoderModelLoader(BaseLoader):
     up_decoder_blocks_tensor_names: List[UpDecoderBlockTensorNames] = None
 
   def __init__(self, file_name: str, names: TensorNames):
-    """AutoEncoderModelLoader constructor. Can be used to load encoder and decoder models.
+    """AutoEncoderModelLoader constructor.
+
+    Can be used to load encoder and decoder models.
 
     Args:
-        file_name (str): Path to the checkpoint. Can be a directory or an
-          exact file.
+        file_name (str): Path to the checkpoint. Can be a directory or an exact
+          file.
         names (TensorNames): An instance of `TensorNames` to determine mappings.
     """
     self._file_name = file_name
@@ -617,7 +619,8 @@ class AutoEncoderModelLoader(BaseLoader):
 
     Returns:
         missing_keys (List[str]): a list of str containing the missing keys.
-        unexpected_keys (List[str]): a list of str containing the unexpected keys.
+        unexpected_keys (List[str]): a list of str containing the unexpected
+        keys.
 
     Raises:
         ValueError: If conversion results in unmapped tensors and strict mode is
@@ -685,7 +688,7 @@ class AutoEncoderModelLoader(BaseLoader):
 
 class DiffusionModelLoader(BaseLoader):
 
-  @dataclass
+  @dataclasses.dataclass
   class TensorNames:
     time_embedding: TimeEmbeddingTensorNames = None
     conv_in: str = None
@@ -696,11 +699,13 @@ class DiffusionModelLoader(BaseLoader):
     up_decoder_blocks_tensor_names: List[UpDecoderBlockTensorNames] = None
 
   def __init__(self, file_name: str, names: TensorNames):
-    """DiffusionModelLoader constructor. Can be used to load diffusion models of Stable Diffusion.
+    """DiffusionModelLoader constructor.
+
+    Can be used to load diffusion models of Stable Diffusion.
 
     Args:
-        file_name (str): Path to the checkpoint. Can be a directory or an
-          exact file.
+        file_name (str): Path to the checkpoint. Can be a directory or an exact
+          file.
         names (TensorNames): An instance of `TensorNames` to determine mappings.
     """
     self._file_name = file_name
@@ -719,7 +724,8 @@ class DiffusionModelLoader(BaseLoader):
 
     Returns:
         missing_keys (List[str]): a list of str containing the missing keys.
-        unexpected_keys (List[str]): a list of str containing the unexpected keys.
+        unexpected_keys (List[str]): a list of str containing the unexpected
+        keys.
 
     Raises:
         ValueError: If conversion results in unmapped tensors and strict mode is

@@ -13,8 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-import json
-
 from ai_edge_quantizer import quantizer
 from ai_edge_torch.generative.quantize import quant_attrs
 from ai_edge_torch.generative.quantize import quant_recipe

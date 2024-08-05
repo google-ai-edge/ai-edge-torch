@@ -17,6 +17,7 @@
 from typing import Tuple
 
 import ai_edge_torch
+from ai_edge_torch import lowertools
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.builder as builder
 from ai_edge_torch.generative.layers.experimental import ekv_cache as kv_utils
@@ -24,7 +25,6 @@ from ai_edge_torch.generative.layers.experimental.attention import TransformerBl
 import ai_edge_torch.generative.layers.model_config as cfg
 import torch
 import torch.nn as nn
-import torch_xla
 
 RoPECache = Tuple[torch.Tensor, torch.Tensor]
 
@@ -84,8 +84,7 @@ class ToyModelWithExternalKV(torch.nn.Module):
 
 def _export_stablehlo_mlir(model, args):
   ep = torch.export.export(model, args)
-  stablehlo_gm = torch_xla.stablehlo.exported_program_to_stablehlo(ep)
-  return stablehlo_gm.get_stablehlo_text()
+  return lowertools.exported_program_to_mlir_text(ep)
 
 
 def get_model_config() -> cfg.ModelConfig:

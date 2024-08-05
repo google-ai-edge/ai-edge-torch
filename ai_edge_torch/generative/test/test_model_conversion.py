@@ -14,9 +14,6 @@
 # ==============================================================================
 # Testing model conversion for a few gen-ai models.
 import copy
-import os
-import tempfile
-import unittest
 
 import ai_edge_torch
 from ai_edge_torch.generative.examples.gemma import gemma
@@ -27,22 +24,24 @@ from ai_edge_torch.testing import model_coverage
 import numpy as np
 import torch
 
+from tensorflow.python.platform import googletest
 
-class TestModelConversion(unittest.TestCase):
+
+class TestModelConversion(googletest.TestCase):
   """Unit tests that check for model conversion and correctness."""
 
   def test_toy_model_with_kv_cache(self):
     config = toy_model_with_kv_cache.get_model_config()
-    pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config)
+    pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config).eval()
     idx, input_pos = torch.tensor([[1]], dtype=torch.long), torch.tensor(
         [10], dtype=torch.int64
     )
 
     edge_model = ai_edge_torch.convert(pytorch_model, (idx, input_pos))
 
-    # TODO(b/338288901): re-enable test to check output tensors.
+    # TODO: b/338288901 - re-enable test to check output tensors.
     skip_output_check = True
-    if skip_output_check is False:
+    if not skip_output_check:
       self.assertTrue(
           model_coverage.compare_tflite_torch(
               edge_model,
@@ -57,16 +56,16 @@ class TestModelConversion(unittest.TestCase):
   def test_toy_model_with_multi_batches(self):
     config = toy_model_with_kv_cache.get_model_config()
     config.batch_size = 2
-    pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config)
+    pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config).eval()
     idx, input_pos = torch.tensor([[1], [2]], dtype=torch.long), torch.tensor(
         [10], dtype=torch.int64
     )
 
     edge_model = ai_edge_torch.convert(pytorch_model, (idx, input_pos))
 
-    # TODO(b/338288901): re-enable test to check output tensors.
+    # TODO: b/338288901 - re-enable test to check output tensors.
     skip_output_check = True
-    if skip_output_check is False:
+    if not skip_output_check:
       self.assertTrue(
           model_coverage.compare_tflite_torch(
               edge_model,
@@ -81,16 +80,16 @@ class TestModelConversion(unittest.TestCase):
   def test_toy_model_with_kv_cache_with_hlfb(self):
     config = toy_model_with_kv_cache.get_model_config()
     config.enable_hlfb = True
-    pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config)
+    pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config).eval()
     idx, input_pos = torch.tensor([[1]], dtype=torch.long), torch.tensor(
         [10], dtype=torch.int64
     )
 
     edge_model = ai_edge_torch.convert(pytorch_model, (idx, input_pos))
 
-    # TODO(b/338288901): re-enable test to check output tensors.
+    # TODO: b/338288901 - re-enable test to check output tensors.
     skip_output_check = True
-    if skip_output_check is False:
+    if not skip_output_check:
       self.assertTrue(
           model_coverage.compare_tflite_torch(
               edge_model,
@@ -105,7 +104,7 @@ class TestModelConversion(unittest.TestCase):
   def test_tiny_llama(self):
     self.skipTest("b/338288901")
     config = tiny_llama.get_fake_model_config_for_test()
-    pytorch_model = tiny_llama.TinyLLamma(config)
+    pytorch_model = tiny_llama.TinyLLamma(config).eval()
 
     idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
     tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
@@ -114,9 +113,9 @@ class TestModelConversion(unittest.TestCase):
 
     edge_model = ai_edge_torch.convert(pytorch_model, (tokens, input_pos))
 
-    # TODO(b/338288901): re-enable test to check output tensors.
+    # TODO: b/338288901 - re-enable test to check output tensors.
     skip_output_check = True
-    if skip_output_check is False:
+    if not skip_output_check:
       self.assertTrue(
           model_coverage.compare_tflite_torch(
               edge_model,
@@ -130,7 +129,7 @@ class TestModelConversion(unittest.TestCase):
 
   def test_tiny_llama_multisig(self):
     config = tiny_llama.get_fake_model_config_for_test()
-    pytorch_model = tiny_llama.TinyLLamma(config)
+    pytorch_model = tiny_llama.TinyLLamma(config).eval()
 
     # prefill
     seq_len = 10
@@ -151,9 +150,9 @@ class TestModelConversion(unittest.TestCase):
         .convert()
     )
 
-    # TODO(b/338288901): re-enable test to check output tensors.
+    # TODO: b/338288901 - re-enable test to check output tensors.
     skip_output_check = True
-    if skip_output_check is False:
+    if not skip_output_check:
       copied_model = copy.deepcopy(pytorch_model)
 
       self.assertTrue(
@@ -188,9 +187,9 @@ class TestModelConversion(unittest.TestCase):
 
     edge_model = ai_edge_torch.convert(model, (tokens, input_pos))
 
-    # TODO(b/338288901): re-enable test to check output tensors.
+    # TODO: b/338288901 - re-enable test to check output tensors.
     skip_output_check = True
-    if skip_output_check is False:
+    if not skip_output_check:
       # TODO(talumbau, haoliang): debug numerical diff.
       self.assertTrue(
           model_coverage.compare_tflite_torch(
@@ -206,7 +205,7 @@ class TestModelConversion(unittest.TestCase):
   def test_phi2(self):
     self.skipTest("b/338288901")
     config = phi2.get_fake_model_config_for_test()
-    pytorch_model = phi2.Phi2(config)
+    pytorch_model = phi2.Phi2(config).eval()
 
     idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
     tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
@@ -215,9 +214,9 @@ class TestModelConversion(unittest.TestCase):
 
     edge_model = ai_edge_torch.convert(pytorch_model, (tokens, input_pos))
 
-    # TODO(b/338288901): re-enable test to check output tensors.
+    # TODO: b/338288901 - re-enable test to check output tensors.
     skip_output_check = True
-    if skip_output_check is False:
+    if not skip_output_check:
       self.assertTrue(
           model_coverage.compare_tflite_torch(
               edge_model,
@@ -231,4 +230,4 @@ class TestModelConversion(unittest.TestCase):
 
 
 if __name__ == "__main__":
-  unittest.main()
+  googletest.main()

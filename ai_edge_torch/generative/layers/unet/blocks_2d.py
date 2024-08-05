@@ -105,7 +105,6 @@ class AttentionBlock2D(nn.Module):
   """2D self attention block
 
   x = SelfAttention(Norm(input_tensor)) + x
-
   """
 
   def __init__(self, config: unet_cfg.AttentionBlock2DConfig):
@@ -161,14 +160,14 @@ class CrossAttentionBlock2D(nn.Module):
   """2D cross attention block
 
   x = CrossAttention(Norm(input_tensor), context) + x
-
   """
 
   def __init__(self, config: unet_cfg.CrossAttentionBlock2DConfig):
     """Initialize an instance of the AttentionBlock2D.
 
     Args:
-      config (unet_cfg.CrossAttentionBlock2DConfig): the configuration of this block.
+      config (unet_cfg.CrossAttentionBlock2DConfig): the configuration of this
+        block.
     """
     super().__init__()
     self.config = config
@@ -191,7 +190,8 @@ class CrossAttentionBlock2D(nn.Module):
 
     Args:
       input_tensor (torch.Tensor): the input tensor.
-      context_tensor (torch.Tensor): the context tensor to apply cross attention on.
+      context_tensor (torch.Tensor): the context tensor to apply cross attention
+        on.
 
     Returns:
       output activation tensor after cross attention.
@@ -220,7 +220,6 @@ class FeedForwardBlock2D(nn.Module):
   """2D feed forward block
 
   x = w2(Activation(w1(Norm(x)))) + x
-
   """
 
   def __init__(
@@ -291,15 +290,14 @@ class TransformerBlock2D(nn.Module):
   └─────────┬─────────┘
             ▼
       hidden_states
-
-
   """
 
   def __init__(self, config: unet_cfg.TransformerBlock2DConfig):
     """Initialize an instance of the TransformerBlock2D.
 
     Args:
-      config (unet_cfg.TransformerBlock2Dconfig): the configuration of this block.
+      config (unet_cfg.TransformerBlock2Dconfig): the configuration of this
+        block.
     """
     super().__init__()
     self.config = config
@@ -329,7 +327,8 @@ class TransformerBlock2D(nn.Module):
 
     Args:
       input_tensor (torch.Tensor): the input tensor.
-      context_tensor (torch.Tensor): the context tensor to apply cross attention on.
+      context_tensor (torch.Tensor): the context tensor to apply cross attention
+        on.
 
     Returns:
       output activation tensor after transformer block.
@@ -377,7 +376,8 @@ class DownEncoderBlock2D(nn.Module):
     """Initialize an instance of the DownEncoderBlock2D.
 
     Args:
-      config (unet_cfg.DownEncoderBlock2DConfig): the configuration of this block.
+      config (unet_cfg.DownEncoderBlock2DConfig): the configuration of this
+        block.
     """
     super().__init__()
     self.config = config
@@ -418,10 +418,13 @@ class DownEncoderBlock2D(nn.Module):
 
     Args:
       input_tensor (torch.Tensor): the input tensor.
-      time_emb (torch.Tensor): optional time embedding tensor, if the block is configured to accept
-        time embedding.
-      context_tensor (torch.Tensor): optional context tensor, if the block if configured to use transofrmer block.
-      output_hidden_states (bool): whether to output hidden states, usually for skip connections.
+      time_emb (torch.Tensor): optional time embedding tensor, if the block is
+        configured to accept time embedding.
+      context_tensor (torch.Tensor): optional context tensor, if the block if
+        configured to use transofrmer block.
+      output_hidden_states (bool): whether to output hidden states, usually for
+        skip connections.
+
     Returns:
       output hidden_states tensor after DownEncoderBlock2D.
     """
@@ -523,9 +526,10 @@ class UpDecoderBlock2D(nn.Module):
 
     Args:
       input_tensor (torch.Tensor): the input tensor.
-      time_emb (torch.Tensor): optional time embedding tensor, if the block is configured to accept
-        time embedding.
-      context_tensor (torch.Tensor): optional context tensor, if the block if configured to use transofrmer block.
+      time_emb (torch.Tensor): optional time embedding tensor, if the block is
+        configured to accept time embedding.
+      context_tensor (torch.Tensor): optional context tensor, if the block if
+        configured to use transofrmer block.
 
     Returns:
       output hidden_states tensor after UpDecoderBlock2D.
@@ -576,7 +580,8 @@ class SkipUpDecoderBlock2D(nn.Module):
     """Initialize an instance of the SkipUpDecoderBlock2D.
 
     Args:
-      config (unet_cfg.SkipUpDecoderBlock2DConfig): the configuration of this block.
+      config (unet_cfg.SkipUpDecoderBlock2DConfig): the configuration of this
+        block.
     """
     super().__init__()
     self.config = config
@@ -632,10 +637,12 @@ class SkipUpDecoderBlock2D(nn.Module):
 
     Args:
       input_tensor (torch.Tensor): the input tensor.
-      skip_connection_tensors (List[torch.Tensor]): the skip connection tensors from encoder blocks.
-      time_emb (torch.Tensor): optional time embedding tensor, if the block is configured to accept
-        time embedding.
-      context_tensor (torch.Tensor): optional context tensor, if the block if configured to use transofrmer block.
+      skip_connection_tensors (List[torch.Tensor]): the skip connection tensors
+        from encoder blocks.
+      time_emb (torch.Tensor): optional time embedding tensor, if the block is
+        configured to accept time embedding.
+      context_tensor (torch.Tensor): optional context tensor, if the block if
+        configured to use transofrmer block.
 
     Returns:
       output hidden_states tensor after SkipUpDecoderBlock2D.
@@ -738,10 +745,10 @@ class MidBlock2D(nn.Module):
 
     Args:
       input_tensor (torch.Tensor): the input tensor.
-      time_emb (torch.Tensor): optional time embedding tensor, if the block is configured to accept
-        time embedding.
-      context_tensor (torch.Tensor): optional context tensor, if the block if configured to use
-        transofrmer block.
+      time_emb (torch.Tensor): optional time embedding tensor, if the block is
+        configured to accept time embedding.
+      context_tensor (torch.Tensor): optional context tensor, if the block if
+        configured to use transofrmer block.
 
     Returns:
       output hidden_states tensor after MidBlock2D.

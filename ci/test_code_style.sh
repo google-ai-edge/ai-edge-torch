@@ -40,7 +40,6 @@ FIX_FORMAT_FLAG=${1}
   -e .github \
   -e CODEOWNERS \
   -e bazel \
-  -e third_party \
   -e venv \
   -e "\.md" \
   -e "\.ipynb" \

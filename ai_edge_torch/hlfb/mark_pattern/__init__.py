@@ -16,10 +16,10 @@ import copy
 from typing import Any
 import uuid
 
-from ai_edge_torch.hlfb.mark_pattern.pattern import Pattern
-from ai_edge_torch.hlfb.mark_pattern.pattern import ScalarAttrTracker  # NOQA
+from ai_edge_torch import lowertools
+from ai_edge_torch.hlfb.mark_pattern import passes
+from ai_edge_torch.hlfb.mark_pattern import pattern as pattern_module
 import torch
-from torch_xla.experimental import xla_marker
 
 
 @torch._dynamo.assume_constant_result
@@ -48,10 +48,10 @@ def _insert_marker(
     is_input: bool,
     attr: dict[str, Any] = None,
 ):
-  attr = xla_marker.serialize_composite_attr(attr) if attr else None
+  attr = lowertools.serialize_composite_attr(attr) if attr else None
   with graph_module.graph.inserting_after(node):
     new_node = graph_module.graph.call_function(
-        torch.ops.xla.mark_tensor,
+        lowertools.mark_tensor_op,
         args=(node,),
         kwargs={
             "name": name,
@@ -68,13 +68,16 @@ def _insert_marker(
 
 def mark_pattern(
     graph_module: torch.fx.GraphModule,
-    pattern: Pattern,
+    pattern: pattern_module.Pattern,
 ) -> torch.fx.GraphModule:
   """Mark all existences of pattern graph in the GraphModule with fx pattern matching.
+
   The marked subgraphs will be lowered in StableHLO composite ops.
+
   Args:
     graph_module (torch.fx.GraphModule): GraphModule to be matched and marked.
     pattern (ai_edge_torch.hlfb.mark_pattern.Pattern): Pattern to match.
+
   Returns:
     The modified graph_module with additional marker ops in graph.
   """

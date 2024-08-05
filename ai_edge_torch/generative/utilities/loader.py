@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 # Common utility functions for data loading etc.
-from dataclasses import dataclass
+import dataclasses
 import glob
 import os
 from typing import Callable, Dict, List, Tuple
@@ -92,11 +92,9 @@ def load_pytorch_statedict(full_path: str):
 
 
 class ModelLoader:
-  """A utility class for loading and converting model checkpoints to the
-  Edge Generative API layer format.
-  """
+  """Utlity for loading model checkpoints to the Edge Generative API layer."""
 
-  @dataclass
+  @dataclasses.dataclass
   class TensorNames:
     attn_query_proj: str = None
     attn_key_proj: str = None
@@ -116,12 +114,13 @@ class ModelLoader:
     lm_head: str = None
 
   def __init__(self, file_name: str, names: TensorNames) -> None:
-    """ModelLoader constructor. Can be used to load multiple models of the same
-    type.
+    """ModelLoader constructor.
+
+    Can be used to load multiple models of the same type.
 
     Args:
-        file_name (str): Path to the checkpoint. Can be a directory or an
-          exact file.
+        file_name (str): Path to the checkpoint. Can be a directory or an exact
+          file.
         names (TensorNames): An instance of `TensorNames` to determine mappings.
     """
     self._file_name = file_name
@@ -140,7 +139,8 @@ class ModelLoader:
 
     Returns:
         missing_keys (List[str]): a list of str containing the missing keys.
-        unexpected_keys (List[str]): a list of str containing the unexpected keys.
+        unexpected_keys (List[str]): a list of str containing the unexpected
+        keys.
 
     Raises:
         ValueError: If conversion results in unmapped tensors and strict mode is
@@ -208,7 +208,7 @@ class ModelLoader:
     if self._file_name.endswith(".bin") or self._file_name.endswith(".pt"):
       return load_pytorch_statedict
 
-    raise ValueError(f"File format not supported.")
+    raise ValueError("File format not supported.")
 
   def _map_feedforward(
       self,
@@ -342,6 +342,17 @@ class ModelLoader:
       k: torch.Tensor,
       v: torch.Tensor,
   ) -> torch.Tensor:
+    """Fuse qkv tensors into a single tensor.
+
+    Args:
+        config (model_config.ModelConfig): The model config.
+        q (torch.Tensor): The query tensor.
+        k (torch.Tensor): The key tensor.
+        v (torch.Tensor): The value tensor.
+
+    Returns:
+        torch.Tensor: The fused tensor.
+    """
     if config.attn_config.qkv_fused_interleaved:
       q_per_kv = (
           config.attn_config.num_heads // config.attn_config.num_query_groups

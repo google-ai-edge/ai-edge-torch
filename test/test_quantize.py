@@ -12,43 +12,57 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Tests for the quantizer."""
 
-import copy
 import os
 import tempfile
-import unittest
 
 import ai_edge_torch
-from ai_edge_torch.quantize.pt2e_quantizer import get_symmetric_quantization_config  # NOQA
-from ai_edge_torch.quantize.pt2e_quantizer import PT2EQuantizer
-from ai_edge_torch.quantize.quant_config import QuantConfig
+from ai_edge_torch import config
+from ai_edge_torch.quantize import pt2e_quantizer
+from ai_edge_torch.quantize import quant_config
 import torch
-from torch.ao.quantization.quantize_pt2e import convert_pt2e
-from torch.ao.quantization.quantize_pt2e import prepare_pt2e
+from torch.ao.quantization import quantize_pt2e
 import torchvision
 
+from tensorflow.python.platform import googletest
 
-class TestQuantizerSanityBasic(unittest.TestCase):
+
+class TestQuantizerSanityBasic(googletest.TestCase):
+  """Test the basic sanity of the quantizer.
+
+  This test is to ensure that the quantizer is working as expected.
+  """
 
   def setUp(self):
+    super().setUp()
     torch.manual_seed(0)
 
+  @googletest.skipIf(
+      not config.Config.use_torch_xla,
+      reason="Only working with torch_xla at the moment.",
+  )
   def test_quantizer_arg(self):
-    """
-    Compare the sizes of models with and without PT2EQuantizer passed in.
-    Expect a smaller binary size for the model with PT2EQuantizer.
+    """Compare the sizes of models.
+
+    Compare the sizes of models with and without PT2EQuantizer passed in. Expect
+    a smaller binary size for the model with PT2EQuantizer.
     """
     model = torchvision.models.vgg16().eval()
     sample_input = (torch.randn(4, 3, 224, 224),)
 
-    quantizer = PT2EQuantizer().set_global(get_symmetric_quantization_config())
+    quantizer = pt2e_quantizer.PT2EQuantizer().set_global(
+        pt2e_quantizer.get_symmetric_quantization_config()
+    )
     model = torch._export.capture_pre_autograd_graph(model, sample_input)
-    model = prepare_pt2e(model, quantizer)
-    model = convert_pt2e(model, fold_quantize=False)
+    model = quantize_pt2e.prepare_pt2e(model, quantizer)
+    model = quantize_pt2e.convert_pt2e(model, fold_quantize=False)
 
     without_quantizer = ai_edge_torch.convert(model, sample_input)
     with_quantizer = ai_edge_torch.convert(
-        model, sample_input, quant_config=QuantConfig(pt2e_quantizer=quantizer)
+        model,
+        sample_input,
+        quant_config=quant_config.QuantConfig(pt2e_quantizer=quantizer),
     )
 
     with tempfile.TemporaryDirectory() as tmp_dir_name:
@@ -69,4 +83,4 @@ class TestQuantizerSanityBasic(unittest.TestCase):
 
 
 if __name__ == "__main__":
-  unittest.main()
+  googletest.main()

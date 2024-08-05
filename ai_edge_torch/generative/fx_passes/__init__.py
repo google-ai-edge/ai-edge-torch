@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from ai_edge_torch.convert.fx_passes import CanonicalizePass
-from ai_edge_torch.convert.fx_passes import run_passes
+from ai_edge_torch._convert.fx_passes import CanonicalizePass
+from ai_edge_torch._convert.fx_passes import run_passes
 from ai_edge_torch.generative.fx_passes.remove_sdpa_zero_mask_pass import RemoveSDPACompositeZeroMaskPass  # NOQA
 import torch
 

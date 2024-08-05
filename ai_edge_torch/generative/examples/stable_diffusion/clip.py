@@ -49,6 +49,7 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
 
 class CLIP(nn.Module):
   """CLIP text encoder
+
   For details, see https://arxiv.org/abs/2103.00020
   """
 

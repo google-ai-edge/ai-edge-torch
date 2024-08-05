@@ -96,7 +96,7 @@ def get_model_config() -> cfg.ModelConfig:
   return config
 
 
-def define_and_run() -> None:
+def define_and_run():
   model = ToySingleLayerModel(get_model_config())
   idx = torch.unsqueeze(torch.arange(0, KV_CACHE_MAX_LEN), 0)
   input_pos = torch.arange(0, KV_CACHE_MAX_LEN)

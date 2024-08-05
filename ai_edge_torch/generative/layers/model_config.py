@@ -13,8 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 # Model configuration class.
-from dataclasses import dataclass
-from dataclasses import field
+import dataclasses
 import enum
 from typing import Optional
 
@@ -53,7 +52,7 @@ class FeedForwardType(enum.Enum):
   GATED = enum.auto()
 
 
-@dataclass
+@dataclasses.dataclass
 class AttentionConfig:
   """Attention moduel's parameters."""
 
@@ -79,7 +78,7 @@ class AttentionConfig:
   relative_attention_max_distance: int = 0
 
 
-@dataclass
+@dataclasses.dataclass
 class ActivationConfig:
   type: ActivationType = ActivationType.LINEAR
   # Dimension of input and output, used in GeGLU.
@@ -87,7 +86,7 @@ class ActivationConfig:
   dim_out: Optional[int] = None
 
 
-@dataclass
+@dataclasses.dataclass
 class FeedForwardConfig:
   """FeedForward module's parameters."""
 
@@ -97,7 +96,7 @@ class FeedForwardConfig:
   use_bias: bool = False
 
 
-@dataclass
+@dataclasses.dataclass
 class NormalizationConfig:
   """Normalizater parameters."""
 
@@ -108,7 +107,7 @@ class NormalizationConfig:
   group_num: Optional[float] = None
 
 
-@dataclass
+@dataclasses.dataclass
 class ModelConfig:
   """Base configurations for building a transformer architecture."""
 
@@ -120,15 +119,15 @@ class ModelConfig:
   attn_config: AttentionConfig
   ff_config: FeedForwardConfig
   # The normalization applied to attention's input.
-  pre_attention_norm_config: NormalizationConfig = field(
+  pre_attention_norm_config: NormalizationConfig = dataclasses.field(
       default_factory=NormalizationConfig
   )
   # The normalization applied to feed forward's input.
-  pre_ff_norm_config: NormalizationConfig = field(
+  pre_ff_norm_config: NormalizationConfig = dataclasses.field(
       default_factory=NormalizationConfig
   )
   # The normalization applied before LM head.
-  final_norm_config: NormalizationConfig = field(
+  final_norm_config: NormalizationConfig = dataclasses.field(
       default_factory=NormalizationConfig
   )
 

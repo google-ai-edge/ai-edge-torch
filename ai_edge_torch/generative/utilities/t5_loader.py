@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 # Common utility functions for data loading etc.
-from dataclasses import dataclass
+import dataclasses
 import glob
 import os
 from typing import Callable, Dict
@@ -92,11 +92,9 @@ def load_pytorch_statedict(full_path: str):
 
 
 class ModelLoader:
-  """A utility class for loading and converting model checkpoints to ODML
-  transformer layer format.
-  """
+  """Utility class for loading and converting checkpoints to ODML transformer layer format."""
 
-  @dataclass
+  @dataclasses.dataclass
   class TensorNames:
     attn_query_proj: str = None
     attn_key_proj: str = None
@@ -121,12 +119,13 @@ class ModelLoader:
     lm_head: str = None
 
   def __init__(self, file_name: str, names: TensorNames) -> None:
-    """ModelLoader constructor. Can be used to load multiple models of the same
-    type.
+    """ModelLoader constructor.
+
+    Can be used to load multiple models of the same type.
 
     Args:
-        file_name (str): Path to the checkpoint. Can be a directory or an
-          exact file.
+        file_name (str): Path to the checkpoint. Can be a directory or an exact
+          file.
         names (TensorNames): An instance of `TensorNames` to determine mappings.
     """
     self._file_name = file_name
@@ -158,7 +157,7 @@ class ModelLoader:
       )
     elif isinstance(self._names, dict):
       converted_state = {}
-      for additional_prefix, names in self._names.items():
+      for additional_prefix, _ in self._names.items():
         local_converted_state = self._do_load(
             model,
             state,
@@ -212,7 +211,7 @@ class ModelLoader:
 
     if names.relative_attn_bias:
       rel_attn_name = names.relative_attn_bias
-      prefix = additional_prefix + f"transformer_blocks.0"
+      prefix = additional_prefix + "transformer_blocks.0"
       converted_state[f"{prefix}.atten_func.relative_attention_bias.weight"] = (
           state.pop(f"{rel_attn_name}.weight")
       )
@@ -266,7 +265,7 @@ class ModelLoader:
     if self._file_name.endswith(".bin"):
       return load_pytorch_statedict
 
-    raise ValueError(f"File format not supported.")
+    raise ValueError("File format not supported.")
 
   def _map_feedforward(
       self,
@@ -502,11 +501,25 @@ class ModelLoader:
       k: torch.Tensor,
       v: torch.Tensor,
   ) -> torch.Tensor:
+    """Fuse qkv tensors into a single tensor.
+
+    Args:
+        config (model_config.ModelConfig): The model config.
+        q (torch.Tensor): The query tensor.
+        k (torch.Tensor): The key tensor.
+        v (torch.Tensor): The value tensor.
+
+    Returns:
+        torch.Tensor: The fused tensor.
+    """
     q_per_kv = (
         config.attn_config.num_heads // config.attn_config.num_query_groups
     )
     qs = torch.split(q, config.head_dim * q_per_kv)
     ks = torch.split(k, config.head_dim)
     vs = torch.split(v, config.head_dim)
-    cycled = [t for group in zip(qs, ks, vs) for t in group]
+    cycled = []
+    for group in zip(qs, ks, vs):
+      for t in group:
+        cycled.append(t)
     return torch.cat(cycled)
