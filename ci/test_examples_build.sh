@@ -30,7 +30,7 @@ FAILED=false
 for cfg in "${build_configs[@]}"
 do
   echo "Build config = ${cfg}"
-  BUILD_COMMAND="bazel build -c opt --config=${cfg} //ai_edge_torch/generative/examples/c++:text_generator_main"
+  BUILD_COMMAND="bazel build -c opt --config=${cfg} //ai_edge_torch/generative/examples/cpp:text_generator_main"
   echo "Build command: ${BUILD_COMMAND} "
   ${BUILD_COMMAND}
   if [ $? == 0 ]; then

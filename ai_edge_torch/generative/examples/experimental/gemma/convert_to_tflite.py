@@ -34,8 +34,8 @@ def convert_gemma_to_tflite(
     quantize: bool = True,
 ):
   """An example method for converting a Gemma 2B model to multi-signature
-  tflite model.
 
+  tflite model.
   Args:
       checkpoint_path (str): The filepath to the model checkpoint, or directory
         holding the checkpoint.
@@ -43,8 +43,8 @@ def convert_gemma_to_tflite(
         Defaults to 512.
       kv_cache_max_len (int, optional): The maximum size of KV cache buffer,
         including both prefill and decode. Defaults to 1024.
-      quantize (bool, optional): Whether the model should be quanized.
-        Defaults to True.
+      quantize (bool, optional): Whether the model should be quanized. Defaults
+        to True.
   """
   pytorch_model = gemma.build_2b_model(
       checkpoint_path, kv_cache_max_len=kv_cache_max_len

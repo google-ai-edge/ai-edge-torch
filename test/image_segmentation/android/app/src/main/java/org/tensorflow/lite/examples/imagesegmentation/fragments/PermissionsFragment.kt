@@ -31,51 +31,47 @@ import org.tensorflow.lite.examples.imagesegmentation.R
 private val PERMISSIONS_REQUIRED = arrayOf(Manifest.permission.CAMERA)
 
 /**
- * The sole purpose of this fragment is to request permissions and, once granted, display the
- * camera fragment to the user.
+ * The sole purpose of this fragment is to request permissions and, once granted, display the camera
+ * fragment to the user.
  */
 class PermissionsFragment : Fragment() {
 
-    private val requestPermissionLauncher =
-        registerForActivityResult(
-            ActivityResultContracts.RequestPermission()
-        ) { isGranted: Boolean ->
-            if (isGranted) {
-                Toast.makeText(context, "Permission request granted", Toast.LENGTH_LONG).show()
-                navigateToCamera()
-            } else {
-                Toast.makeText(context, "Permission request denied", Toast.LENGTH_LONG).show()
-            }
-        }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        when {
-            ContextCompat.checkSelfPermission(
-                requireContext(),
-                Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED -> {
-                navigateToCamera()
-            }
-            else -> {
-                requestPermissionLauncher.launch(
-                    Manifest.permission.CAMERA)
-            }
-        }
+  private val requestPermissionLauncher =
+    registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
+      if (isGranted) {
+        Toast.makeText(context, "Permission request granted", Toast.LENGTH_LONG).show()
+        navigateToCamera()
+      } else {
+        Toast.makeText(context, "Permission request denied", Toast.LENGTH_LONG).show()
+      }
     }
 
-    private fun navigateToCamera() {
-        lifecycleScope.launchWhenStarted {
-            Navigation.findNavController(requireActivity(), R.id.fragment_container).navigate(
-                PermissionsFragmentDirections.actionPermissionsToCamera())
-        }
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    when {
+      ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA) ==
+        PackageManager.PERMISSION_GRANTED -> {
+        navigateToCamera()
+      }
+      else -> {
+        requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+      }
     }
+  }
 
-    companion object {
-
-        /** Convenience method used to check if all permissions required by this app are granted */
-        fun hasPermissions(context: Context) = PERMISSIONS_REQUIRED.all {
-            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
-        }
+  private fun navigateToCamera() {
+    lifecycleScope.launchWhenStarted {
+      Navigation.findNavController(requireActivity(), R.id.fragment_container)
+        .navigate(PermissionsFragmentDirections.actionPermissionsToCamera())
     }
+  }
+
+  companion object {
+
+    /** Convenience method used to check if all permissions required by this app are granted */
+    fun hasPermissions(context: Context) =
+      PERMISSIONS_REQUIRED.all {
+        ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+      }
+  }
 }

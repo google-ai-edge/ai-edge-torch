@@ -40,7 +40,6 @@ FIX_FORMAT_FLAG=${1}
   -e .github \
   -e CODEOWNERS \
   -e bazel \
-  -e third_party \
   -e venv \
   -e "\.md" \
   -e "\.ipynb" \
@@ -66,17 +65,11 @@ echo "Testing python formatting with ${PYINK_COMMAND}"
 ${PYINK_COMMAND}
 PYTHON_FORMAT_RESULT=$?
 
-ISORT_COMMAND="isort --check ./"
-echo "Testing python imports with ${ISORT_COMMAND}"
-${ISORT_COMMAND}
-ISORT_RESULT=$?
-
 # Re-enable exit on error now that we are done with the temporary git repo.
 set -e
 
 if [[ ${LICENSE_CHECK_RESULT}  != 0 || \
-      ${PYTHON_FORMAT_RESULT}  != 0 || \
-      ${ISORT_RESULT} != 0  \
+      ${PYTHON_FORMAT_RESULT}  != 0 \
    ]]
 then
   exit 1

@@ -15,16 +15,17 @@
 
 """Represents an ai_edge_torch model.
 
-PyTorch models can be converted to this representation through `ai_edge_torch.convert`.
+PyTorch models can be converted to this representation through
+`ai_edge_torch.convert`.
 """
 from __future__ import annotations
 
 import abc
 
-from ai_edge_torch.convert import conversion_utils as cutils
-import numpy as np
 import numpy.typing as npt
 import tensorflow as tf
+
+DEFAULT_SIGNATURE_NAME = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 
 
 class Model(abc.ABC):
@@ -34,7 +35,7 @@ class Model(abc.ABC):
   def __call__(
       self,
       *args: npt.ArrayLike,
-      signature_name: str = cutils.DEFAULT_SIGNATURE_NAME,
+      signature_name: str = DEFAULT_SIGNATURE_NAME,
       **kwargs,
   ) -> npt.ArrayLike | tuple[npt.ArrayLike]:
     raise NotImplementedError()
@@ -66,18 +67,22 @@ class TfLiteModel(Model):
   def __call__(
       self,
       *args: npt.ArrayLike,
-      signature_name: str = cutils.DEFAULT_SIGNATURE_NAME,
+      signature_name: str = DEFAULT_SIGNATURE_NAME,
       **kwargs,
   ) -> npt.ArrayLike | tuple[npt.ArrayLike]:
     """Runs inference on the edge model using the provided arguments.
 
     Args:
       *args: The arguments to be passed to the model for inference.
-      **kwargs: The arguments with specific names to be passed to the model for inference.
-      signature_name: The name of the signature to be used for inference.
-        The default signature is used if not provided.
+      **kwargs: The arguments with specific names to be passed to the model for
+        inference.
+      signature_name: The name of the signature to be used for inference. The
+        default signature is used if not provided.
     """
-    interpreter = tf.lite.Interpreter(model_content=self._tflite_model)
+    interpreter = tf.lite.Interpreter(
+        model_content=self._tflite_model,
+        experimental_default_delegate_latest_features=True,
+    )
     interpreter.allocate_tensors()
 
     signature_list = interpreter.get_signature_list()

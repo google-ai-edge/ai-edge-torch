@@ -12,22 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-import math
-import unittest
+"""Tests for StableHLOCompositeBuilder."""
 
+import math
+
+from ai_edge_torch import lowertools
 from ai_edge_torch.hlfb import StableHLOCompositeBuilder
 import torch
 import torch.nn.functional as F
-import torch_xla
+
+from tensorflow.python.platform import googletest
 
 
 def _export_stablehlo_mlir(model, args):
   ep = torch.export.export(model, args)
-  stablehlo_gm = torch_xla.stablehlo.exported_program_to_stablehlo(ep)
-  return stablehlo_gm.get_stablehlo_text()
+  return lowertools.exported_program_to_mlir_text(ep)
 
 
-class TestStableHLOCompositeBuilder(unittest.TestCase):
+class TestStableHLOCompositeBuilder(googletest.TestCase):
 
   def test_build_composite(self):
     class SampleModel(torch.nn.Module):
@@ -273,4 +275,4 @@ class TestStableHLOCompositeBuilder(unittest.TestCase):
 
 
 if __name__ == "__main__":
-  unittest.main()
+  googletest.main()

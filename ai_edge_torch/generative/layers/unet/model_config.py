@@ -14,8 +14,7 @@
 # ==============================================================================
 
 # UNet configuration class.
-from dataclasses import dataclass
-from dataclasses import field
+import dataclasses
 import enum
 from typing import List, Optional
 
@@ -30,13 +29,13 @@ class SamplingType(enum.Enum):
   CONVOLUTION = enum.auto()
 
 
-@dataclass
+@dataclasses.dataclass
 class UpSamplingConfig:
   mode: SamplingType
   scale_factor: float
 
 
-@dataclass
+@dataclasses.dataclass
 class DownSamplingConfig:
   mode: SamplingType
   in_channels: int
@@ -46,7 +45,7 @@ class DownSamplingConfig:
   out_channels: Optional[int] = None
 
 
-@dataclass
+@dataclasses.dataclass
 class ResidualBlock2DConfig:
   in_channels: int
   out_channels: int
@@ -56,7 +55,7 @@ class ResidualBlock2DConfig:
   time_embedding_channels: Optional[int] = None
 
 
-@dataclass
+@dataclasses.dataclass
 class AttentionBlock2DConfig:
   dim: int
   normalization_config: layers_cfg.NormalizationConfig
@@ -65,7 +64,7 @@ class AttentionBlock2DConfig:
   attention_batch_size: int = 1
 
 
-@dataclass
+@dataclasses.dataclass
 class CrossAttentionBlock2DConfig:
   query_dim: int
   cross_dim: int
@@ -75,7 +74,7 @@ class CrossAttentionBlock2DConfig:
   attention_batch_size: int = 1
 
 
-@dataclass
+@dataclasses.dataclass
 class FeedForwardBlock2DConfig:
   dim: int
   hidden_dim: int
@@ -84,7 +83,7 @@ class FeedForwardBlock2DConfig:
   use_bias: bool
 
 
-@dataclass
+@dataclasses.dataclass
 class TransformerBlock2DConfig:
   pre_conv_normalization_config: layers_cfg.NormalizationConfig
   attention_block_config: AttentionBlock2DConfig
@@ -92,7 +91,7 @@ class TransformerBlock2DConfig:
   feed_forward_block_config: FeedForwardBlock2DConfig
 
 
-@dataclass
+@dataclasses.dataclass
 class UpDecoderBlock2DConfig:
   in_channels: int
   out_channels: int
@@ -113,7 +112,7 @@ class UpDecoderBlock2DConfig:
   context_dim: Optional[int] = None
 
 
-@dataclass
+@dataclasses.dataclass
 class SkipUpDecoderBlock2DConfig:
   in_channels: int
   out_channels: int
@@ -136,7 +135,7 @@ class SkipUpDecoderBlock2DConfig:
   context_dim: Optional[int] = None
 
 
-@dataclass
+@dataclasses.dataclass
 class DownEncoderBlock2DConfig:
   in_channels: int
   out_channels: int
@@ -157,7 +156,7 @@ class DownEncoderBlock2DConfig:
   context_dim: Optional[int] = None
 
 
-@dataclass
+@dataclasses.dataclass
 class MidBlock2DConfig:
   in_channels: int
   normalization_config: layers_cfg.NormalizationConfig
@@ -173,7 +172,7 @@ class MidBlock2DConfig:
   context_dim: Optional[int] = None
 
 
-@dataclass
+@dataclasses.dataclass
 class AutoEncoderConfig:
   """Configurations of encoder/decoder in the autoencoder model."""
 
@@ -210,7 +209,7 @@ class AutoEncoderConfig:
   mid_block_config: MidBlock2DConfig
 
 
-@dataclass
+@dataclasses.dataclass
 class DiffusionModelConfig:
   """Configurations of Diffusion model."""
 

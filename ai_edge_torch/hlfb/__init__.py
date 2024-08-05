@@ -13,4 +13,4 @@
 # limitations under the License.
 # ==============================================================================
 
-from torch_xla.experimental.mark_pattern_utils import StableHLOCompositeBuilder
+from ai_edge_torch.lowertools import StableHLOCompositeBuilder

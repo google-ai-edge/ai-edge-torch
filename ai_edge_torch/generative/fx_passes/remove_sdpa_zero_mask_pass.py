@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from ai_edge_torch.convert.fx_passes._pass_base import ExportedProgramPassBase
-from ai_edge_torch.convert.fx_passes._pass_base import ExportedProgramPassResult  # NOQA
+from ai_edge_torch import lowertools
+from ai_edge_torch._convert.fx_passes._pass_base import ExportedProgramPassBase
+from ai_edge_torch._convert.fx_passes._pass_base import ExportedProgramPassResult
 import torch
 
 
@@ -27,7 +28,7 @@ class RemoveSDPACompositeZeroMaskPass(ExportedProgramPassBase):
     for node in graph.nodes:
       if not (
           node.op == "call_function"
-          and node.target == torch.ops.xla.mark_tensor.default
+          and node.target == lowertools.mark_tensor_op
       ):
         continue
 

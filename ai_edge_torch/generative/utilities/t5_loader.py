@@ -92,9 +92,7 @@ def load_pytorch_statedict(full_path: str):
 
 
 class ModelLoader:
-  """A utility class for loading and converting model checkpoints to ODML
-  transformer layer format.
-  """
+  """Utility class for loading and converting checkpoints to ODML transformer layer format."""
 
   @dataclass
   class TensorNames:
@@ -121,12 +119,13 @@ class ModelLoader:
     lm_head: str = None
 
   def __init__(self, file_name: str, names: TensorNames) -> None:
-    """ModelLoader constructor. Can be used to load multiple models of the same
-    type.
+    """ModelLoader constructor.
+
+    Can be used to load multiple models of the same type.
 
     Args:
-        file_name (str): Path to the checkpoint. Can be a directory or an
-          exact file.
+        file_name (str): Path to the checkpoint. Can be a directory or an exact
+          file.
         names (TensorNames): An instance of `TensorNames` to determine mappings.
     """
     self._file_name = file_name
@@ -158,7 +157,7 @@ class ModelLoader:
       )
     elif isinstance(self._names, dict):
       converted_state = {}
-      for additional_prefix, names in self._names.items():
+      for additional_prefix, _ in self._names.items():
         local_converted_state = self._do_load(
             model,
             state,
@@ -212,7 +211,7 @@ class ModelLoader:
 
     if names.relative_attn_bias:
       rel_attn_name = names.relative_attn_bias
-      prefix = additional_prefix + f"transformer_blocks.0"
+      prefix = additional_prefix + "transformer_blocks.0"
       converted_state[f"{prefix}.atten_func.relative_attention_bias.weight"] = (
           state.pop(f"{rel_attn_name}.weight")
       )
@@ -266,7 +265,7 @@ class ModelLoader:
     if self._file_name.endswith(".bin"):
       return load_pytorch_statedict
 
-    raise ValueError(f"File format not supported.")
+    raise ValueError("File format not supported.")
 
   def _map_feedforward(
       self,

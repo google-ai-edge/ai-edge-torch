@@ -26,7 +26,6 @@ class GeGLU(nn.Module):
 
   GeGLU(x) = (xW+b) * GELU(xV+c)
   See: https://arxiv.org/abs/2002.05202v1
-
   """
 
   def __init__(self, d_in: int, d_out: int):

@@ -16,7 +16,8 @@
 """Helper functions to construct custom quantization recipes.
 
 These are intended for more advanced users who want to configure their own
-quantization recipes. For pre-constructed recipes, use `quant_recipes.py` instead.
+quantization recipes. For pre-constructed recipes, use `quant_recipes.py`
+instead.
 
 Typical usage example:
 
