@@ -63,12 +63,14 @@ class EKVCache:
       device: torch.device = None,
   ) -> "EKVCache":
     """Build an instance of the class based on model config.
+
     Args:
         config (ModelConfig): Model config used for building the cache.
         dtype (torch.dtype, optional): The data type of the cache tensor.
           Defaults to torch.float32.
         device (torch.device, optional): The device placement of the cache
           tensors. Defaults to None.
+
     Returns:
         EKVCache: The created cache object.
     """

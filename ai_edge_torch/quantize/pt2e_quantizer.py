@@ -188,15 +188,18 @@ def _get_supported_config_and_operators() -> List[OperatorConfig]:
 
 def _get_module_name_filter(module_name: str):
   """Get the module_name_filter function for a given module name, the filter accepts
+
   a node and checks if the node comes from a module that has certain module name
 
   For example:
-      node: linear_op = call_function[...](...)  # comes from a module with name blocks.sub.linear1
+      node: linear_op = call_function[...](...)  # comes from a module with name
+      blocks.sub.linear1
 
 
   >> module_name_filter = _get_module_name_filter("blocks.sub")
   >> print(module_name_filter(node))
-  True  # the node is from "blocks.sub" based on the fully qualified name "blocks.sub.linear1"
+  True  # the node is from "blocks.sub" based on the fully qualified name
+  "blocks.sub.linear1"
   """
 
   def module_name_filter(n: Node) -> bool:
@@ -216,15 +219,19 @@ def _get_module_name_filter(module_name: str):
 
 def _get_module_type_filter(tp: Callable):
   """Get the module_type_filter function for a given module type, the filter accepts
+
   a node and checks if the node comes from a module that has certain module type
 
   For example:
-      node: linear_op = call_function[...](...)  # comes from a module with type Block -> Sub -> Linear
+      node: linear_op = call_function[...](...)  # comes from a module with type
+      Block -> Sub -> Linear
 
 
-  >> module_type_filter = _get_module_type_filter(Sub)  # submodule with type `Sub`, under the `Block` submodule
+  >> module_type_filter = _get_module_type_filter(Sub)  # submodule with type
+  `Sub`, under the `Block` submodule
   >> print(module_type_filter(node))
-  True  # the node is from the submodule `Sub` (same for `Block` and `Linear` as well)
+  True  # the node is from the submodule `Sub` (same for `Block` and `Linear` as
+  well)
   """
 
   def module_type_filter(n: Node) -> bool:
@@ -338,8 +345,11 @@ class PT2EQuantizer(Quantizer):
       self, module_type: Callable, quantization_config: QuantizationConfig
   ):
     """Set quantization_config for a submodule with type: `module_type`, for example:
-    quantizer.set_module_name(Sub) or quantizer.set_module_name(nn.Linear), it will quantize all supported operator/operator
-    patterns in the submodule with this module type with the given `quantization_config`
+
+    quantizer.set_module_name(Sub) or quantizer.set_module_name(nn.Linear), it
+    will quantize all supported operator/operator
+    patterns in the submodule with this module type with the given
+    `quantization_config`
     """
     self.module_type_config[module_type] = quantization_config
     return self
@@ -348,8 +358,11 @@ class PT2EQuantizer(Quantizer):
       self, module_name: str, quantization_config: Optional[QuantizationConfig]
   ):
     """Set quantization_config for a submodule with name: `module_name`, for example:
-    quantizer.set_module_name("blocks.sub"), it will quantize all supported operator/operator
-    patterns in the submodule with this module name with the given `quantization_config`
+
+    quantizer.set_module_name("blocks.sub"), it will quantize all supported
+    operator/operator
+    patterns in the submodule with this module name with the given
+    `quantization_config`
     """
     assert (
         quantization_config is not None

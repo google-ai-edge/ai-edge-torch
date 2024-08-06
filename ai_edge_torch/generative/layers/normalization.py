@@ -21,12 +21,12 @@ import torch
 class RMSNorm(torch.nn.Module):
 
   def __init__(self, dim: int, eps: float = 1e-6, zero_centered_gamma=False):
-    """
-    Initialize the RMSNorm layer.
+    """Initialize the RMSNorm layer.
 
     Args:
       dim (int): dimension of the input tensor.
-      eps (float): A small float value to ensure numerical stability (default: 1e-6).
+      eps (float): A small float value to ensure numerical stability (default:
+        1e-6).
     """
     super().__init__()
     self.eps = eps
@@ -34,8 +34,7 @@ class RMSNorm(torch.nn.Module):
     self.zero_centered_gamma = zero_centered_gamma
 
   def _norm(self, x):
-    """
-    Apply RMSNorm normalization.
+    """Apply RMSNorm normalization.
 
     Args:
       x (torch.Tensor): input tensor.
@@ -46,8 +45,7 @@ class RMSNorm(torch.nn.Module):
     return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
 
   def forward(self, x):
-    """
-    Running the forward pass of RMSNorm layer.
+    """Running the forward pass of RMSNorm layer.
 
     Args:
       x (torch.Tensor): input tensor.

@@ -594,11 +594,13 @@ class AutoEncoderModelLoader(BaseLoader):
     up_decoder_blocks_tensor_names: List[UpDecoderBlockTensorNames] = None
 
   def __init__(self, file_name: str, names: TensorNames):
-    """AutoEncoderModelLoader constructor. Can be used to load encoder and decoder models.
+    """AutoEncoderModelLoader constructor.
+
+    Can be used to load encoder and decoder models.
 
     Args:
-        file_name (str): Path to the checkpoint. Can be a directory or an
-          exact file.
+        file_name (str): Path to the checkpoint. Can be a directory or an exact
+          file.
         names (TensorNames): An instance of `TensorNames` to determine mappings.
     """
     self._file_name = file_name
@@ -617,7 +619,8 @@ class AutoEncoderModelLoader(BaseLoader):
 
     Returns:
         missing_keys (List[str]): a list of str containing the missing keys.
-        unexpected_keys (List[str]): a list of str containing the unexpected keys.
+        unexpected_keys (List[str]): a list of str containing the unexpected
+        keys.
 
     Raises:
         ValueError: If conversion results in unmapped tensors and strict mode is
@@ -721,11 +724,13 @@ class DiffusionModelLoader(BaseLoader):
     up_decoder_blocks_tensor_names: List[UpDecoderBlockTensorNames] = None
 
   def __init__(self, file_name: str, names: TensorNames):
-    """DiffusionModelLoader constructor. Can be used to load diffusion models of Stable Diffusion.
+    """DiffusionModelLoader constructor.
+
+    Can be used to load diffusion models of Stable Diffusion.
 
     Args:
-        file_name (str): Path to the checkpoint. Can be a directory or an
-          exact file.
+        file_name (str): Path to the checkpoint. Can be a directory or an exact
+          file.
         names (TensorNames): An instance of `TensorNames` to determine mappings.
     """
     self._file_name = file_name
@@ -744,7 +749,8 @@ class DiffusionModelLoader(BaseLoader):
 
     Returns:
         missing_keys (List[str]): a list of str containing the missing keys.
-        unexpected_keys (List[str]): a list of str containing the unexpected keys.
+        unexpected_keys (List[str]): a list of str containing the unexpected
+        keys.
 
     Raises:
         ValueError: If conversion results in unmapped tensors and strict mode is

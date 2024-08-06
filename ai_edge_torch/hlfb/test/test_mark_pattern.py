@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Tests for mark_pattern."""
 
-import unittest
-
+from ai_edge_torch import lowertools
 from ai_edge_torch.hlfb import mark_pattern
+from ai_edge_torch.hlfb.mark_pattern import pattern as pattern_module
 import torch
-import torch_xla
+
+from tensorflow.python.platform import googletest
 
 
 def _export_stablehlo_mlir(model, args=None):
@@ -25,11 +27,10 @@ def _export_stablehlo_mlir(model, args=None):
     ep = torch.export.export(model, args)
   else:
     ep = model
-  stablehlo_gm = torch_xla.stablehlo.exported_program_to_stablehlo(ep)
-  return stablehlo_gm.get_stablehlo_text()
+  return lowertools.exported_program_to_mlir_text(ep)
 
 
-class TestMarkPattern(unittest.TestCase):
+class TestMarkPattern(googletest.TestCase):
 
   def test_mark_pattern(self):
 
@@ -38,7 +39,7 @@ class TestMarkPattern(unittest.TestCase):
       def forward(self, x):
         return x * x + x + x
 
-    pattern = mark_pattern.Pattern(
+    pattern = pattern_module.Pattern(
         "test.add",
         lambda a, b: a + b,
         export_args=(torch.rand(2, 2), torch.rand(2, 2)),
@@ -58,7 +59,7 @@ class TestMarkPattern(unittest.TestCase):
       def forward(self, x):
         return x * x * x + x - x * x + x
 
-    pattern = mark_pattern.Pattern(
+    pattern = pattern_module.Pattern(
         "test.add",
         lambda a, b: a + b,
         export_args=(torch.rand(2, 2), torch.rand(2, 2)),
@@ -85,12 +86,12 @@ class TestMarkPattern(unittest.TestCase):
           r = torch.nn.LogSoftmax(dim=idx % 2)(r) * x
         return r
 
-    pattern = mark_pattern.Pattern(
+    pattern = pattern_module.Pattern(
         "test.log_softmax",
         lambda x, dim: torch.nn.functional.log_softmax(x, dim=dim),
         export_args=(torch.rand(10, 10, 10), 1),
         scalar_attr_trackers=[
-            mark_pattern.ScalarAttrTracker("dim", pattern_arg_pos=1)
+            pattern_module.ScalarAttrTracker("dim", pattern_arg_pos=1)
             .track(0)
             .track(1)
             .track(2),
@@ -115,7 +116,7 @@ class TestMarkPattern(unittest.TestCase):
         z = z + y
         return z
 
-    pattern = mark_pattern.Pattern(
+    pattern = pattern_module.Pattern(
         "test.relu",
         lambda x: torch.ops.aten.relu(x),
         export_args=(torch.rand(2, 2),),
@@ -131,4 +132,4 @@ class TestMarkPattern(unittest.TestCase):
 
 
 if __name__ == "__main__":
-  unittest.main()
+  googletest.main()

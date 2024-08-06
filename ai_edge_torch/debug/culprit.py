@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Culprit finder for AI Edge Torch conversion."""
 
 import contextlib
 import copy
@@ -20,14 +21,13 @@ import functools
 import io
 import operator
 import os
-import sys
 from typing import Any, Callable, Generator, List, Optional, Tuple, Union
 
 import ai_edge_torch
 from ai_edge_torch.debug import utils
-from functorch.compile import minifier as fx_minifier
 import torch
 from torch._functorch import aot_autograd
+from torch._functorch.fx_minifier import minifier as fx_minifier
 import torch.utils._pytree as pytree
 
 _torch_float_dtypes = {
@@ -116,7 +116,7 @@ class Culprit(SearchResult):
       print_output: bool - If true, prints the code to stdout. Otherwise returns
         the code in a str.
     """
-    # TODO (b/321263453): Support Python code gen with sample arg tensor values.
+    # TODO: b/321263453 - Support Python code gen with sample arg tensor values.
     random_inputs = True
 
     graph_module_code = self.graph_module.print_readable(
@@ -152,6 +152,7 @@ class Culprit(SearchResult):
 
   def print_code(self, print_output=True):
     """Print the Python code for culprit graph module, sample args, and AI
+
     Edge Torch conversion that will fail with the error.
 
     Args:
@@ -188,8 +189,8 @@ class Culprit(SearchResult):
 
 
 def _normalize_getitem_nodes(fx_gm: torch.fx.GraphModule):
-  """
-  This function turns all operator getitem nodes in ExportedProgram FX graph to
+  """This function turns all operator getitem nodes in ExportedProgram FX graph to
+
   new nodes composed of "computation + getitem". The normalization duplicates
   some computations in the graph but would make the graph more friendly for
   partitioning in FX minifier.
@@ -367,19 +368,18 @@ def _search_model(
     max_granularity: Optional[int] = None,
     enable_fx_minifier_logging: bool = False,
 ) -> Generator[SearchResult, None, None]:
-  """Finds subgraphs in the torch model that satisfy a certain predicate function provided by the users.
+  """Finds subgraphs in the torch model that satify a certain predicate function provided by the users.
 
   Args:
-    predicate_f: a predicate function the users specify.
-      It takes a FX (sub)graph and the inputs to this graph,
-      return True if the graph satisfies the predicate,
-      return False otherwise.
+    predicate_f: a predicate function the users specify. It takes a FX
+      (sub)graph and the inputs to this graph, return True if the graph
+      satisfies the predicate, return False otherwise.
     model: model in which to search subgraph.
-    export_args: A set of args to trace the model with,
-      i.e. model(*args) must run.
-    max_granularity - FX minifier arg. The maximum granularity (number of nodes)
-      in the returned ATen FX subgraph of the culprit.
-    enable_fx_minifier_logging: If true, allows the underlying FX minifier to log the progress.
+    export_args: A set of args to trace the model with, i.e. model(*args) must
+      run. max_granularity - FX minifier arg. The maximum granularity (number of
+      nodes) in the returned ATen FX subgraph of the culprit.
+    enable_fx_minifier_logging: If true, allows the underlying FX minifier to
+      log the progress.
   """
 
   if isinstance(model, torch.nn.Module):
@@ -469,13 +469,13 @@ def find_culprits(
 
   Args:
     torch_model: model to export and save
-    args: A set of args to trace the model with, i.e.
-      torch_model(*args) must run
-    max_granularity - FX minifier arg. The maximum granularity (number of nodes)
-      in the returned ATen FX subgraph of the culprit.
-    runtime_errors: If true, find culprits for Python runtime errors
-      with converted model.
-    enable_fx_minifier_logging: If true, allows the underlying FX minifier to log the progress.
+    args: A set of args to trace the model with, i.e. torch_model(*args) must
+      run max_granularity - FX minifier arg. The maximum granularity (number of
+      nodes) in the returned ATen FX subgraph of the culprit.
+    runtime_errors: If true, find culprits for Python runtime errors with
+      converted model.
+    enable_fx_minifier_logging: If true, allows the underlying FX minifier to
+      log the progress.
   """
 
   fx_minifier_checker = functools.partial(

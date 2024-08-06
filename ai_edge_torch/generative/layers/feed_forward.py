@@ -33,11 +33,9 @@ class SequentialFeedForward(nn.Module):
   ):
     """Init function for feedforward layer.
 
-    Args:
-      dim(int): embedding size.
-      hidden_dim(int): hidden dim size of the feedforward layer.
-      activation(Callable): activation function used in this block.
-      use_bias(Boolean): whether to use bias. Default is false.
+    Args: dim(int): embedding size. hidden_dim(int): hidden dim size of the
+    feedforward layer. activation(Callable): activation function used in this
+    block. use_bias(Boolean): whether to use bias. Default is false.
     """
     super().__init__()
     self.act = activation
@@ -71,11 +69,9 @@ class GatedFeedForward(nn.Module):
   ):
     """Init function for feedforward layer.
 
-    Args:
-      dim(int): embedding size.
-      hidden_dim(int): hidden dim size of the feedforward layer.
-      activation(Callable): activation function used in this block.
-      use_bias(Boolean): whether to use bias. Default is false.
+    Args: dim(int): embedding size. hidden_dim(int): hidden dim size of the
+    feedforward layer. activation(Callable): activation function used in this
+    block. use_bias(Boolean): whether to use bias. Default is false.
     """
     super().__init__()
     self.act = activation

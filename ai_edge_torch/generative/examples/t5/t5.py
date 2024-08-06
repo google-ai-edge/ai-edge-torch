@@ -17,14 +17,13 @@
 import copy
 import os
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 from ai_edge_torch.generative.examples.t5.t5_attention import EncoderDecoderBlock  # NOQA
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.builder as builder
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.t5_loader as loading_utils
-import numpy as np
 import torch
 import torch.nn as nn
 

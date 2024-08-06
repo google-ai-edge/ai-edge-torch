@@ -29,7 +29,7 @@ jobs:
           ref: ${{ inputs.trigger-sha }}
       - name: Install dependencies
         run: |
-          pip3 install pyink isort
+          pip3 install pyink
       - name: Check code style
         run: |
           ci/test_code_style.sh

@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
-
-import unittest
+"""Tests for search_model."""
 
 from ai_edge_torch.debug import _search_model
 import torch
 
+from tensorflow.python.platform import googletest
 
-class TestSearchModel(unittest.TestCase):
+
+class TestSearchModel(googletest.TestCase):
 
   def test_search_model_with_ops(self):
     class MultipleOpsModel(torch.nn.Module):
@@ -48,4 +48,4 @@ class TestSearchModel(unittest.TestCase):
 
 
 if __name__ == "__main__":
-  unittest.main()
+  googletest.main()

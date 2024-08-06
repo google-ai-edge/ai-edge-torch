@@ -12,28 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Tests for the serialization of models."""
 
 import os
 import tempfile
-import unittest
 
 import ai_edge_torch
 from ai_edge_torch.testing import model_coverage
-import numpy.testing
 import torch
 import torchvision
 
+from tensorflow.python.platform import googletest
 
-class TestSerialization(unittest.TestCase):
+
+class TestSerialization(googletest.TestCase):
+  """Tests for the serialization of models."""
 
   def setUp(self):
+    super().setUp()
     torch.manual_seed(0)
 
   def test_read_write(self):
-    """
+    """Tests if an exported model can be loaded and run.
+
     (1) Creates an ai_edge_torch model from a torch model
     (2) Saves and then loads the model
-    (3) Checks to make sure the model is still runnable and produces the right results.
+    (3) Checks to make sure the model is still runnable and produces the right
+    results.
     """
     resnet18 = torchvision.models.resnet18().eval()
     sample_input = (torch.randn(4, 3, 224, 224),)
@@ -61,4 +66,4 @@ class TestSerialization(unittest.TestCase):
 
 
 if __name__ == "__main__":
-  unittest.main()
+  googletest.main()

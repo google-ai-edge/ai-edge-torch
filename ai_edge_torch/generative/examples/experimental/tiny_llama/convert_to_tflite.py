@@ -21,7 +21,7 @@ import os
 from pathlib import Path
 
 import ai_edge_torch
-from ai_edge_torch.generative.examples.experimental.tiny_llama import tiny_llama  # NOQA
+from ai_edge_torch.generative.examples.experimental.tiny_llama import tiny_llama
 from ai_edge_torch.generative.layers.experimental import ekv_cache as kv_utils
 from ai_edge_torch.generative.quantize import quant_recipes
 import torch
@@ -33,8 +33,7 @@ def convert_tiny_llama_to_tflite(
     kv_cache_max_len: int = 1024,
     quantize: bool = True,
 ):
-  """An example method for converting TinyLlama model to multi-signature
-  tflite model.
+  """An example for converting TinyLlama model to multi-signature tflite model.
 
   Args:
       checkpoint_path (str): The filepath to the model checkpoint, or directory
@@ -43,8 +42,8 @@ def convert_tiny_llama_to_tflite(
         Defaults to 512.
       kv_cache_max_len (int, optional): The maximum size of KV cache buffer,
         including both prefill and decode. Defaults to 1024.
-      quantize (bool, optional): Whether the model should be quanized.
-        Defaults to True.
+      quantize (bool, optional): Whether the model should be quanized. Defaults
+        to True.
   """
   pytorch_model = tiny_llama.build_model(
       checkpoint_path, kv_cache_max_len=kv_cache_max_len

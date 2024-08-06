@@ -15,9 +15,9 @@
 
 import ai_edge_torch.generative.layers.builder as layers_builder
 import ai_edge_torch.generative.layers.model_config as layers_cfg
-import ai_edge_torch.generative.layers.unet.blocks_2d as blocks_2d
+from ai_edge_torch.generative.layers.unet import blocks_2d
 import ai_edge_torch.generative.layers.unet.model_config as unet_cfg
-import ai_edge_torch.generative.utilities.stable_diffusion_loader as stable_diffusion_loader
+from ai_edge_torch.generative.utilities import stable_diffusion_loader
 import torch
 from torch import nn
 
@@ -581,7 +581,6 @@ def get_model_config(batch_size: int) -> unet_cfg.DiffusionModelConfig:
 
   Retruns:
     The configuration of diffusion model of Stable Diffusion v1.5.
-
   """
   in_channels = 4
   out_channels = 4

@@ -37,10 +37,10 @@ class EncoderDecoderBlock(nn.Module):
     """Initialize an instance of the EncoderDecoderBlock.
 
     Args:
-      config (cfg.ModelConfig): the configuration object
-        for this transformer block.
-      has_relative_attention_bias (bool): whether the
-        self attention block has relative bias.
+      config (cfg.ModelConfig): the configuration object for this transformer
+        block.
+      has_relative_attention_bias (bool): whether the self attention block has
+        relative bias.
     """
 
     super().__init__()
@@ -143,8 +143,10 @@ class T5Attention(CrossAttention):
     Args:
       dim (int): causal attention's input/output dimmension.
       config (cfg.AttentionConfig): attention specific configurations.
-      norm_config (cfg.NormalizationConfig): normalization configure before attention.
-      kv_cache_max (int): determines the size of the KV Cache buffer, if enabled.
+      norm_config (cfg.NormalizationConfig): normalization configure before
+        attention.
+      kv_cache_max (int): determines the size of the KV Cache buffer, if
+        enabled.
       enable_hlfb (bool): whether hlfb is enabled or not.
       has_relative_attention_bias (bool): whether we compute relative bias.
     """

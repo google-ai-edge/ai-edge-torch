@@ -25,7 +25,8 @@ class LayerQuantRecipe:
   """Quantization recipe for a single Edge Generative API layer (e.g. Attention).
 
   Generic layer-scoped quantization recipe that specifies how this layer should
-  be quantized by the Edge Generative API. This is applicable to layers implemented
+  be quantized by the Edge Generative API. This is applicable to layers
+  implemented
   in ai_edge_torch/generative/layers/. Combinations of attributes that are not
   supported during runtime will be detected when .verify() is called.
 
@@ -83,7 +84,8 @@ class LayerQuantRecipe:
 class GenerativeQuantRecipe:
   """Quantization recipe for a model composed of the Edge Generative API layers.
 
-  Some layers can be specified with different `LayerQuantRecipe` for each block by
+  Some layers can be specified with different `LayerQuantRecipe` for each block
+  by
   providing a dictionary keyed by the TransformerBlock index, e.g. attention
   and feedforward. For example,
 
@@ -102,11 +104,11 @@ class GenerativeQuantRecipe:
     default: The quantization recipe for global scope of the model.
     embedding: Recipe for the embedding table.
     attention: Recipe for the attention blocks. This could be specified with
-      different LayerQuantRecipe for each block by providing a dictionary
-      keyed by the TransformerBlock index.
+      different LayerQuantRecipe for each block by providing a dictionary keyed
+      by the TransformerBlock index.
     feedforward: Recipe for the feedforward layers. This could be specified with
-      different LayerQuantRecipe for each block by providing a dictionary
-      keyed by the TransformerBlock index.
+      different LayerQuantRecipe for each block by providing a dictionary keyed
+      by the TransformerBlock index.
   """
 
   default: Optional[LayerQuantRecipe] = None

@@ -14,18 +14,17 @@
 # ==============================================================================
 # A suite of tests to validate experimental external KV Cache layers and models.
 
-import unittest
-
 from ai_edge_torch.generative.examples.experimental.gemma import gemma
 from ai_edge_torch.generative.examples.experimental.phi import phi2
 from ai_edge_torch.generative.examples.experimental.tiny_llama import tiny_llama  # NOQA
 from ai_edge_torch.generative.layers.experimental import ekv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
-import numpy as np
 import torch
 
+from tensorflow.python.platform import googletest
 
-class TestExternalKVLayers(unittest.TestCase):
+
+class TestExternalKVLayers(googletest.TestCase):
 
   def _get_test_config(
       self, num_layers, head_dim, num_query_groups, kv_cache_max_len
@@ -117,7 +116,7 @@ class TestExternalKVLayers(unittest.TestCase):
     self.assertEqual(input_specs[1].arg.name, "kv_v_0")
 
 
-class TestExternalKVModels(unittest.TestCase):
+class TestExternalKVModels(googletest.TestCase):
 
   def test_can_build_gemma(self):
     gemma.define_and_run_2b(checkpoint_path=None, test_model=True)
@@ -130,4 +129,4 @@ class TestExternalKVModels(unittest.TestCase):
 
 
 if __name__ == "__main__":
-  unittest.main()
+  googletest.main()

@@ -13,17 +13,16 @@
 # limitations under the License.
 # ==============================================================================
 # A toy example which has basic transformer block (w/ KV-Cache).
-from typing import List, Tuple
+from typing import Tuple
 
 import ai_edge_torch
+from ai_edge_torch import lowertools
 from ai_edge_torch.generative.layers.attention import TransformerBlock
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.builder as builder
 import ai_edge_torch.generative.layers.model_config as cfg
-import numpy as np
 import torch
 import torch.nn as nn
-import torch_xla
 
 RoPECache = Tuple[torch.Tensor, torch.Tensor]
 
@@ -74,8 +73,7 @@ class ToyModelWithKV(torch.nn.Module):
 
 def _export_stablehlo_mlir(model, args):
   ep = torch.export.export(model, args)
-  stablehlo_gm = torch_xla.stablehlo.exported_program_to_stablehlo(ep)
-  return stablehlo_gm.get_stablehlo_text()
+  return lowertools.exported_program_to_mlir_text(ep)
 
 
 def get_model_config() -> cfg.ModelConfig:

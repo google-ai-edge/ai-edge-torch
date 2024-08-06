@@ -13,6 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
+package(
+    # copybara:uncomment default_applicable_licenses = ["//third_party/py/ai_edge_torch:license"],
+    default_visibility = ["//visibility:public"],
+)
+
 platform(
     name = "android_arm",
     constraint_values = [

@@ -13,9 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
-import unittest
-
 import ai_edge_torch
+from ai_edge_torch import config
 from ai_edge_torch.generative.examples.test_models import toy_model  # NOQA
 from ai_edge_torch.generative.quantize import quant_recipe
 from ai_edge_torch.generative.quantize import quant_recipe_utils
@@ -29,8 +28,10 @@ from ai_edge_torch.testing import model_coverage
 from parameterized import parameterized
 import torch
 
+from tensorflow.python.platform import googletest
 
-class TestVerifyRecipes(unittest.TestCase):
+
+class TestVerifyRecipes(googletest.TestCase):
   """Unit tests that check for model quantization recipes."""
 
   @parameterized.expand([
@@ -87,7 +88,7 @@ class TestVerifyRecipes(unittest.TestCase):
     ).verify()
 
 
-class TestQuantizeConvert(unittest.TestCase):
+class TestQuantizeConvert(googletest.TestCase):
   """Test conversion with quantization."""
 
   def _attention_int8_dynamic_recipe() -> quant_config.QuantConfig:
@@ -111,6 +112,10 @@ class TestQuantizeConvert(unittest.TestCase):
       (_attention_int8_dynamic_recipe()),
       (_feedforward_int8_dynamic_recipe()),
   ])
+  @googletest.skipIf(
+      not config.Config.use_torch_xla,
+      reason="Not working with odml_torch at the moment.",
+  )
   def test_quantize_convert_toy_sizes(self, quant_config):
     config = toy_model.get_model_config()
     pytorch_model = toy_model.ToySingleLayerModel(config)
@@ -157,4 +162,4 @@ class TestQuantizeConvert(unittest.TestCase):
 
 
 if __name__ == "__main__":
-  unittest.main()
+  googletest.main()

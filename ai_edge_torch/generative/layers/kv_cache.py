@@ -17,7 +17,6 @@
 from ai_edge_torch.hlfb import StableHLOCompositeBuilder
 import torch
 from torch import nn
-import torch_xla
 
 
 class KVCache(nn.Module):
