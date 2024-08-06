@@ -99,6 +99,7 @@ class TestRemoveSDPAZeroMaskPass(unittest.TestCase):
           normalization_config=norm_config,
           attention_config=layers_cfg.AttentionConfig(
               num_heads=1,
+              head_dim=block_out_channels[-1],
               num_query_groups=1,
               qkv_use_bias=True,
               output_proj_use_bias=True,

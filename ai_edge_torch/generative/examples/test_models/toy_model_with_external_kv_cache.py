@@ -46,7 +46,9 @@ class ToyModelWithExternalKV(torch.nn.Module):
     )
     self.rope_cache = attn_utils.build_rope_cache(
         size=config.max_seq_len,
-        dim=int(config.attn_config.rotary_percentage * config.head_dim),
+        dim=int(
+            config.attn_config.rotary_percentage * config.attn_config.head_dim
+        ),
         base=10_000,
         condense_ratio=1,
         dtype=torch.float32,
@@ -90,7 +92,7 @@ def _export_stablehlo_mlir(model, args):
 
 def get_model_config() -> cfg.ModelConfig:
   attn_config = cfg.AttentionConfig(
-      num_heads=32, num_query_groups=4, rotary_percentage=1.0
+      num_heads=32, head_dim=4, num_query_groups=4, rotary_percentage=1.0
   )
   ff_config = cfg.FeedForwardConfig(
       type=cfg.FeedForwardType.GATED,

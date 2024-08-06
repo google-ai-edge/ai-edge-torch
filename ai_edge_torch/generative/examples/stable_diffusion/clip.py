@@ -92,6 +92,7 @@ def get_model_config() -> cfg.ModelConfig:
 
   attn_config = cfg.AttentionConfig(
       num_heads=num_heads,
+      head_dim=embedding_dim // num_heads,
       num_query_groups=num_query_groups,
       rotary_percentage=0.0,
       qkv_use_bias=True,

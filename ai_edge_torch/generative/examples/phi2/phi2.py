@@ -63,7 +63,9 @@ class Phi2(nn.Module):
     )
     self.rope_cache = attn_utils.build_rope_cache(
         size=config.kv_cache_max,
-        dim=int(config.attn_config.rotary_percentage * config.head_dim),
+        dim=int(
+            config.attn_config.rotary_percentage * config.attn_config.head_dim
+        ),
         base=10_000,
         condense_ratio=1,
         dtype=torch.float32,
@@ -107,6 +109,7 @@ class Phi2(nn.Module):
 def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   attn_config = cfg.AttentionConfig(
       num_heads=32,
+      head_dim=80,
       num_query_groups=32,
       rotary_percentage=0.4,
       qkv_use_bias=True,

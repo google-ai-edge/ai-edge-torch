@@ -683,6 +683,31 @@ class AutoEncoderModelLoader(BaseLoader):
     return model.load_state_dict(converted_state, strict=strict)
 
 
+def build_attention_config(
+    num_heads,
+    dim,
+    num_query_groups,
+    rotary_percentage=0.0,
+    qkv_transpose_before_split=True,
+    qkv_use_bias=False,
+    output_proj_use_bias=True,
+    enable_kv_cache=False,
+    qkv_fused_interleaved=False,
+):
+
+  return layers_config.AttentionConfig(
+      num_heads=num_heads,
+      head_dim=dim // num_heads,
+      num_query_groups=num_query_groups,
+      rotary_percentage=rotary_percentage,
+      qkv_transpose_before_split=qkv_transpose_before_split,
+      qkv_use_bias=qkv_use_bias,
+      output_proj_use_bias=output_proj_use_bias,
+      enable_kv_cache=enable_kv_cache,
+      qkv_fused_interleaved=qkv_fused_interleaved,
+  )
+
+
 class DiffusionModelLoader(BaseLoader):
 
   @dataclass
@@ -741,16 +766,6 @@ class DiffusionModelLoader(BaseLoader):
         state, self._names.final_norm, converted_state, "final_norm"
     )
 
-    attention_config = layers_config.AttentionConfig(
-        num_heads=config.transformer_num_attention_heads,
-        num_query_groups=config.transformer_num_attention_heads,
-        rotary_percentage=0.0,
-        qkv_transpose_before_split=True,
-        qkv_use_bias=False,
-        output_proj_use_bias=True,
-        enable_kv_cache=False,
-    )
-
     # Map down_encoders.
     output_channel = config.block_out_channels[0]
     for i, block_out_channel in enumerate(config.block_out_channels):
@@ -781,13 +796,21 @@ class DiffusionModelLoader(BaseLoader):
                 attention_block_config=unet_config.AttentionBlock2DConfig(
                     dim=output_channel,
                     normalization_config=config.transformer_norm_config,
-                    attention_config=attention_config,
+                    attention_config=build_attention_config(
+                        num_heads=config.transformer_num_attention_heads,
+                        dim=output_channel,
+                        num_query_groups=config.transformer_num_attention_heads,
+                    ),
                 ),
                 cross_attention_block_config=unet_config.CrossAttentionBlock2DConfig(
                     query_dim=output_channel,
                     cross_dim=config.transformer_cross_attention_dim,
                     normalization_config=config.transformer_norm_config,
-                    attention_config=attention_config,
+                    attention_config=build_attention_config(
+                        num_heads=config.transformer_num_attention_heads,
+                        dim=output_channel,
+                        num_query_groups=config.transformer_num_attention_heads,
+                    ),
                 ),
                 pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
                 feed_forward_block_config=unet_config.FeedForwardBlock2DConfig(
@@ -839,13 +862,21 @@ class DiffusionModelLoader(BaseLoader):
             attention_block_config=unet_config.AttentionBlock2DConfig(
                 dim=mid_block_channels,
                 normalization_config=config.transformer_norm_config,
-                attention_config=attention_config,
+                attention_config=build_attention_config(
+                    num_heads=config.transformer_num_attention_heads,
+                    dim=mid_block_channels,
+                    num_query_groups=config.transformer_num_attention_heads,
+                ),
             ),
             cross_attention_block_config=unet_config.CrossAttentionBlock2DConfig(
                 query_dim=mid_block_channels,
                 cross_dim=config.transformer_cross_attention_dim,
                 normalization_config=config.transformer_norm_config,
-                attention_config=attention_config,
+                attention_config=build_attention_config(
+                    num_heads=config.transformer_num_attention_heads,
+                    dim=mid_block_channels,
+                    num_query_groups=config.transformer_num_attention_heads,
+                ),
             ),
             pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
             feed_forward_block_config=unet_config.FeedForwardBlock2DConfig(
@@ -904,13 +935,21 @@ class DiffusionModelLoader(BaseLoader):
                 attention_block_config=unet_config.AttentionBlock2DConfig(
                     dim=output_channel,
                     normalization_config=config.transformer_norm_config,
-                    attention_config=attention_config,
+                    attention_config=build_attention_config(
+                        num_heads=config.transformer_num_attention_heads,
+                        dim=output_channel,
+                        num_query_groups=config.transformer_num_attention_heads,
+                    ),
                 ),
                 cross_attention_block_config=unet_config.CrossAttentionBlock2DConfig(
                     query_dim=output_channel,
                     cross_dim=config.transformer_cross_attention_dim,
                     normalization_config=config.transformer_norm_config,
-                    attention_config=attention_config,
+                    attention_config=build_attention_config(
+                        num_heads=config.transformer_num_attention_heads,
+                        dim=output_channel,
+                        num_query_groups=config.transformer_num_attention_heads,
+                    ),
                 ),
                 pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
                 feed_forward_block_config=unet_config.FeedForwardBlock2DConfig(

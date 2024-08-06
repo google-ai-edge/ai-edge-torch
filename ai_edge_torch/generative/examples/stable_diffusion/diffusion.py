@@ -195,6 +195,31 @@ TENSOR_NAMES = stable_diffusion_loader.DiffusionModelLoader.TensorNames(
 )
 
 
+def build_attention_config(
+    num_heads,
+    dim,
+    num_query_groups,
+    rotary_percentage=0.0,
+    qkv_transpose_before_split=True,
+    qkv_use_bias=False,
+    output_proj_use_bias=True,
+    enable_kv_cache=False,
+    qkv_fused_interleaved=False,
+):
+
+  return layers_cfg.AttentionConfig(
+      num_heads=num_heads,
+      head_dim=dim // num_heads,
+      num_query_groups=num_query_groups,
+      rotary_percentage=rotary_percentage,
+      qkv_transpose_before_split=qkv_transpose_before_split,
+      qkv_use_bias=qkv_use_bias,
+      output_proj_use_bias=output_proj_use_bias,
+      enable_kv_cache=enable_kv_cache,
+      qkv_fused_interleaved=qkv_fused_interleaved,
+  )
+
+
 class TimeEmbedding(nn.Module):
 
   def __init__(self, in_dim, out_dim):
@@ -267,17 +292,6 @@ class Diffusion(nn.Module):
         config.in_channels, block_out_channels[0], kernel_size=3, padding=1
     )
 
-    attention_config = layers_cfg.AttentionConfig(
-        num_heads=config.transformer_num_attention_heads,
-        num_query_groups=config.transformer_num_attention_heads,
-        rotary_percentage=0.0,
-        qkv_transpose_before_split=True,
-        qkv_use_bias=False,
-        output_proj_use_bias=True,
-        enable_kv_cache=False,
-        qkv_fused_interleaved=False,
-    )
-
     # Down encoders.
     down_encoders = []
     output_channel = block_out_channels[0]
@@ -312,7 +326,11 @@ class Diffusion(nn.Module):
                             dim=output_channel,
                             attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
-                            attention_config=attention_config,
+                            attention_config=build_attention_config(
+                                num_heads=config.transformer_num_attention_heads,
+                                dim=output_channel,
+                                num_query_groups=config.transformer_num_attention_heads,
+                            ),
                             enable_hlfb=False,
                         ),
                         cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
@@ -320,7 +338,11 @@ class Diffusion(nn.Module):
                             cross_dim=config.transformer_cross_attention_dim,
                             attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
-                            attention_config=attention_config,
+                            attention_config=build_attention_config(
+                                num_heads=config.transformer_num_attention_heads,
+                                dim=output_channel,
+                                num_query_groups=config.transformer_num_attention_heads,
+                            ),
                             enable_hlfb=False,
                         ),
                         pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
@@ -374,7 +396,11 @@ class Diffusion(nn.Module):
                     dim=mid_block_channels,
                     attention_batch_size=config.transformer_batch_size,
                     normalization_config=config.transformer_norm_config,
-                    attention_config=attention_config,
+                    attention_config=build_attention_config(
+                        num_heads=config.transformer_num_attention_heads,
+                        dim=mid_block_channels,
+                        num_query_groups=config.transformer_num_attention_heads,
+                    ),
                     enable_hlfb=False,
                 ),
                 cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
@@ -382,7 +408,11 @@ class Diffusion(nn.Module):
                     cross_dim=config.transformer_cross_attention_dim,
                     attention_batch_size=config.transformer_batch_size,
                     normalization_config=config.transformer_norm_config,
-                    attention_config=attention_config,
+                    attention_config=build_attention_config(
+                        num_heads=config.transformer_num_attention_heads,
+                        dim=mid_block_channels,
+                        num_query_groups=config.transformer_num_attention_heads,
+                    ),
                     enable_hlfb=False,
                 ),
                 pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
@@ -437,7 +467,11 @@ class Diffusion(nn.Module):
                             dim=output_channel,
                             attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
-                            attention_config=attention_config,
+                            attention_config=build_attention_config(
+                                num_heads=config.transformer_num_attention_heads,
+                                dim=output_channel,
+                                num_query_groups=config.transformer_num_attention_heads,
+                            ),
                             enable_hlfb=False,
                         ),
                         cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
@@ -445,7 +479,11 @@ class Diffusion(nn.Module):
                             cross_dim=config.transformer_cross_attention_dim,
                             attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
-                            attention_config=attention_config,
+                            attention_config=build_attention_config(
+                                num_heads=config.transformer_num_attention_heads,
+                                dim=output_channel,
+                                num_query_groups=config.transformer_num_attention_heads,
+                            ),
                             enable_hlfb=False,
                         ),
                         pre_conv_normalization_config=config.transformer_pre_conv_norm_config,

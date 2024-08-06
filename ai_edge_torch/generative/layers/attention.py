@@ -135,16 +135,18 @@ class CausalSelfAttention(nn.Module):
       enable_hlfb (bool): whether hlfb is enabled or not.
     """
     super().__init__()
-    self.head_dim = dim // config.num_heads
-    shape = (config.num_heads + 2 * config.num_query_groups) * self.head_dim
-    # Key, query, value projections for all heads.
-    self.qkv_projection = nn.Linear(dim, shape, bias=config.qkv_use_bias)
-    self.output_projection = nn.Linear(
-        dim, dim, bias=config.output_proj_use_bias
-    )
     self.config = config
     self.kv_cache = None
     self.batch_size = batch_size
+    qkv_shape = (
+        config.num_heads + 2 * config.num_query_groups
+    ) * config.head_dim
+    output_shape = config.num_heads * config.head_dim
+    # Key, query, value projections for all heads.
+    self.qkv_projection = nn.Linear(dim, qkv_shape, bias=config.qkv_use_bias)
+    self.output_projection = nn.Linear(
+        output_shape, dim, bias=config.output_proj_use_bias
+    )
 
     # Build a k/v cache with size (batch_size, kv_cache_max, n_heads, head_dim).
     if config.enable_kv_cache:
@@ -152,7 +154,7 @@ class CausalSelfAttention(nn.Module):
           batch_size,
           kv_cache_max,
           config.num_query_groups,
-          self.head_dim,
+          config.head_dim,
           enable_hlfb,
       )
 
@@ -193,7 +195,7 @@ class CausalSelfAttention(nn.Module):
     q_per_kv = self.config.num_heads // self.config.num_query_groups
     # Each group has >=1 queries, 1 key, and 1 value.
     if self.config.qkv_transpose_before_split:
-      qkv = qkv.view(B, T, -1, self.head_dim)
+      qkv = qkv.view(B, T, -1, self.config.head_dim)
       q, k, v = qkv.split(
           (
               q_per_kv * self.config.num_query_groups,
@@ -205,22 +207,27 @@ class CausalSelfAttention(nn.Module):
     else:
       qkv = qkv.view(B, T, self.config.num_query_groups, -1)
       q, k, v = qkv.split(
-          (q_per_kv * self.head_dim, self.head_dim, self.head_dim), dim=-1
+          (
+              q_per_kv * self.config.head_dim,
+              self.config.head_dim,
+              self.config.head_dim,
+          ),
+          dim=-1,
       )
 
-    q = q.reshape(B, T, -1, self.head_dim)
-    k = k.reshape(B, T, -1, self.head_dim)
-    v = v.reshape(B, T, -1, self.head_dim)
+    q = q.reshape(B, T, -1, self.config.head_dim)
+    k = k.reshape(B, T, -1, self.config.head_dim)
+    v = v.reshape(B, T, -1, self.config.head_dim)
 
     # Compute rotary positional embedding for query and key.
-    n_elem = int(self.config.rotary_percentage * self.head_dim)
+    n_elem = int(self.config.rotary_percentage * self.config.head_dim)
     q, k = _embed_rope(q, k, n_elem, rope)
 
     if self.kv_cache is not None:
       # TODO(haoliang): Handle when execeeding max sequence length.
       k, v = self.kv_cache.update_cache(input_pos, k, v)
 
-    y = self.sdpa_func(q, k, v, self.head_dim, mask=mask)
+    y = self.sdpa_func(q, k, v, self.config.head_dim, mask=mask)
     y = y.reshape(B, T, E)
 
     # Compute the output projection.
@@ -279,7 +286,6 @@ class CrossAttention(nn.Module):
     """
     super().__init__()
     self.config = config
-    self.head_dim = query_dim // config.num_heads
     self.n_heads = config.num_heads
     self.q_projection = nn.Linear(
         query_dim, query_dim, bias=config.qkv_use_bias
@@ -301,7 +307,7 @@ class CrossAttention(nn.Module):
           batch_size,
           kv_cache_max,
           config.num_query_groups,
-          self.head_dim,
+          self.config.head_dim,
           enable_hlfb,
       )
 
@@ -338,13 +344,13 @@ class CrossAttention(nn.Module):
     k = self.k_projection(y)
     v = self.v_projection(y)
 
-    interim_shape = (batch_size, -1, self.n_heads, self.head_dim)
+    interim_shape = (batch_size, -1, self.n_heads, self.config.head_dim)
     q = q.view(interim_shape)
     k = k.view(interim_shape)
     v = v.view(interim_shape)
 
     # Compute rotary positional embedding for query and key.
-    n_elem = int(self.config.rotary_percentage * self.head_dim)
+    n_elem = int(self.config.rotary_percentage * self.config.head_dim)
     q, k = _embed_rope(q, k, n_elem, rope)
 
     if self.kv_cache is not None:
@@ -354,7 +360,7 @@ class CrossAttention(nn.Module):
       mask = torch.zeros(
           (batch_size, 1, target_seq_len, source_seq_len), dtype=torch.float32
       )
-    y = self.sdpa_func(q, k, v, self.head_dim, mask=mask)
+    y = self.sdpa_func(q, k, v, self.config.head_dim, mask=mask)
     y = y.reshape(batch_size, target_seq_len, -1)
 
     # Compute the output projection.

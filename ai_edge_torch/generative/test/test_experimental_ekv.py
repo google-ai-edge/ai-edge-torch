@@ -31,7 +31,7 @@ class TestExternalKVLayers(unittest.TestCase):
       self, num_layers, head_dim, num_query_groups, kv_cache_max_len
   ):
     attn_config = cfg.AttentionConfig(
-        num_heads=1, num_query_groups=num_query_groups
+        num_heads=1, head_dim=head_dim, num_query_groups=num_query_groups
     )
     config = cfg.ModelConfig(
         kv_cache_max_len=kv_cache_max_len,
