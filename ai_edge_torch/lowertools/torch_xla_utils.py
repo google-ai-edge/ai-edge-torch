@@ -14,6 +14,7 @@
 # ==============================================================================
 
 import copy
+import dataclasses
 from dataclasses import dataclass
 import gc
 import itertools
@@ -44,7 +45,13 @@ except ImportError:
   raise
 
 MlirBundle = stablehlo.StableHLOModelBundle
-MergedBundle = stablehlo.StableHLOModelBundle
+
+
+@dataclasses.dataclass
+class MergedBundle:
+
+  bundle: stablehlo.StableHLOModelBundle
+  deduped_tf_vars: list[tf.Variable]
 
 
 def exported_program_to_mlir(
@@ -67,14 +74,16 @@ def merge_mlir_bundles(
     signatures: list[signature_module.Signature],
     exported_programs: list[torch.export.ExportedProgram],
 ) -> stablehlo.StableHLOGraphModule:
-  state_dict = common_utils.gather_state_dict(exported_programs, signatures)
+  state_dict, deduped_tf_vars = common_utils.gather_state_dict(
+      exported_programs, signatures
+  )
 
-  new_bundle = stablehlo.StableHLOModelBundle(
+  new_shlo_model_bundle = stablehlo.StableHLOModelBundle(
       state_dict=state_dict, additional_constants=[], stablehlo_funcs=[]
   )
 
   for bundle, signature in zip(bundles, signatures):
-    const_offset = len(new_bundle.additional_constants)
+    const_offset = len(new_shlo_model_bundle.additional_constants)
     for func in bundle.stablehlo_funcs:
       func.meta.name = signature.name + "_" + func.meta.name
       for loc in func.meta.input_locations:
@@ -82,9 +91,13 @@ def merge_mlir_bundles(
           loc.position += const_offset
         elif loc.type_ == stablehlo.VariableType.PARAMETER:
           loc.name = signature.name + "_" + loc.name
-      new_bundle.stablehlo_funcs.append(func)
-    new_bundle.additional_constants.extend(bundle.additional_constants)
-  return new_bundle
+      new_shlo_model_bundle.stablehlo_funcs.append(func)
+    new_shlo_model_bundle.additional_constants.extend(
+        bundle.additional_constants
+    )
+  return MergedBundle(
+      bundle=new_shlo_model_bundle, deduped_tf_vars=deduped_tf_vars
+  )
 
 
 def _get_shape_with_dynamic(signature: stablehlo.VariableSignature):
@@ -163,7 +176,7 @@ def exported_program_to_mlir_text(
 
 
 def merged_bundle_to_tfl_model(
-    bundle: stablehlo.StableHLOModelBundle,
+    merged_bundle: MergedBundle,
     signatures: list[signature_module.Signature],
     *,
     quant_config: Optional[qcfg.QuantConfig] = None,
@@ -181,18 +194,18 @@ def merged_bundle_to_tfl_model(
   """
 
   tf_module = tf.Module()
-  bundle.state_dict = {
-      k: tf.Variable(v, trainable=False) for k, v in bundle.state_dict.items()
-  }
-  bundle.additional_constants = [
-      tf.Variable(v, trainable=False) for v in bundle.additional_constants
+
+  shlo_bundle = merged_bundle.bundle
+
+  shlo_bundle.additional_constants = [
+      tf.Variable(v, trainable=False) for v in shlo_bundle.additional_constants
   ]
   tf_signatures: list[list[tf.TensorSpec]] = list(
       _make_tf_signature(func.meta, sig)
-      for func, sig in zip(bundle.stablehlo_funcs, signatures)
+      for func, sig in zip(shlo_bundle.stablehlo_funcs, signatures)
   )
 
-  tf_functions = _make_tf_function(bundle)
+  tf_functions = _make_tf_function(shlo_bundle)
 
   tf_module.f = []
   for tf_sig, func in zip(tf_signatures, tf_functions):
@@ -204,9 +217,9 @@ def merged_bundle_to_tfl_model(
     )
 
   tf_module._variables = (
-      list(bundle.state_dict.values()) + bundle.additional_constants
+      merged_bundle.deduped_tf_vars + shlo_bundle.additional_constants
   )
-  del bundle
+  del shlo_bundle
   gc.collect()
 
   tf_concrete_funcs = [

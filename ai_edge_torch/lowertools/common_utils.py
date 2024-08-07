@@ -20,7 +20,7 @@ import tensorflow as tf
 import torch
 
 
-def _torch_to_tf_tensor(torch_tensor: torch.Tensor):
+def _torch_to_tf_variable(torch_tensor: torch.Tensor):
   if not torch_tensor.is_contiguous():
     torch_tensor = torch_tensor.contiguous()
 
@@ -34,7 +34,7 @@ def _torch_to_tf_tensor(torch_tensor: torch.Tensor):
     nparray = torch_tensor.cpu().detach().numpy()
     tf_tensor = tf.convert_to_tensor(nparray)
 
-  return tf_tensor
+  return tf.Variable(tf_tensor, trainable=False)
 
 
 def _get_states(
@@ -75,7 +75,7 @@ def gather_state_dict(
 
   for _, tensor, _ in _get_states(exported_programs, signatures):
     unique_id = _tensor_unique_id(tensor)
-    deduped_tensor_map[unique_id] = _torch_to_tf_tensor(tensor)
+    deduped_tensor_map[unique_id] = _torch_to_tf_variable(tensor)
 
   state_dict = {}
   for signature, tensor, input_spec in _get_states(
@@ -86,4 +86,4 @@ def gather_state_dict(
         unique_id
     ]
 
-  return state_dict
+  return state_dict, list(deduped_tensor_map.values())

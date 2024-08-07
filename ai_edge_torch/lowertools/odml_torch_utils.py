@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+import dataclasses
 import tempfile
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -29,7 +30,14 @@ import torch
 from tensorflow.compiler.tf2xla.python import xla as tfxla
 
 MlirBundle = odml_torch.export.MlirLowered
-MergedBundle = list[odml_torch.export.MlirLowered]
+
+
+@dataclasses.dataclass
+class MergedBundle:
+  """A bundle of MlirLowered that has been merged."""
+
+  bundles: list[odml_torch.export.MlirLowered]
+  deduped_tf_vars: list[tf.Variable]
 
 
 def torch_dtype_to_tf(dtype):
@@ -112,17 +120,15 @@ def merged_bundle_to_tfl_model(
     quant_config: Optional[qcfg.QuantConfig] = None,
     _tfl_converter_flags: dict = {},
 ):
-  tf_state_dict = {
-      k: tf.Variable(v, trainable=False)
-      for k, v in merged_bundle[0].state_dict.items()
-  }
+  tf_state_dict = merged_bundle.bundles[0].state_dict
 
   tf_signatures = [
       _make_tf_signature(bundle.input_signature, sig)
-      for bundle, sig in zip(merged_bundle, signatures)
+      for bundle, sig in zip(merged_bundle.bundles, signatures)
   ]
   tf_functions = [
-      _wrap_as_tf_func(bundle, tf_state_dict) for bundle in merged_bundle
+      _wrap_as_tf_func(bundle, tf_state_dict)
+      for bundle in merged_bundle.bundles
   ]
 
   tf_module = tf.Module()
@@ -136,7 +142,7 @@ def merged_bundle_to_tfl_model(
         )
     )
 
-  tf_module._variables = list(tf_state_dict.values())
+  tf_module._variables = merged_bundle.deduped_tf_vars
 
   tf_concrete_funcs = [
       func.get_concrete_function(*tf_sig)
@@ -188,10 +194,14 @@ def merge_mlir_bundles(
     exported_programs: list[torch.export.ExportedProgram],
 ) -> MergedBundle:
   """Merges a list of MlirLowered into one."""
-  state_dict = common_utils.gather_state_dict(exported_programs, signatures)
+  state_dict, deduped_vars = common_utils.gather_state_dict(
+      exported_programs, signatures
+  )
 
-  merged_bundle = bundles.copy()
-  for bundle, signature in zip(merged_bundle, signatures):
+  merged_bundle = MergedBundle(
+      bundles=bundles.copy(), deduped_tf_vars=deduped_vars
+  )
+  for bundle, signature in zip(merged_bundle.bundles, signatures):
     bundle.state_dict = state_dict
 
     for var_sig in bundle.input_signature:
