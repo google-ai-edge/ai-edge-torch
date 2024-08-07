@@ -4,7 +4,6 @@
 name: Run Pre Merge
 
 on:
-  merge_group:
   pull_request:
     types: [labeled]
     branches: ["main"]
@@ -25,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: fail-without-ci_run
-        if: ${{ (github.event.action == 'labeled') && !(contains(github.event.pull_request.labels.*.name, 'ci:run')) }}
+        if: ${{ !(contains(github.event.pull_request.labels.*.name, 'ci:run')) }}
         run: exit 1
 
   remove-ci-run-label:
@@ -52,7 +51,7 @@ jobs:
     name: Check PR description has BUG=
     steps:
       - name: Check for BUG=
-        if: ${{ (github.event.action == 'labeled') && !contains(github.event.pull_request.body, 'BUG=') }}
+        if: ${{ !contains(github.event.pull_request.body, 'BUG=') }}
         run: |
             echo "PR description requires a BUG= line with issue number."
             echo "See https://testing.googleblog.com/2017/09/code-health-providing-context-with.html for additional context"
