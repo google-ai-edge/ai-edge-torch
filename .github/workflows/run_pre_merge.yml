@@ -45,18 +45,6 @@ jobs:
             })
         continue-on-error: true
 
-  check-pr-description-has-bug:
-    runs-on: ubuntu-latest
-    needs: remove-ci-run-label
-    name: Check PR description has BUG=
-    steps:
-      - name: Check for BUG=
-        if: ${{ !contains(github.event.pull_request.body, 'BUG=') }}
-        run: |
-            echo "PR description requires a BUG= line with issue number."
-            echo "See https://testing.googleblog.com/2017/09/code-health-providing-context-with.html for additional context"
-            exit 1
-
   run-formatting:
     name: Formatting
     needs: remove-ci-run-label
