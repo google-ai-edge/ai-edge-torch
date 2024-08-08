@@ -27,6 +27,7 @@ import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_e
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention  # NOQA
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention_with_hlfb  # NOQA
 
+from ai_edge_torch.generative.layers.group_norm import layer_norm_with_hlfb # NOQA
 
 def _embed_rope(
     q: torch.Tensor,
@@ -107,10 +108,16 @@ class TransformerBlock(nn.Module):
       ff_out = self.ff(x_norm)
       output = x + attn_out + ff_out
     else:
-      x_norm = self.pre_atten_norm(x)
+      if self.config.pre_attention_norm_config.type == cfg.NormalizationType.LAYER_NORM:
+        x_norm = layer_norm_with_hlfb(x, self.config.embedding_dim, self.pre_atten_norm.weight, self.pre_atten_norm.bias, self.config.pre_attention_norm_config.epsilon)
+      else:
+        x_norm = self.pre_atten_norm(x)
       attn_out = self.atten_func(x_norm, rope, mask, input_pos)
       x = x + attn_out
-      x_norm = self.pre_ff_norm(x)
+      if self.config.pre_attention_norm_config.type == cfg.NormalizationType.LAYER_NORM:
+        x_norm = layer_norm_with_hlfb(x, self.config.embedding_dim, self.pre_ff_norm.weight, self.pre_ff_norm.bias, self.config.pre_ff_norm_config.epsilon)
+      else:
+        x_norm = self.pre_ff_norm(x)
       output = x + self.ff(x_norm)
 
     return output
