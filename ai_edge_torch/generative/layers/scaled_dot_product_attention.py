@@ -29,6 +29,7 @@ def scaled_dot_product_attention(
     head_size: int,
     mask: Optional[torch.Tensor] = None,
     scale: Optional[float] = None,
+    softcap: Optional[float] = None,
 ):
   """Scaled dot product attention.
 
@@ -53,15 +54,26 @@ def scaled_dot_product_attention(
     # Handle the GQA case, where q.shape[1] % k.shape[1] == 0.
     k = k.repeat_interleave(q.shape[1] // k.shape[1], dim=1)
     v = v.repeat_interleave(q.shape[1] // v.shape[1], dim=1)
-  y = F.scaled_dot_product_attention(
-      q,
-      k,
-      v,
-      attn_mask=mask,
-      dropout_p=0.0,
-      is_causal=mask is None,
-      scale=scale,
-  )
+  if softcap is None:
+    y = F.scaled_dot_product_attention(
+        q,
+        k,
+        v,
+        attn_mask=mask,
+        dropout_p=0.0,
+        is_causal=mask is None,
+        scale=scale,
+    )
+  else:
+    q.mul_(scale)
+    scores = q @ k.transpose(-1, -2)
+    scores = scores / softcap
+    scores = torch.tanh(scores)
+    scores = scores * softcap
+    scores = scores + mask
+    out = F.softmax(scores.float(), dim=-1).type_as(q)
+    y = torch.matmul(out, v)
+
   return y.transpose(1, 2)
 
 
@@ -72,6 +84,7 @@ def scaled_dot_product_attention_with_hlfb(
     head_size: int,
     mask: Optional[torch.Tensor] = None,
     scale: Optional[float] = None,
+    softcap: Optional[float] = None,
 ):
   """Scaled dot product attention with high-level function boundary enabled.
 
@@ -85,6 +98,9 @@ def scaled_dot_product_attention_with_hlfb(
   Returns:
     The output tensor of scaled_dot_product_attention.
   """
+
+  if softcap is not None:
+    raise NotImplementedError("SDPA with HLFB not available with softcap.")
 
   if scale is None:
     scale = 1.0 / math.sqrt(head_size)

@@ -89,11 +89,16 @@ def build_ff(dim: int, config: cfg.FeedForwardConfig):
 
   activation = get_activation(config.activation)
 
+  pre_ff_norm = build_norm(dim, config.pre_ff_norm_config)
+  post_ff_norm = build_norm(dim, config.post_ff_norm_config)
+
   return ff_module(
       dim=dim,
       hidden_dim=config.intermediate_size,
       activation=activation,
       use_bias=config.use_bias,
+      pre_ff_norm=pre_ff_norm,
+      post_ff_norm=post_ff_norm,
   )
 
 

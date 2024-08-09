@@ -38,7 +38,7 @@ ENCDEC_TENSOR_NAMES = {
         "{prefix}.block.0.layer.0.SelfAttention.relative_attention_bias"
     ),
     "pre_attn_norm": "{prefix}.block.{}.layer.0.layer_norm",
-    "pre_ff_norm": "{prefix}.block.{}.layer.1.layer_norm",
+    "post_attn_norm": "{prefix}.block.{}.layer.1.layer_norm",
     "final_norm": "{prefix}.final_layer_norm",
 }
 
@@ -396,7 +396,7 @@ def get_model_config_t5() -> cfg.ModelConfig:
       relative_attention=True,
       ff_config=ff_config,
       pre_attention_norm_config=norm_config,
-      pre_ff_norm_config=norm_config,
+      post_attention_norm_config=norm_config,
       final_norm_config=norm_config,
       parallel_residual=False,
       lm_head_use_bias=False,
@@ -419,7 +419,7 @@ def build_t5_model(checkpoint_path: str) -> nn.Module:
       "cross_attn_value_proj": "{prefix}.block.{}.layer.1.EncDecAttention.v",
       "cross_attn_output_proj": "{prefix}.block.{}.layer.1.EncDecAttention.o",
       # In the decoder, the FF is layer 2 in the Transformer block
-      "pre_ff_norm": "{prefix}.block.{}.layer.2.layer_norm",
+      "post_attn_norm": "{prefix}.block.{}.layer.2.layer_norm",
       # In the decoder, the cross attention is layer 1 in the Transformer block
       "pre_cross_attn_norm": "{prefix}.block.{}.layer.1.layer_norm",
   }
@@ -475,7 +475,7 @@ def build_t5_decoder_model(
       "cross_attn_value_proj": "{prefix}.block.{}.layer.1.EncDecAttention.v",
       "cross_attn_output_proj": "{prefix}.block.{}.layer.1.EncDecAttention.o",
       # In the decoder, the FF is layer 2 in the Transformer block
-      "pre_ff_norm": "{prefix}.block.{}.layer.2.layer_norm",
+      "post_attn_norm": "{prefix}.block.{}.layer.2.layer_norm",
       # In the decoder, the cross attention is layer 1 in the Transformer block
       "pre_cross_attn_norm": "{prefix}.block.{}.layer.1.layer_norm",
   }

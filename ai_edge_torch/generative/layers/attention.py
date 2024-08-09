@@ -74,8 +74,8 @@ class TransformerBlock(nn.Module):
         config.kv_cache_max,
         config.enable_hlfb,
     )
-    self.pre_ff_norm = builder.build_norm(
-        config.embedding_dim, config.pre_ff_norm_config
+    self.post_atten_norm = builder.build_norm(
+        config.embedding_dim, config.post_attention_norm_config
     )
     self.ff = builder.build_ff(config.embedding_dim, config.ff_config)
     self.config = config
@@ -108,7 +108,7 @@ class TransformerBlock(nn.Module):
       x_norm = self.pre_atten_norm(x)
       attn_out = self.atten_func(x_norm, rope, mask, input_pos)
       x = x + attn_out
-      x_norm = self.pre_ff_norm(x)
+      x_norm = self.post_atten_norm(x)
       output = x + self.ff(x_norm)
 
     return output
@@ -228,8 +228,15 @@ class CausalSelfAttention(nn.Module):
       # TODO(haoliang): Handle when execeeding max sequence length.
       k, v = self.kv_cache.update_cache(input_pos, k, v)
 
-    y = self.sdpa_func(q, k, v, self.config.head_dim, mask=mask)
-    y = y.reshape(B, T, E)
+    y = self.sdpa_func(
+        q,
+        k,
+        v,
+        self.config.head_dim,
+        mask=mask,
+        softcap=self.config.logit_softcap,
+    )
+    y = y.reshape(B, T, -1)
 
     # Compute the output projection.
     y = self.output_projection(y)
