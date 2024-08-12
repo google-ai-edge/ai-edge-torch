@@ -28,6 +28,7 @@ import tensorflow as tf
 import torch
 
 from tensorflow.compiler.tf2xla.python import xla as tfxla
+from tensorflow.lite.python import conversion_metadata_schema_py_generated as conversion_metadata_fb
 
 MlirBundle = odml_torch.export.MlirLowered
 
@@ -162,7 +163,9 @@ def merged_bundle_to_tfl_model(
     )
 
     converter = tf.lite.TFLiteConverter.from_saved_model(temp_dir_path)
+    converter._set_original_model_type(conversion_metadata_fb.ModelType.PYTORCH)
     converter._experimental_enable_composite_direct_lowering = True
+    converter.model_origin_framework = "PYTORCH"
 
     conversion_utils.apply_tfl_converter_flags(converter, _tfl_converter_flags)
 
