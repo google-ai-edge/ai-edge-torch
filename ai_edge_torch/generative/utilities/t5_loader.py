@@ -113,7 +113,7 @@ class ModelLoader:
 
     pre_attn_norm: str = None
     pre_cross_attn_norm: str = None
-    pre_ff_norm: str = None
+    post_attn_norm: str = None
     embedding: str = None
     final_norm: str = None
     lm_head: str = None
@@ -484,14 +484,14 @@ class ModelLoader:
             state.pop(f"{pre_cross_attn_norm_name}.bias")
         )
 
-    if names.pre_ff_norm is not None:
-      pre_ff_norm_name = names.pre_ff_norm.format(idx)
-      converted_state[f"{prefix}.pre_ff_norm.weight"] = state.pop(
-          f"{pre_ff_norm_name}.weight"
+    if names.post_attn_norm is not None:
+      post_attn_norm_name = names.post_attn_norm.format(idx)
+      converted_state[f"{prefix}.post_atten_norm.weight"] = state.pop(
+          f"{post_attn_norm_name}.weight"
       )
-      if f"{pre_ff_norm_name}.bias" in state:
-        converted_state[f"{prefix}.pre_ff_norm.bias"] = state.pop(
-            f"{pre_ff_norm_name}.bias"
+      if f"{post_attn_norm_name}.bias" in state:
+        converted_state[f"{prefix}.post_atten_norm.bias"] = state.pop(
+            f"{post_attn_norm_name}.bias"
         )
 
   def _fuse_qkv(

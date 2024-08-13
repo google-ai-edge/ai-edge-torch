@@ -16,7 +16,7 @@
 import copy
 
 import ai_edge_torch
-from ai_edge_torch.generative.examples.gemma import gemma
+from ai_edge_torch.generative.examples.gemma import gemma, gemma2
 from ai_edge_torch.generative.examples.phi2 import phi2
 from ai_edge_torch.generative.examples.test_models import toy_model_with_kv_cache  # NOQA
 from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
@@ -179,6 +179,34 @@ class TestModelConversion(googletest.TestCase):
     self.skipTest("b/338288901")
     config = gemma.get_fake_model_config_2b_for_test()
     model = gemma.Gemma(config)
+
+    idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
+    tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
+    tokens[0, :4] = idx
+    input_pos = torch.arange(0, 10)
+
+    edge_model = ai_edge_torch.convert(model, (tokens, input_pos))
+
+    # TODO: b/338288901 - re-enable test to check output tensors.
+    skip_output_check = True
+    if not skip_output_check:
+      # TODO(talumbau, haoliang): debug numerical diff.
+      self.assertTrue(
+          model_coverage.compare_tflite_torch(
+              edge_model,
+              model,
+              (tokens, input_pos),
+              num_valid_inputs=1,
+              atol=1e-2,
+              rtol=1e-5,
+          )
+      )
+
+  def test_gemma2(self):
+    self.skipTest("b/338288901")
+    config = gemma2.get_fake_model_config_2b_for_test()
+    model = gemma2.Gemma2(config)
+    model.eval()
 
     idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
     tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")

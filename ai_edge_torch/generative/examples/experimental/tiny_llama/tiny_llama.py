@@ -41,7 +41,7 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     attn_value_proj="model.layers.{}.self_attn.v_proj",
     attn_output_proj="model.layers.{}.self_attn.o_proj",
     pre_attn_norm="model.layers.{}.input_layernorm",
-    pre_ff_norm="model.layers.{}.post_attention_layernorm",
+    post_attn_norm="model.layers.{}.post_attention_layernorm",
     embedding="model.embed_tokens",
     final_norm="model.norm",
     lm_head="lm_head",
@@ -142,7 +142,7 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       attn_config=attn_config,
       ff_config=ff_config,
       pre_attention_norm_config=norm_config,
-      pre_ff_norm_config=norm_config,
+      post_attention_norm_config=norm_config,
       final_norm_config=norm_config,
       enable_hlfb=True,
   )

@@ -107,7 +107,9 @@ class ModelLoader:
     ff_gate_proj: str = None
 
     pre_attn_norm: str = None
+    post_attn_norm: str = None
     pre_ff_norm: str = None
+    post_ff_norm: str = None
     embedding: str = None
     embedding_position: str = None
     final_norm: str = None
@@ -258,6 +260,26 @@ class ModelLoader:
             f"{ff_gate_proj_name}.bias"
         )
 
+    if self._names.pre_ff_norm is not None:
+      pre_ff_norm_name = self._names.pre_ff_norm.format(idx)
+      converted_state[f"{prefix}.ff.pre_ff_norm.weight"] = state.pop(
+          f"{pre_ff_norm_name}.weight"
+      )
+      if f"{pre_ff_norm_name}.bias" in state:
+        converted_state[f"{prefix}.ff.pre_ff_norm.bias"] = state.pop(
+            f"{pre_ff_norm_name}.bias"
+        )
+
+    if self._names.post_ff_norm is not None:
+      post_ff_norm_name = self._names.post_ff_norm.format(idx)
+      converted_state[f"{prefix}.ff.post_ff_norm.weight"] = state.pop(
+          f"{post_ff_norm_name}.weight"
+      )
+      if f"{post_ff_norm_name}.bias" in state:
+        converted_state[f"{prefix}.ff.post_ff_norm.bias"] = state.pop(
+            f"{post_ff_norm_name}.bias"
+        )
+
   def _map_attention(
       self,
       idx: int,
@@ -325,14 +347,14 @@ class ModelLoader:
             f"{pre_attn_norm_name}.bias"
         )
 
-    if self._names.pre_ff_norm is not None:
-      pre_ff_norm_name = self._names.pre_ff_norm.format(idx)
-      converted_state[f"{prefix}.pre_ff_norm.weight"] = state.pop(
-          f"{pre_ff_norm_name}.weight"
+    if self._names.post_attn_norm is not None:
+      post_attn_norm_name = self._names.post_attn_norm.format(idx)
+      converted_state[f"{prefix}.post_atten_norm.weight"] = state.pop(
+          f"{post_attn_norm_name}.weight"
       )
-      if f"{pre_ff_norm_name}.bias" in state:
-        converted_state[f"{prefix}.pre_ff_norm.bias"] = state.pop(
-            f"{pre_ff_norm_name}.bias"
+      if f"{post_attn_norm_name}.bias" in state:
+        converted_state[f"{prefix}.post_atten_norm.bias"] = state.pop(
+            f"{post_attn_norm_name}.bias"
         )
 
   def _fuse_qkv(
