@@ -136,6 +136,7 @@ class Gemma2(nn.Module):
 
     return self.mask_cache.index_select(2, input_pos)
 
+  @torch.inference_mode
   def forward(self, idx: torch.Tensor, input_pos: torch.Tensor) -> torch.Tensor:
     B, T = idx.size()
     assert self.config.max_seq_len >= T, (
