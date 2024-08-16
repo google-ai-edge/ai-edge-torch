@@ -242,7 +242,6 @@ def define_and_run_2b() -> None:
   out = model.forward(tokens, input_pos)
   out_final = out[0, 8, :]
   assert torch.allclose(gemma2_goldens, out_final, atol=1e-04)
-  print(out)
 
 
 if __name__ == "__main__":
