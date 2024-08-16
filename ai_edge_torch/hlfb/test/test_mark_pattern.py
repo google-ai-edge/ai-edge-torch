@@ -51,7 +51,12 @@ class TestMarkPattern(googletest.TestCase):
     mark_pattern.mark_pattern(exported_program.graph_module, pattern)
     mlir = _export_stablehlo_mlir(exported_program)
 
-    self.assertEqual(mlir.count('stablehlo.composite "test.add"'), 2)
+    lowertools.assert_string_count(
+        self,
+        mlir,
+        {'stablehlo.composite "test.add"': 2},
+        {"stablehlo.custom_call @mark_tensor": 6},
+    )
 
   def test_mark_pattern_with_attr_builder(self):
     class TestModel(torch.nn.Module):
@@ -72,9 +77,15 @@ class TestMarkPattern(googletest.TestCase):
     mark_pattern.mark_pattern(exported_program.graph_module, pattern)
     mlir = _export_stablehlo_mlir(exported_program)
 
-    self.assertEqual(mlir.count('stablehlo.composite "test.add"'), 2)
-    self.assertEqual(
-        mlir.count('composite_attributes = {alias = "test.test_add"}'), 2
+    lowertools.assert_string_count(
+        self,
+        mlir,
+        {
+            'stablehlo.composite "test.add"': 2,
+            'composite_attributes = {alias = "test.test_add"}': 2,
+        },
+        {"stablehlo.custom_call @mark_tensor": 6},
+        {'{"alias": "test.test_add"}': 2},
     )
 
   def test_mark_pattern_with_scalar_attr_tracker(self):
@@ -104,9 +115,17 @@ class TestMarkPattern(googletest.TestCase):
     mark_pattern.mark_pattern(exported_program.graph_module, pattern)
     mlir = _export_stablehlo_mlir(exported_program)
 
-    self.assertEqual(mlir.count('stablehlo.composite "test.log_softmax"'), 5)
-    self.assertEqual(mlir.count("composite_attributes = {dim = 0 : i64}"), 3)
-    self.assertEqual(mlir.count("composite_attributes = {dim = 1 : i64}"), 2)
+    lowertools.assert_string_count(
+        self,
+        mlir,
+        {
+            'stablehlo.composite "test.log_softmax"': 5,
+            "composite_attributes = {dim = 0 : i64}": 3,
+            "composite_attributes = {dim = 1 : i64}": 2,
+        },
+        {"stablehlo.custom_call @mark_tensor": 10},
+        {'{"dim": 0}': 3, '{"dim": 1}': 2},
+    )
 
   def test_mark_tangent_model_and_pattern_input(self):
     class TestModel(torch.nn.Module):
@@ -128,7 +147,12 @@ class TestMarkPattern(googletest.TestCase):
     mark_pattern.mark_pattern(exported_program.graph_module, pattern)
     mlir = _export_stablehlo_mlir(exported_program)
 
-    self.assertEqual(mlir.count('stablehlo.composite "test.relu'), 1)
+    lowertools.assert_string_count(
+        self,
+        mlir,
+        {'stablehlo.composite "test.relu"': 1},
+        {"stablehlo.custom_call @mark_tensor": 2},
+    )
 
 
 if __name__ == "__main__":

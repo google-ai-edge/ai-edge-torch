@@ -56,15 +56,18 @@ class TestBuildAtenCompositePass(googletest.TestCase):
         ),
         (torch.rand(1, 3, 10, 10),),
     )
-    self.assertTrue(
-        stablehlo.count('stablehlo.composite "odml.upsample_bilinear2d"'), 1
-    )
-    self.assertTrue(
-        stablehlo.count(
-            'composite_attributes = {align_corners = false, output = dense<30>'
-            ' : tensor<2xi64>}'
-        ),
-        1,
+
+    lowertools.assert_string_count(
+        self,
+        stablehlo,
+        {
+            'stablehlo.composite "odml.upsample_bilinear2d"': 1,
+            'composite_attributes = {align_corners = false, output = dense<30> : tensor<2xi64>}': (
+                1
+            ),
+        },
+        {'stablehlo.custom_call @mark_tensor': 2},
+        {'{"output": [30, 30], "align_corners": false}': 1},
     )
 
   def test_nn_functional_upsample_bilinear_align_corners(self):
@@ -74,15 +77,18 @@ class TestBuildAtenCompositePass(googletest.TestCase):
         ),
         (torch.rand(1, 3, 10, 10),),
     )
-    self.assertTrue(
-        stablehlo.count('stablehlo.composite "odml.upsample_bilinear2d"'), 1
-    )
-    self.assertTrue(
-        stablehlo.count(
-            'composite_attributes = {align_corners = true, output = dense<30> :'
-            ' tensor<2xi64>}'
-        ),
-        1,
+
+    lowertools.assert_string_count(
+        self,
+        stablehlo,
+        {
+            'stablehlo.composite "odml.upsample_bilinear2d"': 1,
+            'composite_attributes = {align_corners = true, output = dense<30> : tensor<2xi64>}': (
+                1
+            ),
+        },
+        {'stablehlo.custom_call @mark_tensor': 2},
+        {'{"output": [30, 30], "align_corners": true}': 1},
     )
 
   def test_nn_functional_upsample_bilinear_size(self):
@@ -92,15 +98,18 @@ class TestBuildAtenCompositePass(googletest.TestCase):
         ),
         (torch.rand(1, 3, 10, 10),),
     )
-    self.assertTrue(
-        stablehlo.count('stablehlo.composite "odml.upsample_bilinear2d"'), 1
-    )
-    self.assertTrue(
-        stablehlo.count(
-            'composite_attributes = {align_corners = false, output = dense<[15,'
-            ' 20]> : tensor<2xi64>}'
-        ),
-        1,
+
+    lowertools.assert_string_count(
+        self,
+        stablehlo,
+        {
+            'stablehlo.composite "odml.upsample_bilinear2d"': 1,
+            'composite_attributes = {align_corners = false, output = dense<[15, 20]> : tensor<2xi64>}': (
+                1
+            ),
+        },
+        {'stablehlo.custom_call @mark_tensor': 2},
+        {'{"output": [15, 20], "align_corners": false}': 1},
     )
 
   def test_nn_functional_upsample_bilinear_size_align_corners(self):
@@ -110,15 +119,17 @@ class TestBuildAtenCompositePass(googletest.TestCase):
         ),
         (torch.rand(1, 3, 10, 10),),
     )
-    self.assertTrue(
-        stablehlo.count('stablehlo.composite "odml.upsample_bilinear2d"'), 1
-    )
-    self.assertTrue(
-        stablehlo.count(
-            'composite_attributes = {align_corners = true, output = dense<[15,'
-            ' 20]> : tensor<2xi64>}'
-        ),
-        1,
+    lowertools.assert_string_count(
+        self,
+        stablehlo,
+        {
+            'stablehlo.composite "odml.upsample_bilinear2d"': 1,
+            'composite_attributes = {align_corners = true, output = dense<[15, 20]> : tensor<2xi64>}': (
+                1
+            ),
+        },
+        {'stablehlo.custom_call @mark_tensor': 2},
+        {'{"output": [15, 20], "align_corners": true}': 1},
     )
 
   def test_nn_upsample_bilinear(self):
@@ -126,15 +137,17 @@ class TestBuildAtenCompositePass(googletest.TestCase):
         torch.nn.Upsample(scale_factor=3.0, mode='bilinear').eval(),
         (torch.rand(1, 3, 10, 10),),
     )
-    self.assertTrue(
-        stablehlo.count('stablehlo.composite "odml.upsample_bilinear2d"'), 1
-    )
-    self.assertTrue(
-        stablehlo.count(
-            'composite_attributes = {align_corners = false, output = dense<30>'
-            ' : tensor<2xi64>}'
-        ),
-        1,
+    lowertools.assert_string_count(
+        self,
+        stablehlo,
+        {
+            'stablehlo.composite "odml.upsample_bilinear2d"': 1,
+            'composite_attributes = {align_corners = false, output = dense<30> : tensor<2xi64>}': (
+                1
+            ),
+        },
+        {'stablehlo.custom_call @mark_tensor': 2},
+        {'{"output": [30, 30], "align_corners": false}': 1},
     )
 
   def test_nn_functional_interpolate_bilinear(self):
@@ -144,15 +157,17 @@ class TestBuildAtenCompositePass(googletest.TestCase):
         ),
         (torch.rand(1, 3, 10, 10),),
     )
-    self.assertTrue(
-        stablehlo.count('stablehlo.composite "odml.upsample_bilinear2d"'), 1
-    )
-    self.assertTrue(
-        stablehlo.count(
-            'composite_attributes = {align_corners = false, output = dense<30>'
-            ' : tensor<2xi64>}'
-        ),
-        1,
+    lowertools.assert_string_count(
+        self,
+        stablehlo,
+        {
+            'stablehlo.composite "odml.upsample_bilinear2d"': 1,
+            'composite_attributes = {align_corners = false, output = dense<30> : tensor<2xi64>}': (
+                1
+            ),
+        },
+        {'stablehlo.custom_call @mark_tensor': 2},
+        {'{"output": [30, 30], "align_corners": false}': 1},
     )
 
   def test_nn_functional_interpolate_bilinear_align_corners(self):
@@ -162,15 +177,17 @@ class TestBuildAtenCompositePass(googletest.TestCase):
         ),
         (torch.rand(1, 3, 10, 10),),
     )
-    self.assertTrue(
-        stablehlo.count('stablehlo.composite "odml.upsample_bilinear2d"'), 1
-    )
-    self.assertTrue(
-        stablehlo.count(
-            'composite_attributes = {align_corners = true, output = dense<30> :'
-            ' tensor<2xi64>}'
-        ),
-        1,
+    lowertools.assert_string_count(
+        self,
+        stablehlo,
+        {
+            'stablehlo.composite "odml.upsample_bilinear2d"': 1,
+            'composite_attributes = {align_corners = true, output = dense<30> : tensor<2xi64>}': (
+                1
+            ),
+        },
+        {'stablehlo.custom_call @mark_tensor': 2},
+        {'{"output": [30, 30], "align_corners": true}': 1},
     )
 
   def test_nn_functional_interpolate_bilinear_size(self):
@@ -180,15 +197,17 @@ class TestBuildAtenCompositePass(googletest.TestCase):
         ),
         (torch.rand(1, 3, 10, 10),),
     )
-    self.assertTrue(
-        stablehlo.count('stablehlo.composite "odml.upsample_bilinear2d"'), 1
-    )
-    self.assertTrue(
-        stablehlo.count(
-            'composite_attributes = {align_corners = false, output = dense<[15,'
-            ' 20]> : tensor<2xi64>}'
-        ),
-        1,
+    lowertools.assert_string_count(
+        self,
+        stablehlo,
+        {
+            'stablehlo.composite "odml.upsample_bilinear2d"': 1,
+            'composite_attributes = {align_corners = false, output = dense<[15, 20]> : tensor<2xi64>}': (
+                1
+            ),
+        },
+        {'stablehlo.custom_call @mark_tensor': 2},
+        {'{"output": [15, 20], "align_corners": false}': 1},
     )
 
   def test_nn_functional_interpolate_bilinear_size_align_corners(self):
@@ -198,15 +217,17 @@ class TestBuildAtenCompositePass(googletest.TestCase):
         ),
         (torch.rand(1, 3, 10, 10),),
     )
-    self.assertTrue(
-        stablehlo.count('stablehlo.composite "odml.upsample_bilinear2d"'), 1
-    )
-    self.assertTrue(
-        stablehlo.count(
-            'composite_attributes = {align_corners = true, output = dense<[15,'
-            ' 20]> : tensor<2xi64>}'
-        ),
-        1,
+    lowertools.assert_string_count(
+        self,
+        stablehlo,
+        {
+            'stablehlo.composite "odml.upsample_bilinear2d"': 1,
+            'composite_attributes = {align_corners = true, output = dense<[15, 20]> : tensor<2xi64>}': (
+                1
+            ),
+        },
+        {'stablehlo.custom_call @mark_tensor': 2},
+        {'{"output": [15, 20], "align_corners": true}': 1},
     )
 
   def test_nn_functional_interpolate_nearest(self):
@@ -216,15 +237,17 @@ class TestBuildAtenCompositePass(googletest.TestCase):
         ),
         (torch.rand(1, 3, 10, 10),),
     )
-    self.assertTrue(
-        stablehlo.count('stablehlo.composite "tfl.resize_nearest_neighbor"'), 1
-    )
-    self.assertTrue(
-        stablehlo.count(
-            'composite_attributes = {is_nchw_op = true, size = dense<30> :'
-            ' tensor<2xi64>}'
-        ),
-        1,
+    lowertools.assert_string_count(
+        self,
+        stablehlo,
+        {
+            'stablehlo.composite "tfl.resize_nearest_neighbor"': 1,
+            'composite_attributes = {is_nchw_op = true, size = dense<30> : tensor<2xi64>}': (
+                1
+            ),
+        },
+        {'stablehlo.custom_call @mark_tensor': 2},
+        {'{"size": [30, 30], "is_nchw_op": true}': 1},
     )
 
   def test_nn_functional_interpolate_nearest_size(self):
@@ -234,15 +257,17 @@ class TestBuildAtenCompositePass(googletest.TestCase):
         ),
         (torch.rand(1, 3, 10, 10),),
     )
-    self.assertTrue(
-        stablehlo.count('stablehlo.composite "tfl.resize_nearest_neighbor"'), 1
-    )
-    self.assertTrue(
-        stablehlo.count(
-            'composite_attributes = {is_nchw_op = true, size = dense<[15, 20]>'
-            ' : tensor<2xi64>}'
-        ),
-        1,
+    lowertools.assert_string_count(
+        self,
+        stablehlo,
+        {
+            'stablehlo.composite "tfl.resize_nearest_neighbor"': 1,
+            'composite_attributes = {is_nchw_op = true, size = dense<[15, 20]> : tensor<2xi64>}': (
+                1
+            ),
+        },
+        {'stablehlo.custom_call @mark_tensor': 2},
+        {'{"size": [15, 20], "is_nchw_op": true}': 1},
     )
 
 

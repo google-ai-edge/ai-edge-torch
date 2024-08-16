@@ -112,13 +112,17 @@ class TestRemoveSDPAZeroMaskPass(googletest.TestCase):
         SampleSdpaBlock(get_model_config()).eval(),
         (torch.rand(1, 512, 64, 64),),
     )
-    self.assertTrue(
-        re.search(
-            'stablehlo\.composite "odml\.scaled_dot_product_attention" %\d+,'
-            ' %\d+, %\d+ {',
-            stablehlo,
-        )
-    )
+
+    if config.Config.use_torch_xla:
+      self.assertTrue(
+          re.search(
+              'stablehlo\.composite "odml\.scaled_dot_product_attention" %\d+,'
+              ' %\d+, %\d+ {',
+              stablehlo,
+          )
+      )
+    else:
+      self.assertEqual(stablehlo.count('stablehlo.custom_call @mark_tensor'), 4)
 
 
 if __name__ == '__main__':
