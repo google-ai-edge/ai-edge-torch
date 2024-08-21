@@ -203,7 +203,7 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       final_norm_config=norm_config,
       parallel_residual=False,
       lm_head_use_bias=False,
-      enable_hlfb=False,
+      enable_hlfb=True,
       final_logit_softcap=30.0,
   )
   return config
@@ -242,7 +242,6 @@ def define_and_run_2b() -> None:
   out = model.forward(tokens, input_pos)
   out_final = out[0, 8, :]
   assert torch.allclose(gemma2_goldens, out_final, atol=1e-04)
-  print(out)
 
 
 if __name__ == "__main__":
