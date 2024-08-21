@@ -84,6 +84,9 @@ class TestConvertMultiSignature(googletest.TestCase):
         )
     )
 
+  @googletest.skip(
+      reason="Re-enable once the tflite converter issue is fixed.",
+  )
   def test_convert_mobilenet_v2_signature_helper(self):
     """Tests the ai_edge_torch.signature helper function works."""
     torch_module = torchvision.models.mobilenet_v2().eval()
