@@ -38,6 +38,7 @@ class MergedBundle:
   """A bundle of MlirLowered that has been merged."""
 
   bundles: list[odml_torch.export.MlirLowered]
+  exported_programs: list[torch.export.ExportedProgram]
   deduped_tf_vars: list[tf.Variable]
 
 
@@ -74,12 +75,16 @@ def _extract_call_args(
   return call_args
 
 
-def _wrap_as_tf_func(bundle, tf_state_dict):
+def _wrap_as_tf_func(
+    bundle: export.MlirLowered,
+    tf_state_dict: Dict[str, tf.Variable],
+    exported_program: torch.export.ExportedProgram,
+):
   def inner(*args):
     t_outs = [torch_dtype_to_tf(sig.dtype) for sig in bundle.output_signature]
     s_outs = [_get_shape_with_dynamic(sig) for sig in bundle.output_signature]
     call_args = _extract_call_args(bundle, args, tf_state_dict)
-    return tfxla.call_module(
+    call_module_return = tfxla.call_module(
         tuple(call_args),
         version=5,
         Tout=t_outs,  # dtype information
@@ -87,6 +92,14 @@ def _wrap_as_tf_func(bundle, tf_state_dict):
         function_list=[],
         module=bundle.module_bytecode,
     )
+    spec = exported_program.call_spec.out_spec
+
+    # The module returning a flat array.
+    if not spec.context:
+      return call_module_return
+
+    flat_names = common_utils.flat_dict_names(spec.children_specs, spec.context)
+    return {name: value for name, value in zip(flat_names, call_module_return)}
 
   return inner
 
@@ -128,8 +141,10 @@ def merged_bundle_to_tfl_model(
       for bundle, sig in zip(merged_bundle.bundles, signatures)
   ]
   tf_functions = [
-      _wrap_as_tf_func(bundle, tf_state_dict)
-      for bundle in merged_bundle.bundles
+      _wrap_as_tf_func(bundle, tf_state_dict, ep)
+      for bundle, ep in zip(
+          merged_bundle.bundles, merged_bundle.exported_programs
+      )
   ]
 
   tf_module = tf.Module()
@@ -202,7 +217,9 @@ def merge_mlir_bundles(
   )
 
   merged_bundle = MergedBundle(
-      bundles=bundles.copy(), deduped_tf_vars=deduped_vars
+      bundles=bundles.copy(),
+      exported_programs=exported_programs,
+      deduped_tf_vars=deduped_vars,
   )
   for bundle, signature in zip(merged_bundle.bundles, signatures):
     bundle.state_dict = state_dict

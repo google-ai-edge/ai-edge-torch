@@ -51,6 +51,7 @@ MlirBundle = stablehlo.StableHLOModelBundle
 class MergedBundle:
 
   bundle: stablehlo.StableHLOModelBundle
+  exported_programs: list[torch.export.ExportedProgram]
   deduped_tf_vars: list[tf.Variable]
 
 
@@ -58,9 +59,9 @@ def exported_program_to_mlir(
     exported_program: torch.export.ExportedProgram,
     sample_args: tuple[torch.Tensor],
 ) -> stablehlo.StableHLOModelBundle:
-  # Setting export_weights to False here so that pytorch/xla avoids copying the weights
-  # to a numpy array which would lead to memory bloat. This means that the state_dict
-  # in the returned bundle is going to be empty.
+  # Setting export_weights to False here so that pytorch/xla avoids copying the
+  # weights to a numpy array which would lead to memory bloat. This means that
+  # the state_dict in the returned bundle is going to be empty.
   return stablehlo.exported_program_to_stablehlo(
       exported_program,
       stablehlo.StableHLOExportOptions(
@@ -96,7 +97,9 @@ def merge_mlir_bundles(
         bundle.additional_constants
     )
   return MergedBundle(
-      bundle=new_shlo_model_bundle, deduped_tf_vars=deduped_tf_vars
+      bundle=new_shlo_model_bundle,
+      exported_programs=exported_programs,
+      deduped_tf_vars=deduped_tf_vars,
   )
 
 
@@ -108,7 +111,9 @@ def _get_shape_with_dynamic(signature: stablehlo.VariableSignature):
 
 
 def _wrap_as_tf_func(
-    func: stablehlo.StableHLOFunc, bundle: stablehlo.StableHLOModelBundle
+    func: stablehlo.StableHLOFunc,
+    bundle: stablehlo.StableHLOModelBundle,
+    exported_program: torch.export.ExportedProgram,
 ):
   def inner(*args):
     type_info = [sig.dtype for sig in func.meta.output_signature]
@@ -116,7 +121,7 @@ def _wrap_as_tf_func(
         _get_shape_with_dynamic(sig) for sig in func.meta.output_signature
     ]
     call_args = stablehlo._extract_call_parameters(args, func.meta, bundle)
-    return tfxla.call_module(
+    call_module_return = tfxla.call_module(
         tuple(call_args),
         version=5,
         Tout=type_info,
@@ -124,15 +129,16 @@ def _wrap_as_tf_func(
         function_list=[],
         module=func.bytecode,
     )
+    spec = exported_program.call_spec.out_spec
+
+    # The module returning a flat array.
+    if not spec.context:
+      return call_module_return
+
+    flat_names = common_utils.flat_dict_names(spec.children_specs, spec.context)
+    return {name: value for name, value in zip(flat_names, call_module_return)}
 
   return inner
-
-
-def _make_tf_function(
-    bundle: stablehlo.StableHLOModelBundle = None,
-):
-  bundle = bundle if bundle is None else bundle
-  return [_wrap_as_tf_func(func, bundle) for func in bundle.stablehlo_funcs]
 
 
 def _make_tf_signature(
@@ -205,7 +211,12 @@ def merged_bundle_to_tfl_model(
       for func, sig in zip(shlo_bundle.stablehlo_funcs, signatures)
   )
 
-  tf_functions = _make_tf_function(shlo_bundle)
+  tf_functions = [
+      _wrap_as_tf_func(func, shlo_bundle, ep)
+      for func, ep in zip(
+          shlo_bundle.stablehlo_funcs, merged_bundle.exported_programs
+      )
+  ]
 
   tf_module.f = []
   for tf_sig, func in zip(tf_signatures, tf_functions):
