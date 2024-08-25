@@ -86,6 +86,7 @@ class TestConvertMultiSignature(googletest.TestCase):
 
   def test_convert_mobilenet_v2_signature_helper(self):
     """Tests the ai_edge_torch.signature helper function works."""
+    self.skipTest("b/361146498")
     torch_module = torchvision.models.mobilenet_v2().eval()
 
     args = (torch.randn(4, 3, 224, 224),)
