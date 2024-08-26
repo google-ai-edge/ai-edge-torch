@@ -79,7 +79,7 @@ setup(
     packages=find_packages(
         include=["ai_edge_torch*"],
     ),
-    python_requires=">=3.9, <3.12",
+    python_requires=">=3.9",
     install_requires=[
         "numpy",
         "scipy",
