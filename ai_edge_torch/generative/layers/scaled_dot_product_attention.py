@@ -99,14 +99,16 @@ def scaled_dot_product_attention_with_hlfb(
     The output tensor of scaled_dot_product_attention.
   """
 
-  if softcap is not None:
-    raise NotImplementedError("SDPA with HLFB not available with softcap.")
-
   if scale is None:
     scale = 1.0 / math.sqrt(head_size)
 
+  attrs = {"scale": scale}
+
+  if softcap is not None:
+    attrs["logit_cap"] = softcap
+
   builder = StableHLOCompositeBuilder(
-      name="odml.scaled_dot_product_attention", attr={"scale": scale}
+      name="odml.scaled_dot_product_attention", attr=attrs
   )
   q, k, v, mask = builder.mark_inputs(q, k, v, mask)
 

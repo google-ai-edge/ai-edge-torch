@@ -16,6 +16,7 @@
 import dataclasses
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from ai_edge_torch import lowertools
 import torch
 import torch.utils._pytree as pytree
 
@@ -53,46 +54,11 @@ class Signature:
     for i in range(args_spec.num_leaves):
       names.append(f"args_{i}")
 
-    kwargs_names = self._flat_kwarg_names(
+    kwargs_names = lowertools.flat_dict_names(
         kwargs_spec.children_specs, kwargs_spec.context
     )
     names.extend(kwargs_names)
     return names
-
-  def _flat_kwarg_names(self, specs, context) -> List[str]:
-    flat_names = []
-    if context is None:
-      for i, spec in enumerate(specs):
-        if spec.children_specs:
-          flat_names.extend([
-              f"{i}_{name}"
-              for name in self._flat_kwarg_names(
-                  spec.children_specs, spec.context
-              )
-          ])
-        else:
-          flat_names.append(f"{i}")
-    else:
-      flat_ctx = self._flatten_list(context)
-      for prefix, spec in zip(flat_ctx, specs):
-        leaf_flat_names = self._flat_kwarg_names(
-            spec.children_specs, spec.context
-        )
-        if leaf_flat_names:
-          flat_names.extend([f"{prefix}_{name}" for name in leaf_flat_names])
-        else:
-          flat_names.append(prefix)
-
-    return flat_names
-
-  def _flatten_list(self, l: List) -> List:
-    flattened = []
-    for item in l:
-      if isinstance(item, list):
-        flattened.extend(self._flatten_list(item))
-      else:
-        flattened.append(item)
-    return flattened
 
   @property
   def flat_args(self) -> tuple[Any]:

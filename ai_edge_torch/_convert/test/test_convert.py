@@ -174,7 +174,7 @@ class TestConvert(googletest.TestCase):
     self.assertTrue(result)
 
   def test_12_outputs_model(self):
-    """Tests conversion of a model that returns multiple outputs."""
+    """Tests conversion of a model that returns more than 10 outputs."""
 
     class BasicAddModelWithMultipleOutputs(torch.nn.Module):
       """A model that returns multiple outputs."""
@@ -420,6 +420,37 @@ class TestConvert(googletest.TestCase):
     self._compare_tflite_torch_args_kwargs(
         SampleModel(), args, kwargs, flat_inputs
     )
+
+  def test_convert_model_non_flat_output_dict(self):
+    """Test converting a model with non-flat output structure."""
+
+    class SampleModel(torch.nn.Module):
+
+      def forward(self, x, y, z):
+        return {"x": x, "y": TestContainer1(data_1=y, data_2=[y, z])}
+
+    args = (torch.randn(10, 10), torch.randn(10, 10), torch.randn(10, 10))
+    kwargs = dict()
+    flat_inputs = {
+        "args_0": args[0].numpy(),
+        "args_1": args[1].numpy(),
+        "args_2": args[2].numpy(),
+    }
+
+    edge_model = ai_edge_torch.convert(SampleModel().eval(), args, kwargs)
+    edge_output = edge_model(**flat_inputs)
+    np.testing.assert_almost_equal(edge_output["x"], args[0])
+    np.testing.assert_almost_equal(edge_output["y_data_1"], args[1])
+    np.testing.assert_almost_equal(edge_output["y_data_2_0"], args[1])
+    np.testing.assert_almost_equal(edge_output["y_data_2_1"], args[2])
+
+    interpreter = tf.lite.Interpreter(model_content=edge_model._tflite_model)
+    runner = interpreter.get_signature_runner("serving_default")
+    output_details = runner.get_output_details()
+    self.assertIn("x", output_details.keys())
+    self.assertIn("y_data_1", output_details.keys())
+    self.assertIn("y_data_2_0", output_details.keys())
+    self.assertIn("y_data_2_1", output_details.keys())
 
   def _compare_tflite_torch_args_kwargs(self, model, args, kwargs, flat_inputs):
     model.eval()

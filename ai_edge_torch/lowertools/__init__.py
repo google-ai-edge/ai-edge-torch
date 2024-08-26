@@ -14,4 +14,5 @@
 # ==============================================================================
 
 from ._shim import *
+from .common_utils import flat_dict_names
 from .test_utils import *

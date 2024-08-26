@@ -14,10 +14,63 @@
 # ==============================================================================
 
 import logging
+from typing import List
 
 from ai_edge_torch._convert import signature as signature_module
 import tensorflow as tf
 import torch
+import torch.utils._pytree as pytree
+
+
+def _flatten_list(l: List) -> List:
+  flattened = []
+  for item in l:
+    if isinstance(item, list):
+      flattened.extend(_flatten_list(item))
+    else:
+      flattened.append(item)
+  return flattened
+
+
+def flat_dict_names(
+    tree_spec: pytree.TreeSpec, context: pytree.Context
+) -> List[str]:
+  """Given a TreeSpec, this produces a list of names for the leaves.
+
+  The list of names embeddeds the structure of the tree_spec. A nesting level is
+  indicated by an `_` and elements in a list are indicated by `_<index>`.
+
+  TODO b/361601485: The flattening of names is not collision-free and needs to
+  be revised.
+
+  Args:
+    tree_spec: The TreeSpec to extract the names from.
+    context: The context used to check if the provided spec belongs to a
+      dictionary or a list.
+
+  Returns:
+    A list of flattened names.
+  """
+  flat_names = []
+  if context is None:
+    for i, spec in enumerate(tree_spec):
+      if spec.children_specs:
+        flat_names.extend([
+            f"{i}_{name}"
+            for name in flat_dict_names(spec.children_specs, spec.context)
+        ])
+      else:
+        flat_names.append(f"{i}")
+  else:
+    flat_ctx = _flatten_list(context)
+    for prefix, spec in zip(flat_ctx, tree_spec):
+      leaf_flat_names = flat_dict_names(spec.children_specs, spec.context)
+      if leaf_flat_names:
+        flat_names.extend([f"{prefix}_{name}" for name in leaf_flat_names])
+      else:
+        flat_names.append(prefix)
+
+  return flat_names
 
 
 def _torch_to_tf_variable(torch_tensor: torch.Tensor):

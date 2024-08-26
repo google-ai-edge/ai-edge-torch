@@ -21,6 +21,7 @@ PyTorch models can be converted to this representation through
 from __future__ import annotations
 
 import abc
+import re
 
 import numpy.typing as npt
 import tensorflow as tf
@@ -115,11 +116,18 @@ class TfLiteModel(Model):
     inputs = {**inputs, **kwargs}
     outputs = runner(**inputs)
 
-    return (
-        outputs['output_0']
-        if len(outputs) == 1
-        else [outputs[f'output_{idx}'] for idx in range(len(outputs))]
-    )
+    # When attempting to run a model, check if all the output tensors are named
+    # output_<number>. If so, assume the pytorch model returned a tuple and not
+    # a dictionary.
+    output_heuristic = lambda key: bool(re.search(r'output_\d+', key))
+    if all(output_heuristic(key) for key in outputs.keys()):
+      return (
+          outputs['output_0']
+          if len(outputs) == 1
+          else [outputs[f'output_{idx}'] for idx in range(len(outputs))]
+      )
+
+    return outputs
 
   def export(self, path: str) -> None:
     """Serializes the edge model to disk.

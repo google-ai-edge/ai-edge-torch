@@ -94,8 +94,8 @@ class TestConvertMultiSignature(googletest.TestCase):
     signature_name = "large_input"
 
     edge_model = ai_edge_torch.signature(
-        signature_name, torch_module, args
-    ).convert(torch_module, large_args)
+        signature_name, torch_module, large_args
+    ).convert(torch_module, args)
 
     self.assertTrue(
         model_coverage.compare_tflite_torch(edge_model, torch_module, args)
