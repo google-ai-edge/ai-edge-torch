@@ -17,45 +17,9 @@
 import ai_edge_torch
 from ai_edge_torch.testing import model_coverage
 import torch
-from torch import nn
+import torchvision
 
 from tensorflow.python.platform import googletest
-
-
-class FullyConnectedModel(nn.Module):
-  """A simple fully connected model with two fully connected layers."""
-
-  def __init__(self, input_size, hidden_size, output_size):
-    super(FullyConnectedModel, self).__init__()
-    self.fc = nn.Linear(input_size, hidden_size)  # Fully connected layer
-    self.relu = nn.ReLU()  # Activation function
-    self.output = nn.Linear(hidden_size, output_size)
-
-  def forward(self, x):
-    x = self.fc(x)
-    x = self.relu(x)
-    x = self.output(x)
-    return x
-
-
-class FullyConvModel(nn.Module):
-  """A simple fully convolutional model with two convolutions."""
-
-  def __init__(self):
-    super(FullyConvModel, self).__init__()
-    self.conv1 = nn.Conv2d(
-        3, 16, kernel_size=3, padding=1
-    )  # Input channels: 3 (RGB), Output channels: 16
-    self.relu = nn.ReLU(inplace=True)
-    self.conv2 = nn.Conv2d(
-        16, 1, kernel_size=1
-    )  # Output channels: 1 (single channel output)
-
-  def forward(self, x):
-    x = self.conv1(x)
-    x = self.relu(x)
-    x = self.conv2(x)
-    return x
 
 
 class TestConvertMultiSignature(googletest.TestCase):
@@ -65,12 +29,12 @@ class TestConvertMultiSignature(googletest.TestCase):
     super().setUp()
     torch.manual_seed(0)
 
-  def test_convert_with_default(self):
+  def test_convert_mobilenet_v2_with_default(self):
     """Tests conversion of a model with two signatures one of which is the default."""
-    torch_module = FullyConvModel().eval()
+    torch_module = torchvision.models.mobilenet_v2().eval()
 
-    args = (torch.randn(4, 3, 12, 12),)
-    large_args = (torch.randn(4, 3, 24, 24),)
+    args = (torch.randn(4, 3, 224, 224),)
+    large_args = (torch.randn(4, 3, 336, 336),)
 
     signature_name = "large_input"
 
@@ -87,12 +51,12 @@ class TestConvertMultiSignature(googletest.TestCase):
         )
     )
 
-  def test_convert_no_default(self):
+  def test_convert_mobilenet_v2_no_default(self):
     """Tests conversion of a model with two signatures none of which is the default."""
-    torch_module = FullyConvModel().eval()
+    torch_module = torchvision.models.mobilenet_v2().eval()
 
-    args = (torch.randn(4, 3, 12, 12),)
-    large_args = (torch.randn(4, 3, 24, 24),)
+    args = (torch.randn(4, 3, 224, 224),)
+    large_args = (torch.randn(4, 3, 336, 336),)
 
     signature_name_1 = "input"
     signature_name_2 = "large_input"
@@ -120,12 +84,12 @@ class TestConvertMultiSignature(googletest.TestCase):
         )
     )
 
-  def test_convert_signature_helper(self):
+  def test_convert_mobilenet_v2_signature_helper(self):
     """Tests the ai_edge_torch.signature helper function works."""
-    torch_module = FullyConvModel().eval()
+    torch_module = torchvision.models.mobilenet_v2().eval()
 
-    args = (torch.randn(4, 3, 12, 12),)
-    large_args = (torch.randn(4, 3, 24, 24),)
+    args = (torch.randn(4, 3, 224, 224),)
+    large_args = (torch.randn(4, 3, 336, 336),)
 
     signature_name = "large_input"
 
@@ -144,43 +108,39 @@ class TestConvertMultiSignature(googletest.TestCase):
 
   def test_convert_separate_modules(self):
     """Tests conversion of two completely different modules as separate signatures."""
-    fully_conv = FullyConvModel().eval()
-    fully_connected = FullyConnectedModel(10, 5, 10).eval()
+    mobilentv2 = torchvision.models.mobilenet_v2().eval()
+    resnet18 = torchvision.models.resnet18().eval()
 
-    fully_conv_args = (torch.randn(4, 3, 12, 12),)
-    fully_connected_args = (torch.randn(10),)
+    mobilenet_args = (torch.randn(4, 3, 224, 224),)
+    resnet_args = (torch.randn(4, 3, 224, 224),)
 
-    fully_conv_signature_name = "fully_conv"
-    fully_connected_signature_name = "fully_connected"
+    mobilenet_signature_name = "mobilentv2"
+    resnet_signature_name = "resnet18"
 
     edge_model = (
         ai_edge_torch.signature(
-            fully_conv_signature_name, fully_conv, fully_conv_args
+            mobilenet_signature_name, mobilentv2, mobilenet_args
         )
-        .signature(
-            fully_connected_signature_name,
-            fully_connected,
-            fully_connected_args,
-        )
-        .convert(fully_connected, fully_connected_args)
+        .signature(resnet_signature_name, resnet18, resnet_args)
+        .convert(resnet18, resnet_args)
     )
 
-    fully_conv_inference_args = (torch.randn(4, 3, 12, 12),)
-    fully_connected_inference_args = (torch.randn(10),)
+    mobilenet_inference_args = (torch.randn(4, 3, 224, 224),)
+    resnet_inference_args = (torch.randn(4, 3, 224, 224),)
     self.assertTrue(
         model_coverage.compare_tflite_torch(
             edge_model,
-            fully_conv,
-            fully_conv_inference_args,
-            signature_name=fully_conv_signature_name,
+            mobilentv2,
+            mobilenet_inference_args,
+            signature_name=mobilenet_signature_name,
         )
     )
     self.assertTrue(
         model_coverage.compare_tflite_torch(
             edge_model,
-            fully_connected,
-            fully_connected_inference_args,
-            signature_name=fully_connected_signature_name,
+            resnet18,
+            resnet_inference_args,
+            signature_name=resnet_signature_name,
         )
     )
 
