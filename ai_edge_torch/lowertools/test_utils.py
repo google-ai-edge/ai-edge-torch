@@ -16,7 +16,7 @@
 import re
 from typing import Optional
 from ai_edge_torch import config
-from tensorflow.python.platform import googletest
+from absl.testing import absltest as googletest
 
 
 def _extract_backend_configs(mlir):

@@ -28,7 +28,7 @@ from ai_edge_torch.testing import model_coverage
 from parameterized import parameterized
 import torch
 
-from tensorflow.python.platform import googletest
+from absl.testing import absltest as googletest
 
 
 class TestVerifyRecipes(googletest.TestCase):

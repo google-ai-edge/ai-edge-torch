@@ -22,7 +22,7 @@ from ai_edge_torch.generative.utilities import loader as loading_utils
 import safetensors.torch
 import torch
 
-from tensorflow.python.platform import googletest
+from absl.testing import absltest as googletest
 
 
 class TestLoader(googletest.TestCase):

@@ -25,7 +25,7 @@ import ai_edge_torch.generative.layers.model_config as layers_cfg
 import ai_edge_torch.generative.layers.unet.model_config as unet_cfg
 import torch
 
-from tensorflow.python.platform import googletest
+from absl.testing import absltest as googletest
 
 
 def _export_to_stablehlo(func: Union[torch.nn.Module, Callable], export_args):

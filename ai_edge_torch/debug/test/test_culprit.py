@@ -21,7 +21,7 @@ import sys
 from ai_edge_torch.debug import find_culprits
 import torch
 
-from tensorflow.python.platform import googletest
+from absl.testing import absltest as googletest
 
 _test_culprit_lib = torch.library.Library("test_culprit", "DEF")
 

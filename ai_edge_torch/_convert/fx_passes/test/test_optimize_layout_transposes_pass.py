@@ -21,7 +21,7 @@ import torch
 import torch.utils._pytree as pytree
 import torchvision
 
-from tensorflow.python.platform import googletest
+from absl.testing import absltest as googletest
 
 
 def export_with_pass(

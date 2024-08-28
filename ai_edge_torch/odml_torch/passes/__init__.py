@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Copyright 2024 The AI Edge Torch Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,8 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+from jax._src.lib.mlir import ir
+from jax._src.lib.mlir import passmanager
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-# TODO(b/362799258) Setup CIs to test odml-torch path and remove test ignore
-PYTHONPATH=$SCRIPT_DIR:$PYTHONPATH python -m pytest $SCRIPT_DIR -n auto \
-  --ignore=$SCRIPT_DIR/ai_edge_torch/odml_torch
+
+def run_pass(pipeline, module: ir.Module):
+  pm = passmanager.PassManager.parse(pipeline)
+  pm.run(module.operation)
+  return module
+
+
+def canonicalize(module: ir.Module):
+  return run_pass("builtin.module(canonicalize)", module)
+
+
+def cse(module: ir.Module):
+  return run_pass("builtin.module(cse)", module)
+
+
+def inline(module: ir.Module):
+  return run_pass("builtin.module(inline)", module)
+
+
+def strip_debuginfo(module: ir.Module):
+  return run_pass("builtin.module(strip-debuginfo)", module)

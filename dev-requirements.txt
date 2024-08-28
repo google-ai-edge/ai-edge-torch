@@ -1,4 +1,5 @@
 -r ./requirements.txt
+absl-py
 build
 colorama
 isort

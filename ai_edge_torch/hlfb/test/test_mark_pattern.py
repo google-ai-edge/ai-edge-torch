@@ -19,7 +19,7 @@ from ai_edge_torch.hlfb import mark_pattern
 from ai_edge_torch.hlfb.mark_pattern import pattern as pattern_module
 import torch
 
-from tensorflow.python.platform import googletest
+from absl.testing import absltest as googletest
 
 
 def _export_stablehlo_mlir(model, args=None):

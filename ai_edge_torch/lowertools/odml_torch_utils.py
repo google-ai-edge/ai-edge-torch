@@ -84,13 +84,17 @@ def _wrap_as_tf_func(
     t_outs = [torch_dtype_to_tf(sig.dtype) for sig in bundle.output_signature]
     s_outs = [_get_shape_with_dynamic(sig) for sig in bundle.output_signature]
     call_args = _extract_call_args(bundle, args, tf_state_dict)
+    # HACK: In OSS, we use MLIR pybinding and StableHLO dialect from JAX's
+    # build, which may not have the same StableHLO version as what used in
+    # TFLite converter. Therefore we always serialize MLIR module in VHLO.
+    # TODO(b/362798610) Build MLIR pybinding in ai-edge-torch release.
     call_module_return = tfxla.call_module(
         tuple(call_args),
         version=5,
         Tout=t_outs,  # dtype information
         Sout=s_outs,  # Shape information
         function_list=[],
-        module=bundle.module_bytecode,
+        module=bundle.module_bytecode_vhlo,
     )
     spec = exported_program.call_spec.out_spec
 

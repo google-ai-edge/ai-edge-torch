@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Copyright 2024 The AI Edge Torch Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-# TODO(b/362799258) Setup CIs to test odml-torch path and remove test ignore
-PYTHONPATH=$SCRIPT_DIR:$PYTHONPATH python -m pytest $SCRIPT_DIR -n auto \
-  --ignore=$SCRIPT_DIR/ai_edge_torch/odml_torch
+from . import composite
+from . import debuginfo
+from . import export
+from . import export_utils
+from . import lowerings
+from . import passes

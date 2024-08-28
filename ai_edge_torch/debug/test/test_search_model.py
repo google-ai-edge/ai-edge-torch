@@ -17,7 +17,7 @@
 from ai_edge_torch.debug import _search_model
 import torch
 
-from tensorflow.python.platform import googletest
+from absl.testing import absltest as googletest
 
 
 class TestSearchModel(googletest.TestCase):

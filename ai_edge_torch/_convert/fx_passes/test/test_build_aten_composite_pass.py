@@ -20,7 +20,7 @@ from ai_edge_torch import lowertools
 from ai_edge_torch._convert import fx_passes
 import torch
 
-from tensorflow.python.platform import googletest
+from absl.testing import absltest as googletest
 
 
 def _export_to_stablehlo_with_composite(

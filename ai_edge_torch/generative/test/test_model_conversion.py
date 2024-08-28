@@ -24,7 +24,7 @@ from ai_edge_torch.testing import model_coverage
 import numpy as np
 import torch
 
-from tensorflow.python.platform import googletest
+from absl.testing import absltest as googletest
 
 
 class TestModelConversion(googletest.TestCase):

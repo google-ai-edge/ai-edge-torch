@@ -19,7 +19,7 @@ from ai_edge_torch.testing import model_coverage
 import torch
 from torch import nn
 
-from tensorflow.python.platform import googletest
+from absl.testing import absltest as googletest
 
 
 class FullyConnectedModel(nn.Module):

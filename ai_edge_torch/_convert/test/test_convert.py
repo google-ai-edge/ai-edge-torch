@@ -27,7 +27,7 @@ import tensorflow as tf
 import torch
 import torchvision
 
-from tensorflow.python.platform import googletest
+from absl.testing import absltest as googletest
 
 
 @dataclasses.dataclass

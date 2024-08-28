@@ -12,13 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for StableHLOCompositeBuilder."""
-
 import math
+import re
 
-from ai_edge_torch import config
-from ai_edge_torch import lowertools
-from ai_edge_torch.hlfb import StableHLOCompositeBuilder
+from ai_edge_torch import odml_torch
+from ai_edge_torch.odml_torch import composite
 import torch
 import torch.nn.functional as F
 
@@ -27,20 +25,31 @@ from absl.testing import absltest as googletest
 
 def _export_stablehlo_mlir(model, args):
   ep = torch.export.export(model, args)
-  return lowertools.exported_program_to_mlir_text(ep)
+  mlir = odml_torch.export.exported_program_to_mlir(ep)
+  return mlir.get_text()
 
 
-@googletest.skipIf(
-    not config.Config.use_torch_xla,
-    reason="The odml_torch counter part is in odml_torch.",
-)
+def _extract_backend_configs(mlir):
+  mlir = mlir.replace("\\22", '"')
+  configs = []
+  for match in re.finditer(r"backend_config\s*=\s*\"(\{.*\})\"", mlir):
+    configs.append(match.group(1))
+  return "\n".join(configs)
+
+
 class TestStableHLOCompositeBuilder(googletest.TestCase):
+  """Test cases for StableHLOCompositeBuilder.
+
+  This tests the functionality of emitting mark_tensor ops at the boundaries of
+  a composite. The actual transformation to a composite happens later in the
+  tflite converter.
+  """
 
   def test_build_composite(self):
     class SampleModel(torch.nn.Module):
 
       def forward(self, x):
-        builder = StableHLOCompositeBuilder(name="test.plus_two")
+        builder = composite.StableHLOCompositeBuilder(name="test.plus_two")
         y = x + 1
         y = builder.mark_inputs(y)
         z = y + 2
@@ -48,20 +57,20 @@ class TestStableHLOCompositeBuilder(googletest.TestCase):
         return z
 
     mlir = _export_stablehlo_mlir(SampleModel().eval(), (torch.rand((2, 2)),))
-    self.assertEqual(mlir.count('stablehlo.composite "test.plus_two"'), 1)
+    self.assertEqual(mlir.count("stablehlo.custom_call @mark_tensor"), 2)
 
   def test_build_multiple_composites(self):
     class SampleModel(torch.nn.Module):
 
       def plus_one(self, x: torch.Tensor):
-        builder = StableHLOCompositeBuilder("test.plus_one")
+        builder = composite.StableHLOCompositeBuilder("test.plus_one")
         x = builder.mark_inputs(x)
         y = x + 1
         y = builder.mark_outputs(y)
         return y
 
       def plus_two(self, x: torch.Tensor):
-        builder = StableHLOCompositeBuilder("test.plus_two")
+        builder = composite.StableHLOCompositeBuilder("test.plus_two")
         x = builder.mark_inputs(x)
         y = x + 2
         y = builder.mark_outputs(y)
@@ -76,8 +85,7 @@ class TestStableHLOCompositeBuilder(googletest.TestCase):
         return x
 
     mlir = _export_stablehlo_mlir(SampleModel().eval(), (torch.rand((2, 2)),))
-    self.assertEqual(mlir.count('stablehlo.composite "test.plus_one"'), 1)
-    self.assertEqual(mlir.count('stablehlo.composite "test.plus_two"'), 2)
+    self.assertEqual(mlir.count("stablehlo.custom_call @mark_tensor"), 6)
 
   def test_build_composite_with_attr(self):
     class SampleModel(torch.nn.Module):
@@ -86,7 +94,7 @@ class TestStableHLOCompositeBuilder(googletest.TestCase):
         super().__init__()
 
       def log_softmax(self, x: torch.Tensor, dim: int):
-        builder = StableHLOCompositeBuilder(
+        builder = composite.StableHLOCompositeBuilder(
             name="test.log_softmax", attr={"dim": dim}
         )
         x = builder.mark_inputs(x)
@@ -101,9 +109,11 @@ class TestStableHLOCompositeBuilder(googletest.TestCase):
         return x
 
     mlir = _export_stablehlo_mlir(SampleModel().eval(), (torch.rand((2, 2)),))
-    self.assertEqual(mlir.count('stablehlo.composite "test.log_softmax"'), 2)
-    self.assertEqual(mlir.count("composite_attributes = {dim = 0 : i64}"), 1)
-    self.assertEqual(mlir.count("composite_attributes = {dim = 1 : i64}"), 1)
+    configs_str = _extract_backend_configs(mlir)
+
+    self.assertEqual(mlir.count("stablehlo.custom_call @mark_tensor"), 4)
+    self.assertEqual(configs_str.count('{"dim": 0}'), 1)
+    self.assertEqual(configs_str.count('{"dim": 1}'), 1)
 
   def test_build_composite_with_mix_type_attrs(self):
     class SampleModel(torch.nn.Module):
@@ -112,7 +122,7 @@ class TestStableHLOCompositeBuilder(googletest.TestCase):
         super().__init__()
 
       def log_softmax(self, x: torch.Tensor, dim: int):
-        builder = StableHLOCompositeBuilder(
+        builder = composite.StableHLOCompositeBuilder(
             name="test.log_softmax",
             attr={
                 "dim": dim,
@@ -131,12 +141,11 @@ class TestStableHLOCompositeBuilder(googletest.TestCase):
         return x
 
     mlir = _export_stablehlo_mlir(SampleModel().eval(), (torch.rand((2, 2)),))
-    self.assertEqual(mlir.count('stablehlo.composite "test.log_softmax"'), 1)
+    configs_str = _extract_backend_configs(mlir)
+
+    self.assertEqual(mlir.count("stablehlo.custom_call @mark_tensor"), 2)
     self.assertEqual(
-        mlir.count(
-            'composite_attributes = {dim = 0 : i64, source = "torch.nn",'
-            " version = 1.000000e+00 : f32}"
-        ),
+        configs_str.count('{"dim": 0, "source": "torch.nn", "version": 1.0}'),
         1,
     )
 
@@ -151,7 +160,9 @@ class TestStableHLOCompositeBuilder(googletest.TestCase):
           head_size: int,
           mask: torch.Tensor,
       ):
-        builder = StableHLOCompositeBuilder("test.scaled_dot_product_attention")
+        builder = composite.StableHLOCompositeBuilder(
+            "test.scaled_dot_product_attention"
+        )
         q, k, v, mask = builder.mark_inputs(q, k, v, mask)
 
         scale = 1.0 / math.sqrt(head_size)
@@ -191,9 +202,9 @@ class TestStableHLOCompositeBuilder(googletest.TestCase):
         SDPAModel().eval(),
         (query, key, value, mask),
     )
-    self.assertEqual(
-        mlir.count('stablehlo.composite "test.scaled_dot_product_attention"'), 1
-    )
+
+    # 4 inputs and 1 output
+    self.assertEqual(mlir.count("stablehlo.custom_call @mark_tensor"), 5)
 
   def test_sdpa_composite_with_attr(self):
     class SDPAModel(torch.nn.Module):
@@ -206,7 +217,7 @@ class TestStableHLOCompositeBuilder(googletest.TestCase):
           head_size: int,
           include_captanh: bool,
       ):
-        builder = StableHLOCompositeBuilder(
+        builder = composite.StableHLOCompositeBuilder(
             name="test.scaled_dot_product_attention",
             attr={"include_captanh": include_captanh},
         )
@@ -242,21 +253,21 @@ class TestStableHLOCompositeBuilder(googletest.TestCase):
         SDPAModel().eval(),
         (query, key, value),
     )
+
+    self.assertEqual(mlir.count("stablehlo.custom_call @mark_tensor"), 8)
+
+    configs_str = _extract_backend_configs(mlir)
+    self.assertEqual(configs_str.count('{"include_captanh": true}'), 1)
     self.assertEqual(
-        mlir.count('stablehlo.composite "test.scaled_dot_product_attention"'), 2
-    )
-    self.assertEqual(
-        mlir.count("composite_attributes = {include_captanh = true}"), 1
-    )
-    self.assertEqual(
-        mlir.count("composite_attributes = {include_captanh = false}"), 1
+        configs_str.count('{"include_captanh": false}'),
+        1,
     )
 
   def test_build_composite_with_multiple_inputs_outputs(self):
     class SampleModel(torch.nn.Module):
 
       def mimo_sample(self, a, b, c):
-        builder = StableHLOCompositeBuilder(name="test.mimo_sample")
+        builder = composite.StableHLOCompositeBuilder(name="test.mimo_sample")
 
         a, b, c = builder.mark_inputs(a, b, c)
         x = a + b + c
@@ -276,7 +287,8 @@ class TestStableHLOCompositeBuilder(googletest.TestCase):
     mlir = _export_stablehlo_mlir(
         SampleModel().eval(), (torch.rand(2), torch.rand(2), torch.rand(2))
     )
-    self.assertEqual(mlir.count('stablehlo.composite "test.mimo_sample"'), 3)
+
+    self.assertEqual(mlir.count("stablehlo.custom_call @mark_tensor"), 18)
 
 
 if __name__ == "__main__":

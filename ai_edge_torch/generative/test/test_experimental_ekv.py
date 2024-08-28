@@ -21,7 +21,7 @@ from ai_edge_torch.generative.layers.experimental import ekv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 import torch
 
-from tensorflow.python.platform import googletest
+from absl.testing import absltest as googletest
 
 
 class TestExternalKVLayers(googletest.TestCase):

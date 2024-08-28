@@ -21,7 +21,7 @@ from ai_edge_torch.testing import model_coverage
 import parameterized
 import torch
 
-from tensorflow.python.platform import googletest
+from absl.testing import absltest as googletest
 
 
 def _func_to_torch_module(func: Callable[..., torch.Tensor]):

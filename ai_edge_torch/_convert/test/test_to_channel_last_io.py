@@ -17,7 +17,7 @@
 import ai_edge_torch
 import torch
 
-from tensorflow.python.platform import googletest
+from absl.testing import absltest as googletest
 
 
 class Identity(torch.nn.Module):

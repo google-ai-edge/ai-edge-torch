@@ -25,7 +25,7 @@ import torch
 from torch.ao.quantization import quantize_pt2e
 import torchvision
 
-from tensorflow.python.platform import googletest
+from absl.testing import absltest as googletest
 
 
 class TestQuantizerSanityBasic(googletest.TestCase):
