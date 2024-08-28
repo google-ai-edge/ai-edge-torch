@@ -61,13 +61,13 @@ http_archive(
     ],
 )
 
-# XNNPACK on 2024-05-03.
+# XNNPACK on 2024-07-16
 http_archive(
     name = "XNNPACK",
     # `curl -L <url> | shasum -a 256`
-    sha256 = "0a38628999b2e8cc84c41b82a1282dcd90b8da3cf24a67e7f9ee148d8c066a94",
-    strip_prefix = "XNNPACK-76a9c653c2fe71613996edc1e218936add79ef55",
-    url = "https://github.com/google/XNNPACK/archive/76a9c653c2fe71613996edc1e218936add79ef55.zip",
+    sha256 = "0e5d5c16686beff813e3946b26ca412f28acaf611228d20728ffb6479264fe19",
+    strip_prefix = "XNNPACK-9ddeb74f9f6866174d61888947e4aa9ffe963b1b",
+    url = "https://github.com/google/XNNPACK/archive/9ddeb74f9f6866174d61888947e4aa9ffe963b1b.zip",
 )
 
 # Needed by TensorFlow
@@ -82,10 +82,10 @@ http_archive(
 )
 
 # TensorFlow repo should always go after the other external dependencies.
-# TF on 2024-05-02.
-_TENSORFLOW_GIT_COMMIT = "26d4ea90364daa14bbb2bc5c2aa68f5b70c4641f"
+# TF on 2024-07-18.
+_TENSORFLOW_GIT_COMMIT = "117a62ac439ed87eb26f67208be60e01c21960de"
 # curl -L https://github.com/tensorflow/tensorflow/archive/<TENSORFLOW_GIT_COMMIT>.tar.gz | shasum -a 256
-_TENSORFLOW_SHA256 = "92d4f6bb040496711cd0faf3cec59e2bedc6e3ab215ceb92d7ce0a2be558c786"
+_TENSORFLOW_SHA256 = "2a1e56f9f83f99e2b9d01a184bc6f409209b36c98fb94b6d5db3f0ab20ec33f2"
 http_archive(
     name = "org_tensorflow",
     urls = [
