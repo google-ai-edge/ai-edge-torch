@@ -27,6 +27,7 @@ limitations under the License.
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "src/sentencepiece_processor.h"
+#include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h"
 #include "tensorflow/lite/experimental/genai/genai_ops.h"
 #include "tensorflow/lite/interpreter.h"
 #include "tensorflow/lite/interpreter_builder.h"
@@ -68,6 +69,8 @@ ABSL_FLAG(std::string, stop_token, "",
           "Stop token used to deterine end of decoding loop. If not provided "
           "will decode until max_Seq_len or max_decode_steps.");
 ABSL_FLAG(int, num_threads, 4, "Number of threads to use. Defaults to 4.");
+ABSL_FLAG(std::string, weight_cache_path, "",
+          "XNNPACK weight caching path, e.g. /tmp/model.xnnpack_cache.");
 
 namespace {
 
@@ -78,6 +81,24 @@ std::unique_ptr<tflite::FlatBufferModel> LoadModel() {
           absl::GetFlag(FLAGS_tflite_model).c_str());
   TFLITE_MINIMAL_CHECK(model != nullptr);
   return model;
+}
+
+void ApplyXNNPACKWeightCaching(tflite::Interpreter* interpreter) {
+  auto delegate_options = TfLiteXNNPackDelegateOptionsDefault();
+  std::string weight_cache_path = absl::GetFlag(FLAGS_weight_cache_path);
+  delegate_options.weight_cache_file_path = weight_cache_path.c_str();
+  delegate_options.num_threads = absl::GetFlag(FLAGS_num_threads);
+  delegate_options.flags |=
+      TFLITE_XNNPACK_DELEGATE_FLAG_ENABLE_SUBGRAPH_RESHAPING;
+  delegate_options.flags |=
+      TFLITE_XNNPACK_DELEGATE_FLAG_ENABLE_LATEST_OPERATORS;
+
+  TFLITE_MINIMAL_CHECK(interpreter->ModifyGraphWithDelegate(
+                           tflite::Interpreter::TfLiteDelegatePtr(
+                               TfLiteXNNPackDelegateCreate(&delegate_options),
+                               [](TfLiteDelegate* delegate) {
+                                 TfLiteXNNPackDelegateDelete(delegate);
+                               })) == kTfLiteOk);
 }
 
 std::unique_ptr<tflite::Interpreter> BuildInterpreter(
@@ -91,6 +112,12 @@ std::unique_ptr<tflite::Interpreter> BuildInterpreter(
   std::unique_ptr<tflite::Interpreter> interpreter;
   builder(&interpreter);
   TFLITE_MINIMAL_CHECK(interpreter != nullptr);
+
+  if (!absl::GetFlag(FLAGS_weight_cache_path).empty()) {
+    // optionally use xnnpack with weight caching
+    ApplyXNNPACKWeightCaching(interpreter.get());
+  }
+
   return interpreter;
 }
 
