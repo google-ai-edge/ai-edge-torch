@@ -331,7 +331,12 @@ def _aten__native_batch_norm_legit_no_training(node):
   def batch_norm(input, weight, bias, running_mean, running_var, momentum, eps):
     a = input - running_mean
     b = torch.sqrt(running_var + eps)
-    return a / b * weight + bias, None, None
+    out = a / b
+    if weight is not None:
+      out = out * weight
+    if bias is not None:
+      out = out + bias
+    return out, None, None
 
   node.target = batch_norm
 
