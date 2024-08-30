@@ -16,6 +16,7 @@
 import copy
 
 import ai_edge_torch
+from ai_edge_torch import config as ai_edge_config
 from ai_edge_torch.generative.examples.gemma import gemma, gemma2
 from ai_edge_torch.generative.examples.phi2 import phi2
 from ai_edge_torch.generative.examples.test_models import toy_model_with_kv_cache  # NOQA
@@ -25,11 +26,27 @@ import numpy as np
 import torch
 
 from absl.testing import absltest as googletest
+from tensorflow.lite.python import interpreter
 
 
 class TestModelConversion(googletest.TestCase):
   """Unit tests that check for model conversion and correctness."""
 
+  def setUp(self):
+    super().setUp()
+    # Builder function for an Interpreter that supports custom ops.
+    self._interpreter_builder = (
+        lambda tflite_model: lambda: interpreter.InterpreterWithCustomOps(
+            custom_op_registerers=["GenAIOpsRegisterer"],
+            model_content=tflite_model,
+            experimental_default_delegate_latest_features=True,
+        )
+    )
+
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
   def test_toy_model_with_kv_cache(self):
     config = toy_model_with_kv_cache.get_model_config()
     pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config).eval()
@@ -38,22 +55,27 @@ class TestModelConversion(googletest.TestCase):
     )
 
     edge_model = ai_edge_torch.convert(pytorch_model, (idx, input_pos))
+    edge_model.set_interpreter_builder(
+        self._interpreter_builder(edge_model.tflite_model())
+    )
 
-    # TODO: b/338288901 - re-enable test to check output tensors.
-    skip_output_check = True
-    if not skip_output_check:
-      self.assertTrue(
-          model_coverage.compare_tflite_torch(
-              edge_model,
-              pytorch_model,
-              (idx, input_pos),
-              num_valid_inputs=1,
-              atol=1e-5,
-              rtol=1e-5,
-          )
-      )
+    self.assertTrue(
+        model_coverage.compare_tflite_torch(
+            edge_model,
+            pytorch_model,
+            (idx, input_pos),
+            num_valid_inputs=1,
+            atol=1e-5,
+            rtol=1e-5,
+        )
+    )
 
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
   def test_toy_model_with_multi_batches(self):
+    self.skipTest("b/362842043")
     config = toy_model_with_kv_cache.get_model_config()
     config.batch_size = 2
     pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config).eval()
@@ -62,21 +84,25 @@ class TestModelConversion(googletest.TestCase):
     )
 
     edge_model = ai_edge_torch.convert(pytorch_model, (idx, input_pos))
+    edge_model.set_interpreter_builder(
+        self._interpreter_builder(edge_model.tflite_model())
+    )
 
-    # TODO: b/338288901 - re-enable test to check output tensors.
-    skip_output_check = True
-    if not skip_output_check:
-      self.assertTrue(
-          model_coverage.compare_tflite_torch(
-              edge_model,
-              pytorch_model,
-              (idx, input_pos),
-              num_valid_inputs=1,
-              atol=1e-5,
-              rtol=1e-5,
-          )
-      )
+    self.assertTrue(
+        model_coverage.compare_tflite_torch(
+            edge_model,
+            pytorch_model,
+            (idx, input_pos),
+            num_valid_inputs=1,
+            atol=1e-5,
+            rtol=1e-5,
+        )
+    )
 
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
   def test_toy_model_with_kv_cache_with_hlfb(self):
     config = toy_model_with_kv_cache.get_model_config()
     config.enable_hlfb = True
@@ -86,49 +112,27 @@ class TestModelConversion(googletest.TestCase):
     )
 
     edge_model = ai_edge_torch.convert(pytorch_model, (idx, input_pos))
+    edge_model.set_interpreter_builder(
+        self._interpreter_builder(edge_model.tflite_model())
+    )
 
-    # TODO: b/338288901 - re-enable test to check output tensors.
-    skip_output_check = True
-    if not skip_output_check:
-      self.assertTrue(
-          model_coverage.compare_tflite_torch(
-              edge_model,
-              pytorch_model,
-              (idx, input_pos),
-              num_valid_inputs=1,
-              atol=1e-5,
-              rtol=1e-5,
-          )
-      )
+    self.assertTrue(
+        model_coverage.compare_tflite_torch(
+            edge_model,
+            pytorch_model,
+            (idx, input_pos),
+            num_valid_inputs=1,
+            atol=1e-5,
+            rtol=1e-5,
+        )
+    )
 
-  def test_tiny_llama(self):
-    self.skipTest("b/338288901")
-    config = tiny_llama.get_fake_model_config_for_test()
-    pytorch_model = tiny_llama.TinyLLamma(config).eval()
-
-    idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
-    tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
-    tokens[0, :4] = idx
-    input_pos = torch.arange(0, 10)
-
-    edge_model = ai_edge_torch.convert(pytorch_model, (tokens, input_pos))
-
-    # TODO: b/338288901 - re-enable test to check output tensors.
-    skip_output_check = True
-    if not skip_output_check:
-      self.assertTrue(
-          model_coverage.compare_tflite_torch(
-              edge_model,
-              pytorch_model,
-              (tokens, input_pos),
-              num_valid_inputs=1,
-              atol=1e-5,
-              rtol=1e-5,
-          )
-      )
-
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
   def test_tiny_llama_multisig(self):
-    config = tiny_llama.get_fake_model_config_for_test()
+    config = tiny_llama.get_fake_model_config()
     pytorch_model = tiny_llama.TinyLLamma(config).eval()
 
     # prefill
@@ -149,22 +153,25 @@ class TestModelConversion(googletest.TestCase):
         .signature("decode", pytorch_model, (decode_token, decode_input_pos))
         .convert()
     )
+    edge_model.set_interpreter_builder(
+        self._interpreter_builder(edge_model.tflite_model())
+    )
 
-    # TODO: b/338288901 - re-enable test to check output tensors.
+    copied_model = copy.deepcopy(pytorch_model)
+
+    self.assertTrue(
+        model_coverage.compare_tflite_torch(
+            edge_model,
+            pytorch_model,
+            (prefill_tokens, prefill_input_pos),
+            signature_name="prefill",
+            num_valid_inputs=1,
+        )
+    )
+
+    # TODO(b/362840003): figure why this decode output has big numerical diff.
     skip_output_check = True
     if not skip_output_check:
-      copied_model = copy.deepcopy(pytorch_model)
-
-      self.assertTrue(
-          model_coverage.compare_tflite_torch(
-              edge_model,
-              pytorch_model,
-              (prefill_tokens, prefill_input_pos),
-              signature_name="prefill",
-              num_valid_inputs=1,
-          )
-      )
-
       self.assertTrue(
           model_coverage.compare_tflite_torch(
               edge_model,
@@ -172,87 +179,6 @@ class TestModelConversion(googletest.TestCase):
               (decode_token, decode_input_pos),
               signature_name="decode",
               num_valid_inputs=1,
-          )
-      )
-
-  def test_gemma(self):
-    self.skipTest("b/338288901")
-    config = gemma.get_fake_model_config_2b_for_test()
-    model = gemma.Gemma(config)
-
-    idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
-    tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
-    tokens[0, :4] = idx
-    input_pos = torch.arange(0, 10)
-
-    edge_model = ai_edge_torch.convert(model, (tokens, input_pos))
-
-    # TODO: b/338288901 - re-enable test to check output tensors.
-    skip_output_check = True
-    if not skip_output_check:
-      # TODO(talumbau, haoliang): debug numerical diff.
-      self.assertTrue(
-          model_coverage.compare_tflite_torch(
-              edge_model,
-              model,
-              (tokens, input_pos),
-              num_valid_inputs=1,
-              atol=1e-2,
-              rtol=1e-5,
-          )
-      )
-
-  def test_gemma2(self):
-    self.skipTest("b/338288901")
-    config = gemma2.get_fake_model_config_2b_for_test()
-    model = gemma2.Gemma2(config)
-    model.eval()
-
-    idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
-    tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
-    tokens[0, :4] = idx
-    input_pos = torch.arange(0, 10)
-
-    edge_model = ai_edge_torch.convert(model, (tokens, input_pos))
-
-    # TODO: b/338288901 - re-enable test to check output tensors.
-    skip_output_check = True
-    if not skip_output_check:
-      # TODO(talumbau, haoliang): debug numerical diff.
-      self.assertTrue(
-          model_coverage.compare_tflite_torch(
-              edge_model,
-              model,
-              (tokens, input_pos),
-              num_valid_inputs=1,
-              atol=1e-2,
-              rtol=1e-5,
-          )
-      )
-
-  def test_phi2(self):
-    self.skipTest("b/338288901")
-    config = phi2.get_fake_model_config_for_test()
-    pytorch_model = phi2.Phi2(config).eval()
-
-    idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
-    tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
-    tokens[0, :4] = idx
-    input_pos = torch.arange(0, 10)
-
-    edge_model = ai_edge_torch.convert(pytorch_model, (tokens, input_pos))
-
-    # TODO: b/338288901 - re-enable test to check output tensors.
-    skip_output_check = True
-    if not skip_output_check:
-      self.assertTrue(
-          model_coverage.compare_tflite_torch(
-              edge_model,
-              pytorch_model,
-              (tokens, input_pos),
-              num_valid_inputs=1,
-              atol=1e-5,
-              rtol=1e-5,
           )
       )
 

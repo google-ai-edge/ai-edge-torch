@@ -137,11 +137,11 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
-def get_fake_model_config_for_test() -> cfg.ModelConfig:
+def get_fake_model_config() -> cfg.ModelConfig:
   config = get_model_config()
   config.vocab_size = 128
   config.num_layers = 2
-  config.ff_config.intermediate_size = 256
+  config.ff_config.intermediate_size = 64
   return config
 
 

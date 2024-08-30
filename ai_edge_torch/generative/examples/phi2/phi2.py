@@ -139,9 +139,36 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
-def get_fake_model_config_for_test() -> cfg.ModelConfig:
-  config = get_model_config()
-  config.num_layers = 2
+def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
+  attn_config = cfg.AttentionConfig(
+      num_heads=16,
+      head_dim=80,
+      num_query_groups=4,
+      rotary_percentage=0.4,
+      qkv_use_bias=True,
+      output_proj_use_bias=True,
+  )
+  ff_config = cfg.FeedForwardConfig(
+      type=cfg.FeedForwardType.SEQUENTIAL,
+      activation=cfg.ActivationConfig(cfg.ActivationType.GELU_TANH),
+      intermediate_size=128,
+      use_bias=True,
+  )
+  norm_config = cfg.NormalizationConfig(type=cfg.NormalizationType.LAYER_NORM)
+  config = cfg.ModelConfig(
+      vocab_size=128,
+      num_layers=2,
+      max_seq_len=2 * kv_cache_max_len,
+      kv_cache_max_len=kv_cache_max_len,
+      embedding_dim=128,
+      attn_config=attn_config,
+      ff_config=ff_config,
+      pre_attention_norm_config=norm_config,
+      final_norm_config=norm_config,
+      parallel_residual=True,
+      lm_head_use_bias=True,
+      enable_hlfb=True,
+  )
   return config
 
 

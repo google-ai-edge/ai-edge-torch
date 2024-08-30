@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import abc
 import re
+from typing import Callable
 
 import numpy.typing as npt
 import tensorflow as tf
@@ -64,6 +65,24 @@ class TfLiteModel(Model):
       tflite_model: A TFlite serialized object.
     """
     self._tflite_model = tflite_model
+    self._interpreter_builder = lambda: tf.lite.Interpreter(
+        model_content=self._tflite_model,
+        experimental_default_delegate_latest_features=True,
+    )
+
+  def tflite_model(self) -> bytes:
+    """Returns the wrapped tflite model."""
+    return self._tflite_model
+
+  def set_interpreter_builder(
+      self, builder: Callable[[], tf.lite.Interpreter]
+  ) -> None:
+    """Sets a custom interpreter builder.
+
+    Args:
+      builder: A function that returns a `tf.lite.Interpreter` or its subclass.
+    """
+    self._interpreter_builder = builder
 
   def __call__(
       self,
@@ -80,10 +99,7 @@ class TfLiteModel(Model):
       signature_name: The name of the signature to be used for inference. The
         default signature is used if not provided.
     """
-    interpreter = tf.lite.Interpreter(
-        model_content=self._tflite_model,
-        experimental_default_delegate_latest_features=True,
-    )
+    interpreter = self._interpreter_builder()
     interpreter.allocate_tensors()
 
     signature_list = interpreter.get_signature_list()

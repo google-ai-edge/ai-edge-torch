@@ -147,9 +147,39 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
-def get_fake_model_config_2b_for_test() -> cfg.ModelConfig:
-  config = get_model_config_2b()
-  config.num_layers = 2
+# TODO(b/363021962): Clean up this part to streamline fake model config generation.
+def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
+  attn_config = cfg.AttentionConfig(
+      num_heads=8,
+      head_dim=256,
+      num_query_groups=1,
+      rotary_percentage=1.0,
+  )
+  ff_config = cfg.FeedForwardConfig(
+      type=cfg.FeedForwardType.GATED,
+      activation=cfg.ActivationConfig(cfg.ActivationType.GELU_TANH),
+      intermediate_size=128,
+  )
+  norm_config = cfg.NormalizationConfig(
+      type=cfg.NormalizationType.RMS_NORM,
+      epsilon=1e-6,
+      zero_centered=True,
+  )
+  config = cfg.ModelConfig(
+      vocab_size=128,
+      num_layers=2,
+      max_seq_len=2 * kv_cache_max_len,
+      embedding_dim=2048,
+      kv_cache_max_len=kv_cache_max_len,
+      attn_config=attn_config,
+      ff_config=ff_config,
+      pre_attention_norm_config=norm_config,
+      post_attention_norm_config=norm_config,
+      final_norm_config=norm_config,
+      parallel_residual=False,
+      lm_head_use_bias=False,
+      enable_hlfb=True,
+  )
   return config
 
 

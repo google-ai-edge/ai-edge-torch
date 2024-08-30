@@ -209,9 +209,47 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
-def get_fake_model_config_2b_for_test() -> cfg.ModelConfig:
-  config = get_model_config_2b()
-  config.num_layers = 2
+def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
+  attn_config = cfg.AttentionConfig(
+      num_heads=4,
+      head_dim=64,
+      num_query_groups=4,
+      rotary_percentage=1.0,
+      qkv_transpose_before_split=True,
+      logit_softcap=50.0,
+      sliding_window_size=64,
+      attn_types=[cfg.AttentionType.GLOBAL, cfg.AttentionType.LOCAL_SLIDING]
+      * 13,
+  )
+
+  norm_config = cfg.NormalizationConfig(
+      type=cfg.NormalizationType.RMS_NORM,
+      epsilon=1e-6,
+      zero_centered=True,
+  )
+  ff_config = cfg.FeedForwardConfig(
+      type=cfg.FeedForwardType.GATED,
+      activation=cfg.ActivationConfig(cfg.ActivationType.GELU_TANH),
+      intermediate_size=128,
+      pre_ff_norm_config=norm_config,
+      post_ff_norm_config=norm_config,
+  )
+  config = cfg.ModelConfig(
+      vocab_size=128,
+      num_layers=2,
+      max_seq_len=2 * kv_cache_max_len,
+      embedding_dim=128,
+      kv_cache_max_len=kv_cache_max_len,
+      attn_config=attn_config,
+      ff_config=ff_config,
+      pre_attention_norm_config=norm_config,
+      post_attention_norm_config=norm_config,
+      final_norm_config=norm_config,
+      parallel_residual=False,
+      lm_head_use_bias=False,
+      enable_hlfb=True,
+      final_logit_softcap=30.0,
+  )
   return config
 
 
