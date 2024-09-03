@@ -17,20 +17,20 @@
 # Note: This is an experimental version of phi2 with external KV cache.
 # Please use with caution.
 
-
 import os
 from pathlib import Path
 from typing import Tuple
 
+from ai_edge_torch.generative.layers import builder
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
-import ai_edge_torch.generative.layers.builder as builder
+from ai_edge_torch.generative.layers.experimental import attention
 from ai_edge_torch.generative.layers.experimental import ekv_cache as kv_utils
-from ai_edge_torch.generative.layers.experimental.attention import TransformerBlock  # NOQA
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import numpy as np
 import torch
-import torch.nn as nn
+from torch import nn
+
 
 TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.fc1",
@@ -47,6 +47,7 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
 
 
 class Phi2(nn.Module):
+  """A Phi-2 model built from the Edge Generative API layers."""
 
   def __init__(self, config: cfg.ModelConfig):
     super().__init__()
@@ -60,7 +61,7 @@ class Phi2(nn.Module):
         config.vocab_size, config.embedding_dim, padding_idx=0
     )
     self.transformer_blocks = nn.ModuleList(
-        TransformerBlock(config) for _ in range(config.num_layers)
+        attention.TransformerBlock(config) for _ in range(config.num_layers)
     )
     self.final_norm = builder.build_norm(
         config.embedding_dim,
@@ -90,9 +91,9 @@ class Phi2(nn.Module):
       input_pos: torch.Tensor,
       kv_cache: kv_utils.EKVCache,
   ) -> Tuple[torch.Tensor, kv_utils.EKVCache]:
-    B, T = tokens.size()
-    assert self.config.max_seq_len >= T, (
-        f"Cannot forward sequence of length {T}, max seq length is only"
+    _, seq_len = tokens.size()
+    assert self.config.max_seq_len >= seq_len, (
+        f"Cannot forward sequence of length {seq_len}, max seq length is only"
         f" {self.config.max_seq_len}"
     )
 
@@ -118,6 +119,15 @@ class Phi2(nn.Module):
 
 
 def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+  """Returns the model config for a Phi-2 model.
+
+  Args:
+    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
+      is 1024.
+
+  Returns:
+    The model config for a Phi-2 model.
+  """
   attn_config = cfg.AttentionConfig(
       num_heads=32,
       head_dim=80,
@@ -150,15 +160,21 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
-def get_fake_model_config_for_test(**kwargs) -> cfg.ModelConfig:
-  config = get_model_config(**kwargs)
+def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
+  config = get_model_config(kv_cache_max_len)
+  config.vocab_size = 128
   config.num_layers = 2
+  config.max_seq_len = 2 * kv_cache_max_len
+  config.ff_config.intermediate_size = 128
   return config
 
 
-def build_model(checkpoint_path, test_model=False, **kwargs) -> nn.Module:
+def build_model(
+    checkpoint_path: str, test_model: bool = False, **kwargs
+) -> nn.Module:
+  """Instantiates the model instance and load checkpoint if provided."""
   config = (
-      get_fake_model_config_for_test(**kwargs)
+      get_fake_model_config(**kwargs)
       if test_model
       else get_model_config(**kwargs)
   )
@@ -170,7 +186,9 @@ def build_model(checkpoint_path, test_model=False, **kwargs) -> nn.Module:
   return model
 
 
-def define_and_run(checkpoint_path, test_model=False) -> None:
+def define_and_run(checkpoint_path: str, test_model: bool = False) -> None:
+  """Instantiates and runs a Phi-2 model."""
+
   kv_cache_max_len = 1024
   model = build_model(
       checkpoint_path, test_model=test_model, kv_cache_max_len=kv_cache_max_len
@@ -185,5 +203,5 @@ def define_and_run(checkpoint_path, test_model=False) -> None:
 
 
 if __name__ == "__main__":
-  checkpoint_path = os.path.join(Path.home(), "Downloads/phi2")
-  define_and_run(checkpoint_path)
+  input_checkpoint_path = os.path.join(Path.home(), "Downloads/phi2")
+  define_and_run(input_checkpoint_path)

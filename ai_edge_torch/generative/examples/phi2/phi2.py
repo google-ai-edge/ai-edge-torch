@@ -18,14 +18,14 @@
 import os
 from pathlib import Path
 
-from ai_edge_torch.generative.layers.attention import TransformerBlock
+from ai_edge_torch.generative.layers import attention
+from ai_edge_torch.generative.layers import builder
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
-import ai_edge_torch.generative.layers.builder as builder
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import numpy as np
 import torch
-import torch.nn as nn
+from torch import nn
 
 TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.fc1",
@@ -42,6 +42,7 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
 
 
 class Phi2(nn.Module):
+  """A Phi-2 model built from the Edge Generative API layers."""
 
   def __init__(self, config: cfg.ModelConfig):
     super().__init__()
@@ -55,7 +56,7 @@ class Phi2(nn.Module):
         config.vocab_size, config.embedding_dim, padding_idx=0
     )
     self.transformer_blocks = nn.ModuleList(
-        TransformerBlock(config) for _ in range(config.num_layers)
+        attention.TransformerBlock(config) for _ in range(config.num_layers)
     )
     self.final_norm = builder.build_norm(
         config.embedding_dim,
@@ -83,9 +84,9 @@ class Phi2(nn.Module):
   # This can be eliminated if we handle k/v cache updates inside the model itself.
   @torch.inference_mode
   def forward(self, idx: torch.Tensor, input_pos: torch.Tensor) -> torch.Tensor:
-    B, T = idx.size()
-    assert self.config.max_seq_len >= T, (
-        f"Cannot forward sequence of length {T}, max seq length is only"
+    _, seq_len = idx.size()
+    assert self.config.max_seq_len >= seq_len, (
+        f"Cannot forward sequence of length {seq_len}, max seq length is only"
         f" {self.config.max_seq_len}"
     )
 
@@ -98,7 +99,7 @@ class Phi2(nn.Module):
     # forward the model itself
     x = self.tok_embedding(idx)  # token embeddings of shape (b, t, n_embd)
 
-    for i, block in enumerate(self.transformer_blocks):
+    for _, block in enumerate(self.transformer_blocks):
       x = block(x, (cos, sin), mask, input_pos)
 
     x = self.final_norm(x)
@@ -107,6 +108,15 @@ class Phi2(nn.Module):
 
 
 def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+  """Returns the model config for a Phi-2 model.
+
+  Args:
+    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
+      is 1024.
+
+  Returns:
+    The model config for a Phi-2 model.
+  """
   attn_config = cfg.AttentionConfig(
       num_heads=32,
       head_dim=80,
@@ -140,35 +150,11 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
 
 
 def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
-  attn_config = cfg.AttentionConfig(
-      num_heads=16,
-      head_dim=80,
-      num_query_groups=4,
-      rotary_percentage=0.4,
-      qkv_use_bias=True,
-      output_proj_use_bias=True,
-  )
-  ff_config = cfg.FeedForwardConfig(
-      type=cfg.FeedForwardType.SEQUENTIAL,
-      activation=cfg.ActivationConfig(cfg.ActivationType.GELU_TANH),
-      intermediate_size=128,
-      use_bias=True,
-  )
-  norm_config = cfg.NormalizationConfig(type=cfg.NormalizationType.LAYER_NORM)
-  config = cfg.ModelConfig(
-      vocab_size=128,
-      num_layers=2,
-      max_seq_len=2 * kv_cache_max_len,
-      kv_cache_max_len=kv_cache_max_len,
-      embedding_dim=128,
-      attn_config=attn_config,
-      ff_config=ff_config,
-      pre_attention_norm_config=norm_config,
-      final_norm_config=norm_config,
-      parallel_residual=True,
-      lm_head_use_bias=True,
-      enable_hlfb=True,
-  )
+  config = get_model_config(kv_cache_max_len)
+  config.vocab_size = 128
+  config.num_layers = 2
+  config.max_seq_len = 2 * kv_cache_max_len
+  config.ff_config.intermediate_size = 128
   return config
 
 
@@ -181,6 +167,8 @@ def build_model(checkpoint_path, **kwargs) -> nn.Module:
 
 
 def define_and_run() -> None:
+  """Instantiates and runs a Phi-2 model."""
+
   current_dir = Path(__file__).parent.resolve()
   phi2_goldens = torch.load(current_dir / "phi2_lm_logits.pt")
   kv_cache_max_len = 1024

@@ -18,14 +18,14 @@ import os
 from pathlib import Path
 from typing import Optional, Tuple
 
-from ai_edge_torch.generative.layers.attention import TransformerBlock
+from ai_edge_torch.generative.layers import attention
+from ai_edge_torch.generative.layers import builder
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
-import ai_edge_torch.generative.layers.builder as builder
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import numpy as np
 import torch
-import torch.nn as nn
+from torch import nn
 
 TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.up_proj",
@@ -43,7 +43,7 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
 )
 
 
-class Gemma2Block(TransformerBlock):
+class Gemma2Block(attention.TransformerBlock):
 
   def forward(
       self,
@@ -76,6 +76,7 @@ class Gemma2Block(TransformerBlock):
 
 
 class Gemma2(nn.Module):
+  """A Gemma2 model built from the Edge Generative API layers."""
 
   def __init__(self, config: cfg.ModelConfig):
     super().__init__()
@@ -138,9 +139,9 @@ class Gemma2(nn.Module):
 
   @torch.inference_mode
   def forward(self, idx: torch.Tensor, input_pos: torch.Tensor) -> torch.Tensor:
-    B, T = idx.size()
-    assert self.config.max_seq_len >= T, (
-        f"Cannot forward sequence of length {T}, max seq length is only"
+    _, seq_len = idx.size()
+    assert self.config.max_seq_len >= seq_len, (
+        f"Cannot forward sequence of length {seq_len}, max seq length is only"
         f" {self.config.max_seq_len}"
     )
 
@@ -166,6 +167,15 @@ class Gemma2(nn.Module):
 
 
 def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+  """Returns the model config for a Gemma2 2B model.
+
+  Args:
+    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
+      is 1024.
+
+  Returns:
+    The model config for a Gemma 2B model.
+  """
   attn_config = cfg.AttentionConfig(
       num_heads=8,
       head_dim=256,
@@ -210,50 +220,19 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
 
 
 def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
-  attn_config = cfg.AttentionConfig(
-      num_heads=4,
-      head_dim=64,
-      num_query_groups=4,
-      rotary_percentage=1.0,
-      qkv_transpose_before_split=True,
-      logit_softcap=50.0,
-      sliding_window_size=64,
-      attn_types=[cfg.AttentionType.GLOBAL, cfg.AttentionType.LOCAL_SLIDING]
-      * 13,
-  )
-
-  norm_config = cfg.NormalizationConfig(
-      type=cfg.NormalizationType.RMS_NORM,
-      epsilon=1e-6,
-      zero_centered=True,
-  )
-  ff_config = cfg.FeedForwardConfig(
-      type=cfg.FeedForwardType.GATED,
-      activation=cfg.ActivationConfig(cfg.ActivationType.GELU_TANH),
-      intermediate_size=128,
-      pre_ff_norm_config=norm_config,
-      post_ff_norm_config=norm_config,
-  )
-  config = cfg.ModelConfig(
-      vocab_size=128,
-      num_layers=2,
-      max_seq_len=2 * kv_cache_max_len,
-      embedding_dim=128,
-      kv_cache_max_len=kv_cache_max_len,
-      attn_config=attn_config,
-      ff_config=ff_config,
-      pre_attention_norm_config=norm_config,
-      post_attention_norm_config=norm_config,
-      final_norm_config=norm_config,
-      parallel_residual=False,
-      lm_head_use_bias=False,
-      enable_hlfb=True,
-      final_logit_softcap=30.0,
-  )
+  config = get_model_config_2b(kv_cache_max_len)
+  config.attn_config.num_heads = 4
+  config.attn_config.head_dim = 64
+  config.attn_config.sliding_window_size = 64
+  config.ff_config.intermediate_size = 128
+  config.vocab_size = 128
+  config.num_layers = 2
+  config.max_seq_len = 2 * kv_cache_max_len
+  config.embedding_dim = 128
   return config
 
 
-def build_2b_model(checkpoint_path, **kwargs) -> nn.Module:
+def build_2b_model(checkpoint_path: str, **kwargs) -> nn.Module:
   config = get_model_config_2b(**kwargs)
   model = Gemma2(config)
   loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
@@ -265,6 +244,8 @@ def build_2b_model(checkpoint_path, **kwargs) -> nn.Module:
 
 
 def define_and_run_2b() -> None:
+  """Instantiates and runs a Gemma2 2B model."""
+
   current_dir = Path(__file__).parent.resolve()
   gemma2_goldens = torch.load(current_dir / "gemma2it_2b_golden.pt")
   print("Running GEMMA 2")
