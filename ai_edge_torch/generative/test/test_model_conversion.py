@@ -70,34 +70,6 @@ class TestModelConversion(googletest.TestCase):
         )
     )
 
-  @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
-  )
-  def test_toy_model_with_multi_batches(self):
-    self.skipTest("b/362842043")
-    config = toy_model_with_kv_cache.get_model_config()
-    config.batch_size = 2
-    pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config).eval()
-    idx, input_pos = torch.tensor([[1], [2]], dtype=torch.long), torch.tensor(
-        [10], dtype=torch.int64
-    )
-
-    edge_model = ai_edge_torch.convert(pytorch_model, (idx, input_pos))
-    edge_model.set_interpreter_builder(
-        self._interpreter_builder(edge_model.tflite_model())
-    )
-
-    self.assertTrue(
-        model_coverage.compare_tflite_torch(
-            edge_model,
-            pytorch_model,
-            (idx, input_pos),
-            num_valid_inputs=1,
-            atol=1e-5,
-            rtol=1e-5,
-        )
-    )
 
   @googletest.skipIf(
       ai_edge_config.Config.use_torch_xla,
