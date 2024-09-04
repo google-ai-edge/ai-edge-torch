@@ -277,7 +277,7 @@ def exported_program_to_mlir(
     main_func.attributes["sym_visibility"] = ir.StringAttr.get("public")
     temp_func.erase()
 
-  module.operation.verify()
+    module.operation.verify()
 
   input_signature = []
   state_dict = {}
