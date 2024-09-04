@@ -17,7 +17,8 @@ from ai_edge_quantizer import quantizer
 from ai_edge_torch.generative.quantize import quant_attrs
 from ai_edge_torch.generative.quantize import quant_recipe
 
-_OpExecutionMode = quantizer.qtyping.OpExecutionMode
+_ComputePrecision = quantizer.qtyping.ComputePrecision
+_QuantGranularity = quantizer.qtyping.QuantGranularity
 _OpName = quantizer.qtyping.TFLOperationName
 _TensorQuantConfig = quantizer.qtyping.TensorQuantizationConfig
 _OpQuantConfig = quantizer.qtyping.OpQuantizationConfig
@@ -50,21 +51,31 @@ def _get_dtype_from_dtype(
     return quantizer.qtyping.TensorDataType.INT
 
 
-def _get_execution_mode_from_mode(mode: quant_attrs.Mode) -> _OpExecutionMode:
+def _get_compute_precision_from_mode(
+    mode: quant_attrs.Mode,
+) -> _ComputePrecision:
   if mode == quant_attrs.Mode.DYNAMIC_RANGE:
-    return _OpExecutionMode.DRQ
+    return _ComputePrecision.INTEGER
   elif mode == quant_attrs.Mode.WEIGHT_ONLY:
-    return _OpExecutionMode.WEIGHT_ONLY
+    return _ComputePrecision.FLOAT
   raise ValueError('Unimplemented execution mode')
 
 
-def _get_channelwise_from_granularity(
+def _get_explicit_dequant_from_mode(mode: quant_attrs.Mode) -> bool:
+  if mode == quant_attrs.Mode.DYNAMIC_RANGE:
+    return False
+  elif mode == quant_attrs.Mode.WEIGHT_ONLY:
+    return True
+  raise ValueError('Unimplemented execution mode')
+
+
+def _get_granularity(
     granularity: quant_attrs.Granularity,
 ) -> bool:
   if granularity == quant_attrs.Granularity.CHANNELWISE:
-    return True
-  elif granularity == quant_attrs.Granularity.NONE:
-    return False
+    return _QuantGranularity.CHANNELWISE
+  if granularity == quant_attrs.Granularity.NONE:
+    return _QuantGranularity.TENSORWISE
   raise ValueError('Unimplemented granularity')
 
 
@@ -88,12 +99,13 @@ def _set_quant_config(
           weight_tensor_config=_TensorQuantConfig(
               num_bits=_get_nbits_from_dtype(layer_recipe.weight_dtype),
               symmetric=True,
-              channel_wise=_get_channelwise_from_granularity(
-                  layer_recipe.granularity
-              ),
+              granularity=_get_granularity(layer_recipe.granularity),
               dtype=_get_dtype_from_dtype(layer_recipe.weight_dtype),
           ),
-          execution_mode=_get_execution_mode_from_mode(layer_recipe.mode),
+          compute_precision=_get_compute_precision_from_mode(layer_recipe.mode),
+          explicit_dequantize=_get_explicit_dequant_from_mode(
+              layer_recipe.mode
+          ),
       ),
       algorithm_key=_get_algorithm_key_from_algorithm(layer_recipe.algorithm),
   )
