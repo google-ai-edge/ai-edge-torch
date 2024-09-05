@@ -208,7 +208,7 @@ class ModelLoader:
     if self._file_name.endswith(".safetensors"):
       return load_safetensors
 
-    if self._file_name.endswith(".bin") or self._file_name.endswith(".pt"):
+    if self._file_name.endswith(".bin") or self._file_name.endswith("pt"):
       return load_pytorch_statedict
 
     raise ValueError("File format not supported.")

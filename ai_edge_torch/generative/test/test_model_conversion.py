@@ -70,7 +70,6 @@ class TestModelConversion(googletest.TestCase):
         )
     )
 
-
   @googletest.skipIf(
       ai_edge_config.Config.use_torch_xla,
       reason="tests with custom ops are not supported on oss",
