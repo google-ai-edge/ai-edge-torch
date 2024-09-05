@@ -82,28 +82,28 @@ class TestModelConversion(googletest.TestCase):
     model.eval()
 
     idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
-    tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
-    tokens[0, :4] = idx
-    input_pos = torch.arange(0, 10)
+    prefill_tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
+    prefill_tokens[0, :4] = idx
+    prefill_input_pos = torch.arange(0, 10)
 
-    edge_model = ai_edge_torch.convert(model, (tokens, input_pos))
+    edge_model = ai_edge_torch.signature(
+        "prefill", model, (prefill_tokens, prefill_input_pos)
+    ).convert()
     edge_model.set_interpreter_builder(
         self._interpreter_builder(edge_model.tflite_model())
     )
 
-    # TODO(b/362840003): debug numerical diff.
-    skip_output_check = True
-    if not skip_output_check:
-      self.assertTrue(
-          model_coverage.compare_tflite_torch(
-              edge_model,
-              model,
-              (tokens, input_pos),
-              num_valid_inputs=1,
-              atol=1e-2,
-              rtol=1e-5,
-          )
-      )
+    self.assertTrue(
+        model_coverage.compare_tflite_torch(
+            edge_model,
+            model,
+            (prefill_tokens, prefill_input_pos),
+            signature_name="prefill",
+            num_valid_inputs=1,
+            atol=1e-2,
+            rtol=1e-5,
+        )
+    )
 
   @googletest.skipIf(
       ai_edge_config.Config.use_torch_xla,
