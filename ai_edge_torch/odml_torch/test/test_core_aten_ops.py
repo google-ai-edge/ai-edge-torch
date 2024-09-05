@@ -294,7 +294,7 @@ class TestCoreAtenOps(parameterized.TestCase):
       ("aten_remainder_Tensor_0", torch.ops.aten.remainder.Tensor, (rnd(torch.float32, (10, 10)), rnd(torch.float32, (10, 10)),), dict()),
       # ("aten_replication_pad2d_0", torch.ops.aten.replication_pad2d, (rnd(torch.float32, (3, 2, 10)), [1, 1, 1, 1],), dict()),
       # ("aten_replication_pad3d_0", torch.ops.aten.replication_pad3d, (rnd(torch.float32, (1, 3, 2, 10)), [1, 1, 1, 1, 1, 1],), dict()),
-      # ("aten_roll_0", torch.ops.aten.roll, (rnd(torch.float32, (10, 10)), [0, 1], [0, 1],), dict()),
+      ("aten_roll_0", torch.ops.aten.roll, (rnd(torch.float32, (10, 10)), [0, 1], [0, 1],), dict()),
       ("aten_round_0", torch.ops.aten.round, (rnd(torch.float32, (10, 10)),), dict()),
       ("aten_rsqrt_0", torch.ops.aten.rsqrt, (rnd(torch.float32, (10, 10)),), dict()),
       ("aten_rsub_Scalar_0", torch.ops.aten.rsub.Scalar, (rnd(torch.float32, (10, 10)), 0.123,), dict()),

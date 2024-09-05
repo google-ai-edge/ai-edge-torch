@@ -52,6 +52,7 @@ class LoweringRegistry:
 
 
 global_registry = LoweringRegistry()
+global_registry.decompositions.update(torch._decomp.core_aten_decompositions())
 global_registry.decompositions.update(
     torch._decomp.get_decompositions([
         torch.ops.aten.upsample_nearest2d,
@@ -68,6 +69,13 @@ global_registry.decompositions.update(
         torch.ops.aten.replication_pad3d,
         torch.ops.aten.addmm,
     ])
+)
+
+torch._decomp.remove_decompositions(
+    global_registry.decompositions,
+    [
+        torch.ops.aten.roll,
+    ],
 )
 
 
