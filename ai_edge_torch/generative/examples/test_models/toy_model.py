@@ -71,6 +71,56 @@ class ToySingleLayerModel(torch.nn.Module):
     return self.lm_head(x)
 
 
+class ToySingleLayerModelWeightSharing(torch.nn.Module):
+
+  def __init__(self, config: cfg.ModelConfig) -> None:
+    super().__init__()
+    self.lm_head = nn.Linear(
+        config.embedding_dim, config.vocab_size, bias=config.lm_head_use_bias
+    )
+    self.tok_embedding = nn.Embedding(config.vocab_size, config.embedding_dim)
+    self.lm_head = nn.Linear(
+        config.embedding_dim,
+        config.vocab_size,
+        bias=config.lm_head_use_bias,
+    )
+    self.lm_head.weight.data = self.tok_embedding.weight.data
+    self.transformer_block = TransformerBlock(config)
+    self.final_norm = builder.build_norm(
+        config.embedding_dim,
+        config.final_norm_config,
+    )
+    self.rope_cache = attn_utils.build_rope_cache(
+        size=config.max_seq_len,
+        dim=int(
+            config.attn_config.rotary_percentage * config.attn_config.head_dim
+        ),
+        base=10_000,
+        condense_ratio=1,
+        dtype=torch.float32,
+        device=torch.device('cpu'),
+    )
+    self.mask_cache = attn_utils.build_causal_mask_cache(
+        size=config.max_seq_len, dtype=torch.float32, device=torch.device('cpu')
+    )
+    self.config = config
+
+  @torch.inference_mode
+  def forward(self, idx: torch.Tensor, input_pos: torch.Tensor) -> torch.Tensor:
+    x = self.tok_embedding(idx)
+    cos, sin = self.rope_cache
+
+    cos = cos.index_select(0, input_pos)
+    sin = sin.index_select(0, input_pos)
+    mask = self.mask_cache.index_select(2, input_pos)
+    mask = mask[:, :, :, : self.config.max_seq_len]
+
+    x = self.transformer_block(x, (cos, sin), mask, input_pos)
+    x = self.final_norm(x)
+    res = self.lm_head(x)
+    return res
+
+
 def get_model_config() -> cfg.ModelConfig:
   attn_config = cfg.AttentionConfig(
       num_heads=32,

@@ -25,16 +25,16 @@ from ai_edge_torch.generative.quantize.quant_attrs import Granularity
 from ai_edge_torch.generative.quantize.quant_attrs import Mode
 from ai_edge_torch.quantize import quant_config
 from ai_edge_torch.testing import model_coverage
-from parameterized import parameterized
 import torch
 
 from absl.testing import absltest as googletest
+from absl.testing import parameterized
 
 
-class TestVerifyRecipes(googletest.TestCase):
+class TestVerifyRecipes(parameterized.TestCase):
   """Unit tests that check for model quantization recipes."""
 
-  @parameterized.expand([
+  @parameterized.parameters([
       (Dtype.FP32, Dtype.FP32),
       (Dtype.INT8, Dtype.INT8),
       (Dtype.INT8, Dtype.FP16),
@@ -52,7 +52,7 @@ class TestVerifyRecipes(googletest.TestCase):
           with self.assertRaises(ValueError):
             quant_recipe.LayerQuantRecipe(activation, weight, m, a, g).verify()
 
-  @parameterized.expand([
+  @parameterized.parameters([
       (
           Dtype.FP32,
           Dtype.INT8,
@@ -88,7 +88,7 @@ class TestVerifyRecipes(googletest.TestCase):
     ).verify()
 
 
-class TestQuantizeConvert(googletest.TestCase):
+class TestQuantizeConvert(parameterized.TestCase):
   """Test conversion with quantization."""
 
   def _attention_int8_dynamic_recipe() -> quant_config.QuantConfig:
@@ -105,23 +105,36 @@ class TestQuantizeConvert(googletest.TestCase):
         )
     )
 
-  @parameterized.expand([
+  @parameterized.parameters([
       (quant_recipes.full_fp16_recipe()),
       (quant_recipes.full_int8_dynamic_recipe()),
       (quant_recipes.full_int8_weight_only_recipe()),
       (_attention_int8_dynamic_recipe()),
       (_feedforward_int8_dynamic_recipe()),
   ])
-  @googletest.skipIf(
-      not config.Config.use_torch_xla,
-      reason="Not working with odml_torch at the moment.",
-  )
   def test_quantize_convert_toy_sizes(self, quant_config):
     config = toy_model.get_model_config()
     pytorch_model = toy_model.ToySingleLayerModel(config)
     idx = torch.unsqueeze(torch.arange(0, 100), 0)
     input_pos = torch.arange(0, 100)
 
+    quantized_model = ai_edge_torch.convert(
+        pytorch_model, (idx, input_pos), quant_config=quant_config
+    )
+    float_model = ai_edge_torch.convert(pytorch_model, (idx, input_pos))
+    self.assertLess(
+        len(quantized_model._tflite_model),
+        len(float_model._tflite_model),
+        "Quantized model isn't smaller than F32 model.",
+    )
+
+  def test_quantize_convert_toy_weight_sharing(self):
+    config = toy_model.get_model_config()
+    pytorch_model = toy_model.ToySingleLayerModelWeightSharing(config)
+    idx = torch.unsqueeze(torch.arange(0, 100), 0)
+    input_pos = torch.arange(0, 100)
+
+    quant_config = quant_recipes.full_int8_dynamic_recipe()
     quantized_model = ai_edge_torch.convert(
         pytorch_model, (idx, input_pos), quant_config=quant_config
     )

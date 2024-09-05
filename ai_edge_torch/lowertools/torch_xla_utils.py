@@ -25,8 +25,8 @@ from typing import Any, Dict, Optional, Tuple, Union
 from ai_edge_torch import model
 from ai_edge_torch._convert import conversion_utils
 from ai_edge_torch._convert import signature as signature_module
-from ai_edge_torch.generative.quantize.ai_edge_quantizer_glue import translate_recipe  # NOQA
 from ai_edge_torch.lowertools import common_utils
+from ai_edge_torch.lowertools import translate_recipe
 from ai_edge_torch.quantize import quant_config as qcfg
 import torch
 from torch_xla import stablehlo

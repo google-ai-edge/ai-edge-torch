@@ -21,6 +21,7 @@ from ai_edge_torch import odml_torch
 from ai_edge_torch._convert import conversion_utils
 from ai_edge_torch._convert import signature as signature_module
 from ai_edge_torch.lowertools import common_utils
+from ai_edge_torch.lowertools import translate_recipe
 from ai_edge_torch.odml_torch import export
 from ai_edge_torch.odml_torch import export_utils
 from ai_edge_torch.quantize import quant_config as qcfg
@@ -186,9 +187,28 @@ def merged_bundle_to_tfl_model(
     converter._experimental_enable_composite_direct_lowering = True
     converter.model_origin_framework = "PYTORCH"
 
+    conversion_utils.set_tfl_converter_quant_flags(converter, quant_config)
+    if (
+        quant_config is not None
+        and quant_config._quantizer_mode
+        == quant_config._QuantizerMode.AI_EDGE_QUANTIZER
+    ):
+      translated_recipe = translate_recipe.translate_to_ai_edge_recipe(
+          quant_config.generative_recipe
+      )
+
     conversion_utils.apply_tfl_converter_flags(converter, _tfl_converter_flags)
 
     tflite_model = converter.convert()
+
+    if (
+        quant_config is not None
+        and quant_config._quantizer_mode
+        == quant_config._QuantizerMode.AI_EDGE_QUANTIZER
+    ):
+      tflite_model = translate_recipe.quantize_model(
+          tflite_model, translated_recipe
+      )
 
   return tflite_model
 
