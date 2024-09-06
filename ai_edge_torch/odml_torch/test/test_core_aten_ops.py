@@ -266,7 +266,7 @@ class TestCoreAtenOps(parameterized.TestCase):
       ("aten_mul_Scalar_0", torch.ops.aten.mul.Scalar, (rnd(torch.float32, (10, 10)), 0.123,), dict()),
       ("aten_mul_Tensor_0", torch.ops.aten.mul.Tensor, (rnd(torch.float32, (10, 10)), rnd(torch.float32, (10, 10)),), dict()),
       # ("aten__native_batch_norm_legit_0", torch.ops.aten._native_batch_norm_legit, (rnd(torch.float32, (10, 10)), None, None, rnd(torch.float32, (10,)), rnd(torch.float32, (10,)), False, 1.0, 1.0,), dict()),
-      # ("aten__native_batch_norm_legit_no_stats_0", torch.ops.aten._native_batch_norm_legit.no_stats, (rnd(torch.float32, (1, 3, 2, 10)), rnd(torch.float32, (1, 3, 1, 1)), rnd(torch.float32, (1, 3, 1, 1)), True, 0.0, 1.0,), dict()),
+      ("aten__native_batch_norm_legit_no_stats_0", torch.ops.aten._native_batch_norm_legit.no_stats, (rnd(torch.float32, (1, 3, 2, 10)), rnd(torch.float32, (1, 3, 1, 1)), rnd(torch.float32, (1, 3, 1, 1)), True, 0.0, 1.0,), dict()),
       ("aten__native_batch_norm_legit_no_training_0", torch.ops.aten._native_batch_norm_legit_no_training, (rnd(torch.float32, (10, 10)), None, None, rnd(torch.float32, (10,)), rnd(torch.float32, (10,)), 1.0, 1.0,), dict()),
       # ("aten_native_dropout_0", torch.ops.aten.native_dropout, (rnd(torch.float32, (10, 10)), 1.0, True,), dict()),
       ("aten_native_group_norm_0", torch.ops.aten.native_group_norm, (rnd(torch.float32, (1, 3, 2, 10)), None, None, 1, 3, 20, 1, 0.0,), dict()),
