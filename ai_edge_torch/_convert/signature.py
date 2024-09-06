@@ -16,15 +16,16 @@
 import dataclasses
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from ai_edge_torch import lowertools
 import torch
 import torch.utils._pytree as pytree
+
+from ai_edge_torch import lowertools
 
 
 @dataclasses.dataclass
 class Signature:
   name: str
-  module: torch.nn.Module
+  exported_program: torch.export.ExportedProgram
   sample_args: tuple[torch.Tensor]
   sample_kwargs: dict[str, torch.Tensor]
   dynamic_shapes: Optional[Union[Dict[str, Any], Tuple[Any]]] = None

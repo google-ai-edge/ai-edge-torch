@@ -15,25 +15,22 @@
 
 import copy
 import dataclasses
-from dataclasses import dataclass
 import gc
 import itertools
 import logging
 import tempfile
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Optional
 
-from ai_edge_torch import model
-from ai_edge_torch._convert import conversion_utils
-from ai_edge_torch._convert import signature as signature_module
-from ai_edge_torch.lowertools import common_utils
-from ai_edge_torch.lowertools import translate_recipe
-from ai_edge_torch.quantize import quant_config as qcfg
 import torch
 from torch_xla import stablehlo
 
+from ai_edge_torch._convert import conversion_utils
+from ai_edge_torch._convert import signature as signature_module
+from ai_edge_torch.lowertools import common_utils, translate_recipe
+from ai_edge_torch.quantize import quant_config as qcfg
+
 try:
   import tensorflow as tf
-
   from tensorflow.compiler.tf2xla.python import xla as tfxla
 
   from tensorflow.lite.python import conversion_metadata_schema_py_generated as conversion_metadata_fb  # isort:skip
@@ -73,11 +70,8 @@ def exported_program_to_mlir(
 def merge_mlir_bundles(
     bundles: list[stablehlo.StableHLOModelBundle],
     signatures: list[signature_module.Signature],
-    exported_programs: list[torch.export.ExportedProgram],
 ) -> stablehlo.StableHLOGraphModule:
-  state_dict, deduped_tf_vars = common_utils.gather_state_dict(
-      exported_programs, signatures
-  )
+  state_dict, deduped_tf_vars = common_utils.gather_state_dict(signatures)
 
   new_shlo_model_bundle = stablehlo.StableHLOModelBundle(
       state_dict=state_dict, additional_constants=[], stablehlo_funcs=[]
@@ -98,7 +92,7 @@ def merge_mlir_bundles(
     )
   return MergedBundle(
       bundle=new_shlo_model_bundle,
-      exported_programs=exported_programs,
+      exported_programs=[sig.exported_program for sig in signatures],
       deduped_tf_vars=deduped_tf_vars,
   )
 
@@ -269,7 +263,6 @@ def merged_bundle_to_tfl_model(
       )
 
     conversion_utils.apply_tfl_converter_flags(converter, _tfl_converter_flags)
-
     tflite_model = converter.convert()
 
     if (

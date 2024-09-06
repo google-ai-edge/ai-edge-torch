@@ -17,18 +17,17 @@ import logging
 import os
 from typing import Any, Optional
 
-from ai_edge_torch import lowertools
-from ai_edge_torch import model
-from ai_edge_torch._convert import fx_passes
-from ai_edge_torch._convert import signature
+import torch
+
+from ai_edge_torch import lowertools, model
+from ai_edge_torch._convert import fx_passes, signature
 from ai_edge_torch.generative import fx_passes as generative_fx_passes
 from ai_edge_torch.quantize import quant_config as qcfg
-import torch
 
 os.environ["EXPERIMENTAL_XLA_UNBOUNDED_DYNAMISM"] = "1"
 
 
-def _run_convert_passes(
+def run_convert_passes(
     exported_program: torch.export.ExportedProgram,
 ) -> torch.export.ExportedProgram:
   exported_program = generative_fx_passes.run_generative_passes(
@@ -49,24 +48,26 @@ def _run_convert_passes(
   )
 
 
-def _warn_training_modules(signatures: list[signature.Signature]):
+def _warn_training_modules(
+  module: torch.nn.Module,
+  signature: signature.Signature,
+):
   """Warns the user if the module is in training mode (.eval not called)."""
-  for sig in signatures:
-    if not sig.module.training:
-      continue
+  if not module.training:
+    return
 
-    message = (
-        "Your model {sig_name}is converted in training mode. Please set the"
-        " module in evaluation mode with `module.eval()` for better on-device"
-        " performance and compatibility."
-    )
-    if len(signatures) == 1 and sig.name == model.DEFAULT_SIGNATURE_NAME:
-      # User does not specify any signature names explicitly.
-      message = message.format(sig_name="")
-    else:
-      message = message.format(sig_name=f'"{sig.name}" ')
+  message = (
+      "Your model {sig_name}is converted in training mode. Please set the"
+      " module in evaluation mode with `module.eval()` for better on-device"
+      " performance and compatibility."
+  )
+  if signature.name == model.DEFAULT_SIGNATURE_NAME:
+    # User does not specify any signature names explicitly.
+    message = message.format(sig_name="")
+  else:
+    message = message.format(sig_name=f'"{signature.name}" ')
 
-    logging.warning(message)
+  logging.warning(message)
 
 
 def convert_signatures(
@@ -90,19 +91,8 @@ def convert_signatures(
   if _tfl_converter_flags is None:
     _tfl_converter_flags = {}
 
-  _warn_training_modules(signatures)
-
-  exported_programs: torch.export.torch.export.ExportedProgram = [
-      torch.export.export(
-          sig.module, sig.flat_args, dynamic_shapes=sig.dynamic_shapes
-      )
-      for sig in signatures
-  ]
-
   # Apply default fx passes
-  exported_programs = list(map(_run_convert_passes, exported_programs))
   tflite_model = lowertools.exported_programs_to_tflite(
-      exported_programs,
       signatures,
       quant_config=quant_config,
       _tfl_converter_flags=_tfl_converter_flags,

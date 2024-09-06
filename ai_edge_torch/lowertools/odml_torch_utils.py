@@ -17,19 +17,18 @@ import dataclasses
 import tempfile
 from typing import Any, Dict, List, Optional, Tuple
 
+import tensorflow as tf
+import torch
+from tensorflow.compiler.tf2xla.python import xla as tfxla
+from tensorflow.lite.python import \
+    conversion_metadata_schema_py_generated as conversion_metadata_fb
+
 from ai_edge_torch import odml_torch
 from ai_edge_torch._convert import conversion_utils
 from ai_edge_torch._convert import signature as signature_module
-from ai_edge_torch.lowertools import common_utils
-from ai_edge_torch.lowertools import translate_recipe
-from ai_edge_torch.odml_torch import export
-from ai_edge_torch.odml_torch import export_utils
+from ai_edge_torch.lowertools import common_utils, translate_recipe
+from ai_edge_torch.odml_torch import export, export_utils
 from ai_edge_torch.quantize import quant_config as qcfg
-import tensorflow as tf
-import torch
-
-from tensorflow.compiler.tf2xla.python import xla as tfxla
-from tensorflow.lite.python import conversion_metadata_schema_py_generated as conversion_metadata_fb
 
 MlirBundle = odml_torch.export.MlirLowered
 
@@ -233,16 +232,13 @@ def exported_program_to_mlir(
 def merge_mlir_bundles(
     bundles: list[export.MlirLowered],
     signatures: list[signature_module.Signature],
-    exported_programs: list[torch.export.ExportedProgram],
 ) -> MergedBundle:
   """Merges a list of MlirLowered into one."""
-  state_dict, deduped_vars = common_utils.gather_state_dict(
-      exported_programs, signatures
-  )
+  state_dict, deduped_vars = common_utils.gather_state_dict(signatures)
 
   merged_bundle = MergedBundle(
       bundles=bundles.copy(),
-      exported_programs=exported_programs,
+      exported_programs=[sig.exported_program for sig in signatures],
       deduped_tf_vars=deduped_vars,
   )
   for bundle, signature in zip(merged_bundle.bundles, signatures):
