@@ -150,6 +150,7 @@ def _qdq_layout_sensitive_inputs_getter(node: Node):
 # ==== Ops must be NHWC if possible
 
 
+@layout_sensitive_inputs_getters.register(aten.conv2d)
 @layout_sensitive_inputs_getters.register(aten.convolution)
 @layout_sensitive_inputs_getters.register(
     aten._native_batch_norm_legit_no_training
@@ -168,6 +169,7 @@ def _first_arg_getter(node):
 @nhwcable_node_checkers.register(aten.upsample_bilinear2d)
 @nhwcable_node_checkers.register(aten.upsample_nearest2d)
 @nhwcable_node_checkers.register(aten._adaptive_avg_pool2d)
+@nhwcable_node_checkers.register(aten.conv2d)
 @nhwcable_node_checkers.register(aten.convolution)
 def _all_layout_sensitive_inputs_are_4d_checker(node: Node):
   can_be = all_layout_sensitive_inputs_are_4d(node)
