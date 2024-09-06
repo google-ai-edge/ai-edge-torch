@@ -85,19 +85,18 @@ class Converter:
 
     if sample_args is None and sample_kwargs is None:
       raise ValueError("sample_args or sample_kwargs must be provided.")
-    
-    
+
     signature = signature_module.Signature(
-      name,
-      None,
-      sample_args,
-      sample_kwargs,
-      dynamic_shapes=dynamic_shapes,
+        name,
+        None,
+        sample_args,
+        sample_kwargs,
+        dynamic_shapes=dynamic_shapes,
     )
     exported_program = conversion.run_convert_passes(
-      torch.export.export(
-        module, signature.flat_args, dynamic_shapes=signature.dynamic_shapes
-      )
+        torch.export.export(
+            module, signature.flat_args, dynamic_shapes=signature.dynamic_shapes
+        )
     )
     signature.exported_program = exported_program
     conversion._warn_training_modules(module, signature)

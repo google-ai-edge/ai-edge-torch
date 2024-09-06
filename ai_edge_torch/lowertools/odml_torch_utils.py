@@ -20,8 +20,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import tensorflow as tf
 import torch
 from tensorflow.compiler.tf2xla.python import xla as tfxla
-from tensorflow.lite.python import \
-    conversion_metadata_schema_py_generated as conversion_metadata_fb
+from tensorflow.lite.python import conversion_metadata_schema_py_generated as conversion_metadata_fb
 
 from ai_edge_torch import odml_torch
 from ai_edge_torch._convert import conversion_utils
