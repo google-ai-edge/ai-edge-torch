@@ -145,14 +145,15 @@ class AttentionBlock2D(nn.Module):
       x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
     else:
-      x = input_tensor.view(B, C, H * W)
-      x = x.transpose(-1, -2)
+      x = torch.permute(input_tensor, (0, 2, 3, 1))
       x = self.norm(x)
+      x = x.view(B, H * W, C)
     x = x.contiguous()  # Prevent BATCH_MATMUL op in converted tflite.
     x = self.attention(x)
-    x = x.transpose(-1, -2)
-    x = x.view(B, C, H, W)
+    x = x.view(B, H, W, C)
+    residual = torch.permute(residual, (0, 2, 3, 1))
     x = x + residual
+    x = torch.permute(x, (0, 3, 1, 2))
     return x
 
 
@@ -206,13 +207,14 @@ class CrossAttentionBlock2D(nn.Module):
       x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
     else:
-      x = input_tensor.view(B, C, H * W)
-      x = x.transpose(-1, -2)
+      x = torch.permute(input_tensor, (0, 2, 3, 1))
       x = self.norm(x)
+      x = x.view(B, H * W, C)
     x = self.attention(x, context_tensor)
-    x = x.transpose(-1, -2)
-    x = x.view(B, C, H, W)
+    x = x.view(B, H, W, C)
+    residual = torch.permute(residual, (0, 2, 3, 1))
     x = x + residual
+    x = torch.permute(x, (0, 3, 1, 2))
     return x
 
 
@@ -250,17 +252,17 @@ class FeedForwardBlock2D(nn.Module):
       x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
     else:
-      x = input_tensor.view(B, C, H * W)
-      x = x.transpose(-1, -2)
+      x = torch.permute(input_tensor, (0, 2, 3, 1))
       x = self.norm(x)
+      x = x.view(B, H * W, C)
     x = self.w1(x)
     x = self.act(x)
     x = self.w2(x)
-
-    x = x.transpose(-1, -2)  # (B, C, HW)
-    x = x.view((B, C, H, W))
-
-    return x + residual
+    x = x.view(B, H, W, C)
+    residual = torch.permute(residual, (0, 2, 3, 1))
+    x = x + residual
+    x = torch.permute(x, (0, 3, 1, 2))
+    return x
 
 
 class TransformerBlock2D(nn.Module):
