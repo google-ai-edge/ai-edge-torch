@@ -18,6 +18,7 @@ import ai_edge_torch.generative.layers.attention_utils as attention_utils
 import ai_edge_torch.generative.layers.builder as builder
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
+from ai_edge_torch.generative.layers.group_norm import layer_norm_with_hlfb # NOQA
 import torch
 from torch import nn
 
@@ -79,7 +80,8 @@ class CLIP(nn.Module):
     state = self.tok_embedding(tokens) + self.tok_embedding_position
     for layer in self.transformer_blocks:
       state = layer(state, mask=self.mask_cache)
-    output = self.final_norm(state)
+    # output = self.final_norm(state)
+    output = layer_norm_with_hlfb(state, self.config.embedding_dim, self.final_norm.weight, self.final_norm.bias, self.config.final_norm_config.epsilon)
     return output
 
 

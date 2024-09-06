@@ -21,6 +21,8 @@ from ai_edge_torch.generative.utilities import stable_diffusion_loader
 import torch
 from torch import nn
 
+from ai_edge_torch.generative.layers.group_norm import group_norm_with_hlfb # NOQA
+
 _down_encoder_blocks_tensor_names = [
     stable_diffusion_loader.DownEncoderBlockTensorNames(
         residual_block_tensor_names=[
@@ -331,7 +333,7 @@ class Diffusion(nn.Module):
                                 dim=output_channel,
                                 num_query_groups=config.transformer_num_attention_heads,
                             ),
-                            enable_hlfb=False,
+                            enable_hlfb=True,
                         ),
                         cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                             query_dim=output_channel,
@@ -343,7 +345,7 @@ class Diffusion(nn.Module):
                                 dim=output_channel,
                                 num_query_groups=config.transformer_num_attention_heads,
                             ),
-                            enable_hlfb=False,
+                            enable_hlfb=True,
                         ),
                         pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
                         feed_forward_block_config=unet_cfg.FeedForwardBlock2DConfig(
@@ -401,7 +403,7 @@ class Diffusion(nn.Module):
                         dim=mid_block_channels,
                         num_query_groups=config.transformer_num_attention_heads,
                     ),
-                    enable_hlfb=False,
+                    enable_hlfb=True,
                 ),
                 cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                     query_dim=mid_block_channels,
@@ -413,7 +415,7 @@ class Diffusion(nn.Module):
                         dim=mid_block_channels,
                         num_query_groups=config.transformer_num_attention_heads,
                     ),
-                    enable_hlfb=False,
+                    enable_hlfb=True,
                 ),
                 pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
                 feed_forward_block_config=unet_cfg.FeedForwardBlock2DConfig(
@@ -472,7 +474,7 @@ class Diffusion(nn.Module):
                                 dim=output_channel,
                                 num_query_groups=config.transformer_num_attention_heads,
                             ),
-                            enable_hlfb=False,
+                            enable_hlfb=True,
                         ),
                         cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                             query_dim=output_channel,
@@ -484,7 +486,7 @@ class Diffusion(nn.Module):
                                 dim=output_channel,
                                 num_query_groups=config.transformer_num_attention_heads,
                             ),
-                            enable_hlfb=False,
+                            enable_hlfb=True,
                         ),
                         pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
                         feed_forward_block_config=unet_cfg.FeedForwardBlock2DConfig(
@@ -567,7 +569,8 @@ class Diffusion(nn.Module):
           for i in range(self.config.layers_per_block + 1)
       ]
       x = decoder(x, encoder_tensors, time_emb, context)
-    x = self.final_norm(x)
+    # x = self.final_norm(x)
+    x = group_norm_with_hlfb(x, self.final_norm.weight, self.final_norm.bias, self.config.final_norm_config.group_num, self.config.final_norm_config.epsilon)
     x = self.final_act(x)
     x = self.conv_out(x)
     return x

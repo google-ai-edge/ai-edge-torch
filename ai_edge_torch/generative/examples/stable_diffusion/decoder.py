@@ -21,6 +21,8 @@ from ai_edge_torch.generative.utilities import stable_diffusion_loader
 import torch
 from torch import nn
 
+from ai_edge_torch.generative.layers.group_norm import group_norm_with_hlfb # NOQA
+
 TENSOR_NAMES = stable_diffusion_loader.AutoEncoderModelLoader.TensorNames(
     post_quant_conv="first_stage_model.post_quant_conv",
     conv_in="first_stage_model.decoder.conv_in",
@@ -240,6 +242,7 @@ class Decoder(nn.Module):
     self.final_norm = layers_builder.build_norm(
         block_out_channels, config.normalization_config
     )
+    self.block_out_channels = block_out_channels
     self.act_fn = layers_builder.get_activation(config.activation_config)
     self.conv_out = nn.Conv2d(
         block_out_channels,
@@ -264,7 +267,8 @@ class Decoder(nn.Module):
     x = self.mid_block(x)
     for up_decoder_block in self.up_decoder_blocks:
       x = up_decoder_block(x)
-    x = self.final_norm(x)
+    # x = self.final_norm(x)
+    x = group_norm_with_hlfb(x, self.final_norm.weight, self.final_norm.bias, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
     x = self.act_fn(x)
     x = self.conv_out(x)
     return x
@@ -297,7 +301,7 @@ def get_model_config() -> unet_cfg.AutoEncoderConfig:
           qkv_fused_interleaved=False,
           rotary_percentage=0.0,
       ),
-      enable_hlfb=False,
+      enable_hlfb=True,
   )
 
   mid_block_config = unet_cfg.MidBlock2DConfig(

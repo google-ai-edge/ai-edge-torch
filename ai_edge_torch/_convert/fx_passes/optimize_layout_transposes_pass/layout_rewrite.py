@@ -16,6 +16,7 @@
 
 import operator
 
+from ai_edge_torch.hlfb import StableHLOCompositeBuilder
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import layout_mark
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import op_func_registry
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import utils
@@ -344,6 +345,7 @@ def _aten__native_batch_norm_legit_no_training(node):
 
 @rewriters.register(aten.native_group_norm.default)
 def _aten_native_group_norm(node):
+  op = node.target
 
   def native_group_norm(
       input,
@@ -355,37 +357,20 @@ def _aten_native_group_norm(node):
       num_groups: int,
       eps: float,
   ):
-    input_reshaped = torch.reshape(
-        input,
-        [
-            batch_size,
-            flattened_inner_size,
-            num_groups,
-            num_channels // num_groups,
-        ],
+    nonlocal op
+    builder = StableHLOCompositeBuilder(
+        name="odml.group_norm", attr={"num_groups": num_groups, "eps": eps}
     )
-    reduction_dims = [1, 3]
-
-    biased_var, mean = torch.var_mean(
-        input_reshaped, dim=reduction_dims, unbiased=False, keepdim=True
-    )
-    rstd = torch.rsqrt(biased_var + eps)
-
-    out = (input_reshaped - mean) * rstd
-    out = torch.reshape(out, input.shape)
-
-    if weight is not None:
-      out = out * weight
-    if bias is not None:
-      out = out + bias
-
-    mean = torch.squeeze(mean, reduction_dims)
-    rstd = torch.squeeze(rstd, reduction_dims)
-
-    return out, mean, rstd
+    input, bias, weight = builder.mark_inputs(input, bias, weight)
+    
+    input = utils.tensor_to_nchw(input)
+    out, _, _ = op(input, bias, weight, batch_size, num_channels, flattened_inner_size, num_groups, eps)
+    out = utils.tensor_to_nhwc(out)
+    out = builder.mark_outputs(out)
+    
+    return out, None, None
 
   node.target = native_group_norm
-
 
 @rewriters.register(aten.index)
 @rewriters.register(aten._unsafe_index)

@@ -24,6 +24,8 @@ import ai_edge_torch.generative.layers.unet.model_config as unet_cfg
 import torch
 from torch import nn
 
+from ai_edge_torch.generative.layers.group_norm import group_norm_with_hlfb, layer_norm_with_hlfb  # NOQA
+
 
 class ResidualBlock2D(nn.Module):
   """2D Residual block containing two Conv2D with optional time embedding as input."""
@@ -87,14 +89,16 @@ class ResidualBlock2D(nn.Module):
       output hidden_states tensor after ResidualBlock2D.
     """
     residual = input_tensor
-    x = self.norm_1(input_tensor)
+    # x = self.norm_1(input_tensor)
+    x = group_norm_with_hlfb(input_tensor, self.norm_1.weight, self.norm_1.bias, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
     x = self.act_fn(x)
     x = self.conv_1(x)
     if self.time_emb_proj is not None:
       time_emb = self.act_fn(time_emb)
       time_emb = self.time_emb_proj(time_emb)[:, :, None, None]
       x = x + time_emb
-    x = self.norm_2(x)
+    # x = self.norm_2(x)
+    x = group_norm_with_hlfb(x, self.norm_2.weight, self.norm_2.bias, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
     x = self.act_fn(x)
     x = self.conv_2(x)
     x = x + self.residual_layer(residual)
@@ -137,22 +141,22 @@ class AttentionBlock2D(nn.Module):
     """
     residual = input_tensor
     B, C, H, W = input_tensor.shape
-    if (
-        self.config.normalization_config.type
-        == layers_cfg.NormalizationType.GROUP_NORM
-    ):
-      x = self.norm(input_tensor)
+    if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
+      x = group_norm_with_hlfb(input_tensor, self.norm.weight, self.norm.bias, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
       x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
+    elif self.config.normalization_config.type == layers_cfg.NormalizationType.LAYER_NORM:
+      x = torch.permute(input_tensor, (0, 2, 3, 1))
+      x = layer_norm_with_hlfb(x, self.config.dim, self.norm.weight, self.norm.bias, self.config.normalization_config.epsilon)
+      x = x.view(B, H * W, C)
     else:
-      x = input_tensor.view(B, C, H * W)
-      x = x.transpose(-1, -2)
-      x = self.norm(x)
+      raise Exception("Unsupported norm", self.config.normalization_config.type)
     x = x.contiguous()  # Prevent BATCH_MATMUL op in converted tflite.
     x = self.attention(x)
-    x = x.transpose(-1, -2)
-    x = x.view(B, C, H, W)
+    x = x.view(B, H, W, C)
+    residual = torch.permute(residual, (0, 2, 3, 1))
     x = x + residual
+    x = torch.permute(x, (0, 3, 1, 2))
     return x
 
 
@@ -198,21 +202,20 @@ class CrossAttentionBlock2D(nn.Module):
     """
     residual = input_tensor
     B, C, H, W = input_tensor.shape
-    if (
-        self.config.normalization_config.type
-        == layers_cfg.NormalizationType.GROUP_NORM
-    ):
-      x = self.norm(input_tensor)
+    if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
+          # x = self.norm(input_tensor)
+      x = group_norm_with_hlfb(input_tensor, self.norm.weight, self.norm.bias, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
       x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
-    else:
-      x = input_tensor.view(B, C, H * W)
-      x = x.transpose(-1, -2)
-      x = self.norm(x)
+    elif self.config.normalization_config.type == layers_cfg.NormalizationType.LAYER_NORM:
+      x = torch.permute(input_tensor, (0, 2, 3, 1))
+      x = layer_norm_with_hlfb(x, self.config.dim, self.norm.weight, self.norm.bias, self.config.normalization_config.epsilon)
+      x = x.view(B, H * W, C)
     x = self.attention(x, context_tensor)
-    x = x.transpose(-1, -2)
-    x = x.view(B, C, H, W)
+    x = x.view(B, H, W, C)
+    residual = torch.permute(residual, (0, 2, 3, 1))
     x = x + residual
+    x = torch.permute(x, (0, 3, 1, 2))
     return x
 
 
@@ -242,25 +245,26 @@ class FeedForwardBlock2D(nn.Module):
   def forward(self, input_tensor: torch.Tensor) -> torch.Tensor:
     residual = input_tensor
     B, C, H, W = input_tensor.shape
-    if (
-        self.config.normalization_config.type
-        == layers_cfg.NormalizationType.GROUP_NORM
-    ):
-      x = self.norm(input_tensor)
+    if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
+          # x = self.norm(x)
+      x = group_norm_with_hlfb(input_tensor, self.norm.weight, self.norm.bias, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
       x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
+    elif self.config.normalization_config.type == layers_cfg.NormalizationType.LAYER_NORM:
+      x = torch.permute(input_tensor, (0, 2, 3, 1))
+      x = layer_norm_with_hlfb(x, self.config.dim, self.norm.weight, self.norm.bias, self.config.normalization_config.epsilon)
+      # x = self.norm(x)
+      x = x.view(B, H * W, C)
     else:
-      x = input_tensor.view(B, C, H * W)
-      x = x.transpose(-1, -2)
-      x = self.norm(x)
+      raise Exception("Sorry, unsupported Norm type", self.config.normalization_config.type)
     x = self.w1(x)
     x = self.act(x)
     x = self.w2(x)
-
-    x = x.transpose(-1, -2)  # (B, C, HW)
-    x = x.view((B, C, H, W))
-
-    return x + residual
+    x = x.view(B, H, W, C)
+    residual = torch.permute(residual, (0, 2, 3, 1))
+    x = x + residual
+    x = torch.permute(x, (0, 3, 1, 2))
+    return x
 
 
 class TransformerBlock2D(nn.Module):
@@ -335,7 +339,9 @@ class TransformerBlock2D(nn.Module):
     """
     residual_long = x
 
-    x = self.pre_conv_norm(x)
+    # x = self.pre_conv_norm(x)
+
+    x = group_norm_with_hlfb(x, self.pre_conv_norm.weight, self.pre_conv_norm.bias, self.config.pre_conv_normalization_config.group_num, self.config.pre_conv_normalization_config.epsilon)
     x = self.conv_in(x)
     x = self.self_attention(x)
     x = self.cross_attention(x, context)

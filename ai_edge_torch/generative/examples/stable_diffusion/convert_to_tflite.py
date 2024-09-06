@@ -18,6 +18,8 @@ import os
 from pathlib import Path
 from typing import Optional
 
+os.environ["AIEDGETORCH_LAYOUT_OPTIMIZE_PARTITIONER"] = "MINCUT"
+
 import ai_edge_torch
 import ai_edge_torch.generative.examples.stable_diffusion.clip as clip
 import ai_edge_torch.generative.examples.stable_diffusion.decoder as decoder
@@ -113,9 +115,10 @@ def convert_stable_diffusion_to_tflite(
   if not os.path.exists(output_dir):
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-  quant_config = (
-      quant_recipes.full_int8_weight_only_recipe() if quantize else None
-  )
+  quant_config = None
+#   (
+#       quant_recipes.full_int8_weight_only_recipe() if quantize else None
+#   )
 
   # TODO(yichunk): convert to multi signature tflite model.
   # CLIP text encoder
@@ -134,7 +137,7 @@ def convert_stable_diffusion_to_tflite(
       'diffusion',
       diffusion_model,
       (torch.repeat_interleave(input_latents, 2, 0), context, time_embedding),
-  ).convert(quant_config=quant_config).export(f'{output_dir}/diffusion.tflite')
+  ).convert().export(f'{output_dir}/diffusion.tflite')
 
   # Image decoder
   ai_edge_torch.signature('decode', decoder_model, (input_latents,)).convert(
