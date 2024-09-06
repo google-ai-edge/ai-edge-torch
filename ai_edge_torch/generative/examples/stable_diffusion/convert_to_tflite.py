@@ -122,9 +122,9 @@ def convert_stable_diffusion_to_tflite(
 
   # TODO(yichunk): convert to multi signature tflite model.
   # CLIP text encoder
-#   ai_edge_torch.signature('encode', clip_model, (prompt_tokens,)).convert(
-#       quant_config=quant_config
-#   ).export(f'{output_dir}/clip.tflite')
+  ai_edge_torch.signature('encode', clip_model, (prompt_tokens,)).convert(
+      quant_config=quant_config
+  ).export(f'{output_dir}/clip.tflite')
 
   # TODO(yichunk): enable image encoder conversion
   # Image encoder
