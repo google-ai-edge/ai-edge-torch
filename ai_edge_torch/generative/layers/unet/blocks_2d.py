@@ -251,7 +251,7 @@ class FeedForwardBlock2D(nn.Module):
       x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
     elif self.config.normalization_config.type == layers_cfg.NormalizationType.LAYER_NORM:
-      x = layer_norm_with_hlfb(x, self.config.dim, self.norm.weight, self.norm.bias, self.config.normalization_config.epsilon)
+      x = layer_norm_with_hlfb(input_tensor, self.config.dim, self.norm.weight, self.norm.bias, self.config.normalization_config.epsilon)
       x = torch.permute(input_tensor, (0, 2, 3, 1))
       x = self.norm(x)
       x = x.view(B, H * W, C)

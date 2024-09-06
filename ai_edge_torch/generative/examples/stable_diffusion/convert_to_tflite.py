@@ -135,7 +135,7 @@ def convert_stable_diffusion_to_tflite(
       'diffusion',
       diffusion_model,
       (torch.repeat_interleave(input_latents, 2, 0), context, time_embedding),
-  ).convert(quant_config=quant_config).export(f'{output_dir}/diffusion.tflite')
+  ).convert().export(f'{output_dir}/diffusion.tflite')
 
   # Image decoder
   ai_edge_torch.signature('decode', decoder_model, (input_latents,)).convert(
