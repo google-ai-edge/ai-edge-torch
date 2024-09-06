@@ -129,6 +129,7 @@ class TestModelConversion(googletest.TestCase):
     )
 
     copied_model = copy.deepcopy(pytorch_model)
+    copied_edge = copy.deepcopy(edge_model)
 
     self.assertTrue(
         model_coverage.compare_tflite_torch(
@@ -140,18 +141,15 @@ class TestModelConversion(googletest.TestCase):
         )
     )
 
-    # TODO(b/362840003): figure why this decode output has big numerical diff.
-    skip_output_check = True
-    if not skip_output_check:
-      self.assertTrue(
-          model_coverage.compare_tflite_torch(
-              edge_model,
-              copied_model,
-              (decode_token, decode_input_pos),
-              signature_name="decode",
-              num_valid_inputs=1,
-          )
-      )
+    self.assertTrue(
+        model_coverage.compare_tflite_torch(
+            copied_edge,
+            copied_model,
+            (decode_token, decode_input_pos),
+            signature_name="decode",
+            num_valid_inputs=1,
+        )
+    )
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ torchvision==0.19.0+cpu
 -f https://download.pytorch.org/whl/torchaudio/
 torchaudio==2.4.0+cpu
 --pre
-tf-nightly>=2.18.0.dev20240722
+tf-nightly>=2.18.0.dev20240905
 torch_xla2[odml]>=0.0.1.dev20240801
 ai-edge-quantizer-nightly
 jax[cpu]

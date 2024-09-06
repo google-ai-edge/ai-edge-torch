@@ -227,12 +227,9 @@ def exported_program_to_mlir(
     exported_program: torch.export.ExportedProgram,
 ) -> MlirLowered:
   """Lower the exported program to MLIR."""
-  if torch.__version__ >= "2.2":
-    # torch version 2.1 didn't expose this yet
-    exported_program = exported_program.run_decompositions()
-    exported_program = exported_program.run_decompositions(
-        lowerings.decompositions()
-    )
+  exported_program = exported_program.run_decompositions(
+      lowerings.decompositions()
+  )
 
   with export_utils.create_ir_context() as context, ir.Location.unknown():
 
