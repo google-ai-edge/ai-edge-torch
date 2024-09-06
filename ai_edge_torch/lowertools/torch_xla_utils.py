@@ -241,6 +241,17 @@ def merged_bundle_to_tfl_model(
   # We need to temporarily save since TFLite's from_concrete_functions does not
   # allow providing names for each of the concrete functions.
   with tempfile.TemporaryDirectory() as temp_dir_path:
+    import pathlib
+    import uuid
+    temp_dir_path = pathlib.Path("/tmp/debug_saved_model") / uuid.uuid4().hex
+    temp_dir_path.mkdir(parents=True, exist_ok=True)
+    temp_dir_path = str(temp_dir_path)
+    print("!" * 88)
+    print("!!!!" + " " * 80 + "!!!!")
+    print(f"!!!! DUMPING SAVED MODEL TO {temp_dir_path} !!!!")
+    print("!!!!" + " " * 80 + "!!!!")
+    print("!" * 88)
+    
     tf.saved_model.save(
         tf_module,
         temp_dir_path,
