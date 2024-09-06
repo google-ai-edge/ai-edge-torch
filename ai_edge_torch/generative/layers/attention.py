@@ -113,7 +113,7 @@ class TransformerBlock(nn.Module):
       attn_out = self.atten_func(x_norm, rope, mask, input_pos)
       x = x + attn_out
       if self.config.pre_attention_norm_config.type == cfg.NormalizationType.LAYER_NORM:
-            x_norm = layer_norm_with_hlfb(x, self.config.embedding_dim, self.post_atten_norm.weight, self.post_atten_norm.bias, self.config.post_atten_norm.epsilon)
+            x_norm = layer_norm_with_hlfb(x, self.config.embedding_dim, self.post_atten_norm.weight, self.post_atten_norm.bias, self.config.post_attention_norm_config.epsilon)
       else:
         x_norm = self.post_atten_norm(x)
       output = x + self.ff(x_norm)
