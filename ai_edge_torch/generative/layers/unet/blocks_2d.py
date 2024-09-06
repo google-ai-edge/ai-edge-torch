@@ -142,22 +142,21 @@ class AttentionBlock2D(nn.Module):
     residual = input_tensor
     B, C, H, W = input_tensor.shape
     if self.config.normalization_config.type == layers_cfg.NormalizationType.GROUP_NORM:
-          # x = self.norm(x)
       x = group_norm_with_hlfb(input_tensor, self.norm.weight, self.norm.bias, self.config.normalization_config.group_num, self.config.normalization_config.epsilon)
       x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
     elif self.config.normalization_config.type == layers_cfg.NormalizationType.LAYER_NORM:
-      x = input_tensor.view(B, C, H * W)
-      x = x.transpose(-1, -2)
-      # x = self.norm(x)
+      x = torch.permute(input_tensor, (0, 2, 3, 1))
       x = layer_norm_with_hlfb(x, self.config.dim, self.norm.weight, self.norm.bias, self.config.normalization_config.epsilon)
+      x = x.view(B, H * W, C)
     else:
       raise Exception("Unsupported norm", self.config.normalization_config.type)
     x = x.contiguous()  # Prevent BATCH_MATMUL op in converted tflite.
     x = self.attention(x)
-    x = x.transpose(-1, -2)
-    x = x.view(B, C, H, W)
+    x = x.view(B, H, W, C)
+    residual = torch.permute(residual, (0, 2, 3, 1))
     x = x + residual
+    x = torch.permute(x, (0, 3, 1, 2))
     return x
 
 
@@ -209,14 +208,14 @@ class CrossAttentionBlock2D(nn.Module):
       x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
     elif self.config.normalization_config.type == layers_cfg.NormalizationType.LAYER_NORM:
-      x = input_tensor.view(B, C, H * W)
-      x = x.transpose(-1, -2)
-      # x = self.norm(x)
+      x = torch.permute(input_tensor, (0, 2, 3, 1))
       x = layer_norm_with_hlfb(x, self.config.dim, self.norm.weight, self.norm.bias, self.config.normalization_config.epsilon)
+      x = x.view(B, H * W, C)
     x = self.attention(x, context_tensor)
-    x = x.transpose(-1, -2)
-    x = x.view(B, C, H, W)
+    x = x.view(B, H, W, C)
+    residual = torch.permute(residual, (0, 2, 3, 1))
     x = x + residual
+    x = torch.permute(x, (0, 3, 1, 2))
     return x
 
 
@@ -252,20 +251,20 @@ class FeedForwardBlock2D(nn.Module):
       x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
     elif self.config.normalization_config.type == layers_cfg.NormalizationType.LAYER_NORM:
-      x = input_tensor.view(B, C, H * W)
-      x = x.transpose(-1, -2)
-      # x = self.norm(x)
       x = layer_norm_with_hlfb(x, self.config.dim, self.norm.weight, self.norm.bias, self.config.normalization_config.epsilon)
+      x = torch.permute(input_tensor, (0, 2, 3, 1))
+      x = self.norm(x)
+      x = x.view(B, H * W, C)
     else:
       raise Exception("Sorry, unsupported Norm type", self.config.normalization_config.type)
     x = self.w1(x)
     x = self.act(x)
     x = self.w2(x)
-
-    x = x.transpose(-1, -2)  # (B, C, HW)
-    x = x.view((B, C, H, W))
-
-    return x + residual
+    x = x.view(B, H, W, C)
+    residual = torch.permute(residual, (0, 2, 3, 1))
+    x = x + residual
+    x = torch.permute(x, (0, 3, 1, 2))
+    return x
 
 
 class TransformerBlock2D(nn.Module):
