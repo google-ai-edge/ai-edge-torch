@@ -13,11 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
+from ai_edge_torch.generative.examples.stable_diffusion.attention import SelfAttention  # NOQA
 import torch
 from torch import nn
 from torch.nn import functional as F
-
-from ai_edge_torch.generative.examples.stable_diffusion.attention import SelfAttention  # NOQA
 
 
 class AttentionBlock(nn.Module):
@@ -50,7 +49,9 @@ class ResidualBlock(nn.Module):
     self.conv_1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
 
     self.groupnorm_2 = nn.GroupNorm(32, out_channels)
-    self.conv_2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
+    self.conv_2 = nn.Conv2d(
+        out_channels, out_channels, kernel_size=3, padding=1
+    )
 
     if in_channels == out_channels:
       self.residual_layer = nn.Identity()

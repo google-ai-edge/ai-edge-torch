@@ -12,16 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Utils for debugging."""
+
 import contextlib
 import sys
 
 import torch
-from torch.export.graph_signature import InputKind
-import torch.fx._pytree as fx_pytree
 from torch.utils import _pytree as pytree
 
 
-def exported_program_to_fx_graph_module_and_inputs(ep: torch.export.ExportedProgram):
+def exported_program_to_fx_graph_module_and_inputs(
+    ep: torch.export.ExportedProgram,
+):
   fx_gm = ep.graph_module
   fx_inputs = pytree.tree_map(
       torch.tensor, ep._graph_module_flat_inputs(*ep.example_inputs)
@@ -31,6 +33,15 @@ def exported_program_to_fx_graph_module_and_inputs(ep: torch.export.ExportedProg
 
 @contextlib.contextmanager
 def redirect_stdio(stdout, stderr):
+  """Redirects stdout and stderr to the given file objects.
+
+  Args:
+    stdout: A file object to redirect stdout to.
+    stderr: A file object to redirect stderr to.
+
+  Yields:
+    The file objects that stdout and stderr were redirected to.
+  """
   old_stdout = sys.stdout
   old_stderr = sys.stderr
 

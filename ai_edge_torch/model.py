@@ -15,17 +15,19 @@
 
 """Represents an ai_edge_torch model.
 
-PyTorch models can be converted to this representation through `ai_edge_torch.convert`.
+PyTorch models can be converted to this representation through
+`ai_edge_torch.convert`.
 """
 from __future__ import annotations
 
 import abc
+import re
+from typing import Callable
 
-import numpy as np
 import numpy.typing as npt
 import tensorflow as tf
 
-from ai_edge_torch.convert import conversion_utils as cutils
+DEFAULT_SIGNATURE_NAME = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 
 
 class Model(abc.ABC):
@@ -35,7 +37,7 @@ class Model(abc.ABC):
   def __call__(
       self,
       *args: npt.ArrayLike,
-      signature_name: str = cutils.DEFAULT_SIGNATURE_NAME,
+      signature_name: str = DEFAULT_SIGNATURE_NAME,
       **kwargs,
   ) -> npt.ArrayLike | tuple[npt.ArrayLike]:
     raise NotImplementedError()
@@ -63,28 +65,48 @@ class TfLiteModel(Model):
       tflite_model: A TFlite serialized object.
     """
     self._tflite_model = tflite_model
+    self._interpreter_builder = lambda: tf.lite.Interpreter(
+        model_content=self._tflite_model,
+        experimental_default_delegate_latest_features=True,
+    )
+
+  def tflite_model(self) -> bytes:
+    """Returns the wrapped tflite model."""
+    return self._tflite_model
+
+  def set_interpreter_builder(
+      self, builder: Callable[[], tf.lite.Interpreter]
+  ) -> None:
+    """Sets a custom interpreter builder.
+
+    Args:
+      builder: A function that returns a `tf.lite.Interpreter` or its subclass.
+    """
+    self._interpreter_builder = builder
 
   def __call__(
       self,
       *args: npt.ArrayLike,
-      signature_name: str = cutils.DEFAULT_SIGNATURE_NAME,
+      signature_name: str = DEFAULT_SIGNATURE_NAME,
       **kwargs,
   ) -> npt.ArrayLike | tuple[npt.ArrayLike]:
     """Runs inference on the edge model using the provided arguments.
 
     Args:
       *args: The arguments to be passed to the model for inference.
-      **kwargs: The arguments with specific names to be passed to the model for inference.
-      signature_name: The name of the signature to be used for inference.
-        The default signature is used if not provided.
+      **kwargs: The arguments with specific names to be passed to the model for
+        inference.
+      signature_name: The name of the signature to be used for inference. The
+        default signature is used if not provided.
     """
-    interpreter = tf.lite.Interpreter(model_content=self._tflite_model)
+    interpreter = self._interpreter_builder()
     interpreter.allocate_tensors()
 
     signature_list = interpreter.get_signature_list()
     if signature_name not in signature_list:
       raise ValueError(
-          f"Invalid signature name provided. Available signatures: {', '.join(signature_list.keys())}"
+          'Invalid signature name provided. Available signatures:'
+          f' {", ".join(signature_list.keys())}'
       )
 
     try:
@@ -92,14 +114,17 @@ class TfLiteModel(Model):
     except ValueError as exception:
       if 'Invalid signature_key provided.' in str(exception):
         raise ValueError(
-            f'Invalid signature key provided. Available signatures: {list(signature_list.keys())}'
+            'Invalid signature key provided. Available signatures:'
+            f' {list(signature_list.keys())}'
         )
       else:
         raise exception
 
     if len(signature_list[signature_name]['inputs']) != len(args) + len(kwargs):
       raise ValueError(
-          f"The model requires {len(signature_list[signature_name]['inputs'])} arguments but {len(args)} was provided."
+          'The model requires'
+          f' {len(signature_list[signature_name]["inputs"])} arguments but'
+          f' {len(args)} was provided.'
       )
 
     # Gather the input dictionary based on the signature.
@@ -107,11 +132,18 @@ class TfLiteModel(Model):
     inputs = {**inputs, **kwargs}
     outputs = runner(**inputs)
 
-    return (
-        outputs['output_0']
-        if len(outputs) == 1
-        else [outputs[f'output_{idx}'] for idx in range(len(outputs))]
-    )
+    # When attempting to run a model, check if all the output tensors are named
+    # output_<number>. If so, assume the pytorch model returned a tuple and not
+    # a dictionary.
+    output_heuristic = lambda key: bool(re.search(r'output_\d+', key))
+    if all(output_heuristic(key) for key in outputs.keys()):
+      return (
+          outputs['output_0']
+          if len(outputs) == 1
+          else [outputs[f'output_{idx}'] for idx in range(len(outputs))]
+      )
+
+    return outputs
 
   def export(self, path: str) -> None:
     """Serializes the edge model to disk.

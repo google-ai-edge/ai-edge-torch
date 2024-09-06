@@ -17,15 +17,14 @@
 import os
 from pathlib import Path
 
-import numpy as np
-import torch
-import torch.nn as nn
-
-from ai_edge_torch.generative.layers.attention import TransformerBlock
+from ai_edge_torch.generative.layers import attention
+from ai_edge_torch.generative.layers import builder
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
-import ai_edge_torch.generative.layers.builder as builder
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
+import numpy as np
+import torch
+from torch import nn
 
 TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.up_proj",
@@ -36,7 +35,7 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     attn_value_proj="model.layers.{}.self_attn.v_proj",
     attn_output_proj="model.layers.{}.self_attn.o_proj",
     pre_attn_norm="model.layers.{}.input_layernorm",
-    pre_ff_norm="model.layers.{}.post_attention_layernorm",
+    post_attn_norm="model.layers.{}.post_attention_layernorm",
     embedding="model.embed_tokens",
     final_norm="model.norm",
     lm_head="lm_head",
@@ -44,6 +43,7 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
 
 
 class TinyLLamma(nn.Module):
+  """A TinyLlama model built from the Edge Generative API layers."""
 
   def __init__(self, config: cfg.ModelConfig):
     super().__init__()
@@ -57,7 +57,7 @@ class TinyLLamma(nn.Module):
         config.vocab_size, config.embedding_dim, padding_idx=0
     )
     self.transformer_blocks = nn.ModuleList(
-        TransformerBlock(config) for _ in range(config.num_layers)
+        attention.TransformerBlock(config) for _ in range(config.num_layers)
     )
     self.final_norm = builder.build_norm(
         config.embedding_dim,
@@ -65,14 +65,18 @@ class TinyLLamma(nn.Module):
     )
     self.rope_cache = attn_utils.build_rope_cache(
         size=config.kv_cache_max,
-        dim=int(config.attn_config.rotary_percentage * config.head_dim),
+        dim=int(
+            config.attn_config.rotary_percentage * config.attn_config.head_dim
+        ),
         base=10_000,
         condense_ratio=1,
         dtype=torch.float32,
         device=torch.device("cpu"),
     )
     self.mask_cache = attn_utils.build_causal_mask_cache(
-        size=config.kv_cache_max, dtype=torch.float32, device=torch.device("cpu")
+        size=config.kv_cache_max,
+        dtype=torch.float32,
+        device=torch.device("cpu"),
     )
     self.config = config
 
@@ -81,10 +85,11 @@ class TinyLLamma(nn.Module):
   # This can be eliminated if we handle k/v cache updates inside the model itself.
   @torch.inference_mode
   def forward(self, idx: torch.Tensor, input_pos: torch.Tensor) -> torch.Tensor:
-    B, T = idx.size()
-    assert (
-        self.config.max_seq_len >= T
-    ), f"Cannot forward sequence of length {T}, max seq length is only {self.config.max_seq_len}"
+    _, seq_len = idx.size()
+    assert self.config.max_seq_len >= seq_len, (
+        f"Cannot forward sequence of length {seq_len}, max seq length is only"
+        f" {self.config.max_seq_len}"
+    )
 
     cos, sin = self.rope_cache
     cos = cos.index_select(0, input_pos)
@@ -95,7 +100,7 @@ class TinyLLamma(nn.Module):
     # forward the model itself
     x = self.tok_embedding(idx)  # token embeddings of shape (b, t, n_embd)
 
-    for i, block in enumerate(self.transformer_blocks):
+    for _, block in enumerate(self.transformer_blocks):
       x = block(x, (cos, sin), mask, input_pos)
 
     x = self.final_norm(x)
@@ -105,8 +110,18 @@ class TinyLLamma(nn.Module):
 
 
 def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+  """Returns the model config for a TinyLlama model.
+
+  Args:
+    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
+      is 1024.
+
+  Returns:
+    The model config for a TinyLlama model.
+  """
   attn_config = cfg.AttentionConfig(
       num_heads=32,
+      head_dim=64,
       num_query_groups=4,
       rotary_percentage=1.0,
   )
@@ -125,22 +140,22 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       attn_config=attn_config,
       ff_config=ff_config,
       pre_attention_norm_config=norm_config,
-      pre_ff_norm_config=norm_config,
+      post_attention_norm_config=norm_config,
       final_norm_config=norm_config,
       enable_hlfb=True,
   )
   return config
 
 
-def get_fake_model_config_for_test() -> cfg.ModelConfig:
+def get_fake_model_config() -> cfg.ModelConfig:
   config = get_model_config()
   config.vocab_size = 128
   config.num_layers = 2
-  config.ff_config.intermediate_size = 256
+  config.ff_config.intermediate_size = 64
   return config
 
 
-def build_model(checkpoint_path, **kwargs) -> nn.Module:
+def build_model(checkpoint_path: str, **kwargs) -> nn.Module:
   config = get_model_config(**kwargs)
   model = TinyLLamma(config)
   loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
@@ -149,6 +164,8 @@ def build_model(checkpoint_path, **kwargs) -> nn.Module:
 
 
 def define_and_run() -> None:
+  """Instantiates and runs a TinyLlama model."""
+
   current_dir = Path(__file__).parent.resolve()
   tiny_llama_goldens = torch.load(current_dir / "tiny_llama_lm_logits.pt")
   kv_cache_max_len = 1024

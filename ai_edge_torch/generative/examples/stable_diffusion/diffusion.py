@@ -13,14 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 
-import torch
-from torch import nn
-
 import ai_edge_torch.generative.layers.builder as layers_builder
 import ai_edge_torch.generative.layers.model_config as layers_cfg
-import ai_edge_torch.generative.layers.unet.blocks_2d as blocks_2d
+from ai_edge_torch.generative.layers.unet import blocks_2d
 import ai_edge_torch.generative.layers.unet.model_config as unet_cfg
-import ai_edge_torch.generative.utilities.stable_diffusion_loader as stable_diffusion_loader
+from ai_edge_torch.generative.utilities import stable_diffusion_loader
+import torch
+from torch import nn
 
 from ai_edge_torch.generative.layers.group_norm import group_norm_with_hlfb # NOQA
 
@@ -41,9 +40,15 @@ _down_encoder_blocks_tensor_names = [
         ],
         transformer_block_tensor_names=[
             stable_diffusion_loader.TransformerBlockTensorNames(
-                pre_conv_norm=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.norm",
-                conv_in=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.proj_in",
-                conv_out=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.proj_out",
+                pre_conv_norm=(
+                    f"model.diffusion_model.input_blocks.{i*3+j+1}.1.norm"
+                ),
+                conv_in=(
+                    f"model.diffusion_model.input_blocks.{i*3+j+1}.1.proj_in"
+                ),
+                conv_out=(
+                    f"model.diffusion_model.input_blocks.{i*3+j+1}.1.proj_out"
+                ),
                 self_attention=stable_diffusion_loader.AttentionBlockTensorNames(
                     norm=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.transformer_blocks.0.norm1",
                     q_proj=f"model.diffusion_model.input_blocks.{i*3+j+1}.1.transformer_blocks.0.attn1.to_q",
@@ -82,7 +87,9 @@ _mid_block_tensor_names = stable_diffusion_loader.MidBlockTensorNames(
             conv_1=f"model.diffusion_model.middle_block.{i}.in_layers.2",
             norm_2=f"model.diffusion_model.middle_block.{i}.out_layers.0",
             conv_2=f"model.diffusion_model.middle_block.{i}.out_layers.3",
-            time_embedding=f"model.diffusion_model.middle_block.{i}.emb_layers.1",
+            time_embedding=(
+                f"model.diffusion_model.middle_block.{i}.emb_layers.1"
+            ),
         )
         for i in [0, 2]
     ],
@@ -119,8 +126,12 @@ _up_decoder_blocks_tensor_names = [
     stable_diffusion_loader.SkipUpDecoderBlockTensorNames(
         residual_block_tensor_names=[
             stable_diffusion_loader.ResidualBlockTensorNames(
-                norm_1=f"model.diffusion_model.output_blocks.{i*3+j}.0.in_layers.0",
-                conv_1=f"model.diffusion_model.output_blocks.{i*3+j}.0.in_layers.2",
+                norm_1=(
+                    f"model.diffusion_model.output_blocks.{i*3+j}.0.in_layers.0"
+                ),
+                conv_1=(
+                    f"model.diffusion_model.output_blocks.{i*3+j}.0.in_layers.2"
+                ),
                 norm_2=f"model.diffusion_model.output_blocks.{i*3+j}.0.out_layers.0",
                 conv_2=f"model.diffusion_model.output_blocks.{i*3+j}.0.out_layers.3",
                 time_embedding=f"model.diffusion_model.output_blocks.{i*3+j}.0.emb_layers.1",
@@ -130,9 +141,15 @@ _up_decoder_blocks_tensor_names = [
         ],
         transformer_block_tensor_names=[
             stable_diffusion_loader.TransformerBlockTensorNames(
-                pre_conv_norm=f"model.diffusion_model.output_blocks.{i*3+j}.1.norm",
-                conv_in=f"model.diffusion_model.output_blocks.{i*3+j}.1.proj_in",
-                conv_out=f"model.diffusion_model.output_blocks.{i*3+j}.1.proj_out",
+                pre_conv_norm=(
+                    f"model.diffusion_model.output_blocks.{i*3+j}.1.norm"
+                ),
+                conv_in=(
+                    f"model.diffusion_model.output_blocks.{i*3+j}.1.proj_in"
+                ),
+                conv_out=(
+                    f"model.diffusion_model.output_blocks.{i*3+j}.1.proj_out"
+                ),
                 self_attention=stable_diffusion_loader.AttentionBlockTensorNames(
                     norm=f"model.diffusion_model.output_blocks.{i*3+j}.1.transformer_blocks.0.norm1",
                     q_proj=f"model.diffusion_model.output_blocks.{i*3+j}.1.transformer_blocks.0.attn1.to_q",
@@ -159,7 +176,9 @@ _up_decoder_blocks_tensor_names = [
         else None,
         upsample_conv=f"model.diffusion_model.output_blocks.{i*3+2}.2.conv"
         if 0 < i < 3
-        else (f"model.diffusion_model.output_blocks.2.1.conv" if i == 0 else None),
+        else (
+            f"model.diffusion_model.output_blocks.2.1.conv" if i == 0 else None
+        ),
     )
     for i in range(4)
 ]
@@ -176,6 +195,31 @@ TENSOR_NAMES = stable_diffusion_loader.DiffusionModelLoader.TensorNames(
     mid_block_tensor_names=_mid_block_tensor_names,
     up_decoder_blocks_tensor_names=_up_decoder_blocks_tensor_names,
 )
+
+
+def build_attention_config(
+    num_heads,
+    dim,
+    num_query_groups,
+    rotary_percentage=0.0,
+    qkv_transpose_before_split=True,
+    qkv_use_bias=False,
+    output_proj_use_bias=True,
+    enable_kv_cache=False,
+    qkv_fused_interleaved=False,
+):
+
+  return layers_cfg.AttentionConfig(
+      num_heads=num_heads,
+      head_dim=dim // num_heads,
+      num_query_groups=num_query_groups,
+      rotary_percentage=rotary_percentage,
+      qkv_transpose_before_split=qkv_transpose_before_split,
+      qkv_use_bias=qkv_use_bias,
+      output_proj_use_bias=output_proj_use_bias,
+      enable_kv_cache=enable_kv_cache,
+      qkv_fused_interleaved=qkv_fused_interleaved,
+  )
 
 
 class TimeEmbedding(nn.Module):
@@ -250,17 +294,6 @@ class Diffusion(nn.Module):
         config.in_channels, block_out_channels[0], kernel_size=3, padding=1
     )
 
-    attention_config = layers_cfg.AttentionConfig(
-        num_heads=config.transformer_num_attention_heads,
-        num_query_groups=config.transformer_num_attention_heads,
-        rotary_percentage=0.0,
-        qkv_transpose_before_split=True,
-        qkv_use_bias=False,
-        output_proj_use_bias=True,
-        enable_kv_cache=False,
-        qkv_fused_interleaved=False,
-    )
-
     # Down encoders.
     down_encoders = []
     output_channel = block_out_channels[0]
@@ -295,14 +328,24 @@ class Diffusion(nn.Module):
                             dim=output_channel,
                             attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
-                            attention_config=attention_config,
+                            attention_config=build_attention_config(
+                                num_heads=config.transformer_num_attention_heads,
+                                dim=output_channel,
+                                num_query_groups=config.transformer_num_attention_heads,
+                            ),
+                            enable_hlfb=False,
                         ),
                         cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                             query_dim=output_channel,
                             cross_dim=config.transformer_cross_attention_dim,
                             attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
-                            attention_config=attention_config,
+                            attention_config=build_attention_config(
+                                num_heads=config.transformer_num_attention_heads,
+                                dim=output_channel,
+                                num_query_groups=config.transformer_num_attention_heads,
+                            ),
+                            enable_hlfb=False,
                         ),
                         pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
                         feed_forward_block_config=unet_cfg.FeedForwardBlock2DConfig(
@@ -355,14 +398,24 @@ class Diffusion(nn.Module):
                     dim=mid_block_channels,
                     attention_batch_size=config.transformer_batch_size,
                     normalization_config=config.transformer_norm_config,
-                    attention_config=attention_config,
+                    attention_config=build_attention_config(
+                        num_heads=config.transformer_num_attention_heads,
+                        dim=mid_block_channels,
+                        num_query_groups=config.transformer_num_attention_heads,
+                    ),
+                    enable_hlfb=False,
                 ),
                 cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                     query_dim=mid_block_channels,
                     cross_dim=config.transformer_cross_attention_dim,
                     attention_batch_size=config.transformer_batch_size,
                     normalization_config=config.transformer_norm_config,
-                    attention_config=attention_config,
+                    attention_config=build_attention_config(
+                        num_heads=config.transformer_num_attention_heads,
+                        dim=mid_block_channels,
+                        num_query_groups=config.transformer_num_attention_heads,
+                    ),
+                    enable_hlfb=False,
                 ),
                 pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
                 feed_forward_block_config=unet_cfg.FeedForwardBlock2DConfig(
@@ -416,14 +469,24 @@ class Diffusion(nn.Module):
                             dim=output_channel,
                             attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
-                            attention_config=attention_config,
+                            attention_config=build_attention_config(
+                                num_heads=config.transformer_num_attention_heads,
+                                dim=output_channel,
+                                num_query_groups=config.transformer_num_attention_heads,
+                            ),
+                            enable_hlfb=False,
                         ),
                         cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                             query_dim=output_channel,
                             cross_dim=config.transformer_cross_attention_dim,
                             attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
-                            attention_config=attention_config,
+                            attention_config=build_attention_config(
+                                num_heads=config.transformer_num_attention_heads,
+                                dim=output_channel,
+                                num_query_groups=config.transformer_num_attention_heads,
+                            ),
+                            enable_hlfb=False,
                         ),
                         pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
                         feed_forward_block_config=unet_cfg.FeedForwardBlock2DConfig(
@@ -471,7 +534,10 @@ class Diffusion(nn.Module):
         layers_cfg.ActivationConfig(config.final_activation_type)
     )
     self.conv_out = nn.Conv2d(
-        reversed_block_out_channels[-1], config.out_channels, kernel_size=3, padding=1
+        reversed_block_out_channels[-1],
+        config.out_channels,
+        kernel_size=3,
+        padding=1,
     )
 
   @torch.inference_mode
@@ -492,12 +558,15 @@ class Diffusion(nn.Module):
     x = self.conv_in(latents)
     skip_connection_tensors = [x]
     for encoder in self.down_encoders:
-      x, hidden_states = encoder(x, time_emb, context, output_hidden_states=True)
+      x, hidden_states = encoder(
+          x, time_emb, context, output_hidden_states=True
+      )
       skip_connection_tensors.extend(hidden_states)
     x = self.mid_block(x, time_emb, context)
     for decoder in self.up_decoders:
       encoder_tensors = [
-          skip_connection_tensors.pop() for i in range(self.config.layers_per_block + 1)
+          skip_connection_tensors.pop()
+          for i in range(self.config.layers_per_block + 1)
       ]
       x = decoder(x, encoder_tensors, time_emb, context)
     # x = self.final_norm(x)
@@ -515,7 +584,6 @@ def get_model_config(batch_size: int) -> unet_cfg.DiffusionModelConfig:
 
   Retruns:
     The configuration of diffusion model of Stable Diffusion v1.5.
-
   """
   in_channels = 4
   out_channels = 4

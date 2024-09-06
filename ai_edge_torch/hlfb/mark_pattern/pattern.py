@@ -12,18 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-import copy
+"""Mark pattern."""
+
 import dataclasses
 from typing import Any, Callable, Optional, Union
 
+from ai_edge_torch.hlfb.mark_pattern import passes
 import torch
 from torch.export.graph_signature import TensorArgument
 from torch.fx import Graph
 from torch.fx import GraphModule
 from torch.fx.passes.utils.matcher_utils import InternalMatch
 from torch.fx.passes.utils.matcher_utils import SubgraphMatcher
-
-from ai_edge_torch.hlfb.mark_pattern import passes
 
 
 def _are_equal(x: Any, y: Any) -> bool:
@@ -46,6 +46,7 @@ def _are_equal(x: Any, y: Any) -> bool:
 @dataclasses.dataclass
 class ScalarAttrTracker:
   """ScalarAttrTracker is used to track the occurrence of a pattern's
+
   scalar arg/attr in the pattern decomposed graph. Since a scalar attr
   to the pattern can be transformed and turned into a/some ops' scalar
   arg in the decomposed graph, it would be hard to programmatically get
@@ -58,27 +59,31 @@ class ScalarAttrTracker:
     pattern_arg_pos (int): the index of the attr to track in the pattern's
       export_args.
     transform (Callable): the transform function used when targeting the
-      occurrence of the attr value in the decomposed graph. An attr value
-      may be transformed during the decomposition and appear as a derived
-      value.
-    inverse_transform (Callable): the inverse transform function that maps
-      the transformed value back to the original attr value.
+      occurrence of the attr value in the decomposed graph. An attr value may be
+      transformed during the decomposition and appear as a derived value.
+    inverse_transform (Callable): the inverse transform function that maps the
+      transformed value back to the original attr value.
   """
 
   attr_name: str
   pattern_arg_pos: int
   transform: Callable = lambda x: x
   inverse_transform: Callable = lambda x: x
-  _source_targets: list[tuple[Any, Any]] = dataclasses.field(default_factory=list)
+  _source_targets: list[tuple[Any, Any]] = dataclasses.field(
+      default_factory=list
+  )
 
   def track(self, *sources):
     """Register magic values to track the (transformed) attr values in
+
     the pattern decomposed graph.
     """
     for source in sources:
       target = self.transform(source)
       if not _are_equal(self.inverse_transform(target), source):
-        raise Exception(f"Invalid transform/inverse_transform for {self.attr_name}")
+        raise Exception(
+            f"Invalid transform/inverse_transform for {self.attr_name}"
+        )
       self._source_targets.append([source, target])
     return self
 
@@ -155,24 +160,22 @@ class Pattern:
     """The PyTorch computation pattern to match against a model.
 
     Args:
-      name (str): the name of the pattern. It would be propagated to
-        the `name` attr in StableHLO composite ops for the matched
-        model subgraphs in the lowering.
+      name (str): the name of the pattern. It would be propagated to the `name`
+        attr in StableHLO composite ops for the matched model subgraphs in the
+        lowering.
       module (torch.nn.Module or Callable): the PyTorch computation.
-      export_args (tuple[Any]): the args used to export the pattern module
-        with torch.export.export. If export_args contains non-tensor
-        Python scalars, there must be a corresponding attr tracker
-        in `scalar_attr_trackers` for each scalar arg.
-      attr_builder (Callable[[Pattern, GraphModule, InternalMatch], Optional[dict[str, Any]]]):
-        the callable that produces the a scalar attrs dict, which would be
-        propagated to `attr` in StableHLO composite ops for the matched
-        model subgraphs in the lowering.
-      scalar_attr_trackers (list[ScalarAttrTracker]): the trackers
-        for scalar args in `export_args`, which are used to track
-        the attr occurrence(s) and retrieve their values from the
-        matched subgraph.
-      decomp_table (Optional[dict[torch._ops.OperatorBase, Callable]]):
-        The decomposition table to be run on the pattern's exported program.
+      export_args (tuple[Any]): the args used to export the pattern module with
+        torch.export.export. If export_args contains non-tensor Python scalars,
+        there must be a corresponding attr tracker in `scalar_attr_trackers` for
+        each scalar arg. attr_builder (Callable[[Pattern, GraphModule,
+        InternalMatch], Optional[dict[str, Any]]]): the callable that produces
+        the a scalar attrs dict, which would be propagated to `attr` in
+        StableHLO composite ops for the matched model subgraphs in the lowering.
+      scalar_attr_trackers (list[ScalarAttrTracker]): the trackers for scalar
+        args in `export_args`, which are used to track the attr occurrence(s)
+        and retrieve their values from the matched subgraph.
+      decomp_table (Optional[dict[torch._ops.OperatorBase, Callable]]): The
+        decomposition table to be run on the pattern's exported program.
     """
     if not isinstance(module, torch.nn.Module):
 
@@ -189,7 +192,9 @@ class Pattern:
 
     self.name = name
     self.attr_builder = attr_builder
-    self._scalar_attr_trackers = scalar_attr_trackers if scalar_attr_trackers else []
+    self._scalar_attr_trackers = (
+        scalar_attr_trackers if scalar_attr_trackers else []
+    )
 
     exported_program = torch.export.export(module, export_args)
     if decomp_table is not None:
@@ -201,7 +206,9 @@ class Pattern:
     self._scalar_attr_locations = []
     for tracker in self._scalar_attr_trackers:
       self._scalar_attr_locations.append(
-          _find_scalar_attr(module, export_args, tracker, decomp_table=decomp_table)
+          _find_scalar_attr(
+              module, export_args, tracker, decomp_table=decomp_table
+          )
       )
 
     # Sanitize graph_module for more precise pattern matching.
@@ -251,7 +258,9 @@ class Pattern:
         attrs = {}
 
       for loc in self._scalar_attr_locations:
-        attrs[loc.attr_name] = self._get_attr_value_from_pattern_match(match, loc)
+        attrs[loc.attr_name] = self._get_attr_value_from_pattern_match(
+            match, loc
+        )
 
       attrs = attrs if attrs else None
       match_with_attrs.append((match, attrs))

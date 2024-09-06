@@ -12,29 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Tests for the serialization of models."""
 
 import os
 import tempfile
-import unittest
-
-import numpy.testing
-import torch
-import torchvision
 
 import ai_edge_torch
 from ai_edge_torch.testing import model_coverage
+import torch
+import torchvision
+
+from absl.testing import absltest as googletest
 
 
-class TestSerialization(unittest.TestCase):
+class TestSerialization(googletest.TestCase):
+  """Tests for the serialization of models."""
 
   def setUp(self):
+    super().setUp()
     torch.manual_seed(0)
 
   def test_read_write(self):
-    """
+    """Tests if an exported model can be loaded and run.
+
     (1) Creates an ai_edge_torch model from a torch model
     (2) Saves and then loads the model
-    (3) Checks to make sure the model is still runnable and produces the right results.
+    (3) Checks to make sure the model is still runnable and produces the right
+    results.
     """
     resnet18 = torchvision.models.resnet18().eval()
     sample_input = (torch.randn(4, 3, 224, 224),)
@@ -43,9 +47,13 @@ class TestSerialization(unittest.TestCase):
 
     with tempfile.TemporaryDirectory() as tmp_dir_name:
       edge_model.export(os.path.join(tmp_dir_name, "test.model"))
-      loaded_model = ai_edge_torch.load(os.path.join(tmp_dir_name, "test.model"))
+      loaded_model = ai_edge_torch.load(
+          os.path.join(tmp_dir_name, "test.model")
+      )
 
-    result = model_coverage.compare_tflite_torch(loaded_model, resnet18, sample_input)
+    result = model_coverage.compare_tflite_torch(
+        loaded_model, resnet18, sample_input
+    )
     self.assertTrue(result)
 
   def test_wrong_model_raises(self):
@@ -58,4 +66,4 @@ class TestSerialization(unittest.TestCase):
 
 
 if __name__ == "__main__":
-  unittest.main()
+  googletest.main()

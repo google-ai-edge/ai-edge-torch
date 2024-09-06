@@ -13,13 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 # Builder class for individual components.
-import torch
-from torch import nn
-import torch.nn.functional as F
-
 import ai_edge_torch.generative.layers.feed_forward as feed_forward
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.layers.normalization as normalization
+import torch
+from torch import nn
+import torch.nn.functional as F
 
 
 class GeGLU(nn.Module):
@@ -27,7 +26,6 @@ class GeGLU(nn.Module):
 
   GeGLU(x) = (xW+b) * GELU(xV+c)
   See: https://arxiv.org/abs/2002.05202v1
-
   """
 
   def __init__(self, d_in: int, d_out: int):
@@ -91,11 +89,16 @@ def build_ff(dim: int, config: cfg.FeedForwardConfig):
 
   activation = get_activation(config.activation)
 
+  pre_ff_norm = build_norm(dim, config.pre_ff_norm_config)
+  post_ff_norm = build_norm(dim, config.post_ff_norm_config)
+
   return ff_module(
       dim=dim,
       hidden_dim=config.intermediate_size,
       activation=activation,
       use_bias=config.use_bias,
+      pre_ff_norm=pre_ff_norm,
+      post_ff_norm=post_ff_norm,
   )
 
 

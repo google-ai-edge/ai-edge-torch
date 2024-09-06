@@ -18,15 +18,14 @@
 import os
 from pathlib import Path
 
-import numpy as np
-import torch
-import torch.nn as nn
-
-from ai_edge_torch.generative.layers.attention import TransformerBlock
+from ai_edge_torch.generative.layers import attention
+from ai_edge_torch.generative.layers import builder
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
-import ai_edge_torch.generative.layers.builder as builder
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
+import numpy as np
+import torch
+from torch import nn
 
 TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.fc1",
@@ -43,6 +42,7 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
 
 
 class Phi2(nn.Module):
+  """A Phi-2 model built from the Edge Generative API layers."""
 
   def __init__(self, config: cfg.ModelConfig):
     super().__init__()
@@ -56,7 +56,7 @@ class Phi2(nn.Module):
         config.vocab_size, config.embedding_dim, padding_idx=0
     )
     self.transformer_blocks = nn.ModuleList(
-        TransformerBlock(config) for _ in range(config.num_layers)
+        attention.TransformerBlock(config) for _ in range(config.num_layers)
     )
     self.final_norm = builder.build_norm(
         config.embedding_dim,
@@ -64,14 +64,18 @@ class Phi2(nn.Module):
     )
     self.rope_cache = attn_utils.build_rope_cache(
         size=config.kv_cache_max,
-        dim=int(config.attn_config.rotary_percentage * config.head_dim),
+        dim=int(
+            config.attn_config.rotary_percentage * config.attn_config.head_dim
+        ),
         base=10_000,
         condense_ratio=1,
         dtype=torch.float32,
         device=torch.device("cpu"),
     )
     self.mask_cache = attn_utils.build_causal_mask_cache(
-        size=config.kv_cache_max, dtype=torch.float32, device=torch.device("cpu")
+        size=config.kv_cache_max,
+        dtype=torch.float32,
+        device=torch.device("cpu"),
     )
     self.config = config
 
@@ -80,10 +84,11 @@ class Phi2(nn.Module):
   # This can be eliminated if we handle k/v cache updates inside the model itself.
   @torch.inference_mode
   def forward(self, idx: torch.Tensor, input_pos: torch.Tensor) -> torch.Tensor:
-    B, T = idx.size()
-    assert (
-        self.config.max_seq_len >= T
-    ), f"Cannot forward sequence of length {T}, max seq length is only {self.config.max_seq_len}"
+    _, seq_len = idx.size()
+    assert self.config.max_seq_len >= seq_len, (
+        f"Cannot forward sequence of length {seq_len}, max seq length is only"
+        f" {self.config.max_seq_len}"
+    )
 
     cos, sin = self.rope_cache
     cos = cos.index_select(0, input_pos)
@@ -94,7 +99,7 @@ class Phi2(nn.Module):
     # forward the model itself
     x = self.tok_embedding(idx)  # token embeddings of shape (b, t, n_embd)
 
-    for i, block in enumerate(self.transformer_blocks):
+    for _, block in enumerate(self.transformer_blocks):
       x = block(x, (cos, sin), mask, input_pos)
 
     x = self.final_norm(x)
@@ -103,8 +108,18 @@ class Phi2(nn.Module):
 
 
 def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+  """Returns the model config for a Phi-2 model.
+
+  Args:
+    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
+      is 1024.
+
+  Returns:
+    The model config for a Phi-2 model.
+  """
   attn_config = cfg.AttentionConfig(
       num_heads=32,
+      head_dim=80,
       num_query_groups=32,
       rotary_percentage=0.4,
       qkv_use_bias=True,
@@ -134,9 +149,12 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
-def get_fake_model_config_for_test() -> cfg.ModelConfig:
-  config = get_model_config()
+def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
+  config = get_model_config(kv_cache_max_len)
+  config.vocab_size = 128
   config.num_layers = 2
+  config.max_seq_len = 2 * kv_cache_max_len
+  config.ff_config.intermediate_size = 128
   return config
 
 
@@ -149,6 +167,8 @@ def build_model(checkpoint_path, **kwargs) -> nn.Module:
 
 
 def define_and_run() -> None:
+  """Instantiates and runs a Phi-2 model."""
+
   current_dir = Path(__file__).parent.resolve()
   phi2_goldens = torch.load(current_dir / "phi2_lm_logits.pt")
   kv_cache_max_len = 1024
@@ -160,7 +180,9 @@ def define_and_run() -> None:
   input_pos = torch.arange(0, kv_cache_max_len)
   lm_logits = model.forward(tokens, input_pos)
   print("comparing with goldens..")
-  assert torch.allclose(phi2_goldens, lm_logits[0, idx.shape[1] - 1, :], atol=1e-05)
+  assert torch.allclose(
+      phi2_goldens, lm_logits[0, idx.shape[1] - 1, :], atol=1e-05
+  )
 
 
 if __name__ == "__main__":

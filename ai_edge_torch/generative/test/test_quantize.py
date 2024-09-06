@@ -13,12 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
-import unittest
-
-from parameterized import parameterized
-import torch
-
 import ai_edge_torch
+from ai_edge_torch import config
 from ai_edge_torch.generative.examples.test_models import toy_model  # NOQA
 from ai_edge_torch.generative.quantize import quant_recipe
 from ai_edge_torch.generative.quantize import quant_recipe_utils
@@ -29,20 +25,22 @@ from ai_edge_torch.generative.quantize.quant_attrs import Granularity
 from ai_edge_torch.generative.quantize.quant_attrs import Mode
 from ai_edge_torch.quantize import quant_config
 from ai_edge_torch.testing import model_coverage
+import torch
+
+from absl.testing import absltest as googletest
+from absl.testing import parameterized
 
 
-class TestVerifyRecipes(unittest.TestCase):
+class TestVerifyRecipes(parameterized.TestCase):
   """Unit tests that check for model quantization recipes."""
 
-  @parameterized.expand(
-      [
-          (Dtype.FP32, Dtype.FP32),
-          (Dtype.INT8, Dtype.INT8),
-          (Dtype.INT8, Dtype.FP16),
-          (Dtype.FP16, Dtype.INT8),
-          (Dtype.FP16, Dtype.FP16),
-      ]
-  )
+  @parameterized.parameters([
+      (Dtype.FP32, Dtype.FP32),
+      (Dtype.INT8, Dtype.INT8),
+      (Dtype.INT8, Dtype.FP16),
+      (Dtype.FP16, Dtype.INT8),
+      (Dtype.FP16, Dtype.FP16),
+  ])
   def test_verify_invalid_recipes(
       self,
       activation,
@@ -54,31 +52,29 @@ class TestVerifyRecipes(unittest.TestCase):
           with self.assertRaises(ValueError):
             quant_recipe.LayerQuantRecipe(activation, weight, m, a, g).verify()
 
-  @parameterized.expand(
-      [
-          (
-              Dtype.FP32,
-              Dtype.INT8,
-              Mode.DYNAMIC_RANGE,
-              Algorithm.MIN_MAX,
-              Granularity.CHANNELWISE,
-          ),
-          (
-              Dtype.FP32,
-              Dtype.INT8,
-              Mode.WEIGHT_ONLY,
-              Algorithm.MIN_MAX,
-              Granularity.CHANNELWISE,
-          ),
-          (
-              Dtype.FP32,
-              Dtype.FP16,
-              Mode.WEIGHT_ONLY,
-              Algorithm.FLOAT_CAST,
-              Granularity.NONE,
-          ),
-      ]
-  )
+  @parameterized.parameters([
+      (
+          Dtype.FP32,
+          Dtype.INT8,
+          Mode.DYNAMIC_RANGE,
+          Algorithm.MIN_MAX,
+          Granularity.CHANNELWISE,
+      ),
+      (
+          Dtype.FP32,
+          Dtype.INT8,
+          Mode.WEIGHT_ONLY,
+          Algorithm.MIN_MAX,
+          Granularity.CHANNELWISE,
+      ),
+      (
+          Dtype.FP32,
+          Dtype.FP16,
+          Mode.WEIGHT_ONLY,
+          Algorithm.FLOAT_CAST,
+          Granularity.NONE,
+      ),
+  ])
   def test_verify_valid_recipes(
       self,
       activation,
@@ -87,10 +83,12 @@ class TestVerifyRecipes(unittest.TestCase):
       algo,
       granularity,
   ):
-    quant_recipe.LayerQuantRecipe(activation, weight, mode, algo, granularity).verify()
+    quant_recipe.LayerQuantRecipe(
+        activation, weight, mode, algo, granularity
+    ).verify()
 
 
-class TestQuantizeConvert(unittest.TestCase):
+class TestQuantizeConvert(parameterized.TestCase):
   """Test conversion with quantization."""
 
   def _attention_int8_dynamic_recipe() -> quant_config.QuantConfig:
@@ -107,20 +105,36 @@ class TestQuantizeConvert(unittest.TestCase):
         )
     )
 
-  @parameterized.expand(
-      [
-          (quant_recipes.full_fp16_recipe()),
-          (quant_recipes.full_int8_dynamic_recipe()),
-          (_attention_int8_dynamic_recipe()),
-          (_feedforward_int8_dynamic_recipe()),
-      ]
-  )
+  @parameterized.parameters([
+      (quant_recipes.full_fp16_recipe()),
+      (quant_recipes.full_int8_dynamic_recipe()),
+      (quant_recipes.full_int8_weight_only_recipe()),
+      (_attention_int8_dynamic_recipe()),
+      (_feedforward_int8_dynamic_recipe()),
+  ])
   def test_quantize_convert_toy_sizes(self, quant_config):
     config = toy_model.get_model_config()
     pytorch_model = toy_model.ToySingleLayerModel(config)
     idx = torch.unsqueeze(torch.arange(0, 100), 0)
     input_pos = torch.arange(0, 100)
 
+    quantized_model = ai_edge_torch.convert(
+        pytorch_model, (idx, input_pos), quant_config=quant_config
+    )
+    float_model = ai_edge_torch.convert(pytorch_model, (idx, input_pos))
+    self.assertLess(
+        len(quantized_model._tflite_model),
+        len(float_model._tflite_model),
+        "Quantized model isn't smaller than F32 model.",
+    )
+
+  def test_quantize_convert_toy_weight_sharing(self):
+    config = toy_model.get_model_config()
+    pytorch_model = toy_model.ToySingleLayerModelWeightSharing(config)
+    idx = torch.unsqueeze(torch.arange(0, 100), 0)
+    input_pos = torch.arange(0, 100)
+
+    quant_config = quant_recipes.full_int8_dynamic_recipe()
     quantized_model = ai_edge_torch.convert(
         pytorch_model, (idx, input_pos), quant_config=quant_config
     )
@@ -145,7 +159,9 @@ class TestQuantizeConvert(unittest.TestCase):
     )
     float_model = ai_edge_torch.convert(pytorch_model, (idx, input_pos))
 
-    self.assertLess(len(quantized_model._tflite_model), len(float_model._tflite_model))
+    self.assertLess(
+        len(quantized_model._tflite_model), len(float_model._tflite_model)
+    )
     self.assertTrue(
         model_coverage.compare_tflite_torch(
             quantized_model,
@@ -159,4 +175,4 @@ class TestQuantizeConvert(unittest.TestCase):
 
 
 if __name__ == "__main__":
-  unittest.main()
+  googletest.main()

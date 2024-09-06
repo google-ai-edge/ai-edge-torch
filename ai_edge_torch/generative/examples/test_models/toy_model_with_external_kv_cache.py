@@ -16,16 +16,15 @@
 
 from typing import Tuple
 
-import torch
-import torch.nn as nn
-import torch_xla
-
 import ai_edge_torch
+from ai_edge_torch import lowertools
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.builder as builder
 from ai_edge_torch.generative.layers.experimental import ekv_cache as kv_utils
 from ai_edge_torch.generative.layers.experimental.attention import TransformerBlock  # NOQA
 import ai_edge_torch.generative.layers.model_config as cfg
+import torch
+import torch.nn as nn
 
 RoPECache = Tuple[torch.Tensor, torch.Tensor]
 
@@ -47,7 +46,9 @@ class ToyModelWithExternalKV(torch.nn.Module):
     )
     self.rope_cache = attn_utils.build_rope_cache(
         size=config.max_seq_len,
-        dim=int(config.attn_config.rotary_percentage * config.head_dim),
+        dim=int(
+            config.attn_config.rotary_percentage * config.attn_config.head_dim
+        ),
         base=10_000,
         condense_ratio=1,
         dtype=torch.float32,
@@ -85,13 +86,12 @@ class ToyModelWithExternalKV(torch.nn.Module):
 
 def _export_stablehlo_mlir(model, args):
   ep = torch.export.export(model, args)
-  stablehlo_gm = torch_xla.stablehlo.exported_program_to_stablehlo(ep)
-  return stablehlo_gm.get_stablehlo_text()
+  return lowertools.exported_program_to_mlir_text(ep)
 
 
 def get_model_config() -> cfg.ModelConfig:
   attn_config = cfg.AttentionConfig(
-      num_heads=32, num_query_groups=4, rotary_percentage=1.0
+      num_heads=32, head_dim=4, num_query_groups=4, rotary_percentage=1.0
   )
   ff_config = cfg.FeedForwardConfig(
       type=cfg.FeedForwardType.GATED,
@@ -107,7 +107,7 @@ def get_model_config() -> cfg.ModelConfig:
       attn_config=attn_config,
       ff_config=ff_config,
       pre_attention_norm_config=norm_config,
-      pre_ff_norm_config=norm_config,
+      post_attention_norm_config=norm_config,
       final_norm_config=norm_config,
       enable_hlfb=True,
   )

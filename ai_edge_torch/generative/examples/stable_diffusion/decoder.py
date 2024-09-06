@@ -13,14 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 
-import torch
-from torch import nn
-
 import ai_edge_torch.generative.layers.builder as layers_builder
 import ai_edge_torch.generative.layers.model_config as layers_cfg
-import ai_edge_torch.generative.layers.unet.blocks_2d as blocks_2d
+from ai_edge_torch.generative.layers.unet import blocks_2d
 import ai_edge_torch.generative.layers.unet.model_config as unet_cfg
-import ai_edge_torch.generative.utilities.stable_diffusion_loader as stable_diffusion_loader
+from ai_edge_torch.generative.utilities import stable_diffusion_loader
+import torch
+from torch import nn
 
 from ai_edge_torch.generative.layers.group_norm import group_norm_with_hlfb # NOQA
 
@@ -106,7 +105,9 @@ TENSOR_NAMES = stable_diffusion_loader.AutoEncoderModelLoader.TensorNames(
                     norm_2="first_stage_model.decoder.up.1.block.0.norm2",
                     conv_1="first_stage_model.decoder.up.1.block.0.conv1",
                     conv_2="first_stage_model.decoder.up.1.block.0.conv2",
-                    residual_layer="first_stage_model.decoder.up.1.block.0.nin_shortcut",
+                    residual_layer=(
+                        "first_stage_model.decoder.up.1.block.0.nin_shortcut"
+                    ),
                 ),
                 stable_diffusion_loader.ResidualBlockTensorNames(
                     norm_1="first_stage_model.decoder.up.1.block.1.norm1",
@@ -130,7 +131,9 @@ TENSOR_NAMES = stable_diffusion_loader.AutoEncoderModelLoader.TensorNames(
                     norm_2="first_stage_model.decoder.up.0.block.0.norm2",
                     conv_1="first_stage_model.decoder.up.0.block.0.conv1",
                     conv_2="first_stage_model.decoder.up.0.block.0.conv2",
-                    residual_layer="first_stage_model.decoder.up.0.block.0.nin_shortcut",
+                    residual_layer=(
+                        "first_stage_model.decoder.up.0.block.0.nin_shortcut"
+                    ),
                 ),
                 stable_diffusion_loader.ResidualBlockTensorNames(
                     norm_1="first_stage_model.decoder.up.0.block.1.norm1",
@@ -289,6 +292,7 @@ def get_model_config() -> unet_cfg.AutoEncoderConfig:
       normalization_config=norm_config,
       attention_config=layers_cfg.AttentionConfig(
           num_heads=1,
+          head_dim=block_out_channels[-1],
           num_query_groups=1,
           qkv_use_bias=True,
           output_proj_use_bias=True,
@@ -297,12 +301,15 @@ def get_model_config() -> unet_cfg.AutoEncoderConfig:
           qkv_fused_interleaved=False,
           rotary_percentage=0.0,
       ),
+      enable_hlfb=False,
   )
 
   mid_block_config = unet_cfg.MidBlock2DConfig(
       in_channels=block_out_channels[-1],
       normalization_config=norm_config,
-      activation_config=layers_cfg.ActivationConfig(layers_cfg.ActivationType.SILU),
+      activation_config=layers_cfg.ActivationConfig(
+          layers_cfg.ActivationType.SILU
+      ),
       num_layers=1,
       attention_block_config=att_config,
   )
@@ -311,7 +318,9 @@ def get_model_config() -> unet_cfg.AutoEncoderConfig:
       in_channels=in_channels,
       latent_channels=latent_channels,
       out_channels=out_channels,
-      activation_config=layers_cfg.ActivationConfig(layers_cfg.ActivationType.SILU),
+      activation_config=layers_cfg.ActivationConfig(
+          layers_cfg.ActivationType.SILU
+      ),
       block_out_channels=block_out_channels,
       scaling_factor=scaling_factor,
       layers_per_block=layers_per_block,

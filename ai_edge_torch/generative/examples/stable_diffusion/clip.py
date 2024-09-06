@@ -13,26 +13,35 @@
 # limitations under the License.
 # ==============================================================================
 
-import torch
-from torch import nn
-
 from ai_edge_torch.generative.layers.attention import TransformerBlock
 import ai_edge_torch.generative.layers.attention_utils as attention_utils
 import ai_edge_torch.generative.layers.builder as builder
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
 from ai_edge_torch.generative.layers.group_norm import layer_norm_with_hlfb # NOQA
+import torch
+from torch import nn
 
 TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
-    ff_up_proj="cond_stage_model.transformer.text_model.encoder.layers.{}.mlp.fc1",
-    ff_down_proj="cond_stage_model.transformer.text_model.encoder.layers.{}.mlp.fc2",
+    ff_up_proj=(
+        "cond_stage_model.transformer.text_model.encoder.layers.{}.mlp.fc1"
+    ),
+    ff_down_proj=(
+        "cond_stage_model.transformer.text_model.encoder.layers.{}.mlp.fc2"
+    ),
     attn_query_proj="cond_stage_model.transformer.text_model.encoder.layers.{}.self_attn.q_proj",
     attn_key_proj="cond_stage_model.transformer.text_model.encoder.layers.{}.self_attn.k_proj",
     attn_value_proj="cond_stage_model.transformer.text_model.encoder.layers.{}.self_attn.v_proj",
     attn_output_proj="cond_stage_model.transformer.text_model.encoder.layers.{}.self_attn.out_proj",
-    pre_attn_norm="cond_stage_model.transformer.text_model.encoder.layers.{}.layer_norm1",
-    pre_ff_norm="cond_stage_model.transformer.text_model.encoder.layers.{}.layer_norm2",
-    embedding="cond_stage_model.transformer.text_model.embeddings.token_embedding",
+    pre_attn_norm=(
+        "cond_stage_model.transformer.text_model.encoder.layers.{}.layer_norm1"
+    ),
+    post_attn_norm=(
+        "cond_stage_model.transformer.text_model.encoder.layers.{}.layer_norm2"
+    ),
+    embedding=(
+        "cond_stage_model.transformer.text_model.embeddings.token_embedding"
+    ),
     embedding_position="cond_stage_model.transformer.text_model.embeddings.position_embedding.weight",
     final_norm="cond_stage_model.transformer.text_model.final_layer_norm",
     lm_head=None,
@@ -41,6 +50,7 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
 
 class CLIP(nn.Module):
   """CLIP text encoder
+
   For details, see https://arxiv.org/abs/2103.00020
   """
 
@@ -55,7 +65,9 @@ class CLIP(nn.Module):
     self.transformer_blocks = nn.ModuleList(
         TransformerBlock(config) for _ in range(config.num_layers)
     )
-    self.final_norm = builder.build_norm(config.embedding_dim, config.final_norm_config)
+    self.final_norm = builder.build_norm(
+        config.embedding_dim, config.final_norm_config
+    )
 
     self.mask_cache = attention_utils.build_causal_mask_cache(
         size=config.max_seq_len, dtype=torch.float32
@@ -83,6 +95,7 @@ def get_model_config() -> cfg.ModelConfig:
 
   attn_config = cfg.AttentionConfig(
       num_heads=num_heads,
+      head_dim=embedding_dim // num_heads,
       num_query_groups=num_query_groups,
       rotary_percentage=0.0,
       qkv_use_bias=True,
@@ -109,7 +122,7 @@ def get_model_config() -> cfg.ModelConfig:
       attn_config=attn_config,
       ff_config=ff_config,
       pre_attention_norm_config=norm_config,
-      pre_ff_norm_config=norm_config,
+      post_attention_norm_config=norm_config,
       final_norm_config=norm_config,
       enable_hlfb=True,
   )

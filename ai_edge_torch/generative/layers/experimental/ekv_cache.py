@@ -17,11 +17,10 @@
 from dataclasses import dataclass
 from typing import List, Tuple
 
-import torch
-import torch.utils._pytree as pytree
-
 from ai_edge_torch import hlfb
 from ai_edge_torch.generative.layers import model_config
+import torch
+import torch.utils._pytree as pytree
 
 
 @dataclass
@@ -42,7 +41,7 @@ class KVCacheEntry:
         1,
         config.kv_cache_max,
         config.attn_config.num_query_groups,
-        config.head_dim,
+        config.attn_config.head_dim,
     )
     k = torch.zeros(shape, dtype=dtype, device=device)
     v = torch.zeros(shape, dtype=dtype, device=device)
@@ -64,12 +63,14 @@ class EKVCache:
       device: torch.device = None,
   ) -> "EKVCache":
     """Build an instance of the class based on model config.
+
     Args:
         config (ModelConfig): Model config used for building the cache.
         dtype (torch.dtype, optional): The data type of the cache tensor.
           Defaults to torch.float32.
         device (torch.device, optional): The device placement of the cache
           tensors. Defaults to None.
+
     Returns:
         EKVCache: The created cache object.
     """
@@ -95,10 +96,14 @@ def _flatten_kvc(kvc: EKVCache) -> Tuple[List, List]:
 
 def _flatten_kvc_with_keys(kvc: EKVCache) -> Tuple[List, List]:
   flattened, (flat_names, none_names) = _flatten_kvc(kvc)
-  return [(pytree.MappingKey(k), v) for k, v in zip(flat_names, flattened)], flat_names
+  return [
+      (pytree.MappingKey(k), v) for k, v in zip(flat_names, flattened)
+  ], flat_names
 
 
-def _unflatten_kvc(values: List[torch.Tensor], context: Tuple[List, List]) -> EKVCache:
+def _unflatten_kvc(
+    values: List[torch.Tensor], context: Tuple[List, List]
+) -> EKVCache:
   assert len(values) % 2 == 0, "Found odd number of K and V entries."
   num_layers = len(values) // 2
   flat_names = context[0]

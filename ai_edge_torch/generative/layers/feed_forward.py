@@ -14,7 +14,7 @@
 # ==============================================================================
 # Common building blocks for FeedForward layers.
 
-from typing import Callable
+from typing import Callable, Optional
 
 import torch
 from torch import nn
@@ -30,19 +30,21 @@ class SequentialFeedForward(nn.Module):
       hidden_dim: int,
       activation: Callable[[torch.Tensor], torch.Tensor],
       use_bias=False,
+      pre_ff_norm: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+      post_ff_norm: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
   ):
     """Init function for feedforward layer.
 
-    Args:
-      dim(int): embedding size.
-      hidden_dim(int): hidden dim size of the feedforward layer.
-      activation(Callable): activation function used in this block.
-      use_bias(Boolean): whether to use bias. Default is false.
+    Args: dim(int): embedding size. hidden_dim(int): hidden dim size of the
+    feedforward layer. activation(Callable): activation function used in this
+    block. use_bias(Boolean): whether to use bias. Default is false.
     """
     super().__init__()
     self.act = activation
     self.w1 = nn.Linear(dim, hidden_dim, bias=use_bias)
     self.w2 = nn.Linear(hidden_dim, dim, bias=use_bias)
+    self.pre_ff_norm = pre_ff_norm if pre_ff_norm else lambda x: x
+    self.post_ff_norm = post_ff_norm if post_ff_norm else lambda x: x
 
   def forward(self, x):
     """Forward pass for Feedforward layer.
@@ -53,7 +55,9 @@ class SequentialFeedForward(nn.Module):
     Returns:
       torch.Tensor: output tensor after feedforward.
     """
-    return self.w2(self.act(self.w1(x)))
+    x_norm = self.pre_ff_norm(x)
+    out = self.w2(self.act(self.w1(x_norm)))
+    return self.post_ff_norm(out)
 
 
 class GatedFeedForward(nn.Module):
@@ -68,20 +72,22 @@ class GatedFeedForward(nn.Module):
       hidden_dim: int,
       activation: Callable[[torch.Tensor], torch.Tensor],
       use_bias=False,
+      pre_ff_norm: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+      post_ff_norm: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
   ):
     """Init function for feedforward layer.
 
-    Args:
-      dim(int): embedding size.
-      hidden_dim(int): hidden dim size of the feedforward layer.
-      activation(Callable): activation function used in this block.
-      use_bias(Boolean): whether to use bias. Default is false.
+    Args: dim(int): embedding size. hidden_dim(int): hidden dim size of the
+    feedforward layer. activation(Callable): activation function used in this
+    block. use_bias(Boolean): whether to use bias. Default is false.
     """
     super().__init__()
     self.act = activation
     self.w1 = nn.Linear(dim, hidden_dim, bias=use_bias)
     self.w2 = nn.Linear(hidden_dim, dim, bias=use_bias)
     self.w3 = nn.Linear(dim, hidden_dim, bias=use_bias)
+    self.pre_ff_norm = pre_ff_norm if pre_ff_norm else lambda x: x
+    self.post_ff_norm = post_ff_norm if post_ff_norm else lambda x: x
 
   def forward(self, x):
     """Forward pass for Feedforward layer.
@@ -92,4 +98,6 @@ class GatedFeedForward(nn.Module):
     Returns:
       torch.Tensor: output tensor after feedforward.
     """
-    return self.w2(self.act(self.w1(x)) * self.w3(x))
+    x_norm = self.pre_ff_norm(x)
+    out = self.w2(self.act(self.w1(x_norm)) * self.w3(x_norm))
+    return self.post_ff_norm(out)

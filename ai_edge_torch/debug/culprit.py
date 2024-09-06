@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Culprit finder for AI Edge Torch conversion."""
 
 import contextlib
 import copy
@@ -20,16 +21,14 @@ import functools
 import io
 import operator
 import os
-import sys
 from typing import Any, Callable, Generator, List, Optional, Tuple, Union
-
-from functorch.compile import minifier as fx_minifier
-import torch
-from torch._functorch import aot_autograd
-import torch.utils._pytree as pytree
 
 import ai_edge_torch
 from ai_edge_torch.debug import utils
+import torch
+from torch._functorch import aot_autograd
+from torch._functorch.fx_minifier import minifier as fx_minifier
+import torch.utils._pytree as pytree
 
 _torch_float_dtypes = {
     torch.float32,
@@ -117,24 +116,32 @@ class Culprit(SearchResult):
       print_output: bool - If true, prints the code to stdout. Otherwise returns
         the code in a str.
     """
-    # TODO (b/321263453): Support Python code gen with sample arg tensor values.
+    # TODO: b/321263453 - Support Python code gen with sample arg tensor values.
     random_inputs = True
 
-    graph_module_code = self.graph_module.print_readable(print_output=False).rstrip()
+    graph_module_code = self.graph_module.print_readable(
+        print_output=False
+    ).rstrip()
 
     input_strs = []
     for value in self.inputs:
       if torch.is_tensor(value):
         if not random_inputs:
-          input_strs.append(f"# size={_get_shape_str(value)}, dtype={value.dtype}")
-          input_strs.append(f"torch.load(io.BytesIO({_tensor_to_buffer(value)})),")
+          input_strs.append(
+              f"# size={_get_shape_str(value)}, dtype={value.dtype}"
+          )
+          input_strs.append(
+              f"torch.load(io.BytesIO({_tensor_to_buffer(value)})),"
+          )
         else:
           input_strs.append(_tensor_to_random_tensor_call(value) + ",")
       else:
         input_strs.append(str(value) + ",")
 
     inputs_code = (
-        "_args = (\n" + "\n".join([" " * 4 + code for code in input_strs]) + "\n)"
+        "_args = (\n"
+        + "\n".join([" " * 4 + code for code in input_strs])
+        + "\n)"
     )
 
     code = graph_module_code + "\n\n" + inputs_code
@@ -145,6 +152,7 @@ class Culprit(SearchResult):
 
   def print_code(self, print_output=True):
     """Print the Python code for culprit graph module, sample args, and AI
+
     Edge Torch conversion that will fail with the error.
 
     Args:
@@ -157,7 +165,9 @@ class Culprit(SearchResult):
         + "from torch import device\n"
         + "import ai_edge_torch\n\n"
         + definitions
-        + f"\n\n_edge_model = ai_edge_torch.convert({_CULPRIT_GRAPH_MODULE_NAME}().eval(), _args)\n"
+        + "\n\n_edge_model ="
+        f" ai_edge_torch.convert({_CULPRIT_GRAPH_MODULE_NAME}().eval(),"
+        " _args)\n"
     )
     if self._runtime_errors:
       code += "_edge_model(*_args)\n"
@@ -179,8 +189,8 @@ class Culprit(SearchResult):
 
 
 def _normalize_getitem_nodes(fx_gm: torch.fx.GraphModule):
-  """
-  This function turns all operator getitem nodes in ExportedProgram FX graph to
+  """This function turns all operator getitem nodes in ExportedProgram FX graph to
+
   new nodes composed of "computation + getitem". The normalization duplicates
   some computations in the graph but would make the graph more friendly for
   partitioning in FX minifier.
@@ -212,7 +222,9 @@ def _normalize_getitem_nodes(fx_gm: torch.fx.GraphModule):
   return fx_gm
 
 
-def _erase_unused_inputs(fx_gm: torch.fx.GraphModule, inputs: Tuple[torch.Tensor]):
+def _erase_unused_inputs(
+    fx_gm: torch.fx.GraphModule, inputs: Tuple[torch.Tensor]
+):
   fx_gm = copy.deepcopy(fx_gm)
   inputs = tuple(inputs)
   args = fx_gm.graph.process_inputs(*inputs)
@@ -316,7 +328,9 @@ def _erase_sub_gm_from_gm(
   return fx_gm, fx_inputs
 
 
-def _normalize_minified_fx_gm(fx_gm: torch.fx.GraphModule, inputs: Tuple[torch.Tensor]):
+def _normalize_minified_fx_gm(
+    fx_gm: torch.fx.GraphModule, inputs: Tuple[torch.Tensor]
+):
   fx_gm, inputs = _erase_unused_inputs(fx_gm, inputs)
   fx_gm = _lift_dead_ops_to_outputs(fx_gm)
   fx_gm, _ = aot_autograd.aot_export_module(fx_gm, inputs, trace_joint=False)
@@ -354,19 +368,18 @@ def _search_model(
     max_granularity: Optional[int] = None,
     enable_fx_minifier_logging: bool = False,
 ) -> Generator[SearchResult, None, None]:
-  """Finds subgraphs in the torch model that satisfy a certain predicate function provided by the users.
+  """Finds subgraphs in the torch model that satify a certain predicate function provided by the users.
 
   Args:
-    predicate_f: a predicate function the users specify.
-      It takes a FX (sub)graph and the inputs to this graph,
-      return True if the graph satisfies the predicate,
-      return False otherwise.
+    predicate_f: a predicate function the users specify. It takes a FX
+      (sub)graph and the inputs to this graph, return True if the graph
+      satisfies the predicate, return False otherwise.
     model: model in which to search subgraph.
-    export_args: A set of args to trace the model with,
-      i.e. model(*args) must run.
-    max_granularity - FX minifier arg. The maximum granularity (number of nodes)
-      in the returned ATen FX subgraph of the culprit.
-    enable_fx_minifier_logging: If true, allows the underlying FX minifier to log the progress.
+    export_args: A set of args to trace the model with, i.e. model(*args) must
+      run. max_granularity - FX minifier arg. The maximum granularity (number of
+      nodes) in the returned ATen FX subgraph of the culprit.
+    enable_fx_minifier_logging: If true, allows the underlying FX minifier to
+      log the progress.
   """
 
   if isinstance(model, torch.nn.Module):
@@ -374,7 +387,8 @@ def _search_model(
       ep = torch.export.export(model, export_args)
     except Exception as err:
       raise ValueError(
-          "Your model is not exportable by torch.export.export. Please modify your model to be torch-exportable first."
+          "Your model is not exportable by torch.export.export. Please modify"
+          " your model to be torch-exportable first."
       ) from err
   else:
     ep = model
@@ -392,7 +406,9 @@ def _search_model(
       xla_hlo_debug_value = os.environ["XLA_HLO_DEBUG"]
       del os.environ["XLA_HLO_DEBUG"]
 
-    create_minified_hlo_graph = torch._functorch.fx_minifier.create_minified_hlo_graph
+    create_minified_hlo_graph = (
+        torch._functorch.fx_minifier.create_minified_hlo_graph
+    )
     torch._functorch.fx_minifier.create_minified_hlo_graph = (
         lambda *args, **kwargs: None
     )
@@ -403,7 +419,9 @@ def _search_model(
       if xla_hlo_debug_value is not None:
         os.environ["XLA_HLO_DEBUG"] = xla_hlo_debug_value
 
-      torch._functorch.fx_minifier.create_minified_hlo_graph = create_minified_hlo_graph
+      torch._functorch.fx_minifier.create_minified_hlo_graph = (
+          create_minified_hlo_graph
+      )
 
   found_culprits_num = 0
   while True:
@@ -420,7 +438,9 @@ def _search_model(
               max_granularity=max_granularity,
           )
 
-      min_fx_gm, min_inputs = _normalize_minified_fx_gm(raw_min_fx_gm, raw_min_inputs)
+      min_fx_gm, min_inputs = _normalize_minified_fx_gm(
+          raw_min_fx_gm, raw_min_inputs
+      )
       found_culprits_num += 1
       yield SearchResult(min_fx_gm, min_inputs)
 
@@ -429,7 +449,10 @@ def _search_model(
       )
 
     except RuntimeError as e:
-      if str(e) == "Input graph did not fail the tester" and found_culprits_num > 0:
+      if (
+          str(e) == "Input graph did not fail the tester"
+          and found_culprits_num > 0
+      ):
         break
       raise e
 
@@ -446,13 +469,13 @@ def find_culprits(
 
   Args:
     torch_model: model to export and save
-    args: A set of args to trace the model with, i.e.
-      torch_model(*args) must run
-    max_granularity - FX minifier arg. The maximum granularity (number of nodes)
-      in the returned ATen FX subgraph of the culprit.
-    runtime_errors: If true, find culprits for Python runtime errors
-      with converted model.
-    enable_fx_minifier_logging: If true, allows the underlying FX minifier to log the progress.
+    args: A set of args to trace the model with, i.e. torch_model(*args) must
+      run max_granularity - FX minifier arg. The maximum granularity (number of
+      nodes) in the returned ATen FX subgraph of the culprit.
+    runtime_errors: If true, find culprits for Python runtime errors with
+      converted model.
+    enable_fx_minifier_logging: If true, allows the underlying FX minifier to
+      log the progress.
   """
 
   fx_minifier_checker = functools.partial(
@@ -467,5 +490,7 @@ def find_culprits(
       enable_fx_minifier_logging=enable_fx_minifier_logging,
   ):
     yield Culprit(
-        search_result.graph_module, search_result.inputs, _runtime_errors=runtime_errors
+        search_result.graph_module,
+        search_result.inputs,
+        _runtime_errors=runtime_errors,
     )

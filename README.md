@@ -79,7 +79,7 @@ Nightly Release    | [![](https://github.com/google-ai-edge/ai-edge-torch/action
 
  * Python versions:  3.9, 3.10, 3.11
  * Operating system: Linux
- * PyTorch: ![[torch](https://img.shields.io/badge/torch->=2.4.0-blue)](https://pypi.org/project/torch/)
+ * PyTorch: [![torch](https://img.shields.io/badge/torch->=2.4.0-blue)](https://pypi.org/project/torch/)
  * TensorFlow: [![tf-nightly](https://img.shields.io/badge/tf--nightly-latest-blue)](https://pypi.org/project/tf-nightly/)
 
 <!-- requirement badges are updated by ci/update_nightly_versions.py -->
@@ -101,6 +101,17 @@ Alternately, the nightly version can be installed with:
 ```bash
 pip install ai-edge-torch-nightly
 ```
+
+### Update LD_LIBRARY_PATH if necessary
+
+Torch XLA builds a shared library, `_XLAC.so` that needs to link to the version of Python
+it was built with (currently 3.10 or 3.11). In order to ensure that `import _XLAC` can succeed,
+update the LD_LIBRARY_PATH to the lib directory of your Python environment:
+
+```bash
+export LD_LIBRARY_PATH=<path to Python installation>/lib:$LD_LIBRARY_PATH
+```
+
 
 * The list of versioned releases can be seen [here](https://github.com/google-ai-edge/ai-edge-torch/releases).
 * The full list of PyPi releases (including nightly builds) can be seen [here](https://pypi.org/project/ai-edge-torch/#history).

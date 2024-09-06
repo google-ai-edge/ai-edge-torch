@@ -16,3 +16,15 @@ jobs:
     secrets: inherit
     with:
       trigger-sha: ${{ github.event.after }}
+
+  run-generative-api-examples:
+    name: Generative API Examples
+    uses: ./.github/workflows/generative_api_examples.yml
+    with:
+      trigger-sha: ${{ github.event.after }}
+
+  run-unittests-python:
+    name: Unit Tests Python
+    uses: ./.github/workflows/unittests_python.yml
+    with:
+      trigger-sha: ${{ github.event.after }}

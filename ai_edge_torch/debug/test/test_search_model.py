@@ -12,16 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
-
-import unittest
-
-import torch
+"""Tests for search_model."""
 
 from ai_edge_torch.debug import _search_model
+import torch
+
+from absl.testing import absltest as googletest
 
 
-class TestSearchModel(unittest.TestCase):
+class TestSearchModel(googletest.TestCase):
 
   def test_search_model_with_ops(self):
     class MultipleOpsModel(torch.nn.Module):
@@ -43,8 +42,10 @@ class TestSearchModel(unittest.TestCase):
 
     results = list(_search_model(find_subgraph_with_sub, model, args))
     self.assertEqual(len(results), 2)
-    self.assertIn(torch.ops.aten.sub.Tensor, [n.target for n in results[0].graph.nodes])
+    self.assertIn(
+        torch.ops.aten.sub.Tensor, [n.target for n in results[0].graph.nodes]
+    )
 
 
 if __name__ == "__main__":
-  unittest.main()
+  googletest.main()

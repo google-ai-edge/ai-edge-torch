@@ -15,4 +15,6 @@
 # ==============================================================================
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-PYTHONPATH=$SCRIPT_DIR:$PYTHONPATH python -m pytest $SCRIPT_DIR -n auto
+# TODO(b/362799258) Setup CIs to test odml-torch path and remove test ignore
+PYTHONPATH=$SCRIPT_DIR:$PYTHONPATH python -m pytest $SCRIPT_DIR -n auto \
+  --ignore=$SCRIPT_DIR/ai_edge_torch/odml_torch

@@ -17,18 +17,20 @@
 import ast
 import io
 import sys
-import unittest
-
-import torch
 
 from ai_edge_torch.debug import find_culprits
+import torch
+
+from absl.testing import absltest as googletest
 
 _test_culprit_lib = torch.library.Library("test_culprit", "DEF")
 
 _test_culprit_lib.define("non_lowerable_op(Tensor x) -> Tensor")
 
 
-@torch.library.impl(_test_culprit_lib, "non_lowerable_op", "CompositeExplicitAutograd")
+@torch.library.impl(
+    _test_culprit_lib, "non_lowerable_op", "CompositeExplicitAutograd"
+)
 def non_lowerable_op(x):
   if x.max() > 10.0:
     return x + 1.0
@@ -48,7 +50,7 @@ class BadModel(torch.nn.Module):
     return x
 
 
-class TestCulprit(unittest.TestCase):
+class TestCulprit(googletest.TestCase):
 
   def test_find_culprits(self):
     model = BadModel().eval()
@@ -130,4 +132,4 @@ class TestCulprit(unittest.TestCase):
 
 
 if __name__ == "__main__":
-  unittest.main()
+  googletest.main()

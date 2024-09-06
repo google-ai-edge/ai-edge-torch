@@ -19,6 +19,12 @@ import copy
 import functools
 from typing import Any, Callable, Dict, List, Optional, Set
 
+from ai_edge_torch.quantize.pt2e_quantizer_utils import _convert_scalars_to_attrs  # NOQA
+from ai_edge_torch.quantize.pt2e_quantizer_utils import OP_TO_ANNOTATOR
+from ai_edge_torch.quantize.pt2e_quantizer_utils import OperatorConfig
+from ai_edge_torch.quantize.pt2e_quantizer_utils import OperatorPatternType
+from ai_edge_torch.quantize.pt2e_quantizer_utils import propagate_annotation
+from ai_edge_torch.quantize.pt2e_quantizer_utils import QuantizationConfig
 import torch
 from torch.ao.quantization.fake_quantize import FusedMovingAvgObsFakeQuantize
 from torch.ao.quantization.observer import HistogramObserver
@@ -34,20 +40,15 @@ from torch.ao.quantization.quantizer import Quantizer
 from torch.fx import Node
 import torch.nn.functional as F
 
-from ai_edge_torch.quantize.pt2e_quantizer_utils import _convert_scalars_to_attrs  # NOQA
-from ai_edge_torch.quantize.pt2e_quantizer_utils import OP_TO_ANNOTATOR
-from ai_edge_torch.quantize.pt2e_quantizer_utils import OperatorConfig
-from ai_edge_torch.quantize.pt2e_quantizer_utils import OperatorPatternType
-from ai_edge_torch.quantize.pt2e_quantizer_utils import propagate_annotation
-from ai_edge_torch.quantize.pt2e_quantizer_utils import QuantizationConfig
-
 __all__ = [
     "PT2EQuantizer",
     "get_symmetric_quantization_config",
 ]
 
 
-def _supported_symmetric_quantized_operators() -> Dict[str, List[OperatorPatternType]]:
+def _supported_symmetric_quantized_operators() -> (
+    Dict[str, List[OperatorPatternType]]
+):
   supported_operators: Dict[str, List[OperatorPatternType]] = {
       # Both conv and linear should be able to handle relu + hardtanh fusion since
       # those are clamp ops
@@ -92,7 +93,9 @@ def get_symmetric_quantization_config(
 ):
   if is_qat:
     if is_dynamic:
-      raise NotImplementedError("dynamic quantization for qat is not yet implemented.")
+      raise NotImplementedError(
+          "dynamic quantization for qat is not yet implemented."
+      )
     act_observer_or_fake_quant_ctr = FusedMovingAvgObsFakeQuantize
   else:
     if is_dynamic:
@@ -106,12 +109,18 @@ def get_symmetric_quantization_config(
       quant_max=127,
       qscheme=torch.per_tensor_affine,
       is_dynamic=is_dynamic,
-      observer_or_fake_quant_ctr=act_observer_or_fake_quant_ctr.with_args(eps=2**-12),
+      observer_or_fake_quant_ctr=act_observer_or_fake_quant_ctr.with_args(
+          eps=2**-12
+      ),
   )
   qscheme = (
-      torch.per_channel_symmetric if is_per_channel else torch.per_tensor_symmetric
+      torch.per_channel_symmetric
+      if is_per_channel
+      else torch.per_tensor_symmetric
   )
-  weight_observer_or_fake_quant_ctr: _ObserverOrFakeQuantizeConstructor = MinMaxObserver
+  weight_observer_or_fake_quant_ctr: _ObserverOrFakeQuantizeConstructor = (
+      MinMaxObserver
+  )
   if is_qat:
     weight_observer_or_fake_quant_ctr = FusedMovingAvgObsFakeQuantize
   elif is_per_channel:
@@ -179,15 +188,18 @@ def _get_supported_config_and_operators() -> List[OperatorConfig]:
 
 def _get_module_name_filter(module_name: str):
   """Get the module_name_filter function for a given module name, the filter accepts
+
   a node and checks if the node comes from a module that has certain module name
 
   For example:
-      node: linear_op = call_function[...](...)  # comes from a module with name blocks.sub.linear1
+      node: linear_op = call_function[...](...)  # comes from a module with name
+      blocks.sub.linear1
 
 
   >> module_name_filter = _get_module_name_filter("blocks.sub")
   >> print(module_name_filter(node))
-  True  # the node is from "blocks.sub" based on the fully qualified name "blocks.sub.linear1"
+  True  # the node is from "blocks.sub" based on the fully qualified name
+  "blocks.sub.linear1"
   """
 
   def module_name_filter(n: Node) -> bool:
@@ -197,7 +209,9 @@ def _get_module_name_filter(module_name: str):
     # }
     # get_attr nodes doesn't have nn_module_stack?
     nn_module_stack = n.meta.get("nn_module_stack", {})
-    names = [n[len("L__self___") :].replace("_", ".") for n in nn_module_stack.keys()]
+    names = [
+        n[len("L__self___") :].replace("_", ".") for n in nn_module_stack.keys()
+    ]
     return module_name in names
 
   return module_name_filter
@@ -205,15 +219,19 @@ def _get_module_name_filter(module_name: str):
 
 def _get_module_type_filter(tp: Callable):
   """Get the module_type_filter function for a given module type, the filter accepts
+
   a node and checks if the node comes from a module that has certain module type
 
   For example:
-      node: linear_op = call_function[...](...)  # comes from a module with type Block -> Sub -> Linear
+      node: linear_op = call_function[...](...)  # comes from a module with type
+      Block -> Sub -> Linear
 
 
-  >> module_type_filter = _get_module_type_filter(Sub)  # submodule with type `Sub`, under the `Block` submodule
+  >> module_type_filter = _get_module_type_filter(Sub)  # submodule with type
+  `Sub`, under the `Block` submodule
   >> print(module_type_filter(node))
-  True  # the node is from the submodule `Sub` (same for `Block` and `Linear` as well)
+  True  # the node is from the submodule `Sub` (same for `Block` and `Linear` as
+  well)
   """
 
   def module_type_filter(n: Node) -> bool:
@@ -232,7 +250,9 @@ def _get_not_module_type_or_name_filter(
     tp_list: List[Callable], module_name_list: List[str]
 ) -> Callable[[Node], bool]:
   module_type_filters = [_get_module_type_filter(tp) for tp in tp_list]
-  module_name_list_filters = [_get_module_name_filter(m) for m in module_name_list]
+  module_name_list_filters = [
+      _get_module_name_filter(m) for m in module_name_list
+  ]
 
   def not_module_type_or_name_filter(n: Node) -> bool:
     return not any(f(n) for f in module_type_filters + module_name_list_filters)
@@ -307,7 +327,9 @@ class PT2EQuantizer(Quantizer):
         return ops
     return []
 
-  def set_global(self, quantization_config: QuantizationConfig) -> PT2EQuantizer:
+  def set_global(
+      self, quantization_config: QuantizationConfig
+  ) -> PT2EQuantizer:
     self.global_config = quantization_config
     return self
 
@@ -323,8 +345,11 @@ class PT2EQuantizer(Quantizer):
       self, module_type: Callable, quantization_config: QuantizationConfig
   ):
     """Set quantization_config for a submodule with type: `module_type`, for example:
-    quantizer.set_module_name(Sub) or quantizer.set_module_name(nn.Linear), it will quantize all supported operator/operator
-    patterns in the submodule with this module type with the given `quantization_config`
+
+    quantizer.set_module_name(Sub) or quantizer.set_module_name(nn.Linear), it
+    will quantize all supported operator/operator
+    patterns in the submodule with this module type with the given
+    `quantization_config`
     """
     self.module_type_config[module_type] = quantization_config
     return self
@@ -333,8 +358,11 @@ class PT2EQuantizer(Quantizer):
       self, module_name: str, quantization_config: Optional[QuantizationConfig]
   ):
     """Set quantization_config for a submodule with name: `module_name`, for example:
-    quantizer.set_module_name("blocks.sub"), it will quantize all supported operator/operator
-    patterns in the submodule with this module name with the given `quantization_config`
+
+    quantizer.set_module_name("blocks.sub"), it will quantize all supported
+    operator/operator
+    patterns in the submodule with this module name with the given
+    `quantization_config`
     """
     assert (
         quantization_config is not None

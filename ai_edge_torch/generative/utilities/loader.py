@@ -18,10 +18,9 @@ import glob
 import os
 from typing import Callable, Dict, List, Tuple
 
+from ai_edge_torch.generative.layers import model_config
 from safetensors import safe_open
 import torch
-
-from ai_edge_torch.generative.layers import model_config
 
 
 def load_safetensors(full_path: str):
@@ -73,7 +72,7 @@ def load_pytorch_statedict(full_path: str):
   patterns = []
   if os.path.isdir(full_path):
     patterns.append(os.path.join(full_path, "*.bin"))
-    patterns.append(os.path.join(full_path, "*.pt"))
+    patterns.append(os.path.join(full_path, "*pt"))
   else:
     patterns.append(full_path)
   for pattern in patterns:
@@ -93,9 +92,7 @@ def load_pytorch_statedict(full_path: str):
 
 
 class ModelLoader:
-  """A utility class for loading and converting model checkpoints to the
-  Edge Generative API layer format.
-  """
+  """Utlity for loading model checkpoints to the Edge Generative API layer."""
 
   @dataclass
   class TensorNames:
@@ -110,19 +107,22 @@ class ModelLoader:
     ff_gate_proj: str = None
 
     pre_attn_norm: str = None
+    post_attn_norm: str = None
     pre_ff_norm: str = None
+    post_ff_norm: str = None
     embedding: str = None
     embedding_position: str = None
     final_norm: str = None
     lm_head: str = None
 
   def __init__(self, file_name: str, names: TensorNames) -> None:
-    """ModelLoader constructor. Can be used to load multiple models of the same
-    type.
+    """ModelLoader constructor.
+
+    Can be used to load multiple models of the same type.
 
     Args:
-        file_name (str): Path to the checkpoint. Can be a directory or an
-          exact file.
+        file_name (str): Path to the checkpoint. Can be a directory or an exact
+          file.
         names (TensorNames): An instance of `TensorNames` to determine mappings.
     """
     self._file_name = file_name
@@ -141,13 +141,15 @@ class ModelLoader:
 
     Returns:
         missing_keys (List[str]): a list of str containing the missing keys.
-        unexpected_keys (List[str]): a list of str containing the unexpected keys.
+        unexpected_keys (List[str]): a list of str containing the unexpected
+        keys.
 
     Raises:
         ValueError: If conversion results in unmapped tensors and strict mode is
           enabled.
     """
     state = self._loader(self._file_name)
+    state = state["model_state_dict"] if "model_state_dict" in state else state
     converted_state = dict()
     if self._names.embedding is not None:
       converted_state["tok_embedding.weight"] = state.pop(
@@ -158,14 +160,22 @@ class ModelLoader:
             f"{self._names.embedding_position}"
         )
     if self._names.lm_head is not None:
-      converted_state["lm_head.weight"] = state.pop(f"{self._names.lm_head}.weight")
+      converted_state["lm_head.weight"] = state.pop(
+          f"{self._names.lm_head}.weight"
+      )
       if model.config.lm_head_use_bias:
-        converted_state["lm_head.bias"] = state.pop(f"{self._names.lm_head}.bias")
+        converted_state["lm_head.bias"] = state.pop(
+            f"{self._names.lm_head}.bias"
+        )
     if self._names.final_norm is not None:
       final_norm_name = self._names.final_norm
-      converted_state["final_norm.weight"] = state.pop(f"{final_norm_name}.weight")
+      converted_state["final_norm.weight"] = state.pop(
+          f"{final_norm_name}.weight"
+      )
       if f"{final_norm_name}.bias" in state:
-        converted_state["final_norm.bias"] = state.pop(f"{final_norm_name}.bias")
+        converted_state["final_norm.bias"] = state.pop(
+            f"{final_norm_name}.bias"
+        )
 
     for i in range(model.config.num_layers):
       self._map_norm(i, model.config, state, converted_state)
@@ -191,17 +201,17 @@ class ModelLoader:
       if glob.glob(os.path.join(self._file_name, "*.safetensors")):
         return load_safetensors
       if glob.glob(os.path.join(self._file_name, "*.bin")) or glob.glob(
-          os.path.join(self._file_name, "*.pt")
+          os.path.join(self._file_name, "*pt")
       ):
         return load_pytorch_statedict
 
     if self._file_name.endswith(".safetensors"):
       return load_safetensors
 
-    if self._file_name.endswith(".bin") or self._file_name.endswith(".pt"):
+    if self._file_name.endswith(".bin") or self._file_name.endswith("pt"):
       return load_pytorch_statedict
 
-    raise ValueError(f"File format not supported.")
+    raise ValueError("File format not supported.")
 
   def _map_feedforward(
       self,
@@ -214,18 +224,26 @@ class ModelLoader:
     if config.ff_config.type == model_config.FeedForwardType.SEQUENTIAL:
       ff_up_proj_name = self._names.ff_up_proj.format(idx)
       ff_down_proj_name = self._names.ff_down_proj.format(idx)
-      converted_state[f"{prefix}.ff.w1.weight"] = state.pop(f"{ff_up_proj_name}.weight")
+      converted_state[f"{prefix}.ff.w1.weight"] = state.pop(
+          f"{ff_up_proj_name}.weight"
+      )
       converted_state[f"{prefix}.ff.w2.weight"] = state.pop(
           f"{ff_down_proj_name}.weight"
       )
       if config.ff_config.use_bias:
-        converted_state[f"{prefix}.ff.w1.bias"] = state.pop(f"{ff_up_proj_name}.bias")
-        converted_state[f"{prefix}.ff.w2.bias"] = state.pop(f"{ff_down_proj_name}.bias")
+        converted_state[f"{prefix}.ff.w1.bias"] = state.pop(
+            f"{ff_up_proj_name}.bias"
+        )
+        converted_state[f"{prefix}.ff.w2.bias"] = state.pop(
+            f"{ff_down_proj_name}.bias"
+        )
     else:
       ff_up_proj_name = self._names.ff_up_proj.format(idx)
       ff_down_proj_name = self._names.ff_down_proj.format(idx)
       ff_gate_proj_name = self._names.ff_gate_proj.format(idx)
-      converted_state[f"{prefix}.ff.w3.weight"] = state.pop(f"{ff_up_proj_name}.weight")
+      converted_state[f"{prefix}.ff.w3.weight"] = state.pop(
+          f"{ff_up_proj_name}.weight"
+      )
       converted_state[f"{prefix}.ff.w2.weight"] = state.pop(
           f"{ff_down_proj_name}.weight"
       )
@@ -233,9 +251,35 @@ class ModelLoader:
           f"{ff_gate_proj_name}.weight"
       )
       if config.ff_config.use_bias:
-        converted_state[f"{prefix}.ff.w3.bias"] = state.pop(f"{ff_up_proj_name}.bias")
-        converted_state[f"{prefix}.ff.w2.bias"] = state.pop(f"{ff_down_proj_name}.bias")
-        converted_state[f"{prefix}.ff.w1.bias"] = state.pop(f"{ff_gate_proj_name}.bias")
+        converted_state[f"{prefix}.ff.w3.bias"] = state.pop(
+            f"{ff_up_proj_name}.bias"
+        )
+        converted_state[f"{prefix}.ff.w2.bias"] = state.pop(
+            f"{ff_down_proj_name}.bias"
+        )
+        converted_state[f"{prefix}.ff.w1.bias"] = state.pop(
+            f"{ff_gate_proj_name}.bias"
+        )
+
+    if self._names.pre_ff_norm is not None:
+      pre_ff_norm_name = self._names.pre_ff_norm.format(idx)
+      converted_state[f"{prefix}.ff.pre_ff_norm.weight"] = state.pop(
+          f"{pre_ff_norm_name}.weight"
+      )
+      if f"{pre_ff_norm_name}.bias" in state:
+        converted_state[f"{prefix}.ff.pre_ff_norm.bias"] = state.pop(
+            f"{pre_ff_norm_name}.bias"
+        )
+
+    if self._names.post_ff_norm is not None:
+      post_ff_norm_name = self._names.post_ff_norm.format(idx)
+      converted_state[f"{prefix}.ff.post_ff_norm.weight"] = state.pop(
+          f"{post_ff_norm_name}.weight"
+      )
+      if f"{post_ff_norm_name}.bias" in state:
+        converted_state[f"{prefix}.ff.post_ff_norm.bias"] = state.pop(
+            f"{post_ff_norm_name}.bias"
+        )
 
   def _map_attention(
       self,
@@ -254,11 +298,13 @@ class ModelLoader:
       q_name = self._names.attn_query_proj.format(idx)
       k_name = self._names.attn_key_proj.format(idx)
       v_name = self._names.attn_value_proj.format(idx)
-      converted_state[f"{prefix}.atten_func.qkv_projection.weight"] = self._fuse_qkv(
-          config,
-          state.pop(f"{q_name}.weight"),
-          state.pop(f"{k_name}.weight"),
-          state.pop(f"{v_name}.weight"),
+      converted_state[f"{prefix}.atten_func.qkv_projection.weight"] = (
+          self._fuse_qkv(
+              config,
+              state.pop(f"{q_name}.weight"),
+              state.pop(f"{k_name}.weight"),
+              state.pop(f"{v_name}.weight"),
+          )
       )
     if config.attn_config.qkv_use_bias:
       if self._names.attn_fused_qkv_proj:
@@ -266,20 +312,22 @@ class ModelLoader:
             f"{fused_qkv_name}.bias"
         )
       else:
-        converted_state[f"{prefix}.atten_func.qkv_projection.bias"] = self._fuse_qkv(
-            config,
-            state.pop(f"{q_name}.bias"),
-            state.pop(f"{k_name}.bias"),
-            state.pop(f"{v_name}.bias"),
+        converted_state[f"{prefix}.atten_func.qkv_projection.bias"] = (
+            self._fuse_qkv(
+                config,
+                state.pop(f"{q_name}.bias"),
+                state.pop(f"{k_name}.bias"),
+                state.pop(f"{v_name}.bias"),
+            )
         )
 
     o_name = self._names.attn_output_proj.format(idx)
-    converted_state[f"{prefix}.atten_func.output_projection.weight"] = state.pop(
-        f"{o_name}.weight"
+    converted_state[f"{prefix}.atten_func.output_projection.weight"] = (
+        state.pop(f"{o_name}.weight")
     )
     if config.attn_config.output_proj_use_bias:
-      converted_state[f"{prefix}.atten_func.output_projection.bias"] = state.pop(
-          f"{o_name}.bias"
+      converted_state[f"{prefix}.atten_func.output_projection.bias"] = (
+          state.pop(f"{o_name}.bias")
       )
 
   def _map_norm(
@@ -300,14 +348,14 @@ class ModelLoader:
             f"{pre_attn_norm_name}.bias"
         )
 
-    if self._names.pre_ff_norm is not None:
-      pre_ff_norm_name = self._names.pre_ff_norm.format(idx)
-      converted_state[f"{prefix}.pre_ff_norm.weight"] = state.pop(
-          f"{pre_ff_norm_name}.weight"
+    if self._names.post_attn_norm is not None:
+      post_attn_norm_name = self._names.post_attn_norm.format(idx)
+      converted_state[f"{prefix}.post_atten_norm.weight"] = state.pop(
+          f"{post_attn_norm_name}.weight"
       )
-      if f"{pre_ff_norm_name}.bias" in state:
-        converted_state[f"{prefix}.pre_ff_norm.bias"] = state.pop(
-            f"{pre_ff_norm_name}.bias"
+      if f"{post_attn_norm_name}.bias" in state:
+        converted_state[f"{prefix}.post_atten_norm.bias"] = state.pop(
+            f"{post_attn_norm_name}.bias"
         )
 
   def _fuse_qkv(
@@ -318,10 +366,12 @@ class ModelLoader:
       v: torch.Tensor,
   ) -> torch.Tensor:
     if config.attn_config.qkv_fused_interleaved:
-      q_per_kv = config.attn_config.num_heads // config.attn_config.num_query_groups
-      qs = torch.split(q, config.head_dim * q_per_kv)
-      ks = torch.split(k, config.head_dim)
-      vs = torch.split(v, config.head_dim)
+      q_per_kv = (
+          config.attn_config.num_heads // config.attn_config.num_query_groups
+      )
+      qs = torch.split(q, config.attn_config.head_dim * q_per_kv)
+      ks = torch.split(k, config.attn_config.head_dim)
+      vs = torch.split(v, config.attn_config.head_dim)
       cycled = [t for group in zip(qs, ks, vs) for t in group]
       return torch.cat(cycled)
     else:

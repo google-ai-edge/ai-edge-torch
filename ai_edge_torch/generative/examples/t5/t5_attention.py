@@ -16,16 +16,15 @@
 
 from typing import Optional, Tuple
 
-import torch
-from torch import nn
-import torch.nn.functional as F
-
 from ai_edge_torch.generative.layers.attention import CrossAttention
 import ai_edge_torch.generative.layers.builder as builder
 from ai_edge_torch.generative.layers.kv_cache import KVCache
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention  # NOQA
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention_with_hlfb  # NOQA
+import torch
+from torch import nn
+import torch.nn.functional as F
 
 BATCH_SIZE = 1
 
@@ -38,10 +37,10 @@ class EncoderDecoderBlock(nn.Module):
     """Initialize an instance of the EncoderDecoderBlock.
 
     Args:
-      config (cfg.ModelConfig): the configuration object
-        for this transformer block.
-      has_relative_attention_bias (bool): whether the
-        self attention block has relative bias.
+      config (cfg.ModelConfig): the configuration object for this transformer
+        block.
+      has_relative_attention_bias (bool): whether the self attention block has
+        relative bias.
     """
 
     super().__init__()
@@ -69,8 +68,8 @@ class EncoderDecoderBlock(nn.Module):
     else:
       self.cross_atten_func = None
 
-    self.pre_ff_norm = builder.build_norm(
-        config.embedding_dim, config.pre_ff_norm_config
+    self.post_atten_norm = builder.build_norm(
+        config.embedding_dim, config.post_attention_norm_config
     )
     self.ff = builder.build_ff(config.embedding_dim, config.ff_config)
     self.config = config
@@ -119,7 +118,7 @@ class EncoderDecoderBlock(nn.Module):
       )
       attn_out = hidden_states + attn_out
 
-    forwarded = self.pre_ff_norm(attn_out)
+    forwarded = self.post_atten_norm(attn_out)
     forwarded = self.ff(forwarded)
     hidden_states = attn_out + forwarded
 
@@ -144,8 +143,10 @@ class T5Attention(CrossAttention):
     Args:
       dim (int): causal attention's input/output dimmension.
       config (cfg.AttentionConfig): attention specific configurations.
-      norm_config (cfg.NormalizationConfig): normalization configure before attention.
-      kv_cache_max (int): determines the size of the KV Cache buffer, if enabled.
+      norm_config (cfg.NormalizationConfig): normalization configure before
+        attention.
+      kv_cache_max (int): determines the size of the KV Cache buffer, if
+        enabled.
       enable_hlfb (bool): whether hlfb is enabled or not.
       has_relative_attention_bias (bool): whether we compute relative bias.
     """
@@ -181,9 +182,13 @@ class T5Attention(CrossAttention):
     """
 
     x = self.pre_atten_norm(x)
-    B, T, C = x.size()  # batch size, sequence length, embedding dimensionality (n_embd)
+    B, T, C = (
+        x.size()
+    )  # batch size, sequence length, embedding dimensionality (n_embd)
     query_states = self.q_projection(x)
-    query_states = query_states.reshape(B, T, -1, self.head_dim)  # (B, T, nh_q, hs)
+    query_states = query_states.reshape(
+        B, T, -1, self.config.head_dim
+    )  # (B, T, nh_q, hs)
 
     if key_value_states is not None:
       (
@@ -195,13 +200,13 @@ class T5Attention(CrossAttention):
       )  # batch size, sequence length, embedding dimensionality (n_embd)
       key_states = self.k_projection(key_value_states)
       value_states = self.v_projection(key_value_states)
-      key_states = key_states.reshape(kvB, kvT, -1, self.head_dim)
-      value_states = value_states.reshape(kvB, kvT, -1, self.head_dim)
+      key_states = key_states.reshape(kvB, kvT, -1, self.config.head_dim)
+      value_states = value_states.reshape(kvB, kvT, -1, self.config.head_dim)
     else:
       key_states = self.k_projection(x)
       value_states = self.v_projection(x)
-      key_states = key_states.reshape(B, T, -1, self.head_dim)
-      value_states = value_states.reshape(B, T, -1, self.head_dim)
+      key_states = key_states.reshape(B, T, -1, self.config.head_dim)
+      value_states = value_states.reshape(B, T, -1, self.config.head_dim)
 
     if key_value_states is None and self.kv_cache is not None:
       key_states, value_states = self.kv_cache.update_cache(
@@ -218,12 +223,17 @@ class T5Attention(CrossAttention):
             0
         )  # shape (1, num_heads, query_length, key_length)
       else:
-        # position_bias = torch.zeros(B, self.n_heads, T, self.head_dim, dtype=torch.float32)
+        # position_bias = torch.zeros(B, self.n_heads, T, self.config.head_dim, dtype=torch.float32)
         position_bias = torch.zeros_like(mask, dtype=torch.float32)
 
     mask = mask + position_bias
     y = self.sdpa_func(
-        query_states, key_states, value_states, self.head_dim, mask=mask, scale=1.0
+        query_states,
+        key_states,
+        value_states,
+        self.config.head_dim,
+        mask=mask,
+        scale=1.0,
     )
     y = y.reshape(B, T, C)  # re-assemble all head outputs side by side
     # output projection

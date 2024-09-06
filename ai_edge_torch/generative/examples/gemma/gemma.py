@@ -17,15 +17,14 @@
 import os
 from pathlib import Path
 
-import numpy as np
-import torch
-import torch.nn as nn
-
-from ai_edge_torch.generative.layers.attention import TransformerBlock
+from ai_edge_torch.generative.layers import attention
+from ai_edge_torch.generative.layers import builder
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
-import ai_edge_torch.generative.layers.builder as builder
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
+import numpy as np
+import torch
+from torch import nn
 
 TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.up_proj",
@@ -36,7 +35,7 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     attn_value_proj="model.layers.{}.self_attn.v_proj",
     attn_output_proj="model.layers.{}.self_attn.o_proj",
     pre_attn_norm="model.layers.{}.input_layernorm",
-    pre_ff_norm="model.layers.{}.post_attention_layernorm",
+    post_attn_norm="model.layers.{}.post_attention_layernorm",
     embedding="model.embed_tokens",
     final_norm="model.norm",
     lm_head=None,
@@ -44,6 +43,7 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
 
 
 class Gemma(nn.Module):
+  """A Gemma model built from the Edge Generative API layers."""
 
   def __init__(self, config: cfg.ModelConfig):
     super().__init__()
@@ -61,7 +61,7 @@ class Gemma(nn.Module):
     # Gemma re-uses the embedding as the head projection layer.
     self.lm_head.weight.data = self.tok_embedding.weight.data
     self.transformer_blocks = nn.ModuleList(
-        TransformerBlock(config) for _ in range(config.num_layers)
+        attention.TransformerBlock(config) for _ in range(config.num_layers)
     )
     self.final_norm = builder.build_norm(
         config.embedding_dim,
@@ -69,14 +69,18 @@ class Gemma(nn.Module):
     )
     self.rope_cache = attn_utils.build_rope_cache(
         size=config.kv_cache_max,
-        dim=int(config.attn_config.rotary_percentage * config.head_dim),
+        dim=int(
+            config.attn_config.rotary_percentage * config.attn_config.head_dim
+        ),
         base=10_000,
         condense_ratio=1,
         dtype=torch.float32,
         device=torch.device("cpu"),
     )
     self.mask_cache = attn_utils.build_causal_mask_cache(
-        size=config.kv_cache_max, dtype=torch.float32, device=torch.device("cpu")
+        size=config.kv_cache_max,
+        dtype=torch.float32,
+        device=torch.device("cpu"),
     )
     self.config = config
 
@@ -85,10 +89,11 @@ class Gemma(nn.Module):
   # This can be eliminated if we handle k/v cache updates inside the model itself.
   @torch.inference_mode
   def forward(self, idx: torch.Tensor, input_pos: torch.Tensor) -> torch.Tensor:
-    B, T = idx.size()
-    assert (
-        self.config.max_seq_len >= T
-    ), f"Cannot forward sequence of length {T}, max seq length is only {self.config.max_seq_len}"
+    _, seq_len = idx.size()
+    assert self.config.max_seq_len >= seq_len, (
+        f"Cannot forward sequence of length {seq_len}, max seq length is only"
+        f" {self.config.max_seq_len}"
+    )
 
     cos, sin = self.rope_cache
     cos = cos.index_select(0, input_pos)
@@ -100,7 +105,7 @@ class Gemma(nn.Module):
     x = self.tok_embedding(idx)
     x = x * (self.config.embedding_dim**0.5)
 
-    for i, block in enumerate(self.transformer_blocks):
+    for _, block in enumerate(self.transformer_blocks):
       x = block(x, (cos, sin), mask, input_pos)
 
     x = self.final_norm(x)
@@ -109,8 +114,18 @@ class Gemma(nn.Module):
 
 
 def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+  """Returns the model config for a Gemma 2B model.
+
+  Args:
+    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
+      is 1024.
+
+  Returns:
+    The model config for a Gemma 2B model.
+  """
   attn_config = cfg.AttentionConfig(
       num_heads=8,
+      head_dim=256,
       num_query_groups=1,
       rotary_percentage=1.0,
   )
@@ -133,7 +148,7 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       attn_config=attn_config,
       ff_config=ff_config,
       pre_attention_norm_config=norm_config,
-      pre_ff_norm_config=norm_config,
+      post_attention_norm_config=norm_config,
       final_norm_config=norm_config,
       parallel_residual=False,
       lm_head_use_bias=False,
@@ -142,23 +157,29 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
-def get_fake_model_config_2b_for_test() -> cfg.ModelConfig:
-  config = get_model_config_2b()
+def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
+  config = get_model_config_2b(kv_cache_max_len)
+  config.ff_config.intermediate_size = 128
+  config.vocab_size = 128
   config.num_layers = 2
+  config.max_seq_len = 2 * kv_cache_max_len
   return config
 
 
-def build_2b_model(checkpoint_path, **kwargs) -> nn.Module:
+def build_2b_model(checkpoint_path: str, **kwargs) -> nn.Module:
   config = get_model_config_2b(**kwargs)
   model = Gemma(config)
   loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
   # since embedding and lm-head use the same weight, we need to set strict
   # to False.
   loader.load(model, strict=False)
+  model.eval()
   return model
 
 
 def define_and_run_2b() -> None:
+  """Instantiates and runs a Gemma 2B model."""
+
   current_dir = Path(__file__).parent.resolve()
   gemma_goldens = torch.load(current_dir / "gemma_lm_logits.pt")
 
@@ -171,7 +192,9 @@ def define_and_run_2b() -> None:
   input_pos = torch.arange(0, kv_cache_max_len)
   lm_logits = model.forward(tokens, input_pos)
   print("comparing with goldens..")
-  assert torch.allclose(gemma_goldens, lm_logits[0, idx.shape[1] - 1, :], atol=1e-05)
+  assert torch.allclose(
+      gemma_goldens, lm_logits[0, idx.shape[1] - 1, :], atol=1e-05
+  )
 
 
 if __name__ == "__main__":

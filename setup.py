@@ -15,6 +15,7 @@
 
 import os
 import pathlib
+import re
 
 from setuptools import find_packages
 from setuptools import setup
@@ -33,16 +34,26 @@ and additional details are in the AI Edge Torch
 """.lstrip()
 
 name = "ai-edge-torch"
-version = "0.2.0"
+# TODO(b/357076369): move version updating logics to version.py
+version_py = here / "ai_edge_torch" / "version.py"
+version_regex = "__version__\s*=\s*(\"|')(?P<version>[^\"']+)(\"|')"
+version = re.search(version_regex, version_py.read_text()).group("version")
+
 if nightly_release_date := os.environ.get("NIGHTLY_RELEASE_DATE"):
   name += "-nightly"
   version += ".dev" + nightly_release_date
-
+  version_py.write_text(
+      re.sub(
+          version_regex, f'__version__ = "{version}"', version_py.read_text()
+      )
+  )
 
 setup(
     name=name,
     version=version,
-    description="Supporting PyTorch models with the Google AI Edge TFLite runtime.",
+    description=(
+        "Supporting PyTorch models with the Google AI Edge TFLite runtime."
+    ),
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/google-ai-edge/ai-edge-torch",
@@ -68,7 +79,7 @@ setup(
     packages=find_packages(
         include=["ai_edge_torch*"],
     ),
-    python_requires=">=3.9, <3.12",
+    python_requires=">=3.9",
     install_requires=[
         "numpy",
         "scipy",
@@ -77,6 +88,6 @@ setup(
         "torch>=2.4.0",
         "torch_xla>=2.4.0",
         "tf-nightly>=2.18.0.dev20240722",
-        "ai-edge-quantizer-nightly==0.0.1.dev20240718",
+        "ai-edge-quantizer-nightly",
     ],
 )

@@ -16,16 +16,14 @@
 
 from typing import Optional, Tuple
 
-import torch
-from torch import nn
-import torch.nn.functional as F
-
 import ai_edge_torch.generative.layers.builder as builder
 from ai_edge_torch.generative.layers.kv_cache import KVCache
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention  # NOQA
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention_with_hlfb  # NOQA
+import torch
+from torch import nn
 
 from ai_edge_torch.generative.layers.group_norm import layer_norm_with_hlfb # NOQA
 
@@ -62,8 +60,8 @@ class TransformerBlock(nn.Module):
     """Initialize an instance of the TransformerBlock.
 
     Args:
-      config (cfg.ModelConfig): the configuration object
-        for this transformer block.
+      config (cfg.ModelConfig): the configuration object for this transformer
+        block.
     """
 
     super().__init__()
@@ -77,8 +75,8 @@ class TransformerBlock(nn.Module):
         config.kv_cache_max,
         config.enable_hlfb,
     )
-    self.pre_ff_norm = builder.build_norm(
-        config.embedding_dim, config.pre_ff_norm_config
+    self.post_atten_norm = builder.build_norm(
+        config.embedding_dim, config.post_attention_norm_config
     )
     self.ff = builder.build_ff(config.embedding_dim, config.ff_config)
     self.config = config
@@ -115,9 +113,9 @@ class TransformerBlock(nn.Module):
       attn_out = self.atten_func(x_norm, rope, mask, input_pos)
       x = x + attn_out
       if self.config.pre_attention_norm_config.type == cfg.NormalizationType.LAYER_NORM:
-        x_norm = layer_norm_with_hlfb(x, self.config.embedding_dim, self.pre_ff_norm.weight, self.pre_ff_norm.bias, self.config.pre_ff_norm_config.epsilon)
+            x_norm = layer_norm_with_hlfb(x, self.config.embedding_dim, self.post_atten_norm.weight, self.post_atten_norm.bias, self.config.post_atten_norm.epsilon)
       else:
-        x_norm = self.pre_ff_norm(x)
+        x_norm = self.post_atten_norm(x)
       output = x + self.ff(x_norm)
 
     return output
@@ -139,18 +137,23 @@ class CausalSelfAttention(nn.Module):
       batch_size (int): batch size of the input tensor.
       dim (int): causal attention's input/output dimmension.
       config (cfg.AttentionConfig): attention specific configurations.
-      kv_cache_max (int): determines the size of the KV Cache buffer, if enabled.
+      kv_cache_max (int): determines the size of the KV Cache buffer, if
+        enabled.
       enable_hlfb (bool): whether hlfb is enabled or not.
     """
     super().__init__()
-    self.head_dim = dim // config.num_heads
-    shape = (config.num_heads + 2 * config.num_query_groups) * self.head_dim
-    # Key, query, value projections for all heads.
-    self.qkv_projection = nn.Linear(dim, shape, bias=config.qkv_use_bias)
-    self.output_projection = nn.Linear(dim, dim, bias=config.output_proj_use_bias)
     self.config = config
     self.kv_cache = None
     self.batch_size = batch_size
+    qkv_shape = (
+        config.num_heads + 2 * config.num_query_groups
+    ) * config.head_dim
+    output_shape = config.num_heads * config.head_dim
+    # Key, query, value projections for all heads.
+    self.qkv_projection = nn.Linear(dim, qkv_shape, bias=config.qkv_use_bias)
+    self.output_projection = nn.Linear(
+        output_shape, dim, bias=config.output_proj_use_bias
+    )
 
     # Build a k/v cache with size (batch_size, kv_cache_max, n_heads, head_dim).
     if config.enable_kv_cache:
@@ -158,7 +161,7 @@ class CausalSelfAttention(nn.Module):
           batch_size,
           kv_cache_max,
           config.num_query_groups,
-          self.head_dim,
+          config.head_dim,
           enable_hlfb,
       )
 
@@ -175,6 +178,7 @@ class CausalSelfAttention(nn.Module):
       input_pos: Optional[torch.Tensor] = None,
   ) -> torch.Tensor:
     """Forward function of the CausalSelfAttention layer, which can support
+
        MQA, GQA and MHA.
 
     Args:
@@ -188,9 +192,10 @@ class CausalSelfAttention(nn.Module):
     """
     # Batch size, sequence length, embedding dimensionality.
     B, T, E = x.size()
-    assert (
-        B == self.batch_size
-    ), "batch size of input tensor must match with the batch size specified in the model configuration."
+    assert B == self.batch_size, (
+        "batch size of input tensor must match with the batch size specified in"
+        " the model configuration."
+    )
 
     qkv = self.qkv_projection(x)
 
@@ -198,7 +203,7 @@ class CausalSelfAttention(nn.Module):
     q_per_kv = self.config.num_heads // self.config.num_query_groups
     # Each group has >=1 queries, 1 key, and 1 value.
     if self.config.qkv_transpose_before_split:
-      qkv = qkv.view(B, T, -1, self.head_dim)
+      qkv = qkv.view(B, T, -1, self.config.head_dim)
       q, k, v = qkv.split(
           (
               q_per_kv * self.config.num_query_groups,
@@ -210,23 +215,35 @@ class CausalSelfAttention(nn.Module):
     else:
       qkv = qkv.view(B, T, self.config.num_query_groups, -1)
       q, k, v = qkv.split(
-          (q_per_kv * self.head_dim, self.head_dim, self.head_dim), dim=-1
+          (
+              q_per_kv * self.config.head_dim,
+              self.config.head_dim,
+              self.config.head_dim,
+          ),
+          dim=-1,
       )
 
-    q = q.reshape(B, T, -1, self.head_dim)
-    k = k.reshape(B, T, -1, self.head_dim)
-    v = v.reshape(B, T, -1, self.head_dim)
+    q = q.reshape(B, T, -1, self.config.head_dim)
+    k = k.reshape(B, T, -1, self.config.head_dim)
+    v = v.reshape(B, T, -1, self.config.head_dim)
 
     # Compute rotary positional embedding for query and key.
-    n_elem = int(self.config.rotary_percentage * self.head_dim)
+    n_elem = int(self.config.rotary_percentage * self.config.head_dim)
     q, k = _embed_rope(q, k, n_elem, rope)
 
     if self.kv_cache is not None:
       # TODO(haoliang): Handle when execeeding max sequence length.
       k, v = self.kv_cache.update_cache(input_pos, k, v)
 
-    y = self.sdpa_func(q, k, v, self.head_dim, mask=mask)
-    y = y.reshape(B, T, E)
+    y = self.sdpa_func(
+        q,
+        k,
+        v,
+        self.config.head_dim,
+        mask=mask,
+        softcap=self.config.logit_softcap,
+    )
+    y = y.reshape(B, T, -1)
 
     # Compute the output projection.
     y = self.output_projection(y)
@@ -279,16 +296,22 @@ class CrossAttention(nn.Module):
       query_dim (int): query tensor's dimension.
       cross_dim (int): cross attention's dimensions, for key and value tensors.
       config (cfg.AttentionConfig): attention specific configurations.
-      kv_cache_max (int): determines the size of the KV Cache buffer, if enabled.
+      kv_cache_max (int): determines the size of the KV Cache buffer, if
+        enabled.
       enable_hlfb (bool): whether hlfb is enabled or not.
     """
     super().__init__()
     self.config = config
-    self.head_dim = query_dim // config.num_heads
     self.n_heads = config.num_heads
-    self.q_projection = nn.Linear(query_dim, query_dim, bias=config.qkv_use_bias)
-    self.k_projection = nn.Linear(cross_dim, query_dim, bias=config.qkv_use_bias)
-    self.v_projection = nn.Linear(cross_dim, query_dim, bias=config.qkv_use_bias)
+    self.q_projection = nn.Linear(
+        query_dim, query_dim, bias=config.qkv_use_bias
+    )
+    self.k_projection = nn.Linear(
+        cross_dim, query_dim, bias=config.qkv_use_bias
+    )
+    self.v_projection = nn.Linear(
+        cross_dim, query_dim, bias=config.qkv_use_bias
+    )
     self.output_projection = nn.Linear(
         query_dim, query_dim, bias=config.output_proj_use_bias
     )
@@ -300,7 +323,7 @@ class CrossAttention(nn.Module):
           batch_size,
           kv_cache_max,
           config.num_query_groups,
-          self.head_dim,
+          self.config.head_dim,
           enable_hlfb,
       )
 
@@ -323,7 +346,8 @@ class CrossAttention(nn.Module):
       x (torch.Tensor): the target tensor, with shape [B, target_seq_len, ...].
       y (torch.Tensor): the source tensor, with shape [B, source_seq_len, ...].
       rope (Tuple[torch.Tensor, torch.Tensor]): the optional input rope tensor.
-      mask (torch.Tensor): the optional mask tensor can be broadcaseted to shape [B, n_heads, target_seq_len, source_seq_len].
+      mask (torch.Tensor): the optional mask tensor can be broadcaseted to shape
+        [B, n_heads, target_seq_len, source_seq_len].
       input_pos (torch.Tensor): the optional input position tensor.
 
     Returns:
@@ -337,13 +361,13 @@ class CrossAttention(nn.Module):
     k = self.k_projection(y)
     v = self.v_projection(y)
 
-    interim_shape = (batch_size, -1, self.n_heads, self.head_dim)
+    interim_shape = (batch_size, -1, self.n_heads, self.config.head_dim)
     q = q.view(interim_shape)
     k = k.view(interim_shape)
     v = v.view(interim_shape)
 
     # Compute rotary positional embedding for query and key.
-    n_elem = int(self.config.rotary_percentage * self.head_dim)
+    n_elem = int(self.config.rotary_percentage * self.config.head_dim)
     q, k = _embed_rope(q, k, n_elem, rope)
 
     if self.kv_cache is not None:
@@ -353,7 +377,7 @@ class CrossAttention(nn.Module):
       mask = torch.zeros(
           (batch_size, 1, target_seq_len, source_seq_len), dtype=torch.float32
       )
-    y = self.sdpa_func(q, k, v, self.head_dim, mask=mask)
+    y = self.sdpa_func(q, k, v, self.config.head_dim, mask=mask)
     y = y.reshape(batch_size, target_seq_len, -1)
 
     # Compute the output projection.

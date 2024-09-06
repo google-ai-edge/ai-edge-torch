@@ -14,18 +14,18 @@
 # ==============================================================================
 import re
 from typing import Callable, Union
-import unittest
 
-import torch
-import torch_xla
-
-from ai_edge_torch.convert.fx_passes import CanonicalizePass
-from ai_edge_torch.convert.fx_passes import run_passes
+from ai_edge_torch import config
+from ai_edge_torch import lowertools
+from ai_edge_torch._convert.fx_passes import CanonicalizePass
+from ai_edge_torch._convert.fx_passes import run_passes
 from ai_edge_torch.generative.fx_passes import RemoveSDPACompositeZeroMaskPass
 from ai_edge_torch.generative.layers.attention import SelfAttention
 import ai_edge_torch.generative.layers.model_config as layers_cfg
-import ai_edge_torch.generative.layers.unet.builder as unet_builder
 import ai_edge_torch.generative.layers.unet.model_config as unet_cfg
+import torch
+
+from absl.testing import absltest as googletest
 
 
 def _export_to_stablehlo(func: Union[torch.nn.Module, Callable], export_args):
@@ -49,12 +49,10 @@ def _export_to_stablehlo(func: Union[torch.nn.Module, Callable], export_args):
       ],
   )
 
-  return torch_xla.stablehlo.exported_program_to_stablehlo(
-      exported_program
-  ).get_stablehlo_text()
+  return lowertools.exported_program_to_mlir_text(exported_program)
 
 
-class TestRemoveSDPAZeroMaskPass(unittest.TestCase):
+class TestRemoveSDPAZeroMaskPass(googletest.TestCase):
 
   def test_self_attention_no_zero_mask_composite_input(self):
     class SampleSdpaBlock(torch.nn.Module):
@@ -100,6 +98,7 @@ class TestRemoveSDPAZeroMaskPass(unittest.TestCase):
           normalization_config=norm_config,
           attention_config=layers_cfg.AttentionConfig(
               num_heads=1,
+              head_dim=block_out_channels[-1],
               num_query_groups=1,
               qkv_use_bias=True,
               output_proj_use_bias=True,
@@ -110,16 +109,21 @@ class TestRemoveSDPAZeroMaskPass(unittest.TestCase):
       )
 
     stablehlo = _export_to_stablehlo(
-        SampleSdpaBlock(get_model_config()).eval(), (torch.rand(1, 512, 64, 64),)
+        SampleSdpaBlock(get_model_config()).eval(),
+        (torch.rand(1, 512, 64, 64),),
     )
-    print(stablehlo)
-    self.assertTrue(
-        re.search(
-            'stablehlo\.composite "odml\.scaled_dot_product_attention" %\d+, %\d+, %\d+ {',
-            stablehlo,
-        )
-    )
+
+    if config.Config.use_torch_xla:
+      self.assertTrue(
+          re.search(
+              'stablehlo\.composite "odml\.scaled_dot_product_attention" %\d+,'
+              ' %\d+, %\d+ {',
+              stablehlo,
+          )
+      )
+    else:
+      self.assertEqual(stablehlo.count('stablehlo.custom_call @mark_tensor'), 4)
 
 
 if __name__ == '__main__':
-  unittest.main()
+  googletest.main()
