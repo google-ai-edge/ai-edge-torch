@@ -18,6 +18,8 @@ import os
 from pathlib import Path
 from typing import Optional
 
+os.environ["AIEDGETORCH_LAYOUT_OPTIMIZE_PARTITIONER"] = "MINCUT"
+
 import ai_edge_torch
 import ai_edge_torch.generative.examples.stable_diffusion.clip as clip
 import ai_edge_torch.generative.examples.stable_diffusion.decoder as decoder
@@ -120,9 +122,9 @@ def convert_stable_diffusion_to_tflite(
 
   # TODO(yichunk): convert to multi signature tflite model.
   # CLIP text encoder
-  ai_edge_torch.signature('encode', clip_model, (prompt_tokens,)).convert(
-      quant_config=quant_config
-  ).export(f'{output_dir}/clip.tflite')
+#   ai_edge_torch.signature('encode', clip_model, (prompt_tokens,)).convert(
+#       quant_config=quant_config
+#   ).export(f'{output_dir}/clip.tflite')
 
   # TODO(yichunk): enable image encoder conversion
   # Image encoder

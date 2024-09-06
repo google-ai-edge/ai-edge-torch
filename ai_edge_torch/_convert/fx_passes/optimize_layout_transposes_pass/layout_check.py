@@ -197,12 +197,12 @@ def _aten_native_group_norm_checker(node):
       or not hasattr(val[0], "shape")
   ):
     return NHWCable(can_be=False, must_be=False)
-  if len(node.args) >= 3 and (
-      node.args[1] is not None or node.args[2] is not None
-  ):
-    # Disable NHWC rewriter due to precision issue with weight and bias.
-    # TODO(b/354780253): Re-enable NHWC rewriter with proper lowering.
-    return NHWCable(can_be=False, must_be=False)
+  # if len(node.args) >= 3 and (
+  #     node.args[1] is not None or node.args[2] is not None
+  # ):
+  #   # Disable NHWC rewriter due to precision issue with weight and bias.
+  #   # TODO(b/354780253): Re-enable NHWC rewriter with proper lowering.
+  #   return NHWCable(can_be=False, must_be=False)
   return NHWCable(can_be=len(val[0].shape) == 4, must_be=False)
 
 

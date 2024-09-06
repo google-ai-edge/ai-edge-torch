@@ -30,18 +30,8 @@ def group_norm_with_hlfb(
     num_groups: int,
     eps: float,
 ):
-  x = torch.permute(x, (0, 2, 3, 1))
-
-  builder = StableHLOCompositeBuilder(
-      name="odml.group_norm", attr={"num_groups": num_groups, "eps": eps}
-  )
-  x, w, b = builder.mark_inputs(x, w, b)
-  x = torch.permute(x, (0, 3, 1, 2))
+  # Let layout_rewrite.py builds NHWC group norm with composite
   y = F.group_norm(x, num_groups, weight=w, bias=b, eps=eps)
-  y = torch.permute(y, (0, 2, 3, 1))
-  y = builder.mark_outputs(y)
-
-  y = torch.permute(y, (0, 3, 1, 2))
   return y
 
 def layer_norm_with_hlfb(
