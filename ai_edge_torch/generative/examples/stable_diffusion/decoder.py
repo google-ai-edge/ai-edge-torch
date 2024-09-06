@@ -301,7 +301,7 @@ def get_model_config() -> unet_cfg.AutoEncoderConfig:
           qkv_fused_interleaved=False,
           rotary_percentage=0.0,
       ),
-      enable_hlfb=False,
+      enable_hlfb=True,
   )
 
   mid_block_config = unet_cfg.MidBlock2DConfig(
