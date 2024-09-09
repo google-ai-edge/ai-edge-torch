@@ -1,4 +1,4 @@
-OA# Copyright 2024 The AI Edge Torch Authors.
+# Copyright 2024 The AI Edge Torch Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@ OA# Copyright 2024 The AI Edge Torch Authors.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# Example of building the Gemma2 2B model.
+# Example of building the qwen2 model.
 
 import os
 from pathlib import Path
@@ -37,19 +37,19 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     ff_down_proj="model.layers.{}.mlp.down_proj",
     ff_gate_proj="model.layers.{}.mlp.gate_proj",
     # TODO @merron continue from here
-    attn_fused_qkv_proj="model.layers.{}.self_attn.qkv_proj",
-    attn_output_proj="model.layers.{}.self_attn.o_proj",
-    pre_attn_norm="model.layers.{}.input_layernorm",
-    post_attn_norm="model.layers.{}.post_attention_layernorm",
-    pre_ff_norm="model.layers.{}.pre_feedforward_layernorm",
-    post_ff_norm="model.layers.{}.post_feedforward_layernorm",
-    embedding="embedder",
-    final_norm="model.norm",
-    lm_head=None,
+    attn_query_proj="model.layers.{}.self_attn.q_proj",# from Qwen2Attention class
+    attn_key_proj="model.layers.{}.self_attn.k_proj",# from Qwen2Attention class
+    attn_value_proj="model.layers.{}.self_attn.v_proj",# from Qwen2Attention class
+    attn_output_proj="model.layers.{}.self_attn.o_proj",# from Qwen2Attention class
+    pre_attn_norm="model.layers.{}.input_layernorm", # from Qwen2DecoderLayer class'
+    post_attn_norm="model.layers.{}.post_attention_layernorm",# from Qwen2DecoderLayer class'
+    embedding="model.embed_tokens",#from Qwen2Model model
+    final_norm="model.norm",# from Qwen2Model model
+    lm_head= None,# from Qwen2ForCausalLM class
 )
 
 
-class Gemma2Block(TransformerBlock):
+class Qwen2Block(TransformerBlock):
 
   def forward(
       self,
@@ -81,7 +81,7 @@ class Gemma2Block(TransformerBlock):
     return output
 
 
-class Gemma2(nn.Module):
+class Qwen2(nn.Module):
 
   def __init__(self, config: cfg.ModelConfig):
     super().__init__()
@@ -96,10 +96,10 @@ class Gemma2(nn.Module):
         config.vocab_size,
         bias=config.lm_head_use_bias,
     )
-    # Gemma re-uses the embedding as the head projection layer.
+    # Qwen2 re-uses the embedding as the head projection layer.
     self.lm_head.weight.data = self.tok_embedding.weight.data
     self.transformer_blocks = nn.ModuleList(
-        Gemma2Block(config) for _ in range(config.num_layers)
+        Qwen2Block(config) for _ in range(config.num_layers)
     )
     self.final_norm = builder.build_norm(
         config.embedding_dim,
@@ -172,59 +172,58 @@ class Gemma2(nn.Module):
 
 # Below model config you can find in:
 # https://github.com/huggingface/transformers/blob/main/src/transformers/models/qwen2/configuration_qwen2.py
-def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   attn_config = cfg.AttentionConfig(
-      num_heads=8,
-      head_dim=256,
-      num_query_groups=4,
+      num_heads=14, # num_attention_heads,
+      head_dim=64,#hidden_size // self.num_heads
+      num_query_groups=2,# num_key_value_heads
       rotary_percentage=1.0,
       qkv_transpose_before_split=True,
       logit_softcap=50.0,
-      sliding_window_size=4096,
+      sliding_window_size=32768,# sliding_window,"use_sliding_window": false,
       attn_types=[cfg.AttentionType.GLOBAL, cfg.AttentionType.LOCAL_SLIDING]
       * 13,
   )
 
   norm_config = cfg.NormalizationConfig(
       type=cfg.NormalizationType.RMS_NORM,
-      epsilon=1e-6,
+      epsilon=1e-6,# rms_norm_eps
       zero_centered=True,
   )
   ff_config = cfg.FeedForwardConfig(
       type=cfg.FeedForwardType.GATED,
       activation=cfg.ActivationConfig(cfg.ActivationType.GELU_TANH),
-      intermediate_size=9216,
+      intermediate_size=4864, #intermediate_size,
       pre_ff_norm_config=norm_config,
       post_ff_norm_config=norm_config,
   )
   config = cfg.ModelConfig(
-      vocab_size=256000,
-      num_layers=26,
-      max_seq_len=8192,
-      embedding_dim=2304,
-      kv_cache_max_len=kv_cache_max_len,
-      attn_config=attn_config,
-      ff_config=ff_config,
-      pre_attention_norm_config=norm_config,
-      post_attention_norm_config=norm_config,
-      final_norm_config=norm_config,
-      parallel_residual=False,
-      lm_head_use_bias=False,
-      enable_hlfb=True,
-      final_logit_softcap=30.0,
-  )
+        vocab_size=151936,#vocab_size
+        num_layers=24,#num_hidden_layers
+        max_seq_len=32768,#max_position_embeddings
+        embedding_dim=896,#hidden_size
+        kv_cache_max_len=kv_cache_max_len,
+        attn_config=attn_config,
+        ff_config=ff_config,
+        pre_attention_norm_config=norm_config,
+        post_attention_norm_config=norm_config,
+        final_norm_config=norm_config,
+        parallel_residual=False,
+        lm_head_use_bias=False,
+        final_logit_softcap=30.0,
+    )
   return config
 
-
+# TODO(b/363021962): Clean up this part to streamline fake model config generation.
 def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
   attn_config = cfg.AttentionConfig(
-      num_heads=4,
-      head_dim=64,
-      num_query_groups=4,
+      num_heads=14, # num_attention_heads,
+      head_dim=64,#hidden_size // self.num_heads
+      num_query_groups=2,# num_key_value_heads
       rotary_percentage=1.0,
       qkv_transpose_before_split=True,
       logit_softcap=50.0,
-      sliding_window_size=64,
+      sliding_window_size=32768,# sliding_window,"use_sliding_window": false,
       attn_types=[cfg.AttentionType.GLOBAL, cfg.AttentionType.LOCAL_SLIDING]
       * 13,
   )
@@ -240,6 +239,7 @@ def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
       intermediate_size=128,
       pre_ff_norm_config=norm_config,
       post_ff_norm_config=norm_config,
+      use_bias=True,
   )
   config = cfg.ModelConfig(
       vocab_size=128,
@@ -272,11 +272,11 @@ def build_qwen2_model(checkpoint_path, **kwargs) -> nn.Module:
 
 def define_and_run() -> None:
   current_dir = Path(__file__).parent.resolve()
-  gemma2_goldens = torch.load(current_dir / "gemma2it_2b_golden.pt")
-  print("Running GEMMA 2")
+  Qwen2_goldens = torch.load(current_dir / "qwen2_0.5_golden.pt")
+  print("Running  QWEN 2")
   kv_cache_max_len = 1024
-  checkpoint_path = os.path.join(Path.home(), "Downloads/llm_data/gemma2-2b")
-  model = build_2b_model(checkpoint_path, kv_cache_max_len=kv_cache_max_len)
+  checkpoint_path = os.path.join(Path.home(), "Downloads/llm_data/qwen2")
+  model = build_qwen2_model(checkpoint_path, kv_cache_max_len=kv_cache_max_len)
   toks = torch.from_numpy(
       np.array([2, 651, 9456, 576, 573, 3520, 3858, 603, 235248])
   )
@@ -285,9 +285,9 @@ def define_and_run() -> None:
   input_pos = torch.arange(0, kv_cache_max_len)
   out = model.forward(tokens, input_pos)
   out_final = out[0, 8, :]
-  assert torch.allclose(gemma2_goldens, out_final, atol=1e-04)
+  assert torch.allclose(Qwen2_goldens, out_final, atol=1e-04)
 
 
 if __name__ == "__main__":
   torch.set_printoptions(sci_mode=True)
-  define_and_run_2b()
+  define_and_run()
