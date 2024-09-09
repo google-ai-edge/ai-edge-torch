@@ -25,6 +25,7 @@ from ai_edge_torch.testing import model_coverage
 import numpy as np
 import tensorflow as tf
 import torch
+from torch import nn
 import torchvision
 
 from absl.testing import absltest as googletest
@@ -51,7 +52,7 @@ class TestConvert(googletest.TestCase):
   def test_convert_add(self):
     """Tests conversion of a simple Add module."""
 
-    class Add(torch.nn.Module):
+    class Add(nn.Module):
 
       def forward(self, a, b):
         return a + b
@@ -70,7 +71,7 @@ class TestConvert(googletest.TestCase):
   def test_convert_dot_add(self):
     """Tests conversion of a matrix multiplication followed by an add."""
 
-    class DotAdd(torch.nn.Module):
+    class DotAdd(nn.Module):
 
       def forward(self, a, b, c):
         return a @ b + c
@@ -99,7 +100,7 @@ class TestConvert(googletest.TestCase):
   def test_signature_args_ordering(self):
     """Tests conversion of a model with more than 10 arguments."""
 
-    class AddChainWith11Args(torch.nn.Module):
+    class AddChainWith11Args(nn.Module):
       """A model with 11 arguments."""
 
       def forward(
@@ -152,7 +153,7 @@ class TestConvert(googletest.TestCase):
   def test_multi_output_model(self):
     """Tests conversion of a model that returns multiple outputs."""
 
-    class BasicAddModelWithMultipleOutputs(torch.nn.Module):
+    class BasicAddModelWithMultipleOutputs(nn.Module):
       """A model that returns multiple outputs."""
 
       def forward(self, arg0, arg1):
@@ -176,7 +177,7 @@ class TestConvert(googletest.TestCase):
   def test_12_outputs_model(self):
     """Tests conversion of a model that returns more than 10 outputs."""
 
-    class BasicAddModelWithMultipleOutputs(torch.nn.Module):
+    class BasicAddModelWithMultipleOutputs(nn.Module):
       """A model that returns multiple outputs."""
 
       def forward(self, arg0, arg1):
@@ -245,7 +246,7 @@ class TestConvert(googletest.TestCase):
   def test_convert_add_converter_flags(self):
     """Tests conversion of an add module setting a tflite converter flag."""
 
-    class Add(torch.nn.Module):
+    class Add(nn.Module):
 
       def forward(self, a, b):
         return a + b
@@ -267,6 +268,27 @@ class TestConvert(googletest.TestCase):
     )
     self.assertTrue(os.path.isdir(ir_dump_path))
 
+  def test_convert_conv_transpose_batch_norm(self):
+    """Tests conversion of a model with ConvTranspose2d and BatchNorm2d."""
+
+    channels = 2
+    size = 2
+    torch_model = nn.Sequential(
+        nn.ConvTranspose2d(
+            channels, channels, 1, stride=2, dilation=1, bias=False
+        ),
+        nn.BatchNorm2d(channels),
+    )
+
+    torch_model.eval()
+    sample_input = (torch.rand(1, channels, size, size),)
+    edge_model = ai_edge_torch.convert(torch_model, sample_input)
+
+    result = model_coverage.compare_tflite_torch(
+        edge_model, torch_model, sample_input
+    )
+    self.assertTrue(result)
+
   @googletest.skipIf(
       not config.Config.use_torch_xla,
       reason="Shape polymorphism is not yet support with odml_torch.",
@@ -274,7 +296,7 @@ class TestConvert(googletest.TestCase):
   def test_convert_model_with_dynamic_batch(self):
     """Test converting a simple model with dynamic batch size."""
 
-    class SampleModel(torch.nn.Module):
+    class SampleModel(nn.Module):
 
       def __init__(self):
         super().__init__()
@@ -304,7 +326,7 @@ class TestConvert(googletest.TestCase):
   def test_convert_model_with_kwargs(self):
     """Test converting a simple model with sample_kwargs."""
 
-    class SampleModel(torch.nn.Module):
+    class SampleModel(nn.Module):
 
       def forward(self, x, y):
         return x + y
@@ -323,7 +345,7 @@ class TestConvert(googletest.TestCase):
   def test_convert_model_with_args_kwargs(self):
     """Test converting a simple model with both sample_args and sample_kwargs."""
 
-    class SampleModel(torch.nn.Module):
+    class SampleModel(nn.Module):
 
       def forward(self, x, y):
         return x + y
@@ -343,7 +365,7 @@ class TestConvert(googletest.TestCase):
   def test_convert_model_with_args_nested_kwargs_1(self):
     """Test converting a simple model with both sample_args and nested sample_kwargs."""
 
-    class SampleModel(torch.nn.Module):
+    class SampleModel(nn.Module):
 
       def forward(self, x: torch.Tensor, y: torch.Tensor, z: TestContainer1):
         return x + y + z.data_1 + z.data_2[0] + z.data_2[1]
@@ -370,7 +392,7 @@ class TestConvert(googletest.TestCase):
   def test_convert_model_with_args_nested_kwargs_2(self):
     """Test converting a simple model with both sample_args and nested sample_kwargs."""
 
-    class SampleModel(torch.nn.Module):
+    class SampleModel(nn.Module):
 
       def forward(self, x, y, z):
         return x + y + z.data_1 + z.data_2[0][0] + z.data_2[1]
@@ -397,7 +419,7 @@ class TestConvert(googletest.TestCase):
   def test_convert_model_with_args_nested_kwargs_3(self):
     """Test converting a simple model with both sample_args and nested sample_kwargs."""
 
-    class SampleModel(torch.nn.Module):
+    class SampleModel(nn.Module):
 
       def forward(self, x, y, z):
         return x + y + z.data_1 + z.data_2[0]["foo"] + z.data_2[1]
@@ -424,7 +446,7 @@ class TestConvert(googletest.TestCase):
   def test_convert_model_non_flat_output_dict(self):
     """Test converting a model with non-flat output structure."""
 
-    class SampleModel(torch.nn.Module):
+    class SampleModel(nn.Module):
 
       def forward(self, x, y, z):
         return {"x": x, "y": TestContainer1(data_1=y, data_2=[y, z])}
