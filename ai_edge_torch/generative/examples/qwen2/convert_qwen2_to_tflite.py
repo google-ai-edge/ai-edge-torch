@@ -15,15 +15,12 @@
 
 import os
 from pathlib import Path
-
 import ai_edge_torch
-# TODO @merron: Below import will be replaced by Qwen2
-#from ai_edge_torch.generative.examples.gemma import gemma2
+from ai_edge_torch.generative.examples.qwen2 import qwen2
 from ai_edge_torch.generative.quantize import quant_recipes
 import torch
-
-
-def convert_qwen2_to_tflite(
+from safetensors import safe_open
+def convert_qwen_to_tflite(
     checkpoint_path: str,
     prefill_seq_len: int = 512,
     kv_cache_max_len: int = 1024,
@@ -42,7 +39,32 @@ def convert_qwen2_to_tflite(
         Defaults to True.
   """
 
+  pytorch_model = qwen2.build_qwen2_model(
+      checkpoint_path, kv_cache_max_len=kv_cache_max_len
+  )
+  # Tensors used to trace the model graph during conversion.
+  prefill_tokens = torch.full((1, prefill_seq_len), 0, dtype=torch.long)
+  prefill_input_pos = torch.arange(0, prefill_seq_len)
+  decode_token = torch.tensor([[0]], dtype=torch.long)
+  decode_input_pos = torch.tensor([0], dtype=torch.int64)
+
+  quant_config = quant_recipes.full_int8_dynamic_recipe() if quantize else None
+  edge_model = (
+      ai_edge_torch.signature(
+          'prefill', pytorch_model, (prefill_tokens, prefill_input_pos)
+      )
+      .signature('decode', pytorch_model, (decode_token, decode_input_pos))
+      .convert(quant_config=quant_config)
+  )
+  edge_model.export(
+      f'/tmp/qwen2_seq{prefill_seq_len}_kv{kv_cache_max_len}.tflite'
+  )
+
 
 if __name__ == '__main__':
-  checkpoint_path = os.path.join(Path.home(), 'Downloads/llm_data/Qwen2')
-  convert_qwen2_to_tflite(checkpoint_path)
+  checkpoint_path = 'Downloads/llm_data/Qwen2'
+
+# Load the model state using safetensors
+  with safe_open(checkpoint_path, framework="pt", device="cpu") as f:
+      state_dict = {key: f.get_tensor(key) for key in f.keys()}
+  convert_qwen_to_tflite(checkpoint_path)
