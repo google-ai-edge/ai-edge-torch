@@ -275,6 +275,38 @@ def _aten_embedding(gm: torch.fx.GraphModule, node: torch.fx.Node):
     return output
 
   node.target = embedding
+  
+@_register_composite_builder(torch.ops.aten.native_group_norm.default)
+def _aten_embedding(gm: torch.fx.GraphModule, node: torch.fx.Node):
+  op = node.target
+  args_mapper = TorchOpArgumentsMapper(op)
+
+  def group_norm(*args, **kwargs):
+    nonlocal op, args_mapper
+    full_kwargs = args_mapper.get_full_kwargs(args, kwargs)
+    
+    full_kwargs["input"] = torch.permute(full_kwargs["input"], (0, 2, 3, 1))
+    builder = lowertools.StableHLOCompositeBuilder(
+        name="odml.group_norm", attr={
+          "num_groups": full_kwargs["group"],
+          "eps": full_kwargs["eps"],
+        }
+    )
+    full_kwargs["input"], full_kwargs["weight"], full_kwargs["bias"] = builder.mark_inputs(
+      full_kwargs["input"],
+      full_kwargs["weight"],
+      full_kwargs["bias"],
+    )
+    full_kwargs["input"] = torch.permute(full_kwargs["input"], (0, 3, 1, 2))
+    
+    out, _, _ = op(**full_kwargs)
+    
+    out = torch.permute(out, (0, 2, 3, 1))
+    out = builder.mark_outputs(out)
+    out = torch.permute(out, (0, 3, 1, 2))
+    return out, None, None
+
+  node.target = group_norm
 
 
 class BuildAtenCompositePass(pass_base.PassBase):

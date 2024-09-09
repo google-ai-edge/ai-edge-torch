@@ -361,13 +361,33 @@ def _aten_native_group_norm(node):
     builder = StableHLOCompositeBuilder(
         name="odml.group_norm", attr={"num_groups": num_groups, "eps": eps}
     )
-    input, bias, weight = builder.mark_inputs(input, bias, weight)
+    input, weight, bias = builder.mark_inputs(input, weight, bias)
     
-    input = utils.tensor_to_nchw(input)
-    out, _, _ = op(input, bias, weight, batch_size, num_channels, flattened_inner_size, num_groups, eps)
-    out = utils.tensor_to_nhwc(out)
+    input_reshaped = torch.reshape(
+        input,
+        [
+            batch_size,
+            flattened_inner_size,
+            num_groups,
+            num_channels // num_groups,
+        ],
+    )
+    reduction_dims = [1, 3]
+
+    biased_var, mean = torch.var_mean(
+        input_reshaped, dim=reduction_dims, unbiased=False, keepdim=True
+    )
+    rstd = torch.rsqrt(biased_var + eps)
+
+    out = (input_reshaped - mean) * rstd
+    out = torch.reshape(out, input.shape)
+
+    if weight is not None:
+      out = out * weight
+    if bias is not None:
+      out = out + bias
+    
     out = builder.mark_outputs(out)
-    
     return out, None, None
 
   node.target = native_group_norm
