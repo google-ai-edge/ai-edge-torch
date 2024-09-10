@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Provides lowering for coreaten to mlir stablehlo op: Convolution"""
+"""Provides lowering for coreaten to stablehlo for Convolution."""
 
 import math
 from typing import Optional
@@ -141,9 +141,9 @@ def infer_output_shape(
 
 def build_transpose_conv(
     lctx,
+    output_type: ir.RankedTensorType,
     lhs: ir.Value,
     rhs: ir.Value,
-    bias: Optional[ir.Value],
     stride: list[int],
     padding: list[int],
     dilation: list[int],
@@ -151,8 +151,7 @@ def build_transpose_conv(
     groups: int,
 ):
   lhs_type: ir.RankedTensorType = lhs.type
-
-  num_spatial_dims = len(lhs.type.shape) - 2
+  num_spatial_dims = len(lhs_type.shape) - 2
   rhs = stablehlo.reverse(rhs, list(range(2, 2 + num_spatial_dims)))
 
   kernel_size = rhs.type.shape
@@ -161,13 +160,8 @@ def build_transpose_conv(
       dilation[dim] * (kernel_size[dim + 2] - 1) - padding[dim]
       for dim in range(num_spatial_dims)
   ]
-  op = stablehlo.ConvolutionOp(
-      result=ir.RankedTensorType.get(
-          infer_output_shape(
-              lhs, rhs, stride, dilation, padding, True, output_padding
-          ),
-          lhs_type.element_type,
-      ),
+  return stablehlo.convolution(
+      result=output_type,
       lhs=lhs,
       rhs=rhs,
       dimension_numbers=create_conv_dimension_numbers(lhs, True),
@@ -177,8 +171,6 @@ def build_transpose_conv(
       lhs_dilation=stride,
       rhs_dilation=dilation,
   )
-
-  return op.result
 
 
 # convolution(Tensor input, Tensor weight, Tensor? bias, SymInt[] stride,
@@ -197,9 +189,6 @@ def _aten_convolution(
     output_padding: list[int],
     groups: int,
 ):
-  # TODO(b/365558789) Add support for bias on convolution
-  if bias is not None:
-    raise NotImplementedError("Bias on convolution is not implemented.")
 
   # TODO(b/365559296) Add support for output_padding
   if any(output_padding):
@@ -207,34 +196,46 @@ def _aten_convolution(
         "Output padding on convolution is not implemented."
     )
 
+  lhs_type: ir.RankedTensorType = lhs.type
+  output_shape = infer_output_shape(
+      lhs, rhs, stride, dilation, padding, transposed, output_padding
+  )
+  output_type = ir.RankedTensorType.get(
+      output_shape,
+      lhs_type.element_type,
+  )
+
   if transposed:
-    return build_transpose_conv(
+    res = build_transpose_conv(
         lctx,
+        output_type,
         lhs,
         rhs,
-        bias,
         stride,
         padding,
         dilation,
         output_padding,
         groups,
     )
+  else:
+    res = stablehlo.convolution(
+        result=output_type,
+        lhs=lhs,
+        rhs=rhs,
+        dimension_numbers=create_conv_dimension_numbers(lhs),
+        feature_group_count=groups,
+        batch_group_count=1,
+        window_strides=stride,
+        padding=make_padding(padding),
+        rhs_dilation=dilation,
+    )
 
-  lhs_type: ir.RankedTensorType = lhs.type
+  if bias is not None:
+    # broadcast [C] to [NCHW]
+    broadcasted_bias = stablehlo.broadcast_in_dim(output_type, bias, [1])
+    res = stablehlo.add(
+        lhs=res,
+        rhs=broadcasted_bias,
+    )
 
-  op = stablehlo.ConvolutionOp(
-      result=ir.RankedTensorType.get(
-          infer_output_shape(lhs, rhs, stride, dilation, padding),
-          lhs_type.element_type,
-      ),
-      lhs=lhs,
-      rhs=rhs,
-      dimension_numbers=create_conv_dimension_numbers(lhs),
-      feature_group_count=groups,
-      batch_group_count=1,
-      window_strides=stride,
-      padding=make_padding(padding),
-      rhs_dilation=dilation,
-  )
-
-  return op.result
+  return res

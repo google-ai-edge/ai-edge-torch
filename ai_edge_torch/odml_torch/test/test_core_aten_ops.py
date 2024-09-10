@@ -211,7 +211,14 @@ class TestCoreAtenOps(parameterized.TestCase):
       ("aten_convolution_17", torch.ops.aten.convolution, (rnd(torch.float32, (2, 3, 4, 4)), rnd(torch.float32, (3, 2, 2, 2)), None, [1, 1], [1, 1], [1, 1], True, [0, 0], 1,), dict()),
       ("aten_convolution_18", torch.ops.aten.convolution, (rnd(torch.float32, (2, 3, 4, 4)), rnd(torch.float32, (3, 2, 2, 2)), None, [2, 2], [2, 2], [1, 1], True, [0, 0], 1,), dict()),
       ("aten_convolution_19", torch.ops.aten.convolution, (rnd(torch.float32, (2, 3, 4, 4)), rnd(torch.float32, (3, 2, 2, 2)), None, [2, 2], [1, 1], [2, 2], True, [0, 0], 1,), dict()),
-      # TODO (b/365558789, b/365559296): Add tests for output_padding and bias.
+      ("aten_convolution_20", torch.ops.aten.convolution, (rnd(torch.float32, (2, 3, 4, 4)), rnd(torch.float32, (2, 3, 2, 2)), rnd(torch.float32, (2)), [1, 1], [0, 0], [1, 1], False, [0, 0], 1,), dict()),
+      ("aten_convolution_21", torch.ops.aten.convolution, (rnd(torch.float32, (2, 3, 4, 4)), rnd(torch.float32, (3, 2, 2, 2)), rnd(torch.float32, (2)), [1, 1], [0, 0], [1, 1], True, [0, 0], 1,), dict()),
+      ("aten_convolution_22", torch.ops.aten.convolution, (rnd(torch.float32, (2, 3, 4, 4)), rnd(torch.float32, (2, 3, 2, 2)), rnd(torch.float32, (2)), [1, 1], [1, 1], [1, 1], False, [0, 0], 1,), dict()),
+      ("aten_convolution_23", torch.ops.aten.convolution, (rnd(torch.float32, (2, 3, 4, 4)), rnd(torch.float32, (3, 2, 2, 2)), rnd(torch.float32, (2)), [1, 1], [1, 1], [1, 1], True, [0, 0], 1,), dict()),
+      ("aten_convolution_24", torch.ops.aten.convolution, (rnd(torch.float32, (2, 3, 4, 4)), rnd(torch.float32, (2, 3, 2, 2)), rnd(torch.float32, (2)), [1, 1], [1, 1], [2, 2], False, [0, 0], 1,), dict()),
+      ("aten_convolution_25", torch.ops.aten.convolution, (rnd(torch.float32, (2, 3, 4, 4)), rnd(torch.float32, (3, 2, 2, 2)), rnd(torch.float32, (2)), [1, 1], [1, 1], [2, 2], True, [0, 0], 1,), dict()),
+      ("aten_convolution_26", torch.ops.aten.convolution, (rnd(torch.float32, (2, 6, 4, 4)), rnd(torch.float32, (2, 3, 2, 2)), rnd(torch.float32, (2)), [1, 1], [1, 1], [1, 1], False, [0, 0], 2,), dict()),
+      # # TODO(b/365559296): Add tests for output_padding.
       ("aten_copy_0", torch.ops.aten.copy, (rnd(torch.float32, (10, 10)), rnd(torch.float32, (10, 10))), dict()),
       ("aten_copy_broadcast", torch.ops.aten.copy, (rnd(torch.float32, (10, 10)), torch.tensor(1.0, dtype=torch.float32)), dict()),
       ("aten_copy_cast_dtype", torch.ops.aten.copy, (rnd(torch.float32, (10, 10)), rnd(torch.int64, (10, 10))), dict()),
