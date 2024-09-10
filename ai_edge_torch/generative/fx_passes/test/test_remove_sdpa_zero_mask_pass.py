@@ -65,7 +65,6 @@ class TestRemoveSDPAZeroMaskPass(googletest.TestCase):
             config.attention_batch_size,
             config.dim,
             config.attention_config,
-            0,
             enable_hlfb=config.enable_hlfb,
         )
 

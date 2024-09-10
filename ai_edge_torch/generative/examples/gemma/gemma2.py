@@ -12,14 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# Example of building the Gemma2 2B model.
+
+"""Example of building a Gemma2 model."""
 
 import os
-from pathlib import Path
+import pathlib
 from typing import Optional, Tuple
 
 from ai_edge_torch.generative.layers import attention
 from ai_edge_torch.generative.layers import builder
+from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
@@ -51,7 +53,8 @@ class Gemma2Block(attention.TransformerBlock):
       rope: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
       mask: Optional[torch.Tensor] = None,
       input_pos: Optional[torch.Tensor] = None,
-  ) -> torch.Tensor:
+      kv_cache: kv_utils.KVCacheEntry = None,
+  ) -> Tuple[torch.Tensor, Optional[kv_utils.KVCacheEntry]]:
     """Forward function of the Gemma2Block.
 
     Exactly the same as TransformerBlock but we call the post-attention norm
@@ -62,17 +65,19 @@ class Gemma2Block(attention.TransformerBlock):
       rope (Tuple[torch.Tensor, torch.Tensor]): the input rope tensor.
       mask (torch.Tensor): the optional mask tensor.
       input_pos (torch.Tensor): the optional input position tensor.
+      kv_cache (KVCacheEntry): the optional kv cache entry.
 
     Returns:
-      output activation from this transformer block.
+      output activation from this transformer block, and updated kv cache (if
+      passed in).
     """
 
     x_norm = self.pre_atten_norm(x)
-    attn_out = self.atten_func(x_norm, rope, mask, input_pos)
+    attn_out, kv = self.atten_func(x_norm, rope, mask, input_pos, kv_cache)
     attn_out_norm = self.post_atten_norm(attn_out)
     x = x + attn_out_norm
     output = x + self.ff(x)
-    return output
+    return output, kv
 
 
 class Gemma2(nn.Module):
@@ -138,11 +143,20 @@ class Gemma2(nn.Module):
     return self.mask_cache.index_select(2, input_pos)
 
   @torch.inference_mode
-  def forward(self, idx: torch.Tensor, input_pos: torch.Tensor) -> torch.Tensor:
-    _, seq_len = idx.size()
+  def forward(
+      self,
+      tokens: torch.Tensor,
+      input_pos: torch.Tensor,
+      kv_cache: kv_utils.KVCache,
+  ) -> dict[torch.Tensor, kv_utils.KVCache]:
+    _, seq_len = tokens.size()
     assert self.config.max_seq_len >= seq_len, (
         f"Cannot forward sequence of length {seq_len}, max seq length is only"
         f" {self.config.max_seq_len}"
+    )
+    assert len(self.transformer_blocks) == len(kv_cache.caches), (
+        "The number of transformer blocks and the number of KV cache entries"
+        " must be the same."
     )
 
     cos, sin = self.rope_cache
@@ -150,12 +164,17 @@ class Gemma2(nn.Module):
     sin = sin.index_select(0, input_pos)
 
     # token embeddings of shape (b, t, n_embd)
-    x = self.tok_embedding(idx)
+    x = self.tok_embedding(tokens)
     x = x * (self.config.embedding_dim**0.5)
 
+    updated_kv_entires = []
     for i, block in enumerate(self.transformer_blocks):
       mask = self.get_attention_mask(i, input_pos)
-      x = block(x, (cos, sin), mask, input_pos)
+      kv_entry = kv_cache.caches[i] if kv_cache else None
+      x, kv_entry = block(x, (cos, sin), mask, input_pos, kv_entry)
+      if kv_entry:
+        updated_kv_entires.append(kv_entry)
+    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entires))
 
     x = self.final_norm(x)
     res = self.lm_head(x)  # (b, t, vocab_size)
@@ -163,7 +182,8 @@ class Gemma2(nn.Module):
       res = res / self.config.final_logit_softcap
       res = torch.tanh(res)
       res = res * self.config.final_logit_softcap
-    return res
+
+    return {"logits": res, "kv_cache": updated_kv_cache}
 
 
 def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
@@ -243,14 +263,13 @@ def build_2b_model(checkpoint_path: str, **kwargs) -> nn.Module:
   return model
 
 
-def define_and_run_2b() -> None:
+def define_and_run_2b(checkpoint_path: str) -> None:
   """Instantiates and runs a Gemma2 2B model."""
 
-  current_dir = Path(__file__).parent.resolve()
+  current_dir = pathlib.Path(__file__).parent.resolve()
   gemma2_goldens = torch.load(current_dir / "gemma2it_2b_golden.pt")
   print("Running GEMMA 2")
   kv_cache_max_len = 1024
-  checkpoint_path = os.path.join(Path.home(), "Downloads/llm_data/gemma2-2b")
   model = build_2b_model(checkpoint_path, kv_cache_max_len=kv_cache_max_len)
   toks = torch.from_numpy(
       np.array([2, 651, 9456, 576, 573, 3520, 3858, 603, 235248])
@@ -258,11 +277,13 @@ def define_and_run_2b() -> None:
   tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.long, device="cpu")
   tokens[0, :9] = toks
   input_pos = torch.arange(0, kv_cache_max_len)
-  out = model.forward(tokens, input_pos)
-  out_final = out[0, 8, :]
+  kv = kv_utils.KVCache.from_model_config(model.config)
+  out = model.forward(tokens, input_pos, kv)
+  out_final = out["logits"][0, 8, :]
   assert torch.allclose(gemma2_goldens, out_final, atol=1e-04)
 
 
 if __name__ == "__main__":
   torch.set_printoptions(sci_mode=True)
-  define_and_run_2b()
+  path = os.path.join(pathlib.Path.home(), "Downloads/llm_data/gemma2-2b")
+  define_and_run_2b(path)

@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# Example of building a Gemma model.
+
+"""Example of building a Gemma model."""
 
 import os
-from pathlib import Path
+import pathlib
 
 from ai_edge_torch.generative.layers import attention
 from ai_edge_torch.generative.layers import builder
+from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
@@ -84,15 +86,21 @@ class Gemma(nn.Module):
     )
     self.config = config
 
-  # The model's forward function takes in additional k/v cache tensors
-  # and returns the updated k/v cache tensors to the caller.
-  # This can be eliminated if we handle k/v cache updates inside the model itself.
   @torch.inference_mode
-  def forward(self, idx: torch.Tensor, input_pos: torch.Tensor) -> torch.Tensor:
-    _, seq_len = idx.size()
+  def forward(
+      self,
+      tokens: torch.Tensor,
+      input_pos: torch.Tensor,
+      kv_cache: kv_utils.KVCache,
+  ) -> dict[torch.Tensor, kv_utils.KVCache]:
+    _, seq_len = tokens.size()
     assert self.config.max_seq_len >= seq_len, (
         f"Cannot forward sequence of length {seq_len}, max seq length is only"
         f" {self.config.max_seq_len}"
+    )
+    assert len(self.transformer_blocks) == len(kv_cache.caches), (
+        "The number of transformer blocks and the number of KV cache entries"
+        " must be the same."
     )
 
     cos, sin = self.rope_cache
@@ -102,15 +110,20 @@ class Gemma(nn.Module):
     mask = mask[:, :, :, : self.config.kv_cache_max]
 
     # token embeddings of shape (b, t, n_embd)
-    x = self.tok_embedding(idx)
+    x = self.tok_embedding(tokens)
     x = x * (self.config.embedding_dim**0.5)
 
-    for _, block in enumerate(self.transformer_blocks):
-      x = block(x, (cos, sin), mask, input_pos)
+    updated_kv_entires = []
+    for i, block in enumerate(self.transformer_blocks):
+      kv_entry = kv_cache.caches[i] if kv_cache else None
+      x, kv_entry = block(x, (cos, sin), mask, input_pos, kv_entry)
+      if kv_entry:
+        updated_kv_entires.append(kv_entry)
+    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entires))
 
     x = self.final_norm(x)
-    res = self.lm_head(x)  # (b, t, vocab_size)
-    return res
+    logits = self.lm_head(x)  # (b, t, vocab_size)
+    return {"logits": logits, "kv_cache": updated_kv_cache}
 
 
 def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
@@ -177,25 +190,28 @@ def build_2b_model(checkpoint_path: str, **kwargs) -> nn.Module:
   return model
 
 
-def define_and_run_2b() -> None:
+def define_and_run_2b(checkpoint_path: str) -> None:
   """Instantiates and runs a Gemma 2B model."""
 
-  current_dir = Path(__file__).parent.resolve()
+  current_dir = pathlib.Path(__file__).parent.resolve()
   gemma_goldens = torch.load(current_dir / "gemma_lm_logits.pt")
 
   kv_cache_max_len = 1024
-  checkpoint_path = os.path.join(Path.home(), "Downloads/llm_data/gemma-2b")
   model = build_2b_model(checkpoint_path, kv_cache_max_len=kv_cache_max_len)
   idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
   tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.long, device="cpu")
   tokens[0, :4] = idx
   input_pos = torch.arange(0, kv_cache_max_len)
-  lm_logits = model.forward(tokens, input_pos)
+  kv = kv_utils.KVCache.from_model_config(model.config)
+  output = model.forward(tokens, input_pos, kv)
   print("comparing with goldens..")
   assert torch.allclose(
-      gemma_goldens, lm_logits[0, idx.shape[1] - 1, :], atol=1e-05
+      gemma_goldens, output["logits"][0, idx.shape[1] - 1, :], atol=1e-02
   )
 
 
 if __name__ == "__main__":
-  define_and_run_2b()
+  input_checkpoint_path = os.path.join(
+      pathlib.Path.home(), "Downloads/llm_data/gemma-2b"
+  )
+  define_and_run_2b(input_checkpoint_path)

@@ -12,14 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# A toy example which has basic transformer block (w/ KV-Cache).
+
+"""A toy example which has basic transformer block (w/ externalized KV-Cache)."""
+
 from typing import Tuple
 
 import ai_edge_torch
 from ai_edge_torch import lowertools
-from ai_edge_torch.generative.layers.attention import TransformerBlock
+from ai_edge_torch.generative.layers import attention
+from ai_edge_torch.generative.layers import builder
+from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
-import ai_edge_torch.generative.layers.builder as builder
 import ai_edge_torch.generative.layers.model_config as cfg
 import torch
 import torch.nn as nn
@@ -27,7 +30,7 @@ import torch.nn as nn
 RoPECache = Tuple[torch.Tensor, torch.Tensor]
 
 
-class ToyModelWithKV(torch.nn.Module):
+class ToyModelWithKVCache(torch.nn.Module):
 
   def __init__(self, config: cfg.ModelConfig) -> None:
     super().__init__()
@@ -36,7 +39,7 @@ class ToyModelWithKV(torch.nn.Module):
     )
     self.tok_embedding = nn.Embedding(config.vocab_size, config.embedding_dim)
     self.transformer_blocks = nn.ModuleList(
-        TransformerBlock(config) for _ in range(config.num_layers)
+        attention.TransformerBlock(config) for _ in range(config.num_layers)
     )
     self.final_norm = builder.build_norm(
         config.embedding_dim,
@@ -57,18 +60,29 @@ class ToyModelWithKV(torch.nn.Module):
     )
     self.config = config
 
-  @torch.inference_mode
-  def forward(self, idx: torch.Tensor, input_pos: torch.Tensor) -> torch.Tensor:
-    x = self.tok_embedding(idx)
+  def forward(
+      self,
+      tokens: torch.Tensor,
+      input_pos: torch.Tensor,
+      kv_cache: kv_utils.KVCache,
+  ) -> Tuple[torch.Tensor, kv_utils.KVCache]:
+    x = self.tok_embedding(tokens)
     cos, sin = self.rope_cache
     cos = cos.index_select(0, input_pos)
     sin = sin.index_select(0, input_pos)
     mask = self.mask_cache.index_select(2, input_pos)
     mask = mask[:, :, :, : self.config.max_seq_len]
+
+    updated_kv_entires = []
     for i, block in enumerate(self.transformer_blocks):
-      x = block(x, (cos, sin), mask, input_pos)
+      kv_entry = kv_cache.caches[i] if kv_cache else None
+      x, kv_entry = block(x, (cos, sin), mask, input_pos, kv_entry)
+      if kv_entry:
+        updated_kv_entires.append(kv_entry)
+
     x = self.final_norm(x)
-    return self.lm_head(x)
+    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entires))
+    return {'logits': self.lm_head(x), 'kv_cache': updated_kv_cache}
 
 
 def _export_stablehlo_mlir(model, args):
@@ -89,7 +103,7 @@ def get_model_config() -> cfg.ModelConfig:
   config = cfg.ModelConfig(
       vocab_size=150,
       num_layers=2,
-      max_seq_len=500,
+      max_seq_len=100,
       embedding_dim=128,
       attn_config=attn_config,
       ff_config=ff_config,
@@ -102,40 +116,59 @@ def get_model_config() -> cfg.ModelConfig:
 
 
 def get_sample_prefill_inputs() -> Tuple[torch.Tensor, torch.Tensor]:
-  idx = torch.unsqueeze(torch.arange(0, 100), 0)
+  tokens = torch.unsqueeze(torch.arange(0, 100), 0)
   input_pos = torch.arange(0, 100)
-  return idx, input_pos
+  return tokens, input_pos
 
 
 def get_sample_decode_inputs() -> Tuple[torch.Tensor, torch.Tensor]:
-  idx = torch.tensor([[1]], dtype=torch.long)
-  input_pos = torch.tensor([10], dtype=torch.int64)
-  return idx, input_pos
+  tokens = torch.tensor([[1]], dtype=torch.long)
+  input_pos = torch.tensor([10])
+  return tokens, input_pos
 
 
 def define_and_run() -> None:
   dump_mlir = False
 
   config = get_model_config()
-  model = ToyModelWithKV(config)
+  model = ToyModelWithExternalKV(config)
+  model.eval()
   print('running an inference')
-  idx, input_pos = get_sample_prefill_inputs()
-  decode_idx, decode_input_pos = get_sample_decode_inputs()
-  print(model.forward(idx, input_pos))
+  kv = kv_utils.KVCache.from_model_config(config)
+
+  tokens, input_pos = get_sample_prefill_inputs()
+  decode_token, decode_input_pos = get_sample_decode_inputs()
+  print(model.forward(tokens, input_pos, kv))
 
   if dump_mlir:
-    mlir_text = _export_stablehlo_mlir(model, (idx, input_pos))
-    with open('/tmp/toy_model_with_kv.stablehlo.mlir', 'w') as f:
+    mlir_text = _export_stablehlo_mlir(model, (tokens, input_pos, kv))
+    with open('/tmp/toy_model_with_external_kv.stablehlo.mlir', 'w') as f:
       f.write(mlir_text)
 
   # Convert model to tflite with 2 signatures (prefill + decode).
   print('converting toy model to tflite with 2 signatures (prefill + decode)')
   edge_model = (
-      ai_edge_torch.signature('prefill', model, (idx, input_pos))
-      .signature('decode', model, (decode_idx, decode_input_pos))
+      ai_edge_torch.signature(
+          'prefill',
+          model,
+          sample_kwargs={
+              'tokens': tokens,
+              'input_pos': input_pos,
+              'kv_cache': kv,
+          },
+      )
+      .signature(
+          'decode',
+          model,
+          sample_kwargs={
+              'tokens': decode_token,
+              'input_pos': decode_input_pos,
+              'kv_cache': kv,
+          },
+      )
       .convert()
   )
-  edge_model.export('/tmp/toy_kv_cache.tflite')
+  edge_model.export('/tmp/toy_external_kv_cache.tflite')
 
 
 if __name__ == '__main__':

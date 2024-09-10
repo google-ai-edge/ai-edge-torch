@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# Testing model conversion for a few gen-ai models.
-import copy
+
+"""Testing model conversion for a few gen-ai models."""
 
 import ai_edge_torch
 from ai_edge_torch import config as ai_edge_config
-from ai_edge_torch.generative.examples.gemma import gemma, gemma2
-from ai_edge_torch.generative.examples.phi2 import phi2
-from ai_edge_torch.generative.examples.test_models import toy_model_with_kv_cache  # NOQA
-from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
-from ai_edge_torch.testing import model_coverage
+from ai_edge_torch.generative.examples.gemma import gemma
+from ai_edge_torch.generative.examples.gemma import gemma2
+from ai_edge_torch.generative.examples.phi import phi2
+from ai_edge_torch.generative.layers import kv_cache
+from ai_edge_torch.generative.test import utils as test_utils
 import numpy as np
 import torch
 
@@ -55,18 +55,28 @@ class TestModelConversion(googletest.TestCase):
     tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
     tokens[0, :4] = idx
     input_pos = torch.arange(0, 10)
+    kv = kv_cache.KVCache.from_model_config(config)
 
-    edge_model = ai_edge_torch.convert(model, (tokens, input_pos))
+    edge_model = ai_edge_torch.convert(
+        model,
+        sample_kwargs={
+            "tokens": tokens,
+            "input_pos": input_pos,
+            "kv_cache": kv,
+        },
+    )
     edge_model.set_interpreter_builder(
         self._interpreter_builder(edge_model.tflite_model())
     )
 
     self.assertTrue(
-        model_coverage.compare_tflite_torch(
+        test_utils.compare_tflite_torch(
             edge_model,
             model,
-            (tokens, input_pos),
-            num_valid_inputs=1,
+            tokens,
+            input_pos,
+            kv,
+            signature_name="serving_default",
             atol=1e-2,
             rtol=1e-5,
         )
@@ -85,23 +95,31 @@ class TestModelConversion(googletest.TestCase):
     prefill_tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
     prefill_tokens[0, :4] = idx
     prefill_input_pos = torch.arange(0, 10)
+    kv = kv_cache.KVCache.from_model_config(config)
 
     edge_model = ai_edge_torch.signature(
-        "prefill", model, (prefill_tokens, prefill_input_pos)
+        "prefill",
+        model,
+        sample_kwargs={
+            "tokens": prefill_tokens,
+            "input_pos": prefill_input_pos,
+            "kv_cache": kv,
+        },
     ).convert()
     edge_model.set_interpreter_builder(
         self._interpreter_builder(edge_model.tflite_model())
     )
 
     self.assertTrue(
-        model_coverage.compare_tflite_torch(
+        test_utils.compare_tflite_torch(
             edge_model,
             model,
-            (prefill_tokens, prefill_input_pos),
+            prefill_tokens,
+            prefill_input_pos,
+            kv,
             signature_name="prefill",
-            num_valid_inputs=1,
-            atol=1e-2,
-            rtol=1e-5,
+            atol=1e-1,
+            rtol=1e-3,
         )
     )
 
@@ -117,18 +135,28 @@ class TestModelConversion(googletest.TestCase):
     tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
     tokens[0, :4] = idx
     input_pos = torch.arange(0, 10)
+    kv = kv_cache.KVCache.from_model_config(config)
 
-    edge_model = ai_edge_torch.convert(pytorch_model, (tokens, input_pos))
+    edge_model = ai_edge_torch.convert(
+        pytorch_model,
+        sample_kwargs={
+            "tokens": tokens,
+            "input_pos": input_pos,
+            "kv_cache": kv,
+        },
+    )
     edge_model.set_interpreter_builder(
         self._interpreter_builder(edge_model.tflite_model())
     )
 
     self.assertTrue(
-        model_coverage.compare_tflite_torch(
+        test_utils.compare_tflite_torch(
             edge_model,
             pytorch_model,
-            (tokens, input_pos),
-            num_valid_inputs=1,
+            tokens,
+            input_pos,
+            kv,
+            signature_name="serving_default",
             atol=1e-3,
             rtol=1e-3,
         )

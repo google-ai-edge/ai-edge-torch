@@ -13,11 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 
+"""Example of converting TinyLlama model to multi-signature tflite model."""
+
 import os
-from pathlib import Path
+import pathlib
 
 import ai_edge_torch
 from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
+from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.quantize import quant_recipes
 import torch
 
@@ -48,20 +51,36 @@ def convert_tiny_llama_to_tflite(
   prefill_input_pos = torch.arange(0, prefill_seq_len)
   decode_token = torch.tensor([[0]], dtype=torch.long)
   decode_input_pos = torch.tensor([0], dtype=torch.int64)
+  kv = kv_utils.KVCache.from_model_config(pytorch_model.config)
 
   quant_config = quant_recipes.full_int8_dynamic_recipe() if quantize else None
   edge_model = (
       ai_edge_torch.signature(
-          'prefill', pytorch_model, (prefill_tokens, prefill_input_pos)
+          'prefill',
+          pytorch_model,
+          sample_kwargs={
+              'tokens': prefill_tokens,
+              'input_pos': prefill_input_pos,
+              'kv_cache': kv,
+          },
       )
-      .signature('decode', pytorch_model, (decode_token, decode_input_pos))
+      .signature(
+          'decode',
+          pytorch_model,
+          sample_kwargs={
+              'tokens': decode_token,
+              'input_pos': decode_input_pos,
+              'kv_cache': kv,
+          },
+      )
       .convert(quant_config=quant_config)
   )
+  quant_suffix = 'q8' if quantize else 'f32'
   edge_model.export(
-      f'/tmp/tiny_llama_seq{prefill_seq_len}_kv{kv_cache_max_len}.tflite'
+      f'/tmp/tiny_llama_{quant_suffix}_seq{prefill_seq_len}_ekv{kv_cache_max_len}.tflite'
   )
 
 
 if __name__ == '__main__':
-  checkpoint_path = os.path.join(Path.home(), 'Downloads/llm_data/tiny_llama')
-  convert_tiny_llama_to_tflite(checkpoint_path)
+  path = os.path.join(pathlib.Path.home(), 'Downloads/llm_data/tiny_llama')
+  convert_tiny_llama_to_tflite(path)

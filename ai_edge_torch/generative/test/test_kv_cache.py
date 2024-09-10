@@ -12,19 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# A suite of tests to validate experimental external KV Cache layers and models.
 
-from ai_edge_torch.generative.examples.experimental.gemma import gemma
-from ai_edge_torch.generative.examples.experimental.phi import phi2
-from ai_edge_torch.generative.examples.experimental.tiny_llama import tiny_llama  # NOQA
-from ai_edge_torch.generative.layers.experimental import ekv_cache as kv_utils
+"""A suite of tests to validate KV Cache layer."""
+
+from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 import torch
 
 from absl.testing import absltest as googletest
 
 
-class TestExternalKVLayers(googletest.TestCase):
+class TestKVLayers(googletest.TestCase):
 
   def _get_test_config(
       self, num_layers, head_dim, num_query_groups, kv_cache_max_len
@@ -54,7 +52,7 @@ class TestExternalKVLayers(googletest.TestCase):
         num_query_groups=NUM_QG,
         kv_cache_max_len=KV_LEN,
     )
-    kv = kv_utils.EKVCache.from_model_config(config)
+    kv = kv_utils.KVCache.from_model_config(config)
     entry = kv.caches[0]
     # single-slice update
     input_pos = torch.tensor([1])
@@ -88,14 +86,14 @@ class TestExternalKVLayers(googletest.TestCase):
   def test_serialization(self):
     class TestModel(torch.nn.Module):
 
-      def forward(self, kv: kv_utils.EKVCache) -> kv_utils.EKVCache:
+      def forward(self, kv: kv_utils.KVCache) -> kv_utils.KVCache:
         updated_kv_entries = [
             kv_utils.KVCacheEntry(
                 torch.zeros_like(entry.k_cache), torch.zeros_like(entry.v_cache)
             )
             for entry in kv.caches
         ]
-        return kv_utils.EKVCache(updated_kv_entries)
+        return kv_utils.KVCache(updated_kv_entries)
 
     N = 1
     HEAD_DIM = 2
@@ -107,25 +105,13 @@ class TestExternalKVLayers(googletest.TestCase):
         num_query_groups=NUM_QG,
         kv_cache_max_len=KV_LEN,
     )
-    kv = kv_utils.EKVCache.from_model_config(config)
+    kv = kv_utils.KVCache.from_model_config(config)
     model = TestModel()
     exported_program = torch.export.export(model, (kv,))
     input_specs = exported_program.graph_signature.input_specs
     self.assertEqual(len(input_specs), 2)
     self.assertEqual(input_specs[0].arg.name, "kv_k_0")
     self.assertEqual(input_specs[1].arg.name, "kv_v_0")
-
-
-class TestExternalKVModels(googletest.TestCase):
-
-  def test_can_build_gemma(self):
-    gemma.define_and_run_2b(checkpoint_path=None, test_model=True)
-
-  def test_can_build_phi2(self):
-    phi2.define_and_run(checkpoint_path=None, test_model=True)
-
-  def test_can_build_tinyllama(self):
-    tiny_llama.define_and_run(checkpoint_path=None, test_model=True)
 
 
 if __name__ == "__main__":
