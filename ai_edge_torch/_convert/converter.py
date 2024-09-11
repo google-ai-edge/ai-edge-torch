@@ -17,11 +17,12 @@ from __future__ import annotations
 
 from typing import Any, Optional, Tuple, Union
 
+import torch
+
 from ai_edge_torch import model
 from ai_edge_torch._convert import conversion
 from ai_edge_torch._convert import signature as signature_module
 from ai_edge_torch.quantize import quant_config as qcfg
-import torch
 
 
 class Converter:
@@ -85,15 +86,22 @@ class Converter:
     if sample_args is None and sample_kwargs is None:
       raise ValueError("sample_args or sample_kwargs must be provided.")
 
-    self._signatures.append(
-        signature_module.Signature(
-            name,
-            module,
-            sample_args,
-            sample_kwargs,
-            dynamic_shapes=dynamic_shapes,
+    signature = signature_module.Signature(
+        name,
+        None,
+        sample_args,
+        sample_kwargs,
+        dynamic_shapes=dynamic_shapes,
+    )
+    exported_program = conversion.run_convert_passes(
+        torch.export.export(
+            module, signature.flat_args, dynamic_shapes=signature.dynamic_shapes
         )
     )
+    signature.exported_program = exported_program
+    conversion._warn_training_modules(module, signature)
+
+    self._signatures.append(signature)
     return self
 
   def convert(

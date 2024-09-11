@@ -90,16 +90,15 @@ def _torch_to_tf_variable(torch_tensor: torch.Tensor):
   return tf.Variable(tf_tensor, trainable=False)
 
 
-def _get_states(
-    exported_programs: list[torch.export.ExportedProgram],
-    signatures: list[signature_module.Signature],
-):
-  for exported_program, signature in zip(exported_programs, signatures):
-    args, _ = exported_program.example_inputs
+def _get_states(signatures: list[signature_module.Signature]):
+  for signature in signatures:
+    args, _ = signature.exported_program.example_inputs
     # Calling this to get **all** the state including model buffers.
-    _flat_input_args = exported_program._graph_module_flat_inputs(args, {})
+    _flat_input_args = signature.exported_program._graph_module_flat_inputs(
+        args, {}
+    )
     for tensor, input_spec in zip(
-        _flat_input_args, exported_program.graph_signature.input_specs
+        _flat_input_args, signature.exported_program.graph_signature.input_specs
     ):
       # Only interested in Tensors that are part of the state (and not user input).
       if (
@@ -120,20 +119,15 @@ def _tensor_unique_id(tensor: torch.Tensor):
   )
 
 
-def gather_state_dict(
-    exported_programs: list[torch.export.ExportedProgram],
-    signatures: list[signature_module.Signature],
-):
+def gather_state_dict(signatures: list[signature_module.Signature]):
   deduped_tensor_map = {}
 
-  for _, tensor, _ in _get_states(exported_programs, signatures):
+  for _, tensor, _ in _get_states(signatures):
     unique_id = _tensor_unique_id(tensor)
     deduped_tensor_map[unique_id] = _torch_to_tf_variable(tensor)
 
   state_dict = {}
-  for signature, tensor, input_spec in _get_states(
-      exported_programs, signatures
-  ):
+  for signature, tensor, input_spec in _get_states(signatures):
     unique_id = _tensor_unique_id(tensor)
     state_dict[signature.name + "_" + input_spec.target] = deduped_tensor_map[
         unique_id

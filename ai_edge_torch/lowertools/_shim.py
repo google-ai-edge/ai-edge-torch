@@ -15,10 +15,11 @@
 
 from typing import Any, Optional
 
+import torch
+
 from ai_edge_torch import config
 from ai_edge_torch._convert import signature
 from ai_edge_torch.quantize import quant_config as qcfg
-import torch
 
 # isort: off
 if config.Config.use_torch_xla:
@@ -43,7 +44,6 @@ else:
 
 
 def exported_programs_to_tflite(
-    exported_programs: list[torch.export.ExportedProgram],
     signatures: list[signature.Signature],
     *,
     quant_config: Optional[qcfg.QuantConfig] = None,
@@ -52,7 +52,6 @@ def exported_programs_to_tflite(
   """Converts a list of ExportedProgram to a TFLite model.
 
   Args:
-    exported_programs: A list of ExportedProgram.
     signatures: A list of Signature.
     quant_config: A QuantConfig.
     _tfl_converter_flags: A dict of flags for TFLiteConverter.
@@ -64,12 +63,12 @@ def exported_programs_to_tflite(
     _tfl_converter_flags = {}
 
   bundles: list[utils.MlirBundle] = [
-      utils.exported_program_to_mlir(exported, sig.flat_args)
-      for exported, sig in zip(exported_programs, signatures)
+      utils.exported_program_to_mlir(sig.exported_program, sig.flat_args)
+      for sig in signatures
   ]
 
   merged_bundle: utils.MergedBundle = utils.merge_mlir_bundles(
-      bundles, signatures, exported_programs
+      bundles, signatures
   )
 
   return utils.merged_bundle_to_tfl_model(
