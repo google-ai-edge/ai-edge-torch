@@ -59,9 +59,11 @@ def build_norm(dim: int, config: cfg.NormalizationConfig):
         zero_centered_gamma=config.zero_centered,
     )
   elif config.type == cfg.NormalizationType.LAYER_NORM:
-    return nn.LayerNorm(dim, eps=config.epsilon)
+    return normalization.LayerNorm(dim, config.epsilon, config.enable_hlfb)
   elif config.type == cfg.NormalizationType.GROUP_NORM:
-    return nn.GroupNorm(config.group_num, dim, config.epsilon)
+    return normalization.GroupNorm(
+        config.group_num, dim, config.epsilon, config.enable_hlfb
+    )
   else:
     raise ValueError("Unsupported norm type.")
 

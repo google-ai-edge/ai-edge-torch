@@ -149,7 +149,7 @@ class BaseLoader(loader.ModelLoader):
         state,
         tensor_names.norm_1,
         converted_state,
-        f"{converted_state_param_prefix}.norm_1",
+        f"{converted_state_param_prefix}.norm_1.norm",
     )
     _map_to_converted_state(
         state,
@@ -161,7 +161,7 @@ class BaseLoader(loader.ModelLoader):
         state,
         tensor_names.norm_2,
         converted_state,
-        f"{converted_state_param_prefix}.norm_2",
+        f"{converted_state_param_prefix}.norm_2.norm",
     )
     _map_to_converted_state(
         state,
@@ -197,7 +197,7 @@ class BaseLoader(loader.ModelLoader):
           state,
           tensor_names.norm,
           converted_state,
-          f"{converted_state_param_prefix}.norm",
+          f"{converted_state_param_prefix}.norm.norm",
       )
     attention_layer_prefix = f"{converted_state_param_prefix}.attention"
     if tensor_names.fused_qkv_proj is not None:
@@ -290,7 +290,7 @@ class BaseLoader(loader.ModelLoader):
           state,
           tensor_names.norm,
           converted_state,
-          f"{converted_state_param_prefix}.norm",
+          f"{converted_state_param_prefix}.norm.norm",
       )
     attention_layer_prefix = f"{converted_state_param_prefix}.attention"
     _map_to_converted_state(
@@ -330,7 +330,7 @@ class BaseLoader(loader.ModelLoader):
         state,
         tensor_names.norm,
         converted_state,
-        f"{converted_state_param_prefix}.norm",
+        f"{converted_state_param_prefix}.norm.norm",
     )
     if config.activation_config.type == layers_config.ActivationType.GE_GLU:
       _map_to_converted_state(
@@ -366,7 +366,7 @@ class BaseLoader(loader.ModelLoader):
         state,
         tensor_names.pre_conv_norm,
         converted_state,
-        f"{converted_state_param_prefix}.pre_conv_norm",
+        f"{converted_state_param_prefix}.pre_conv_norm.norm",
     )
     _map_to_converted_state(
         state,
@@ -646,7 +646,7 @@ class AutoEncoderModelLoader(BaseLoader):
       )
     if self._names.final_norm is not None:
       _map_to_converted_state(
-          state, self._names.final_norm, converted_state, "final_norm"
+          state, self._names.final_norm, converted_state, "final_norm.norm"
       )
     self._map_mid_block(
         state,
@@ -769,7 +769,7 @@ class DiffusionModelLoader(BaseLoader):
         state, self._names.conv_out, converted_state, "conv_out"
     )
     _map_to_converted_state(
-        state, self._names.final_norm, converted_state, "final_norm"
+        state, self._names.final_norm, converted_state, "final_norm.norm"
     )
 
     # Map down_encoders.
