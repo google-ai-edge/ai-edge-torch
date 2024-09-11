@@ -20,6 +20,7 @@ limitations under the License.
 #include <ios>
 #include <iterator>
 #include <limits>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -33,6 +34,7 @@ limitations under the License.
 #include "tensorflow/lite/interpreter_builder.h"
 #include "tensorflow/lite/kernels/register.h"
 #include "tensorflow/lite/model_builder.h"
+#include "tensorflow/lite/signature_runner.h"
 
 // This is a simplified example of using TFLite to generate text.
 // Please note that this is only a starting point and the user is expected
@@ -121,6 +123,53 @@ std::unique_ptr<tflite::Interpreter> BuildInterpreter(
   return interpreter;
 }
 
+std::map<std::string, std::vector<float>> BuildKVCache(
+    tflite::Interpreter* interpreter) {
+  tflite::SignatureRunner* runner = interpreter->GetSignatureRunner("prefill");
+  if (runner == nullptr) {
+    return {};
+  }
+  // The two arguments excluded are `tokens` and `input_pos`.
+  size_t num_layers = (runner->input_size() - 2) / 2;
+  if (num_layers == 0) {
+    return {};
+  }
+
+  std::map<std::string, std::vector<float>> kv_cache;
+  for (int i = 0; i < num_layers; ++i) {
+    std::string k_cache_name = "kv_cache_k_" + std::to_string(i);
+    std::string v_cache_name = "kv_cache_v_" + std::to_string(i);
+    // We are assuming K and V tensors are of the same shape.
+    TfLiteTensor* tensor = runner->input_tensor(k_cache_name.c_str());
+    size_t count = tensor->bytes / sizeof(float);
+    kv_cache.emplace(k_cache_name, std::vector<float>(count, 0.0));
+    kv_cache.emplace(v_cache_name, std::vector<float>(count, 0.0));
+  }
+
+  return kv_cache;
+}
+
+tflite::SignatureRunner* GetSignatureRunner(
+    tflite::Interpreter* interpreter, const std::string& signature_name,
+    std::map<std::string, std::vector<float>>& kv_cache) {
+  tflite::SignatureRunner* runner =
+      interpreter->GetSignatureRunner(signature_name.c_str());
+  for (auto& [name, cache] : kv_cache) {
+    TfLiteCustomAllocation allocation = {
+        .data = static_cast<void*>(cache.data()),
+        .bytes = cache.size() * sizeof(float)};
+    // Both input and output tensors are set to the same buffer. Not all
+    // delegates support this in-place update. For those cases, we need to do
+    // a ping-pong buffer and update the pointers between inference calls.
+    TFLITE_MINIMAL_CHECK(runner->SetCustomAllocationForInputTensor(
+                             name.c_str(), allocation) == kTfLiteOk);
+    TFLITE_MINIMAL_CHECK(runner->SetCustomAllocationForOutputTensor(
+                             name.c_str(), allocation) == kTfLiteOk);
+  }
+  TFLITE_MINIMAL_CHECK(runner->AllocateTensors() == kTfLiteOk);
+  return runner;
+}
+
 std::unique_ptr<sentencepiece::SentencePieceProcessor>
 LoadSentencePieceProcessor() {
   std::ifstream input(absl::GetFlag(FLAGS_sentencepiece_model),
@@ -158,23 +207,28 @@ int main(int argc, char* argv[]) {
       BuildInterpreter(model.get(), absl::GetFlag(FLAGS_num_threads));
   std::unique_ptr<sentencepiece::SentencePieceProcessor> sp_processor =
       LoadSentencePieceProcessor();
+  std::map<std::string, std::vector<float>> kv_cache =
+      BuildKVCache(interpreter.get());
+  TFLITE_MINIMAL_CHECK(!kv_cache.empty())
 
   // Get prefill and decode signature runners and allocate tensors per
   // signature.
-  auto prefill_runner = interpreter->GetSignatureRunner("prefill");
-  TFLITE_MINIMAL_CHECK(prefill_runner->AllocateTensors() == kTfLiteOk);
-  auto decode_runner = interpreter->GetSignatureRunner("decode");
-  TFLITE_MINIMAL_CHECK(decode_runner->AllocateTensors() == kTfLiteOk);
+  tflite::SignatureRunner* prefill_runner =
+      GetSignatureRunner(interpreter.get(), "prefill", kv_cache);
+  TFLITE_MINIMAL_CHECK(prefill_runner != nullptr);
+  tflite::SignatureRunner* decode_runner =
+      GetSignatureRunner(interpreter.get(), "decode", kv_cache);
+  TFLITE_MINIMAL_CHECK(decode_runner != nullptr);
 
   // Get Input Tensors for each of the runners.
   // Shape: [Batch, Seq], Dtype: int64
-  TfLiteTensor* prefill_input = prefill_runner->input_tensor("args_0");
+  TfLiteTensor* prefill_input = prefill_runner->input_tensor("tokens");
   // Shape: [Seq], Dtype: int64
-  TfLiteTensor* prefill_input_pos = prefill_runner->input_tensor("args_1");
+  TfLiteTensor* prefill_input_pos = prefill_runner->input_tensor("input_pos");
   // Shape: [Batch, Seq], Dtype: int64
-  TfLiteTensor* decode_input = decode_runner->input_tensor("args_0");
+  TfLiteTensor* decode_input = decode_runner->input_tensor("tokens");
   // Shape: [Seq], Dtype: int64
-  TfLiteTensor* decode_input_pos = decode_runner->input_tensor("args_1");
+  TfLiteTensor* decode_input_pos = decode_runner->input_tensor("input_pos");
   int max_seq_size = prefill_input->dims->data[1];
 
   // Tokenize the input prompt.
@@ -223,7 +277,7 @@ int main(int argc, char* argv[]) {
     decode_input->data.i64[0] = next_token;
     decode_input_pos->data.i64[0] = next_position;
     TFLITE_MINIMAL_CHECK(decode_runner->Invoke() == kTfLiteOk);
-    next_token = GreedySampler(decode_runner->output_tensor("output_0"));
+    next_token = GreedySampler(decode_runner->output_tensor("logits"));
     output_tokens.push_back(next_token);
     next_position += 1;
     if (next_token == stop_token_id) {
