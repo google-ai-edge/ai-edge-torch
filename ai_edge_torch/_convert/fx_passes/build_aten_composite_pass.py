@@ -276,7 +276,7 @@ def _aten_embedding(gm: torch.fx.GraphModule, node: torch.fx.Node):
 
   node.target = embedding
   
-@_register_composite_builder(torch.ops.aten.native_group_norm.default)
+# @_register_composite_builder(torch.ops.aten.native_group_norm.default)
 def _aten_embedding(gm: torch.fx.GraphModule, node: torch.fx.Node):
   op = node.target
   args_mapper = TorchOpArgumentsMapper(op)
