@@ -123,7 +123,7 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_tiny_llama_multisig(self):
     config = tiny_llama.get_fake_model_config()
-    pytorch_model = tiny_llama.TinyLLamma(config).eval()
+    pytorch_model = tiny_llama.TinyLlama(config).eval()
 
     # prefill
     seq_len = 10

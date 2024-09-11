@@ -44,7 +44,7 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
 )
 
 
-class TinyLLamma(nn.Module):
+class TinyLlama(nn.Module):
   """A TinyLlama model built from the Edge Generative API layers."""
 
   def __init__(self, config: cfg.ModelConfig):
@@ -169,7 +169,7 @@ def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
 
 def build_model(checkpoint_path: str, **kwargs) -> nn.Module:
   config = get_model_config(**kwargs)
-  model = TinyLLamma(config)
+  model = TinyLlama(config)
   loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
   loader.load(model)
   model.eval()

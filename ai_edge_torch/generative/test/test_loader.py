@@ -71,7 +71,7 @@ class TestLoader(googletest.TestCase):
       safetensors.torch.save_file(test_weights, file_path)
       cfg = tiny_llama.get_model_config()
       cfg.num_layers = 1
-      model = tiny_llama.TinyLLamma(cfg)
+      model = tiny_llama.TinyLlama(cfg)
 
       loader = loading_utils.ModelLoader(file_path, tiny_llama.TENSOR_NAMES)
       # if returns successfully, it means all the tensors were initiallized.
