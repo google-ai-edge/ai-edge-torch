@@ -86,7 +86,8 @@ class GroupNorm(torch.nn.Module):
     self.enable_hlfb = enable_hlfb
     self.group_num = group_num
     self.eps = eps
-    self.norm = nn.GroupNorm(group_num, dim, eps)
+    self.weight = torch.nn.Parameter(torch.ones(dim))
+    self.bias = torch.nn.Parameter(torch.ones(dim))
 
   def forward(self, x):
     """Running the forward pass of GroupNorm layer.
@@ -100,13 +101,13 @@ class GroupNorm(torch.nn.Module):
     if self.enable_hlfb:
       return group_norm_with_hlfb(
           x,
-          self.norm.weight,
-          self.norm.bias,
+          self.weight,
+          self.bias,
           self.group_num,
           self.eps,
       )
     else:
-      return self.norm(x)
+      return F.group_norm(x, self.group_num, self.weight, self.bias, self.eps)
 
 
 class LayerNorm(torch.nn.Module):
@@ -124,7 +125,8 @@ class LayerNorm(torch.nn.Module):
     super().__init__()
     self.enable_hlfb = enable_hlfb
     self.eps = eps
-    self.norm = nn.LayerNorm(dim, eps=eps)
+    self.weight = torch.nn.Parameter(torch.ones(dim))
+    self.bias = torch.nn.Parameter(torch.ones(dim))
 
   def forward(self, x):
     """Running the forward pass of LayerNorm layer.
@@ -138,12 +140,18 @@ class LayerNorm(torch.nn.Module):
     if self.enable_hlfb:
       return layer_norm_with_hlfb(
           x,
-          self.norm.weight,
-          self.norm.bias,
+          self.weight,
+          self.bias,
           self.eps,
       )
     else:
-      return self.norm(x)
+      return F.layer_norm(
+          x,
+          x.shape,
+          self.weight.broadcast_to(x.shape),
+          self.bias.broadcast_to(x.shape),
+          self.eps,
+      )
 
 
 def group_norm_with_hlfb(
