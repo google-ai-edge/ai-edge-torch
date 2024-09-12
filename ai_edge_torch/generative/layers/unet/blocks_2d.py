@@ -122,7 +122,6 @@ class AttentionBlock2D(nn.Module):
         config.attention_batch_size,
         config.dim,
         config.attention_config,
-        0,
         enable_hlfb=config.enable_hlfb,
     )
 
@@ -180,7 +179,6 @@ class CrossAttentionBlock2D(nn.Module):
         config.query_dim,
         config.cross_dim,
         config.attention_config,
-        0,
         enable_hlfb=config.enable_hlfb,
     )
 
