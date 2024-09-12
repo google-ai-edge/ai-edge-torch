@@ -6,6 +6,8 @@ This module offers illustrations of how to utilize and run exported models. The 
 
 * If compiling the examples to run on an Android device, you need to download Android NDK and SDK and set `$ANDROID_NDK_HOME` and `$ANDROID_HOME` environment variables. Please note that _bazel_ currently only supports NDK versions 19, 20, and 21.
 
+* Reducing memory: By default XNNPACK is enabled for optimized inference. XNNPACK needs to re-format the weights depending on the hardware of the device, and so has to create a new copy of the weights for the Dense layers. We can reduce our peak memory and remove the duplication of the weights by taking advantage of the XNNPACK weight caching mechanism. To enable this, add the flag `--weight_cache_path=/path/to/tmp/my_model.xnnpack_cache`. During the very first instance of the model, XNNPACK will build and write the cache into memory. Subsequent runs will load this cache which will also speed up initialization time. Currently it is the user's responsibility to ensure the validity of the cache (e.g. setting the proper path, removing the cache if needed, updating cache (by removing and rebuilding) if the model weights are updated, new/re-building cache for different models).
+
 ## Text Generation
 
 In `text_generator_main.cc`, we provide an example of running a decoder-only model end-to-end using TensorFlow Lite as our inference engine.
@@ -17,5 +19,5 @@ It's important to note that while we use [SentencePiece](https://github.com/goog
 As an example, you can run `text_generator_main`  for an exported Gemma model as follows:
 
 ```
-bazel run -c opt //ai_edge_torch/generative/examples/c++:text_generator_main -- --tflite_model=PATH/gemma_it.tflite  --sentencepiece_model=PATH/tokenizer.model --start_token="<bos>" --stop_token="<eos>" --num_threads=16 --prompt="Write an email:"
+bazel run -c opt //ai_edge_torch/generative/examples/c++:text_generator_main -- --tflite_model=PATH/gemma_it.tflite  --sentencepiece_model=PATH/tokenizer.model --start_token="<bos>" --stop_token="<eos>" --num_threads=16 --prompt="Write an email:" --weight_cache_path=PATH/gemma.xnnpack_cache
 ```
