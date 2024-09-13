@@ -48,7 +48,6 @@ class Phi2(nn.Module):
   def __init__(self, config: cfg.ModelConfig):
     super().__init__()
 
-    self.config = config
     # Construct model layers.
     self.lm_head = nn.Linear(
         config.embedding_dim, config.vocab_size, bias=config.lm_head_use_bias
@@ -56,18 +55,20 @@ class Phi2(nn.Module):
     self.tok_embedding = nn.Embedding(
         config.vocab_size, config.embedding_dim, padding_idx=0
     )
+    # Phi-2 has only one block config.
+    block_config = config.block_config(0)
     self.transformer_blocks = nn.ModuleList(
-        attention.TransformerBlock(config) for _ in range(config.num_layers)
+        attention.TransformerBlock(block_config, config)
+        for _ in range(config.num_layers)
     )
     self.final_norm = builder.build_norm(
         config.embedding_dim,
         config.final_norm_config,
     )
+    attn_config = block_config.attn_config
     self.rope_cache = attn_utils.build_rope_cache(
         size=config.kv_cache_max,
-        dim=int(
-            config.attn_config.rotary_percentage * config.attn_config.head_dim
-        ),
+        dim=int(attn_config.rotary_percentage * attn_config.head_dim),
         base=10_000,
         condense_ratio=1,
         dtype=torch.float32,
@@ -143,17 +144,20 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       use_bias=True,
   )
   norm_config = cfg.NormalizationConfig(type=cfg.NormalizationType.LAYER_NORM)
+  block_config = cfg.TransformerBlockConfig(
+      attn_config=attn_config,
+      ff_config=ff_config,
+      pre_attention_norm_config=norm_config,
+      parallel_residual=True,
+  )
   config = cfg.ModelConfig(
       vocab_size=51200,
       num_layers=32,
       max_seq_len=2048,
       kv_cache_max_len=kv_cache_max_len,
       embedding_dim=2560,
-      attn_config=attn_config,
-      ff_config=ff_config,
-      pre_attention_norm_config=norm_config,
+      block_configs=block_config,
       final_norm_config=norm_config,
-      parallel_residual=True,
       lm_head_use_bias=True,
       enable_hlfb=True,
   )
@@ -165,7 +169,8 @@ def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
   config.vocab_size = 128
   config.num_layers = 2
   config.max_seq_len = 2 * kv_cache_max_len
-  config.ff_config.intermediate_size = 128
+  # Phi-2 has only one block config.
+  config.block_config(0).ff_config.intermediate_size = 128
   return config
 
 

@@ -38,18 +38,20 @@ class ToyModelWithKVCache(torch.nn.Module):
         config.embedding_dim, config.vocab_size, bias=config.lm_head_use_bias
     )
     self.tok_embedding = nn.Embedding(config.vocab_size, config.embedding_dim)
+    # Toy model has only one block config.
+    block_config = config.block_config(0)
     self.transformer_blocks = nn.ModuleList(
-        attention.TransformerBlock(config) for _ in range(config.num_layers)
+        attention.TransformerBlock(block_config, config)
+        for _ in range(config.num_layers)
     )
     self.final_norm = builder.build_norm(
         config.embedding_dim,
         config.final_norm_config,
     )
+    attn_config = block_config.attn_config
     self.rope_cache = attn_utils.build_rope_cache(
         size=config.max_seq_len,
-        dim=int(
-            config.attn_config.rotary_percentage * config.attn_config.head_dim
-        ),
+        dim=int(attn_config.rotary_percentage * attn_config.head_dim),
         base=10_000,
         condense_ratio=1,
         dtype=torch.float32,
@@ -92,7 +94,10 @@ def _export_stablehlo_mlir(model, args):
 
 def get_model_config() -> cfg.ModelConfig:
   attn_config = cfg.AttentionConfig(
-      num_heads=32, head_dim=4, num_query_groups=4, rotary_percentage=1.0
+      num_heads=32,
+      head_dim=4,
+      num_query_groups=4,
+      rotary_percentage=1.0,
   )
   ff_config = cfg.FeedForwardConfig(
       type=cfg.FeedForwardType.GATED,
@@ -100,15 +105,18 @@ def get_model_config() -> cfg.ModelConfig:
       intermediate_size=256,
   )
   norm_config = cfg.NormalizationConfig(type=cfg.NormalizationType.RMS_NORM)
+  block_config = cfg.TransformerBlockConfig(
+      attn_config=attn_config,
+      ff_config=ff_config,
+      pre_attention_norm_config=norm_config,
+      post_attention_norm_config=norm_config,
+  )
   config = cfg.ModelConfig(
       vocab_size=150,
       num_layers=2,
       max_seq_len=100,
       embedding_dim=128,
-      attn_config=attn_config,
-      ff_config=ff_config,
-      pre_attention_norm_config=norm_config,
-      post_attention_norm_config=norm_config,
+      block_configs=block_config,
       final_norm_config=norm_config,
       enable_hlfb=True,
   )

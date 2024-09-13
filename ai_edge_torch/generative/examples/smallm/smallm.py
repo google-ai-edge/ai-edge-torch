@@ -67,16 +67,19 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       intermediate_size=1536,
   )
   norm_config = cfg.NormalizationConfig(type=cfg.NormalizationType.RMS_NORM)
+  block_config = cfg.TransformerBlockConfig(
+      attn_config=attn_config,
+      ff_config=ff_config,
+      pre_attention_norm_config=norm_config,
+      post_attention_norm_config=norm_config,
+  )
   config = cfg.ModelConfig(
       vocab_size=49152,
       num_layers=30,
       max_seq_len=2048,
       embedding_dim=576,
       kv_cache_max_len=kv_cache_max_len,
-      attn_config=attn_config,
-      ff_config=ff_config,
-      pre_attention_norm_config=norm_config,
-      post_attention_norm_config=norm_config,
+      block_configs=block_config,
       final_norm_config=norm_config,
       enable_hlfb=True,
   )
@@ -87,7 +90,7 @@ def build_model(checkpoint_path: str, **kwargs) -> nn.Module:
   config = get_model_config(**kwargs)
   model = SmalLM(config)
   loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
-  # since embedding and lm-head use the same weight, we need to set strict
+  # Since embedding and lm-head use the same weight, we need to set strict
   # to False.
   loader.load(model, strict=False)
   model.eval()

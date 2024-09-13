@@ -50,7 +50,6 @@ class Gemma(nn.Module):
   def __init__(self, config: cfg.ModelConfig):
     super().__init__()
 
-    self.config = config
     # Construct model layers.
     self.tok_embedding = nn.Embedding(
         config.vocab_size, config.embedding_dim, padding_idx=0
@@ -62,18 +61,20 @@ class Gemma(nn.Module):
     )
     # Gemma re-uses the embedding as the head projection layer.
     self.lm_head.weight.data = self.tok_embedding.weight.data
+    # Gemma has only one block config.
+    block_config = config.block_config(0)
     self.transformer_blocks = nn.ModuleList(
-        attention.TransformerBlock(config) for _ in range(config.num_layers)
+        attention.TransformerBlock(block_config, config)
+        for _ in range(config.num_layers)
     )
     self.final_norm = builder.build_norm(
         config.embedding_dim,
         config.final_norm_config,
     )
+    attn_config = block_config.attn_config
     self.rope_cache = attn_utils.build_rope_cache(
         size=config.kv_cache_max,
-        dim=int(
-            config.attn_config.rotary_percentage * config.attn_config.head_dim
-        ),
+        dim=int(attn_config.rotary_percentage * attn_config.head_dim),
         base=10_000,
         condense_ratio=1,
         dtype=torch.float32,
@@ -152,18 +153,20 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       epsilon=1e-6,
       zero_centered=True,
   )
+  block_config = cfg.TransformerBlockConfig(
+      attn_config=attn_config,
+      ff_config=ff_config,
+      pre_attention_norm_config=norm_config,
+      post_attention_norm_config=norm_config,
+  )
   config = cfg.ModelConfig(
       vocab_size=256000,
       num_layers=18,
       max_seq_len=8192,
       embedding_dim=2048,
       kv_cache_max_len=kv_cache_max_len,
-      attn_config=attn_config,
-      ff_config=ff_config,
-      pre_attention_norm_config=norm_config,
-      post_attention_norm_config=norm_config,
+      block_configs=block_config,
       final_norm_config=norm_config,
-      parallel_residual=False,
       lm_head_use_bias=False,
       enable_hlfb=True,
   )
@@ -172,7 +175,8 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
 
 def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
   config = get_model_config_2b(kv_cache_max_len)
-  config.ff_config.intermediate_size = 128
+  # Gemma has only one block config.
+  config.block_config(0).ff_config.intermediate_size = 128
   config.vocab_size = 128
   config.num_layers = 2
   config.max_seq_len = 2 * kv_cache_max_len
@@ -183,7 +187,7 @@ def build_2b_model(checkpoint_path: str, **kwargs) -> nn.Module:
   config = get_model_config_2b(**kwargs)
   model = Gemma(config)
   loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
-  # since embedding and lm-head use the same weight, we need to set strict
+  # Since embedding and lm-head use the same weight, we need to set strict
   # to False.
   loader.load(model, strict=False)
   model.eval()

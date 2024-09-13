@@ -24,7 +24,6 @@ from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_
 from ai_edge_torch.generative.layers.scaled_dot_product_attention import scaled_dot_product_attention_with_hlfb  # NOQA
 import torch
 from torch import nn
-import torch.nn.functional as F
 
 BATCH_SIZE = 1
 
@@ -32,13 +31,18 @@ BATCH_SIZE = 1
 class EncoderDecoderBlock(nn.Module):
 
   def __init__(
-      self, config: cfg.ModelConfig, has_relative_attention_bias: bool = False
+      self,
+      config: cfg.TransformerBlockConfig,
+      model_config: cfg.ModelConfig,
+      has_relative_attention_bias: bool = False,
   ) -> None:
     """Initialize an instance of the EncoderDecoderBlock.
 
     Args:
-      config (cfg.ModelConfig): the configuration object for this transformer
-        block.
+      config (cfg.TransformerBlockConfig): the configuration object for this
+        transformer block.
+      model_config (cfg.ModelConfig): the configuration object for the model
+        this transformer block belongs to.
       has_relative_attention_bias (bool): whether the self attention block has
         relative bias.
     """
@@ -46,22 +50,22 @@ class EncoderDecoderBlock(nn.Module):
     super().__init__()
     self.atten_func = T5Attention(
         BATCH_SIZE,
-        config.embedding_dim,
+        model_config.embedding_dim,
         config.attn_config,
         config.pre_attention_norm_config,
-        config.kv_cache_max,
-        config.enable_hlfb,
+        model_config.kv_cache_max,
+        model_config.enable_hlfb,
         has_relative_attention_bias=has_relative_attention_bias,
     )
     # For a decoder, we add a cross attention.
-    if config.is_decoder:
+    if model_config.is_decoder:
       self.cross_atten_func = T5Attention(
           BATCH_SIZE,
-          config.embedding_dim,
+          model_config.embedding_dim,
           config.attn_config,
           config.pre_attention_norm_config,
-          config.kv_cache_max,
-          config.enable_hlfb,
+          model_config.kv_cache_max,
+          model_config.enable_hlfb,
           # Cross Attention does not have relative attention bias.
           has_relative_attention_bias=False,
       )
@@ -69,9 +73,10 @@ class EncoderDecoderBlock(nn.Module):
       self.cross_atten_func = None
 
     self.post_atten_norm = builder.build_norm(
-        config.embedding_dim, config.post_attention_norm_config
+        model_config.embedding_dim,
+        config.post_attention_norm_config,
     )
-    self.ff = builder.build_ff(config.embedding_dim, config.ff_config)
+    self.ff = builder.build_ff(model_config.embedding_dim, config.ff_config)
     self.config = config
 
   def forward(

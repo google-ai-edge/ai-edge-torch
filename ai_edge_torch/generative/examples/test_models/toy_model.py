@@ -20,7 +20,6 @@ from ai_edge_torch.generative.layers.attention import TransformerBlock
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.builder as builder
 import ai_edge_torch.generative.layers.model_config as cfg
-import numpy as np
 import torch
 import torch.nn as nn
 
@@ -36,16 +35,16 @@ class ToySingleLayerModel(torch.nn.Module):
         config.embedding_dim, config.vocab_size, bias=config.lm_head_use_bias
     )
     self.tok_embedding = nn.Embedding(config.vocab_size, config.embedding_dim)
-    self.transformer_block = TransformerBlock(config)
+    self.transformer_block = TransformerBlock(config.block_config(0), config)
     self.final_norm = builder.build_norm(
         config.embedding_dim,
         config.final_norm_config,
     )
+    # Toy model has only one block config.
+    attn_config = config.block_config(0).attn_config
     self.rope_cache = attn_utils.build_rope_cache(
         size=config.max_seq_len,
-        dim=int(
-            config.attn_config.rotary_percentage * config.attn_config.head_dim
-        ),
+        dim=int(attn_config.rotary_percentage * attn_config.head_dim),
         base=10_000,
         condense_ratio=1,
         dtype=torch.float32,
@@ -85,16 +84,16 @@ class ToySingleLayerModelWeightSharing(torch.nn.Module):
         bias=config.lm_head_use_bias,
     )
     self.lm_head.weight.data = self.tok_embedding.weight.data
-    self.transformer_block = TransformerBlock(config)
+    self.transformer_block = TransformerBlock(config.block_config(0), config)
     self.final_norm = builder.build_norm(
         config.embedding_dim,
         config.final_norm_config,
     )
+    # Toy model has only one block config.
+    attn_config = config.block_config(0).attn_config
     self.rope_cache = attn_utils.build_rope_cache(
         size=config.max_seq_len,
-        dim=int(
-            config.attn_config.rotary_percentage * config.attn_config.head_dim
-        ),
+        dim=int(attn_config.rotary_percentage * attn_config.head_dim),
         base=10_000,
         condense_ratio=1,
         dtype=torch.float32,
@@ -135,15 +134,18 @@ def get_model_config() -> cfg.ModelConfig:
       intermediate_size=256,
   )
   norm_config = cfg.NormalizationConfig(type=cfg.NormalizationType.RMS_NORM)
+  block_config = cfg.TransformerBlockConfig(
+      attn_config=attn_config,
+      ff_config=ff_config,
+      pre_attention_norm_config=norm_config,
+      post_attention_norm_config=norm_config,
+  )
   config = cfg.ModelConfig(
       vocab_size=400,
       num_layers=1,
       max_seq_len=KV_CACHE_MAX_LEN,
       embedding_dim=128,
-      attn_config=attn_config,
-      ff_config=ff_config,
-      pre_attention_norm_config=norm_config,
-      post_attention_norm_config=norm_config,
+      block_configs=block_config,
       final_norm_config=norm_config,
   )
   return config

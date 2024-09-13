@@ -30,14 +30,16 @@ class TestKVLayers(googletest.TestCase):
     attn_config = cfg.AttentionConfig(
         num_heads=1, head_dim=head_dim, num_query_groups=num_query_groups
     )
+    block_config = cfg.TransformerBlockConfig(
+        attn_config=attn_config, ff_config=None
+    )
     config = cfg.ModelConfig(
         kv_cache_max_len=kv_cache_max_len,
         embedding_dim=head_dim,
-        attn_config=attn_config,
+        block_configs=block_config,
         num_layers=num_layers,
         max_seq_len=None,
         vocab_size=None,
-        ff_config=None,
     )
     return config
 

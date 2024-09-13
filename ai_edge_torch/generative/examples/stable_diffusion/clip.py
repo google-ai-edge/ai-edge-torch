@@ -61,8 +61,10 @@ class CLIP(nn.Module):
     )
 
     self.config = config
+    # CLIP has only one block config.
+    block_config = config.block_config(0)
     self.transformer_blocks = nn.ModuleList(
-        TransformerBlock(config) for _ in range(config.num_layers)
+        TransformerBlock(block_config, config) for _ in range(config.num_layers)
     )
     self.final_norm = builder.build_norm(
         config.embedding_dim, config.final_norm_config
@@ -112,15 +114,19 @@ def get_model_config() -> cfg.ModelConfig:
 
   norm_config = cfg.NormalizationConfig(type=cfg.NormalizationType.LAYER_NORM)
 
+  block_config = cfg.TransformerBlockConfig(
+      attn_config=attn_config,
+      ff_config=ff_config,
+      pre_attention_norm_config=norm_config,
+      post_attention_norm_config=norm_config,
+  )
+
   config = cfg.ModelConfig(
       vocab_size=vocab_size,
       num_layers=num_layers,
       max_seq_len=max_seq_len,
       embedding_dim=embedding_dim,
-      attn_config=attn_config,
-      ff_config=ff_config,
-      pre_attention_norm_config=norm_config,
-      post_attention_norm_config=norm_config,
+      block_configs=block_config,
       final_norm_config=norm_config,
       enable_hlfb=True,
   )

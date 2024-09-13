@@ -52,9 +52,15 @@ class T5Stack(nn.Module):
     self.config = config
     self.embed_tokens = embed_tokens
     self.is_decoder = config.is_decoder
+    # T5 has only one block config.
+    block_config = config.block_config(0)
     self.transformer_blocks = nn.ModuleList([
-        EncoderDecoderBlock(config, has_relative_attention_bias=bool(i == 0))
-        for i in range(config.num_layers)
+        EncoderDecoderBlock(
+            block_config,
+            config,
+            has_relative_attention_bias=bool(idx == 0),
+        )
+        for idx in range(config.num_layers)
     ])
     self.final_norm = builder.build_norm(
         config.embedding_dim, config.final_norm_config
@@ -73,13 +79,11 @@ class T5Stack(nn.Module):
           torch.Tensor
       ] = None,  # should be for decoder case
   ):
-    input_shape = input_ids.size()
     inputs_embeds = self.embed_tokens(input_ids)
-    batch_size, seq_length = input_shape
     hidden_states = inputs_embeds
     position_bias = None
     encoder_decoder_position_bias = None
-    for i, layer_module in enumerate(self.transformer_blocks):
+    for _, layer_module in enumerate(self.transformer_blocks):
       # EncoderDecoderBlock.forward
       hidden_states, position_bias, encoder_decoder_position_bias = (
           layer_module(
@@ -111,7 +115,8 @@ class T5(nn.Module):
 
     encoder_config = copy.deepcopy(config)
     encoder_config.is_decoder = False
-    encoder_config.attn_config.enable_kv_cache = False
+    # T5 has only one block config.
+    encoder_config.block_config(0).attn_config.enable_kv_cache = False
     self.encoder = T5Stack(encoder_config, self.tok_embedding)
 
     decoder_config = copy.deepcopy(config)
@@ -137,20 +142,22 @@ class T5(nn.Module):
         device=torch.device("cpu"),
     )
 
+    # T5 has only one block config.
+    attn_config = config.block_config(0).attn_config
     self.enc_rel_pos_mask = attn_utils.build_relative_position_buckets(
         bidirectional=True,
         query_length=config.kv_cache_max,
         key_length=config.kv_cache_max,
-        num_buckets=config.attn_config.relative_attention_num_buckets,
-        max_distance=config.attn_config.relative_attention_max_distance,
+        num_buckets=attn_config.relative_attention_num_buckets,
+        max_distance=attn_config.relative_attention_max_distance,
     )
 
     self.dec_rel_pos_mask = attn_utils.build_relative_position_buckets(
         bidirectional=False,
         query_length=config.kv_cache_max,
         key_length=config.kv_cache_max,
-        num_buckets=config.attn_config.relative_attention_num_buckets,
-        max_distance=config.attn_config.relative_attention_max_distance,
+        num_buckets=attn_config.relative_attention_num_buckets,
+        max_distance=attn_config.relative_attention_max_distance,
     )
 
   @torch.inference_mode
@@ -230,7 +237,8 @@ class T5Encoder(nn.Module):
 
     encoder_config = copy.deepcopy(config)
     encoder_config.is_decoder = False
-    encoder_config.attn_config.enable_kv_cache = False
+    # T5 has only one block config.
+    encoder_config.block_config(0).attn_config.enable_kv_cache = False
     self.encoder = T5Stack(encoder_config, self.tok_embedding)
 
     self.enc_attn_mask_cache = (
@@ -243,12 +251,14 @@ class T5Encoder(nn.Module):
         .unsqueeze(0)
     )
 
+    # T5 has only one block config.
+    attn_config = config.block_config(0).attn_config
     self.enc_rel_pos_mask = attn_utils.build_relative_position_buckets(
         bidirectional=True,
         query_length=config.kv_cache_max,
         key_length=config.kv_cache_max,
-        num_buckets=config.attn_config.relative_attention_num_buckets,
-        max_distance=config.attn_config.relative_attention_max_distance,
+        num_buckets=attn_config.relative_attention_num_buckets,
+        max_distance=attn_config.relative_attention_max_distance,
     )
 
   @torch.inference_mode
@@ -313,12 +323,14 @@ class T5Decoder(nn.Module):
         .unsqueeze(0)
     )
 
+    # T5 has only one block config.
+    attn_config = config.block_config(0).attn_config
     self.enc_rel_pos_mask = attn_utils.build_relative_position_buckets(
         bidirectional=True,
         query_length=config.kv_cache_max,
         key_length=config.kv_cache_max,
-        num_buckets=config.attn_config.relative_attention_num_buckets,
-        max_distance=config.attn_config.relative_attention_max_distance,
+        num_buckets=attn_config.relative_attention_num_buckets,
+        max_distance=attn_config.relative_attention_max_distance,
     )
 
     self.dec_attn_mask_cache = attn_utils.build_causal_mask_cache(
@@ -386,19 +398,20 @@ def get_model_config_t5() -> cfg.ModelConfig:
       type=cfg.NormalizationType.RMS_NORM,
       epsilon=1e-6,
   )
-
-  config = cfg.ModelConfig(
-      vocab_size=32128,
-      num_layers=12,
-      max_seq_len=512,
-      embedding_dim=768,
+  block_config = cfg.TransformerBlockConfig(
       attn_config=attn_config,
       relative_attention=True,
       ff_config=ff_config,
       pre_attention_norm_config=norm_config,
       post_attention_norm_config=norm_config,
+  )
+  config = cfg.ModelConfig(
+      vocab_size=32128,
+      num_layers=12,
+      max_seq_len=512,
+      embedding_dim=768,
+      block_configs=block_config,
       final_norm_config=norm_config,
-      parallel_residual=False,
       lm_head_use_bias=False,
       enable_hlfb=True,
   )

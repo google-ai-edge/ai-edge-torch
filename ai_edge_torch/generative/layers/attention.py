@@ -55,27 +55,35 @@ def _embed_rope(
 
 class TransformerBlock(nn.Module):
 
-  def __init__(self, config: cfg.ModelConfig) -> None:
+  def __init__(
+      self,
+      config: cfg.TransformerBlockConfig,
+      model_config: cfg.ModelConfig,
+  ) -> None:
     """Initialize an instance of the TransformerBlock.
 
     Args:
-      config (cfg.ModelConfig): the configuration object for this transformer
-        block.
+      config (cfg.TransformerBlockConfig): the configuration object for this
+        transformer block.
+      model_config (cfg.ModelConfig): the configuration object for the model
+        this transformer block belongs to.
     """
     super().__init__()
     self.pre_atten_norm = builder.build_norm(
-        config.embedding_dim, config.pre_attention_norm_config
+        model_config.embedding_dim,
+        config.pre_attention_norm_config,
     )
     self.atten_func = CausalSelfAttention(
-        config.batch_size,
-        config.embedding_dim,
+        model_config.batch_size,
+        model_config.embedding_dim,
         config.attn_config,
-        config.enable_hlfb,
+        model_config.enable_hlfb,
     )
     self.post_atten_norm = builder.build_norm(
-        config.embedding_dim, config.post_attention_norm_config
+        model_config.embedding_dim,
+        config.post_attention_norm_config,
     )
-    self.ff = builder.build_ff(config.embedding_dim, config.ff_config)
+    self.ff = builder.build_ff(model_config.embedding_dim, config.ff_config)
     self.config = config
 
   def forward(
@@ -141,7 +149,6 @@ class CausalSelfAttention(nn.Module):
       enable_hlfb (bool): whether hlfb is enabled or not.
     """
     super().__init__()
-    self.config = config
     self.kv_cache = None
     self.batch_size = batch_size
     qkv_shape = (

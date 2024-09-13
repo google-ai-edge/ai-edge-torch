@@ -73,7 +73,7 @@ def build_ff(dim: int, config: cfg.FeedForwardConfig):
 
   Args:
     dim (int): dimension of the input tensor.
-    config (`ModelConfig` object): the model configuration.
+    config (`FeedForwardConfig` object): the model configuration.
 
   Returns:
     The constructed `nn.Module` feedforward layer.

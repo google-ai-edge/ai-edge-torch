@@ -23,6 +23,8 @@ from ai_edge_torch.generative.layers import model_config
 import torch
 import torch.utils._pytree as pytree
 
+BATCH_SIZE = 1
+
 
 @dataclasses.dataclass
 class KVCacheEntry:
@@ -38,17 +40,13 @@ class KVCacheEntry:
   @classmethod
   def from_model_config(
       cls,
-      config: model_config.ModelConfig,
+      kv_cache_max: int,
+      config: model_config.AttentionConfig,
       dtype: torch.dtype = torch.float32,
       device: torch.device = None,
   ) -> "KVCacheEntry":
     """Build an instance of the class based on model config."""
-    shape = (
-        1,  # Batch dimmension.
-        config.kv_cache_max,
-        config.attn_config.num_query_groups,
-        config.attn_config.head_dim,
-    )
+    shape = (BATCH_SIZE, kv_cache_max, config.num_query_groups, config.head_dim)
     k = torch.zeros(shape, dtype=dtype, device=device)
     v = torch.zeros(shape, dtype=dtype, device=device)
     obj = cls(k_cache=k, v_cache=v)
@@ -81,8 +79,13 @@ class KVCache:
         KVCache: The created cache object.
     """
     caches = [
-        KVCacheEntry.from_model_config(config, dtype, device)
-        for _ in range(config.num_layers)
+        KVCacheEntry.from_model_config(
+            config.kv_cache_max,
+            config.block_config(idx).attn_config,
+            dtype,
+            device,
+        )
+        for idx in range(config.num_layers)
     ]
     obj = cls(caches=tuple(caches))
     return obj

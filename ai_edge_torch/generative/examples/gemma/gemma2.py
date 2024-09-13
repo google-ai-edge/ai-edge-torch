@@ -86,7 +86,6 @@ class Gemma2(nn.Module):
   def __init__(self, config: cfg.ModelConfig):
     super().__init__()
 
-    self.config = config
     # Construct model layers.
     self.tok_embedding = nn.Embedding(
         config.vocab_size, config.embedding_dim, padding_idx=0
@@ -96,20 +95,22 @@ class Gemma2(nn.Module):
         config.vocab_size,
         bias=config.lm_head_use_bias,
     )
-    # Gemma re-uses the embedding as the head projection layer.
+    # Gemma2 re-uses the embedding as the head projection layer.
     self.lm_head.weight.data = self.tok_embedding.weight.data
     self.transformer_blocks = nn.ModuleList(
-        Gemma2Block(config) for _ in range(config.num_layers)
+        Gemma2Block(config.block_config(idx), config)
+        for idx in range(config.num_layers)
     )
     self.final_norm = builder.build_norm(
         config.embedding_dim,
         config.final_norm_config,
     )
+    # Gemma2 has same hyper parameters for each layer except for attention
+    # types. Use the first layer.
+    attn_config = config.block_config(0).attn_config
     self.rope_cache = attn_utils.build_rope_cache(
         size=config.kv_cache_max,
-        dim=int(
-            config.attn_config.rotary_percentage * config.attn_config.head_dim
-        ),
+        dim=int(attn_config.rotary_percentage * attn_config.head_dim),
         base=10_000,
         condense_ratio=1,
         dtype=torch.float32,
@@ -120,26 +121,19 @@ class Gemma2(nn.Module):
         dtype=torch.float32,
         device=torch.device("cpu"),
     )
-
     self.sliding_window_mask_cache = attn_utils.build_sliding_window_mask_cache(
         size=config.kv_cache_max,
-        window_size=self.config.attn_config.sliding_window_size,
+        window_size=attn_config.sliding_window_size,
         dtype=torch.float32,
         device=torch.device("cpu"),
     )
-
     self.config = config
 
   def get_attention_mask(
-      self, idx: int, input_pos: torch.Tensor
+      self, attn_type: cfg.AttentionType, input_pos: torch.Tensor
   ) -> torch.Tensor:
-    if self.config.attn_config.attn_types:
-      if (
-          self.config.attn_config.attn_types[idx]
-          == cfg.AttentionType.LOCAL_SLIDING
-      ):
-        return self.sliding_window_mask_cache.index_select(2, input_pos)
-
+    if attn_type == cfg.AttentionType.LOCAL_SLIDING:
+      return self.sliding_window_mask_cache.index_select(2, input_pos)
     return self.mask_cache.index_select(2, input_pos)
 
   @torch.inference_mode
@@ -169,7 +163,9 @@ class Gemma2(nn.Module):
 
     updated_kv_entires = []
     for i, block in enumerate(self.transformer_blocks):
-      mask = self.get_attention_mask(i, input_pos)
+      mask = self.get_attention_mask(
+          block.config.attn_config.attn_type, input_pos
+      )
       kv_entry = kv_cache.caches[i] if kv_cache else None
       x, kv_entry = block(x, (cos, sin), mask, input_pos, kv_entry)
       if kv_entry:
@@ -196,18 +192,6 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   Returns:
     The model config for a Gemma 2B model.
   """
-  attn_config = cfg.AttentionConfig(
-      num_heads=8,
-      head_dim=256,
-      num_query_groups=4,
-      rotary_percentage=1.0,
-      qkv_transpose_before_split=True,
-      logit_softcap=50.0,
-      sliding_window_size=4096,
-      attn_types=[cfg.AttentionType.GLOBAL, cfg.AttentionType.LOCAL_SLIDING]
-      * 13,
-  )
-
   norm_config = cfg.NormalizationConfig(
       type=cfg.NormalizationType.RMS_NORM,
       epsilon=1e-6,
@@ -220,18 +204,38 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       pre_ff_norm_config=norm_config,
       post_ff_norm_config=norm_config,
   )
+
+  def get_block_config(idx: int) -> cfg.TransformerBlockConfig:
+    attn_config = cfg.AttentionConfig(
+        num_heads=8,
+        head_dim=256,
+        num_query_groups=4,
+        rotary_percentage=1.0,
+        qkv_transpose_before_split=True,
+        logit_softcap=50.0,
+        sliding_window_size=4096,
+        attn_type=(
+            cfg.AttentionType.GLOBAL
+            if idx % 2 == 0
+            else cfg.AttentionType.LOCAL_SLIDING
+        ),
+    )
+    return cfg.TransformerBlockConfig(
+        attn_config=attn_config,
+        ff_config=ff_config,
+        pre_attention_norm_config=norm_config,
+        post_attention_norm_config=norm_config,
+    )
+
+  num_layers = 26
   config = cfg.ModelConfig(
       vocab_size=256000,
-      num_layers=26,
+      num_layers=num_layers,
       max_seq_len=8192,
       embedding_dim=2304,
       kv_cache_max_len=kv_cache_max_len,
-      attn_config=attn_config,
-      ff_config=ff_config,
-      pre_attention_norm_config=norm_config,
-      post_attention_norm_config=norm_config,
+      block_configs=[get_block_config(i) for i in range(num_layers)],
       final_norm_config=norm_config,
-      parallel_residual=False,
       lm_head_use_bias=False,
       enable_hlfb=True,
       final_logit_softcap=30.0,
@@ -241,14 +245,16 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
 
 def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
   config = get_model_config_2b(kv_cache_max_len)
-  config.attn_config.num_heads = 4
-  config.attn_config.head_dim = 64
-  config.attn_config.sliding_window_size = 64
-  config.ff_config.intermediate_size = 128
   config.vocab_size = 128
   config.num_layers = 2
   config.max_seq_len = 2 * kv_cache_max_len
   config.embedding_dim = 128
+  config.block_configs = config.block_configs[: config.num_layers]
+  for block_config in config.block_configs:
+    block_config.attn_config.num_heads = 4
+    block_config.attn_config.head_dim = 64
+    block_config.attn_config.sliding_window_size = 64
+    block_config.ff_config.intermediate_size = 128
   return config
 
 
@@ -256,7 +262,7 @@ def build_2b_model(checkpoint_path: str, **kwargs) -> nn.Module:
   config = get_model_config_2b(**kwargs)
   model = Gemma2(config)
   loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
-  # since embedding and lm-head use the same weight, we need to set strict
+  # Since embedding and lm-head use the same weight, we need to set strict
   # to False.
   loader.load(model, strict=False)
   model.eval()
