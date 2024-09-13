@@ -101,6 +101,8 @@ class ModelLoader:
     attn_value_proj: str = None
     attn_fused_qkv_proj: str = None
     attn_output_proj: str = None
+    attn_query_norm: str = None
+    attn_key_norm: str = None
 
     ff_up_proj: str = None
     ff_down_proj: str = None
@@ -322,6 +324,17 @@ class ModelLoader:
                 state.pop(f"{v_name}.bias"),
             )
         )
+
+    if self._names.attn_query_norm is not None:
+      attn_query_norm_name = self._names.attn_query_norm.format(idx)
+      converted_state[f"{prefix}.atten_func.query_norm.weight"] = state.pop(
+          f"{attn_query_norm_name}.weight"
+      )
+    if self._names.attn_key_norm is not None:
+      attn_key_norm_name = self._names.attn_key_norm.format(idx)
+      converted_state[f"{prefix}.atten_func.key_norm.weight"] = state.pop(
+          f"{attn_key_norm_name}.weight"
+      )
 
     o_name = self._names.attn_output_proj.format(idx)
     converted_state[f"{prefix}.atten_func.output_projection.weight"] = (

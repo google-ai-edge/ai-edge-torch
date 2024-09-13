@@ -86,6 +86,15 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
+def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
+  config = get_model_config(**kwargs)
+  config.vocab_size = 128
+  config.num_layers = 2
+  # SmalLM has only one block config.
+  config.block_config(0).ff_config.intermediate_size = 64
+  return config
+
+
 def build_model(checkpoint_path: str, **kwargs) -> nn.Module:
   config = get_model_config(**kwargs)
   model = SmalLM(config)

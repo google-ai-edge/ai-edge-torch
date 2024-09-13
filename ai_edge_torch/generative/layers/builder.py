@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 # Builder class for individual components.
+from typing import Callable
+
 import ai_edge_torch.generative.layers.feed_forward as feed_forward
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.layers.normalization as normalization
@@ -21,20 +23,34 @@ from torch import nn
 import torch.nn.functional as F
 
 
-class GeGLU(nn.Module):
-  """GeGLU is an activation function which is a variant of GELU.
+def build_glu(
+    act: Callable[[torch.Tensor], torch.Tensor], gate_is_front: bool = False
+) -> Callable[[torch.Tensor], torch.Tensor]:
+  """Builds an activation function with GLU (Gated Linear Unit).
 
-  GeGLU(x) = (xW+b) * GELU(xV+c)
-  See: https://arxiv.org/abs/2002.05202v1
+  If gate_is_front is True,
+    f(x) = act(x) * y
+  otherwise,
+    f(x) = x * act(y),
+  where x is the first half of the input and y is the second half of the input.
+
+  Args:
+    act (Callable[[torch.Tensor], torch.Tensor]): activation function to apply
+      to the gate.
+    gate_is_front: whether the gate is in front half of the input. Other part is
+      the output in GLU.
+
+  Returns:
+    A callable activation function with GLU.
   """
 
-  def __init__(self, d_in: int, d_out: int):
-    super().__init__()
-    self.proj = nn.Linear(d_in, d_out * 2)
+  def _glu(x):
+    x, y = x.chunk(2, dim=-1)
+    if gate_is_front:
+      return act(x) * y
+    return x * act(y)
 
-  def forward(self, x: torch.Tensor):
-    x, gate = self.proj(x).chunk(2, dim=-1)
-    return x * F.gelu(gate)
+  return _glu
 
 
 def build_norm(dim: int, config: cfg.NormalizationConfig):
@@ -99,6 +115,10 @@ def build_ff(dim: int, config: cfg.FeedForwardConfig):
       hidden_dim=config.intermediate_size,
       activation=activation,
       use_bias=config.use_bias,
+      use_glu=(
+          config.activation.type == cfg.ActivationType.GE_GLU
+          or config.activation.type == cfg.ActivationType.SILU_GLU
+      ),
       pre_ff_norm=pre_ff_norm,
       post_ff_norm=post_ff_norm,
   )
@@ -129,8 +149,10 @@ def get_activation(config: cfg.ActivationConfig):
     # See: https://github.com/hendrycks/GELUs
     return lambda x: x * F.sigmoid(1.702 * x)
   elif config.type == cfg.ActivationType.GE_GLU:
-    return GeGLU(config.dim_in, config.dim_out)
+    return build_glu(F.gelu, config.gate_is_front)
   elif config.type == cfg.ActivationType.RELU:
     return F.relu
+  elif config.type == cfg.ActivationType.SILU_GLU:
+    return build_glu(F.silu, config.gate_is_front)
   else:
     raise ValueError("Unsupported activation type.")

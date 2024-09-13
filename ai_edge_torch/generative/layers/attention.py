@@ -160,6 +160,10 @@ class CausalSelfAttention(nn.Module):
     self.output_projection = nn.Linear(
         output_shape, dim, bias=config.output_proj_use_bias
     )
+    self.query_norm = builder.build_norm(
+        config.head_dim, config.query_norm_config
+    )
+    self.key_norm = builder.build_norm(config.head_dim, config.key_norm_config)
     self.config = config
     self.enable_hlfb = enable_hlfb
     self.sdpa_func = (
@@ -223,6 +227,9 @@ class CausalSelfAttention(nn.Module):
           ),
           dim=-1,
       )
+
+    q = self.query_norm(q)
+    k = self.key_norm(k)
 
     q = q.reshape(B, T, -1, self.config.head_dim)
     k = k.reshape(B, T, -1, self.config.head_dim)

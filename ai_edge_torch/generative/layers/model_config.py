@@ -30,6 +30,7 @@ class ActivationType(enum.Enum):
   GELU_QUICK = enum.auto()
   GE_GLU = enum.auto()
   RELU = enum.auto()
+  SILU_GLU = enum.auto()
 
 
 @enum.unique
@@ -59,6 +60,18 @@ class AttentionType(enum.Enum):
 
 
 @dataclass
+class NormalizationConfig:
+  """Normalizater parameters."""
+
+  type: NormalizationType = NormalizationType.NONE
+  enable_hlfb: bool = False
+  epsilon: float = 1e-5
+  zero_centered: bool = False
+  # Number of groups used in group normalization.
+  group_num: Optional[float] = None
+
+
+@dataclass
 class AttentionConfig:
   """Attention model's parameters."""
 
@@ -81,6 +94,14 @@ class AttentionConfig:
   # Whether to use bias with attention output projection.
   output_proj_use_bias: bool = False
   enable_kv_cache: bool = True
+  # The normalization applied to query projection's output.
+  query_norm_config: NormalizationConfig = field(
+      default_factory=NormalizationConfig
+  )
+  # The normalization applied to key projection's output.
+  key_norm_config: NormalizationConfig = field(
+      default_factory=NormalizationConfig
+  )
   relative_attention_num_buckets: int = 0
   relative_attention_max_distance: int = 0
   # Softcap on the output logits.
@@ -94,21 +115,9 @@ class AttentionConfig:
 @dataclass
 class ActivationConfig:
   type: ActivationType = ActivationType.LINEAR
-  # Dimension of input and output, used in GeGLU.
-  dim_in: Optional[int] = None
-  dim_out: Optional[int] = None
-
-
-@dataclass
-class NormalizationConfig:
-  """Normalizater parameters."""
-
-  type: NormalizationType = NormalizationType.NONE
-  enable_hlfb: bool = False
-  epsilon: float = 1e-5
-  zero_centered: bool = False
-  # Number of groups used in group normalization.
-  group_num: Optional[float] = None
+  # Whether to GLU gate is the front part instead of the back part of input
+  # when ActivationType is `GE_GLU` or `SILU_GLU`.
+  gate_is_front: bool = False
 
 
 @dataclass

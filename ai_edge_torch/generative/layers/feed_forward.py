@@ -30,18 +30,27 @@ class SequentialFeedForward(nn.Module):
       hidden_dim: int,
       activation: Callable[[torch.Tensor], torch.Tensor],
       use_bias=False,
+      use_glu=False,
       pre_ff_norm: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
       post_ff_norm: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
   ):
     """Init function for feedforward layer.
 
-    Args: dim(int): embedding size. hidden_dim(int): hidden dim size of the
-    feedforward layer. activation(Callable): activation function used in this
-    block. use_bias(Boolean): whether to use bias. Default is false.
+    Args:
+      dim (int): embedding size.
+      hidden_dim (int): hidden dim size of the feedforward layer.
+      activation (Callable): activation function used in this block.
+      use_bias (Boolean): whether to use bias. Default is false.
+      use_glu (Boolean): whether to use glu in activation. Default is false.
+      pre_ff_norm (Callable): pre feedforward norm. Default is None.
+      post_ff_norm (Callable): post feedforward norm. Default is None.
     """
     super().__init__()
     self.act = activation
-    self.w1 = nn.Linear(dim, hidden_dim, bias=use_bias)
+    if use_glu:
+      self.w1 = nn.Linear(dim, hidden_dim * 2, bias=use_bias)
+    else:
+      self.w1 = nn.Linear(dim, hidden_dim, bias=use_bias)
     self.w2 = nn.Linear(hidden_dim, dim, bias=use_bias)
     self.pre_ff_norm = pre_ff_norm if pre_ff_norm else lambda x: x
     self.post_ff_norm = post_ff_norm if post_ff_norm else lambda x: x
@@ -72,18 +81,27 @@ class GatedFeedForward(nn.Module):
       hidden_dim: int,
       activation: Callable[[torch.Tensor], torch.Tensor],
       use_bias=False,
+      use_glu=False,
       pre_ff_norm: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
       post_ff_norm: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
   ):
     """Init function for feedforward layer.
 
-    Args: dim(int): embedding size. hidden_dim(int): hidden dim size of the
-    feedforward layer. activation(Callable): activation function used in this
-    block. use_bias(Boolean): whether to use bias. Default is false.
+    Args:
+      dim (int): embedding size.
+      hidden_dim (int): hidden dim size of the feedforward layer.
+      activation (Callable): activation function used in this block.
+      use_bias (Boolean): whether to use bias. Default is false.
+      use_glu (Boolean): whether to use glu in activation. Default is false.
+      pre_ff_norm (Callable): pre feedforward norm. Default is None.
+      post_ff_norm (Callable): post feedforward norm. Default is None.
     """
     super().__init__()
     self.act = activation
-    self.w1 = nn.Linear(dim, hidden_dim, bias=use_bias)
+    if use_glu:
+      self.w1 = nn.Linear(dim, hidden_dim * 2, bias=use_bias)
+    else:
+      self.w1 = nn.Linear(dim, hidden_dim, bias=use_bias)
     self.w2 = nn.Linear(hidden_dim, dim, bias=use_bias)
     self.w3 = nn.Linear(dim, hidden_dim, bias=use_bias)
     self.pre_ff_norm = pre_ff_norm if pre_ff_norm else lambda x: x

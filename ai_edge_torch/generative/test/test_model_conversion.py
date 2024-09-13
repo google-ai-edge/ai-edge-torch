@@ -42,13 +42,7 @@ class TestModelConversion(googletest.TestCase):
         )
     )
 
-  @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
-  )
-  def test_toy_model_with_kv_cache(self):
-    config = toy_model_with_kv_cache.get_model_config()
-    pytorch_model = toy_model_with_kv_cache.ToyModelWithKVCache(config).eval()
+  def _test_model_with_kv_cache(self, config, pytorch_model):
     tokens, input_pos = torch.tensor([[1]], dtype=torch.long), torch.tensor(
         [10], dtype=torch.int64
     )
@@ -78,6 +72,15 @@ class TestModelConversion(googletest.TestCase):
             rtol=1e-5,
         )
     )
+
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
+  def test_toy_model_with_kv_cache(self):
+    config = toy_model_with_kv_cache.get_model_config()
+    pytorch_model = toy_model_with_kv_cache.ToyModelWithKVCache(config).eval()
+    self._test_model_with_kv_cache(config, pytorch_model)
 
   @googletest.skipIf(
       ai_edge_config.Config.use_torch_xla,
@@ -87,44 +90,9 @@ class TestModelConversion(googletest.TestCase):
     config = toy_model_with_kv_cache.get_model_config()
     config.enable_hlfb = True
     pytorch_model = toy_model_with_kv_cache.ToyModelWithKVCache(config).eval()
-    tokens, input_pos = torch.tensor([[1]], dtype=torch.long), torch.tensor(
-        [10], dtype=torch.int64
-    )
-    kv = kv_cache.KVCache.from_model_config(config)
+    self._test_model_with_kv_cache(config, pytorch_model)
 
-    edge_model = ai_edge_torch.convert(
-        pytorch_model,
-        sample_kwargs={
-            "tokens": tokens,
-            "input_pos": input_pos,
-            "kv_cache": kv,
-        },
-    )
-    edge_model.set_interpreter_builder(
-        self._interpreter_builder(edge_model.tflite_model())
-    )
-
-    self.assertTrue(
-        test_utils.compare_tflite_torch(
-            edge_model,
-            pytorch_model,
-            tokens,
-            input_pos,
-            kv,
-            signature_name="serving_default",
-            atol=1e-5,
-            rtol=1e-5,
-        )
-    )
-
-  @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
-  )
-  def test_tiny_llama_multisig(self):
-    config = tiny_llama.get_fake_model_config()
-    pytorch_model = tiny_llama.TinyLlama(config).eval()
-
+  def _test_multisig_model(self, config, pytorch_model, atol, rtol):
     # prefill
     seq_len = 10
     prefill_tokens = torch.full((1, seq_len), 0, dtype=torch.long, device="cpu")
@@ -171,8 +139,8 @@ class TestModelConversion(googletest.TestCase):
             prefill_input_pos,
             kv,
             signature_name="prefill",
-            atol=1e-5,
-            rtol=1e-5,
+            atol=atol,
+            rtol=atol,
         )
     )
 
@@ -184,10 +152,19 @@ class TestModelConversion(googletest.TestCase):
             decode_input_pos,
             kv,
             signature_name="decode",
-            atol=1e-5,
-            rtol=1e-5,
+            atol=atol,
+            rtol=atol,
         )
     )
+
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
+  def test_tiny_llama_multisig(self):
+    config = tiny_llama.get_fake_model_config()
+    pytorch_model = tiny_llama.TinyLlama(config).eval()
+    self._test_multisig_model(config, pytorch_model, atol=1e-5, rtol=1e-5)
 
 
 if __name__ == "__main__":

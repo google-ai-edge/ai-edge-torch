@@ -19,7 +19,9 @@ import ai_edge_torch
 from ai_edge_torch import config as ai_edge_config
 from ai_edge_torch.generative.examples.gemma import gemma
 from ai_edge_torch.generative.examples.gemma import gemma2
+from ai_edge_torch.generative.examples.openelm import openelm
 from ai_edge_torch.generative.examples.phi import phi2
+from ai_edge_torch.generative.examples.smallm import smallm
 from ai_edge_torch.generative.layers import kv_cache
 from ai_edge_torch.generative.test import utils as test_utils
 import numpy as np
@@ -43,66 +45,19 @@ class TestModelConversion(googletest.TestCase):
         )
     )
 
-  @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
-  )
-  def test_gemma(self):
-    config = gemma.get_fake_model_config()
-    model = gemma.Gemma(config)
-
+  def _test_model(self, config, model, signature_name, atol, rtol):
     idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
     tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
     tokens[0, :4] = idx
     input_pos = torch.arange(0, 10)
     kv = kv_cache.KVCache.from_model_config(config)
 
-    edge_model = ai_edge_torch.convert(
+    edge_model = ai_edge_torch.signature(
+        signature_name,
         model,
         sample_kwargs={
             "tokens": tokens,
             "input_pos": input_pos,
-            "kv_cache": kv,
-        },
-    )
-    edge_model.set_interpreter_builder(
-        self._interpreter_builder(edge_model.tflite_model())
-    )
-
-    self.assertTrue(
-        test_utils.compare_tflite_torch(
-            edge_model,
-            model,
-            tokens,
-            input_pos,
-            kv,
-            signature_name="serving_default",
-            atol=1e-2,
-            rtol=1e-5,
-        )
-    )
-
-  @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
-  )
-  def test_gemma2(self):
-    config = gemma2.get_fake_model_config()
-    model = gemma2.Gemma2(config)
-    model.eval()
-
-    idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
-    prefill_tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
-    prefill_tokens[0, :4] = idx
-    prefill_input_pos = torch.arange(0, 10)
-    kv = kv_cache.KVCache.from_model_config(config)
-
-    edge_model = ai_edge_torch.signature(
-        "prefill",
-        model,
-        sample_kwargs={
-            "tokens": prefill_tokens,
-            "input_pos": prefill_input_pos,
             "kv_cache": kv,
         },
     ).convert()
@@ -114,14 +69,34 @@ class TestModelConversion(googletest.TestCase):
         test_utils.compare_tflite_torch(
             edge_model,
             model,
-            prefill_tokens,
-            prefill_input_pos,
+            tokens,
+            input_pos,
             kv,
-            signature_name="prefill",
-            atol=1e-1,
-            rtol=1e-3,
+            signature_name=signature_name,
+            atol=atol,
+            rtol=rtol,
         )
     )
+
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
+  def test_gemma(self):
+    config = gemma.get_fake_model_config()
+    pytorch_model = gemma.Gemma(config).eval()
+    self._test_model(
+        config, pytorch_model, "serving_default", atol=1e-2, rtol=1e-5
+    )
+
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
+  def test_gemma2(self):
+    config = gemma2.get_fake_model_config()
+    pytorch_model = gemma2.Gemma2(config).eval()
+    self._test_model(config, pytorch_model, "prefill", atol=1e-1, rtol=1e-3)
 
   @googletest.skipIf(
       ai_edge_config.Config.use_torch_xla,
@@ -130,37 +105,27 @@ class TestModelConversion(googletest.TestCase):
   def test_phi2(self):
     config = phi2.get_fake_model_config()
     pytorch_model = phi2.Phi2(config).eval()
-
-    idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
-    tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
-    tokens[0, :4] = idx
-    input_pos = torch.arange(0, 10)
-    kv = kv_cache.KVCache.from_model_config(config)
-
-    edge_model = ai_edge_torch.convert(
-        pytorch_model,
-        sample_kwargs={
-            "tokens": tokens,
-            "input_pos": input_pos,
-            "kv_cache": kv,
-        },
-    )
-    edge_model.set_interpreter_builder(
-        self._interpreter_builder(edge_model.tflite_model())
+    self._test_model(
+        config, pytorch_model, "serving_default", atol=1e-3, rtol=1e-3
     )
 
-    self.assertTrue(
-        test_utils.compare_tflite_torch(
-            edge_model,
-            pytorch_model,
-            tokens,
-            input_pos,
-            kv,
-            signature_name="serving_default",
-            atol=1e-3,
-            rtol=1e-3,
-        )
-    )
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
+  def test_smallm(self):
+    config = smallm.get_fake_model_config()
+    pytorch_model = smallm.SmalLM(config).eval()
+    self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
+
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
+  def test_openelm(self):
+    config = openelm.get_fake_model_config()
+    pytorch_model = openelm.OpenELM(config).eval()
+    self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
 
 
 if __name__ == "__main__":

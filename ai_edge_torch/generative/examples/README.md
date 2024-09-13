@@ -11,11 +11,17 @@ Gemma is Google's open-source LLM. The model has both a 2B and 7B versions. See 
 Microsoft Phi-2 is also a decoder-only LLM with 2.7B parameters, see details on
 [Kaggle](https://www.kaggle.com/models/Microsoft/phi/transformers/2).
 
+## Apple OpenELM
+[Apple OpenELM](https://huggingface.co/apple/OpenELM) is also a decoder-only LLM
+with 270M, 450M, 1.1B, and 3B parameters.  The example we provide is OpenELM 3B,
+and the checkpoint for the model can be found
+[here](https://huggingface.co/apple/OpenELM-3B/tree/main).
+
 ## HuggingFace SmalLM
 [HuggingFace SmalLM](https://huggingface.co/blog/smollm) is also a decoder-only
 LLM with 135M, 360M, 1.7B parameters. The example we provide is SmalLM 135M, and
 the checkpoint for the model can be found
-[here](https://huggingface.co/HuggingFaceTB/SmolLM-135M)
+[here](https://huggingface.co/HuggingFaceTB/SmolLM-135M).
 
 ## Overall workflow
 To support a new LLM with the Edge Generative API, we need to go through the process of model (re)authoring, checkpoint mapping/loading, model quantization (via PT2E), model conversion to flatbuffer schema, model quality evaluation, benchmarking and on-device inference pipeline authoring.
