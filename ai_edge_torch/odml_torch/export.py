@@ -223,10 +223,50 @@ class MlirLowered:
     return tf_integration.mlir_to_flatbuffer(self)
 
 
+# TODO(b/331481564) Make this a ai_edge_torch FX pass.
+def _convert_i64_to_i32(exported_program: torch.export.ExportedProgram):
+  """Convert internal constant aten ops' output from int64 to int32.
+
+  Int32 generally has better performance and compatibility than int64 in
+  runtime. This pass converts aten op where the output(s) are int64 constant
+  tensors to return int32 constant tensors.
+
+  Args:
+    exported_program: The exported program to apply the pass.
+  """
+
+  def in_i32(x: int):
+    return -2147483648 <= x <= 2147483647
+
+  def rewrite_arange(node: torch.fx.Node):
+    tensor_meta = node.meta.get("tensor_meta", None)
+    if not tensor_meta:
+      return
+
+    start, end = node.args[:2]
+    if tensor_meta.dtype != torch.int64:
+      return
+    if not (in_i32(start) and in_i32(end)):
+      return
+    op = node.target
+    node.target = lambda *args, **kwargs: op(*args, **kwargs).type(torch.int32)
+
+  graph_module = exported_program.graph_module
+  for node in graph_module.graph.nodes:
+
+    if node.target == torch.ops.aten.arange.start_step:
+      rewrite_arange(node)
+
+
 def exported_program_to_mlir(
     exported_program: torch.export.ExportedProgram,
 ) -> MlirLowered:
   """Lower the exported program to MLIR."""
+  exported_program = exported_program.run_decompositions(
+      lowerings.decompositions()
+  )
+
+  _convert_i64_to_i32(exported_program)
   exported_program = exported_program.run_decompositions(
       lowerings.decompositions()
   )
