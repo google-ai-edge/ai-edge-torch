@@ -21,7 +21,7 @@ from ai_edge_torch.generative.examples.gemma import gemma
 from ai_edge_torch.generative.examples.gemma import gemma2
 from ai_edge_torch.generative.examples.openelm import openelm
 from ai_edge_torch.generative.examples.phi import phi2
-from ai_edge_torch.generative.examples.smallm import smallm
+from ai_edge_torch.generative.examples.smollm import smollm
 from ai_edge_torch.generative.layers import kv_cache
 from ai_edge_torch.generative.test import utils as test_utils
 import numpy as np
@@ -113,9 +113,9 @@ class TestModelConversion(googletest.TestCase):
       ai_edge_config.Config.use_torch_xla,
       reason="tests with custom ops are not supported on oss",
   )
-  def test_smallm(self):
-    config = smallm.get_fake_model_config()
-    pytorch_model = smallm.SmalLM(config).eval()
+  def test_smollm(self):
+    config = smollm.get_fake_model_config()
+    pytorch_model = smollm.SmolLM(config).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
 
   @googletest.skipIf(

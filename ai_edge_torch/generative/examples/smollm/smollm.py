@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-"""Example of building a SmalLM model."""
+"""Example of building a SmolLM model."""
 
 import copy
 import os
@@ -28,32 +28,32 @@ import torch
 from torch import nn
 
 TENSOR_NAMES = copy.copy(tiny_llama.TENSOR_NAMES)
-# SmalLM re-uses the embedding as the head projection layer.
+# SmolLM re-uses the embedding as the head projection layer.
 TENSOR_NAMES.lm_head = None
 
 
-class SmalLM(tiny_llama.TinyLlama):
-  """A SmalLM model built from the Edge Generative API layers.
+class SmolLM(tiny_llama.TinyLlama):
+  """A SmolLM model built from the Edge Generative API layers.
 
-  SmalLM shares the same architecture as TinyLlama, but with different model
+  SmolLM shares the same architecture as TinyLlama, but with different model
   sizes.
   """
 
   def __init__(self, config: cfg.ModelConfig):
     super().__init__(config)
-    # SmalLM re-uses the embedding as the head projection layer.
+    # SmolLM re-uses the embedding as the head projection layer.
     self.lm_head.weight.data = self.tok_embedding.weight.data
 
 
 def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
-  """Returns the model config for a SmalLM 135M model.
+  """Returns the model config for a SmolLM 135M model.
 
   Args:
     kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
       is 1024.
 
   Returns:
-    The model config for a SmalLM model.
+    The model config for a SmolLM model.
   """
   attn_config = cfg.AttentionConfig(
       num_heads=9,
@@ -90,14 +90,14 @@ def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
   config = get_model_config(**kwargs)
   config.vocab_size = 128
   config.num_layers = 2
-  # SmalLM has only one block config.
+  # SmolLM has only one block config.
   config.block_config(0).ff_config.intermediate_size = 64
   return config
 
 
 def build_model(checkpoint_path: str, **kwargs) -> nn.Module:
   config = get_model_config(**kwargs)
-  model = SmalLM(config)
+  model = SmolLM(config)
   loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
   # Since embedding and lm-head use the same weight, we need to set strict
   # to False.
@@ -107,10 +107,10 @@ def build_model(checkpoint_path: str, **kwargs) -> nn.Module:
 
 
 def define_and_run(checkpoint_path: str) -> None:
-  """Instantiates and runs a SmalLM model."""
+  """Instantiates and runs a SmolLM model."""
 
   current_dir = pathlib.Path(__file__).parent.resolve()
-  smallm_goldens = torch.load(current_dir / "smallm_lm_logits.pt")
+  smollm_goldens = torch.load(current_dir / "smollm_lm_logits.pt")
   kv_cache_max_len = 1024
   model = build_model(checkpoint_path, kv_cache_max_len=kv_cache_max_len)
   idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
@@ -120,12 +120,12 @@ def define_and_run(checkpoint_path: str) -> None:
   kv = kv_utils.KVCache.from_model_config(model.config)
   output = model.forward(tokens, input_pos, kv)
   assert torch.allclose(
-      smallm_goldens, output["logits"][0, idx.shape[1] - 1, :], atol=1e-05
+      smollm_goldens, output["logits"][0, idx.shape[1] - 1, :], atol=1e-05
   )
 
 
 if __name__ == "__main__":
   input_checkpoint_path = os.path.join(
-      pathlib.Path.home(), "Downloads/llm_data/smallm"
+      pathlib.Path.home(), "Downloads/llm_data/smollm"
   )
   define_and_run(input_checkpoint_path)

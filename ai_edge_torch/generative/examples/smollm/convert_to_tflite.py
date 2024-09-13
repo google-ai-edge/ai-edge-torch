@@ -13,25 +13,25 @@
 # limitations under the License.
 # ==============================================================================
 
-"""Example of converting SmalLM model to multi-signature tflite model."""
+"""Example of converting SmolLM model to multi-signature tflite model."""
 
 import os
 import pathlib
 
 import ai_edge_torch
-from ai_edge_torch.generative.examples.smallm import smallm
+from ai_edge_torch.generative.examples.smollm import smollm
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.quantize import quant_recipes
 import torch
 
 
-def convert_smallm_to_tflite(
+def convert_smollm_to_tflite(
     checkpoint_path: str,
     prefill_seq_len: int = 512,
     kv_cache_max_len: int = 1024,
     quantize: bool = True,
 ):
-  """Converts SmalLM model to multi-signature tflite model.
+  """Converts SmolLM model to multi-signature tflite model.
 
   Args:
       checkpoint_path (str): The filepath to the model checkpoint, or directory
@@ -43,7 +43,7 @@ def convert_smallm_to_tflite(
       quantize (bool, optional): Whether the model should be quanized. Defaults
         to True.
   """
-  pytorch_model = smallm.build_model(
+  pytorch_model = smollm.build_model(
       checkpoint_path, kv_cache_max_len=kv_cache_max_len
   )
   # Tensors used to trace the model graph during conversion.
@@ -77,10 +77,10 @@ def convert_smallm_to_tflite(
   )
   quant_suffix = 'q8' if quantize else 'f32'
   edge_model.export(
-      f'/tmp/smallm_{quant_suffix}_seq{prefill_seq_len}_ekv{kv_cache_max_len}.tflite'
+      f'/tmp/smollm_{quant_suffix}_seq{prefill_seq_len}_ekv{kv_cache_max_len}.tflite'
   )
 
 
 if __name__ == '__main__':
-  path = os.path.join(pathlib.Path.home(), 'Downloads/llm_data/smallm')
-  convert_smallm_to_tflite(path)
+  path = os.path.join(pathlib.Path.home(), 'Downloads/llm_data/smollm')
+  convert_smollm_to_tflite(path)
