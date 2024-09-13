@@ -17,6 +17,7 @@ import logging
 import os
 from typing import Any, Optional
 
+from ai_edge_torch import fx_pass_base
 from ai_edge_torch import lowertools
 from ai_edge_torch import model
 from ai_edge_torch._convert import fx_passes
@@ -34,7 +35,7 @@ def _run_convert_passes(
   exported_program = generative_fx_passes.run_generative_passes(
       exported_program
   )
-  return fx_passes.run_passes(
+  return fx_pass_base.run_passes(
       exported_program,
       [
           fx_passes.BuildInterpolateCompositePass(),

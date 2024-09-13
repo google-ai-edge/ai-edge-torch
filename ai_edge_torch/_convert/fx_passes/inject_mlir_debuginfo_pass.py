@@ -13,10 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
+from ai_edge_torch import fx_pass_base
 from ai_edge_torch import lowertools
 import torch
-from torch.fx.passes.infra.pass_base import PassBase
-from torch.fx.passes.infra.pass_base import PassResult
 import torch.utils._pytree as pytree
 
 
@@ -62,7 +61,7 @@ def _wrap_call_function_node_with_debuginfo_writer(node: torch.fx.GraphModule):
   node.target = debuginfo_writer
 
 
-class InjectMlirDebuginfoPass(PassBase):
+class InjectMlirDebuginfoPass(fx_pass_base.PassBase):
 
   def call(self, graph_module: torch.fx.GraphModule):
     for node in graph_module.graph.nodes:
@@ -70,4 +69,4 @@ class InjectMlirDebuginfoPass(PassBase):
 
     graph_module.graph.lint()
     graph_module.recompile()
-    return PassResult(graph_module, True)
+    return fx_pass_base.PassResult(graph_module, True)

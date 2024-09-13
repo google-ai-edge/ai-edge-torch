@@ -12,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+from ai_edge_torch import fx_pass_base
 from ai_edge_torch import lowertools
-from ai_edge_torch._convert.fx_passes._pass_base import ExportedProgramPassBase
-from ai_edge_torch._convert.fx_passes._pass_base import ExportedProgramPassResult
 import torch
 
 
-class RemoveSDPACompositeZeroMaskPass(ExportedProgramPassBase):
+class RemoveSDPACompositeZeroMaskPass(fx_pass_base.ExportedProgramPassBase):
 
   def is_zero_tensor_node(self, node: torch.fx.Node):
     return node.target == torch.ops.aten.zeros.default
@@ -48,4 +47,4 @@ class RemoveSDPACompositeZeroMaskPass(ExportedProgramPassBase):
 
     exported_program.graph_module.graph.lint()
     exported_program.graph_module.recompile()
-    return ExportedProgramPassResult(exported_program, True)
+    return fx_pass_base.ExportedProgramPassResult(exported_program, True)

@@ -16,9 +16,9 @@ import re
 from typing import Callable, Union
 
 from ai_edge_torch import config
+from ai_edge_torch import fx_pass_base
 from ai_edge_torch import lowertools
-from ai_edge_torch._convert.fx_passes import CanonicalizePass
-from ai_edge_torch._convert.fx_passes import run_passes
+from ai_edge_torch.generative.fx_passes import CanonicalizePass
 from ai_edge_torch.generative.fx_passes import RemoveSDPACompositeZeroMaskPass
 from ai_edge_torch.generative.layers.attention import SelfAttention
 import ai_edge_torch.generative.layers.model_config as layers_cfg
@@ -41,7 +41,7 @@ def _export_to_stablehlo(func: Union[torch.nn.Module, Callable], export_args):
     module = func
 
   exported_program = torch.export.export(module, export_args)
-  exported_program = run_passes(
+  exported_program = fx_pass_base.run_passes(
       exported_program,
       [
           RemoveSDPACompositeZeroMaskPass(),
