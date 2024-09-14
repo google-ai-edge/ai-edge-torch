@@ -172,8 +172,8 @@ def _update_kv_base_impl(
     v_slice: torch.Tensor,
 ) -> KVCacheEntry:
   """Update the cache buffer without High Level Function Boundary annotation."""
-  k = cache.k_cache.index_copy(1, input_pos, k_slice)
-  v = cache.v_cache.index_copy(1, input_pos, v_slice)
+  k = cache.k_cache.index_copy(1, input_pos.to(torch.long), k_slice)
+  v = cache.v_cache.index_copy(1, input_pos.to(torch.long), v_slice)
   updated_cache = KVCacheEntry(k, v)
   return updated_cache
 
@@ -189,7 +189,7 @@ def _update_kv_hlfb_impl(
   k_cache, v_cache, input_pos, k_slice, v_slice = builder.mark_inputs(
       cache.k_cache, cache.v_cache, input_pos, k_slice, v_slice
   )
-  k = k_cache.index_copy(1, input_pos, k_slice)
-  v = v_cache.index_copy(1, input_pos, v_slice)
+  k = k_cache.index_copy(1, input_pos.to(torch.long), k_slice)
+  v = v_cache.index_copy(1, input_pos.to(torch.long), v_slice)
   k, v = builder.mark_outputs(k, v)
   return KVCacheEntry(k, v)

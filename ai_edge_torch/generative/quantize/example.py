@@ -25,9 +25,9 @@ def main():
   config = gemma.get_fake_model_config()
   model = gemma.Gemma(config)
   idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
-  tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
+  tokens = torch.full((1, 10), 0, dtype=torch.int, device="cpu")
   tokens[0, :4] = idx
-  input_pos = torch.arange(0, 10)
+  input_pos = torch.arange(0, 10, dtype=torch.int)
 
   # Create a quantization recipe to be applied to the model
   quant_config = quant_recipes.full_int8_dynamic_recipe()

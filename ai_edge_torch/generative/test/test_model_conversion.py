@@ -43,8 +43,8 @@ class TestModelConversion(googletest.TestCase):
     )
 
   def _test_model_with_kv_cache(self, config, pytorch_model):
-    tokens, input_pos = torch.tensor([[1]], dtype=torch.long), torch.tensor(
-        [10], dtype=torch.int64
+    tokens, input_pos = torch.tensor([[1]], dtype=torch.int), torch.tensor(
+        [10], dtype=torch.int
     )
     kv = kv_cache.KVCache.from_model_config(config)
 
@@ -95,14 +95,14 @@ class TestModelConversion(googletest.TestCase):
   def _test_multisig_model(self, config, pytorch_model, atol, rtol):
     # prefill
     seq_len = 10
-    prefill_tokens = torch.full((1, seq_len), 0, dtype=torch.long, device="cpu")
+    prefill_tokens = torch.full((1, seq_len), 0, dtype=torch.int, device="cpu")
     prompt_token = torch.from_numpy(np.array([1, 2, 3, 4]))
     prefill_tokens[0, : len(prompt_token)] = prompt_token
-    prefill_input_pos = torch.arange(0, seq_len)
+    prefill_input_pos = torch.arange(0, seq_len, dtype=torch.int)
 
     # decode
-    decode_token = torch.tensor([[1]], dtype=torch.long)
-    decode_input_pos = torch.tensor([5], dtype=torch.int64)
+    decode_token = torch.tensor([[1]], dtype=torch.int)
+    decode_input_pos = torch.tensor([5], dtype=torch.int)
 
     kv = kv_cache.KVCache.from_model_config(config)
 

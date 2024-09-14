@@ -221,13 +221,13 @@ int main(int argc, char* argv[]) {
   TFLITE_MINIMAL_CHECK(decode_runner != nullptr);
 
   // Get Input Tensors for each of the runners.
-  // Shape: [Batch, Seq], Dtype: int64
+  // Shape: [Batch, Seq], Dtype: int32
   TfLiteTensor* prefill_input = prefill_runner->input_tensor("tokens");
-  // Shape: [Seq], Dtype: int64
+  // Shape: [Seq], Dtype: int32
   TfLiteTensor* prefill_input_pos = prefill_runner->input_tensor("input_pos");
-  // Shape: [Batch, Seq], Dtype: int64
+  // Shape: [Batch, Seq], Dtype: int32
   TfLiteTensor* decode_input = decode_runner->input_tensor("tokens");
-  // Shape: [Seq], Dtype: int64
+  // Shape: [Seq], Dtype: int32
   TfLiteTensor* decode_input_pos = decode_runner->input_tensor("input_pos");
   int max_seq_size = prefill_input->dims->data[1];
 

@@ -47,9 +47,9 @@ class TestModelConversion(googletest.TestCase):
 
   def _test_model(self, config, model, signature_name, atol, rtol):
     idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
-    tokens = torch.full((1, 10), 0, dtype=torch.long, device="cpu")
+    tokens = torch.full((1, 10), 0, dtype=torch.int, device="cpu")
     tokens[0, :4] = idx
-    input_pos = torch.arange(0, 10)
+    input_pos = torch.arange(0, 10, dtype=torch.int)
     kv = kv_cache.KVCache.from_model_config(config)
 
     edge_model = ai_edge_torch.signature(

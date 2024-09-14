@@ -203,9 +203,9 @@ def define_and_run_2b(checkpoint_path: str) -> None:
   kv_cache_max_len = 1024
   model = build_2b_model(checkpoint_path, kv_cache_max_len=kv_cache_max_len)
   idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
-  tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.long, device="cpu")
+  tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.int, device="cpu")
   tokens[0, :4] = idx
-  input_pos = torch.arange(0, kv_cache_max_len)
+  input_pos = torch.arange(0, kv_cache_max_len, dtype=torch.int)
   kv = kv_utils.KVCache.from_model_config(model.config)
   output = model.forward(tokens, input_pos, kv)
   print("comparing with goldens..")

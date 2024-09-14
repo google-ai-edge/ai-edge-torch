@@ -280,9 +280,9 @@ def define_and_run_2b(checkpoint_path: str) -> None:
   toks = torch.from_numpy(
       np.array([2, 651, 9456, 576, 573, 3520, 3858, 603, 235248])
   )
-  tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.long, device="cpu")
+  tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.int, device="cpu")
   tokens[0, :9] = toks
-  input_pos = torch.arange(0, kv_cache_max_len)
+  input_pos = torch.arange(0, kv_cache_max_len, dtype=torch.int)
   kv = kv_utils.KVCache.from_model_config(model.config)
   out = model.forward(tokens, input_pos, kv)
   out_final = out["logits"][0, 8, :]

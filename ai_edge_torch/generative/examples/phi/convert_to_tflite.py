@@ -47,10 +47,10 @@ def convert_phi2_to_tflite(
       checkpoint_path, kv_cache_max_len=kv_cache_max_len
   )
   # Tensors used to trace the model graph during conversion.
-  prefill_tokens = torch.full((1, prefill_seq_len), 0, dtype=torch.long)
-  prefill_input_pos = torch.arange(0, prefill_seq_len)
-  decode_token = torch.tensor([[0]], dtype=torch.long)
-  decode_input_pos = torch.tensor([0], dtype=torch.int64)
+  prefill_tokens = torch.full((1, prefill_seq_len), 0, dtype=torch.int)
+  prefill_input_pos = torch.arange(0, prefill_seq_len, dtype=torch.int)
+  decode_token = torch.tensor([[0]], dtype=torch.int)
+  decode_input_pos = torch.tensor([0], dtype=torch.int)
   kv = kv_cache.KVCache.from_model_config(pytorch_model.config)
 
   quant_config = quant_recipes.full_int8_dynamic_recipe() if quantize else None

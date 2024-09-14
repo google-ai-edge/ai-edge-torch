@@ -115,8 +115,8 @@ class TestQuantizeConvert(parameterized.TestCase):
   def test_quantize_convert_toy_sizes(self, quant_config):
     config = toy_model.get_model_config()
     pytorch_model = toy_model.ToySingleLayerModel(config)
-    idx = torch.unsqueeze(torch.arange(0, 100), 0)
-    input_pos = torch.arange(0, 100)
+    idx = torch.unsqueeze(torch.arange(0, 100, dtype=torch.int), 0)
+    input_pos = torch.arange(0, 100, dtype=torch.int)
 
     quantized_model = ai_edge_torch.convert(
         pytorch_model, (idx, input_pos), quant_config=quant_config
@@ -131,8 +131,8 @@ class TestQuantizeConvert(parameterized.TestCase):
   def test_quantize_convert_toy_weight_sharing(self):
     config = toy_model.get_model_config()
     pytorch_model = toy_model.ToySingleLayerModelWeightSharing(config)
-    idx = torch.unsqueeze(torch.arange(0, 100), 0)
-    input_pos = torch.arange(0, 100)
+    idx = torch.unsqueeze(torch.arange(0, 100, dtype=torch.int), 0)
+    input_pos = torch.arange(0, 100, dtype=torch.int)
 
     quant_config = quant_recipes.full_int8_dynamic_recipe()
     quantized_model = ai_edge_torch.convert(
@@ -149,7 +149,7 @@ class TestQuantizeConvert(parameterized.TestCase):
     self.skipTest("b/338288901")
     config = toy_model_with_kv_cache.get_model_config()
     pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config)
-    idx, input_pos = torch.tensor([[1]], dtype=torch.long), torch.tensor(
+    idx, input_pos = torch.tensor([[1]], dtype=torch.int), torch.tensor(
         [10], dtype=torch.int64
     )
 

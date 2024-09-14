@@ -601,12 +601,12 @@ def define_and_run_t5(checkpoint_path: str) -> None:
   model = build_t5_model(checkpoint_path)
 
   idx = get_sample_encoder_input_ids()
-  tokens = torch.full((1, 512), 0, dtype=torch.long, device="cpu")
+  tokens = torch.full((1, 512), 0, dtype=torch.int, device="cpu")
   tokens[0, :77] = idx
-  input_pos = torch.arange(0, 512)
+  input_pos = torch.arange(0, 512, dtype=torch.int)
 
-  decode_d_token = torch.tensor([[0]], dtype=torch.int64)
-  decode_d_input_pos = torch.tensor([0], dtype=torch.int64)
+  decode_d_token = torch.tensor([[0]], dtype=torch.int)
+  decode_d_input_pos = torch.tensor([0], dtype=torch.int)
   pad_mask = torch.zeros([model.config.kv_cache_max], dtype=torch.float32)
   pad_mask[77:] = float("-inf")
   lm_logits = model.forward(
@@ -633,12 +633,12 @@ def define_and_run_t5_split(checkpoint_path: str) -> None:
   )
   idx = get_sample_encoder_input_ids()
 
-  tokens = torch.full((1, 512), 0, dtype=torch.long, device="cpu")
+  tokens = torch.full((1, 512), 0, dtype=torch.int, device="cpu")
   tokens[0, :77] = idx
-  input_pos = torch.arange(0, 512)
+  input_pos = torch.arange(0, 512, dtype=torch.int)
 
-  decode_d_token = torch.tensor([[0]], dtype=torch.int64)
-  decode_d_input_pos = torch.tensor([0], dtype=torch.int64)
+  decode_d_token = torch.tensor([[0]], dtype=torch.int)
+  decode_d_input_pos = torch.tensor([0], dtype=torch.int)
   pad_mask = torch.zeros(
       [t5_encoder_model.config.kv_cache_max], dtype=torch.float32
   )
