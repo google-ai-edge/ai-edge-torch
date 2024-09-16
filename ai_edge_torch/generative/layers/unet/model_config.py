@@ -68,6 +68,8 @@ class AttentionBlock2DConfig:
 class CrossAttentionBlock2DConfig:
   query_dim: int
   cross_dim: int
+  hidden_dim: int
+  output_dim: int
   normalization_config: layers_cfg.NormalizationConfig
   attention_config: layers_cfg.AttentionConfig
   enable_hlfb: bool = True

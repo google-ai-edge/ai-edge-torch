@@ -336,6 +336,8 @@ class Diffusion(nn.Module):
                         cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                             query_dim=output_channel,
                             cross_dim=config.transformer_cross_attention_dim,
+                            hidden_dim=output_channel,
+                            output_dim=output_channel,
                             attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
                             attention_config=build_attention_config(
@@ -406,6 +408,8 @@ class Diffusion(nn.Module):
                 cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                     query_dim=mid_block_channels,
                     cross_dim=config.transformer_cross_attention_dim,
+                    hidden_dim=mid_block_channels,
+                    output_dim=mid_block_channels,
                     attention_batch_size=config.transformer_batch_size,
                     normalization_config=config.transformer_norm_config,
                     attention_config=build_attention_config(
@@ -477,6 +481,8 @@ class Diffusion(nn.Module):
                         cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                             query_dim=output_channel,
                             cross_dim=config.transformer_cross_attention_dim,
+                            hidden_dim=output_channel,
+                            output_dim=output_channel,
                             attention_batch_size=config.transformer_batch_size,
                             normalization_config=config.transformer_norm_config,
                             attention_config=build_attention_config(

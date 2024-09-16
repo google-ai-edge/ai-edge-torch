@@ -298,6 +298,8 @@ class CrossAttention(nn.Module):
       batch_size: int,
       query_dim: int,
       cross_dim: int,
+      hidden_dim: int,
+      output_dim: int,
       config: cfg.AttentionConfig,
       enable_hlfb: bool,
   ):
@@ -307,6 +309,8 @@ class CrossAttention(nn.Module):
       batch_size (int): batch size of the input tensor.
       query_dim (int): query tensor's dimension.
       cross_dim (int): cross attention's dimensions, for key and value tensors.
+      hidden_dim (int): hidden dimension that q, k, v tensors project to.
+      output_dim (int): output tensor's dimension.
       config (cfg.AttentionConfig): attention specific configurations.
       enable_hlfb (bool): whether hlfb is enabled or not.
     """
@@ -314,16 +318,16 @@ class CrossAttention(nn.Module):
     self.config = config
     self.n_heads = config.num_heads
     self.q_projection = nn.Linear(
-        query_dim, query_dim, bias=config.qkv_use_bias
+        query_dim, hidden_dim, bias=config.qkv_use_bias
     )
     self.k_projection = nn.Linear(
-        cross_dim, query_dim, bias=config.qkv_use_bias
+        cross_dim, hidden_dim, bias=config.qkv_use_bias
     )
     self.v_projection = nn.Linear(
-        cross_dim, query_dim, bias=config.qkv_use_bias
+        cross_dim, hidden_dim, bias=config.qkv_use_bias
     )
     self.output_projection = nn.Linear(
-        query_dim, query_dim, bias=config.output_proj_use_bias
+        hidden_dim, output_dim, bias=config.output_proj_use_bias
     )
 
     self.sdpa_func = (
