@@ -57,6 +57,7 @@ global_registry.decompositions.update(
     torch._decomp.get_decompositions([
         torch.ops.aten.upsample_nearest2d,
         torch.ops.aten._native_batch_norm_legit.no_stats,
+        torch.ops.aten._native_batch_norm_legit_functional,
         torch.ops.aten._adaptive_avg_pool2d,
         torch.ops.aten._adaptive_avg_pool3d,
         torch.ops.aten.grid_sampler_2d,
