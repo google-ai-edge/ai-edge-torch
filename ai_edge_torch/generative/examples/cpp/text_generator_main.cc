@@ -252,8 +252,8 @@ int main(int argc, char* argv[]) {
   int prefill_seq_size =
       std::min(static_cast<int>(prompt_tokens.size()), max_seq_size);
   for (int i = 0; i < prefill_seq_size - 1; ++i) {
-    prefill_input->data.i64[i] = prompt_tokens[i];
-    prefill_input_pos->data.i64[i] = i;
+    prefill_input->data.i32[i] = prompt_tokens[i];
+    prefill_input_pos->data.i32[i] = i;
   }
   TFLITE_MINIMAL_CHECK(prefill_runner->Invoke() == kTfLiteOk);
 
@@ -274,8 +274,8 @@ int main(int argc, char* argv[]) {
   int next_token = prompt_tokens[prefill_seq_size - 1];
   int next_position = prefill_seq_size - 1;
   for (int i = 0; i < decode_steps; ++i) {
-    decode_input->data.i64[0] = next_token;
-    decode_input_pos->data.i64[0] = next_position;
+    decode_input->data.i32[0] = next_token;
+    decode_input_pos->data.i32[0] = next_position;
     TFLITE_MINIMAL_CHECK(decode_runner->Invoke() == kTfLiteOk);
     next_token = GreedySampler(decode_runner->output_tensor("logits"));
     output_tokens.push_back(next_token);
