@@ -119,15 +119,25 @@ def scaled_dot_product_attention_with_hlfb(
     # Handle the GQA case, where q.shape[1] % k.shape[1] == 0.
     k = k.repeat_interleave(q.shape[1] // k.shape[1], dim=1)
     v = v.repeat_interleave(q.shape[1] // v.shape[1], dim=1)
-  y = F.scaled_dot_product_attention(
-      q,
-      k,
-      v,
-      attn_mask=mask,
-      dropout_p=0.0,
-      is_causal=mask is None,
-      scale=scale,
-  )
+  if softcap is None:
+    y = F.scaled_dot_product_attention(
+        q,
+        k,
+        v,
+        attn_mask=mask,
+        dropout_p=0.0,
+        is_causal=mask is None,
+        scale=scale,
+    )
+  else:
+    q.mul_(scale)
+    scores = q @ k.transpose(-1, -2)
+    scores = scores / softcap
+    scores = torch.tanh(scores)
+    scores = scores * softcap
+    scores = scores + mask
+    out = F.softmax(scores.float(), dim=-1).type_as(q)
+    y = torch.matmul(out, v)
 
   result = y.transpose(1, 2)
   result = builder.mark_outputs(result)

@@ -96,7 +96,7 @@ class TestModelConversion(googletest.TestCase):
   def test_gemma2(self):
     config = gemma2.get_fake_model_config()
     pytorch_model = gemma2.Gemma2(config).eval()
-    self._test_model(config, pytorch_model, "prefill", atol=1e-1, rtol=1e-3)
+    self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
 
   @googletest.skipIf(
       ai_edge_config.Config.use_torch_xla,
