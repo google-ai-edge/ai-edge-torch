@@ -48,6 +48,7 @@ class DownSamplingConfig:
 @dataclasses.dataclass
 class ResidualBlock2DConfig:
   in_channels: int
+  hidden_channels: int
   out_channels: int
   normalization_config: layers_cfg.NormalizationConfig
   activation_config: layers_cfg.ActivationConfig
