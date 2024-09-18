@@ -12,3 +12,5 @@ scipy
 numpy
 tabulate
 safetensors
+kagglehub
+transformers
