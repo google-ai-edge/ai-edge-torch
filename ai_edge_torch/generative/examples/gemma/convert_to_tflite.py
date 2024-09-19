@@ -30,17 +30,17 @@ _CHECKPOINT_PATH = flags.DEFINE_string(
 )
 _TFLITE_PATH = flags.DEFINE_string(
     'tflite_path',
-    '/tmp/gemma_q8_seq512_ekv1024.tflite',
+    '/tmp/',
     'The tflite file path to export.',
 )
 _PREFILL_SEQ_LEN = flags.DEFINE_integer(
     'prefill_seq_len',
-    512,
+    1024,
     'The maximum size of prefill input tensor.',
 )
 _KV_CACHE_MAX_LEN = flags.DEFINE_integer(
     'kv_cache_max_len',
-    1024,
+    1280,
     'The maximum size of KV cache buffer, including both prefill and decode.',
 )
 _QUANTIZE = flags.DEFINE_bool(
@@ -54,9 +54,11 @@ def main(_):
   pytorch_model = gemma.build_2b_model(
       _CHECKPOINT_PATH.value, kv_cache_max_len=_KV_CACHE_MAX_LEN.value
   )
+  quant_suffix = 'q8' if _QUANTIZE.value else 'f32'
+  output_filename = f'gemma_{quant_suffix}_seq{_PREFILL_SEQ_LEN.value}_ekv{_KV_CACHE_MAX_LEN.value}.tflite'
   converter.convert_to_tflite(
       pytorch_model,
-      tflite_path=_TFLITE_PATH.value,
+      tflite_path=os.path.join(_TFLITE_PATH.value, output_filename),
       prefill_seq_len=_PREFILL_SEQ_LEN.value,
       quantize=_QUANTIZE.value,
   )
