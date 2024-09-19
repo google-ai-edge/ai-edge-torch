@@ -28,7 +28,7 @@ import numpy as np
 import torch
 
 from absl.testing import absltest as googletest
-from tensorflow.lite.python import interpreter
+from ai_edge_litert import interpreter
 
 
 class TestModelConversion(googletest.TestCase):

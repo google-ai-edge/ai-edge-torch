@@ -23,12 +23,12 @@ from ai_edge_torch import config
 from ai_edge_torch._convert import conversion_utils
 from ai_edge_torch.testing import model_coverage
 import numpy as np
-import tensorflow as tf
 import torch
 from torch import nn
 import torchvision
 
 from absl.testing import absltest as googletest
+from ai_edge_litert import interpreter as tfl_interpreter  # pylint: disable=g-direct-tensorflow-import
 
 
 @dataclasses.dataclass
@@ -466,7 +466,9 @@ class TestConvert(googletest.TestCase):
     np.testing.assert_almost_equal(edge_output["y_data_2_0"], args[1])
     np.testing.assert_almost_equal(edge_output["y_data_2_1"], args[2])
 
-    interpreter = tf.lite.Interpreter(model_content=edge_model._tflite_model)
+    interpreter = tfl_interpreter.Interpreter(
+        model_content=edge_model._tflite_model
+    )
     runner = interpreter.get_signature_runner("serving_default")
     output_details = runner.get_output_details()
     self.assertIn("x", output_details.keys())
@@ -477,7 +479,9 @@ class TestConvert(googletest.TestCase):
   def _compare_tflite_torch_args_kwargs(self, model, args, kwargs, flat_inputs):
     model.eval()
     edge_model = ai_edge_torch.convert(model, args, kwargs)
-    interpreter = tf.lite.Interpreter(model_content=edge_model._tflite_model)
+    interpreter = tfl_interpreter.Interpreter(
+        model_content=edge_model._tflite_model
+    )
     runner = interpreter.get_signature_runner("serving_default")
     input_details = runner.get_input_details()
     self.assertEqual(input_details.keys(), flat_inputs.keys())
