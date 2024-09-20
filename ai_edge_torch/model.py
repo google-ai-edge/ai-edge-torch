@@ -27,6 +27,8 @@ from typing import Callable
 import numpy.typing as npt
 import tensorflow as tf
 
+from ai_edge_litert import interpreter as tfl_interpreter  # pylint: disable=g-direct-tensorflow-import
+
 DEFAULT_SIGNATURE_NAME = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 
 
@@ -65,7 +67,7 @@ class TfLiteModel(Model):
       tflite_model: A TFlite serialized object.
     """
     self._tflite_model = tflite_model
-    self._interpreter_builder = lambda: tf.lite.Interpreter(
+    self._interpreter_builder = lambda: tfl_interpreter.Interpreter(
         model_content=self._tflite_model,
         experimental_default_delegate_latest_features=True,
     )
@@ -75,12 +77,13 @@ class TfLiteModel(Model):
     return self._tflite_model
 
   def set_interpreter_builder(
-      self, builder: Callable[[], tf.lite.Interpreter]
+      self, builder: Callable[[], tfl_interpreter.Interpreter]
   ) -> None:
     """Sets a custom interpreter builder.
 
     Args:
-      builder: A function that returns a `tf.lite.Interpreter` or its subclass.
+      builder: A function that returns a `tfl_interpreter.Interpreter` or its
+        subclass.
     """
     self._interpreter_builder = builder
 
@@ -166,7 +169,7 @@ class TfLiteModel(Model):
 
     # Check if this is indeed a tflite model:
     try:
-      interpreter = tf.lite.Interpreter(model_content=model_content)
+      interpreter = tfl_interpreter.Interpreter(model_content=model_content)
       interpreter.get_signature_list()
     except:
       return None

@@ -101,6 +101,8 @@ The user needs to provide a layer name template (TensorNames) for the source
 model. For `TinyLlama`, layer names can be found from the SafeTensors file.
 
 ```python
+import ai_edge_torch.generative.utilities.loader as loading_utils
+
 safetensors = loading_utils.load_safetensors("path_to_checkpoint")
 print(safetensors.keys())
 ```
@@ -129,6 +131,28 @@ loader.load(model)
 Currently, `ModelLoader` supports PyTorch state dictionary and SafeTensors
 checkpoints. We recommend testing the mapped model against your reference implementation
 using a few input samples before proceeding to the conversion step.
+
+### Verify (re)authored model
+Once the model (re)authoring is completed, it should be verified if it generates
+the output close to one from the original model. Generative API provides some
+utilities to make it easy to verify models as shown with `verify.py` in each
+example folder.
+
+To instantiate the original models, `verify.py` imports `kagglehub` and/or
+`transformers` which may require user authentication tokens to download the
+original models. Please refer
+[Kagglehub page](https://www.kaggle.com/docs/api#authentication) or
+[HuggingFace page](https://huggingface.co/docs/hub/en/security-tokens)
+about how to set user authentication tokens up.
+
+To verify Gemma models, it requires to install `gemma_pytorch` package from its
+github repository.
+
+```bash
+pip install -q -U immutabledict sentencepiece
+git clone https://github.com/google/gemma_pytorch.git
+export PYTHONPATH=$PWD/gemma_pytorch:$PYTHONPATH
+```
 
 ### Model conversion
 In this step, we use the `ai_edge_torch`'s standard multi-signature conversion API to convert PyTorch `nn.Module` to a single TFLite flatbuffer for on-device execution. For example, in `tiny_llama/convert_to_tflite.py`, we use this python code to convert the `TinyLlama` model to a multi-signature TFLite model:

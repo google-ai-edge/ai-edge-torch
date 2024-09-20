@@ -412,6 +412,7 @@ class BaseLoader(loader.ModelLoader):
   ):
     residual_block_config = unet_config.ResidualBlock2DConfig(
         in_channels=config.in_channels,
+        hidden_channels=config.in_channels,
         out_channels=config.in_channels,
         time_embedding_channels=config.time_embedding_channels,
         normalization_config=config.normalization_config,
@@ -466,6 +467,7 @@ class BaseLoader(loader.ModelLoader):
           f"{converted_state_param_prefix}.resnets.{i}",
           unet_config.ResidualBlock2DConfig(
               in_channels=input_channels,
+              hidden_channels=config.out_channels,
               out_channels=config.out_channels,
               time_embedding_channels=config.time_embedding_channels,
               normalization_config=config.normalization_config,
@@ -508,6 +510,7 @@ class BaseLoader(loader.ModelLoader):
           f"{converted_state_param_prefix}.resnets.{i}",
           unet_config.ResidualBlock2DConfig(
               in_channels=input_channels,
+              hidden_channels=config.out_channels,
               out_channels=config.out_channels,
               time_embedding_channels=config.time_embedding_channels,
               normalization_config=config.normalization_config,
@@ -554,6 +557,7 @@ class BaseLoader(loader.ModelLoader):
           f"{converted_state_param_prefix}.resnets.{i}",
           unet_config.ResidualBlock2DConfig(
               in_channels=resnet_in_channels + res_skip_channels,
+              hidden_channels=config.out_channels,
               out_channels=config.out_channels,
               time_embedding_channels=config.time_embedding_channels,
               normalization_config=config.normalization_config,

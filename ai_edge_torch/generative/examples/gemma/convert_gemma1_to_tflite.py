@@ -13,19 +13,19 @@
 # limitations under the License.
 # ==============================================================================
 
-"""Example of converting SmolLM model to multi-signature tflite model."""
+"""Example of converting a Gemma1 model to multi-signature tflite model."""
 
 import os
 import pathlib
 
 from absl import app
 from absl import flags
-from ai_edge_torch.generative.examples.smollm import smollm
+from ai_edge_torch.generative.examples.gemma import gemma1
 from ai_edge_torch.generative.utilities import converter
 
 _CHECKPOINT_PATH = flags.DEFINE_string(
     'checkpoint_path',
-    os.path.join(pathlib.Path.home(), 'Downloads/llm_data/smollm'),
+    os.path.join(pathlib.Path.home(), 'Downloads/llm_data/gemma-2b'),
     'The path to the model checkpoint, or directory holding the checkpoint.',
 )
 _TFLITE_PATH = flags.DEFINE_string(
@@ -51,11 +51,11 @@ _QUANTIZE = flags.DEFINE_bool(
 
 
 def main(_):
-  pytorch_model = smollm.build_model(
+  pytorch_model = gemma1.build_2b_model(
       _CHECKPOINT_PATH.value, kv_cache_max_len=_KV_CACHE_MAX_LEN.value
   )
   quant_suffix = 'q8' if _QUANTIZE.value else 'f32'
-  output_filename = f'smollm_{quant_suffix}_seq{_PREFILL_SEQ_LEN.value}_ekv{_KV_CACHE_MAX_LEN.value}.tflite'
+  output_filename = f'gemma_{quant_suffix}_seq{_PREFILL_SEQ_LEN.value}_ekv{_KV_CACHE_MAX_LEN.value}.tflite'
   converter.convert_to_tflite(
       pytorch_model,
       tflite_path=os.path.join(_TFLITE_PATH.value, output_filename),

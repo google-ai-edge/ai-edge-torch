@@ -349,6 +349,7 @@ class TestCoreAtenOps(parameterized.TestCase):
       ("aten_slice_scatter_3", torch.ops.aten.slice_scatter, (rnd(torch.float32, (10, 10)), rnd(torch.float32, (3, 10)), 0, 2, 8, 2), dict()),
       ("aten_slice_scatter_4", torch.ops.aten.slice_scatter, (rnd(torch.float32, (10, 10)), rnd(torch.float32, (2, 10)), 0, 2, 7, 3), dict()),
       ("aten_slice_scatter_5", torch.ops.aten.slice_scatter, (rnd(torch.float32, (0, 10)), rnd(torch.float32, (0, 3)), 1, 0, -7), dict()),
+      ("aten_slice_scatter_6", torch.ops.aten.slice_scatter, (rnd(torch.float32, (8, 3, 3)), rnd(torch.float32, (0, 3, 3)), 0, -8, 0), dict()),
       ("aten_slice_Tensor_0", torch.ops.aten.slice.Tensor, (rnd(torch.float32, (10, 10)), 1,), dict()),
       ("aten__softmax_0", torch.ops.aten._softmax, (rnd(torch.float32, (10, 10)), 1, False,), dict()),
       ("aten_split_copy_Tensor_0", torch.ops.aten.split_copy.Tensor, (rnd(torch.float32, (10, 10)), 2,), dict()),

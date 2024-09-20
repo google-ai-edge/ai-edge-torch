@@ -212,17 +212,25 @@ def _aten_div(mod, x, y, *, rounding_mode=None, out=None) -> ir.Value:
 #   - https://github.com/pytorch/pytorch/blob/18f9331e5deb4c02ae5c206e133a9b4add49bd97/aten/src/ATen/native/TensorShape.cpp#L4002
 @lower(torch.ops.aten.slice_scatter)
 def _aten_slice_scatter(lctx, self, src, dim=0, start=None, end=None, step=1):
-  start = start or 0
-  end = end or self.type.shape[dim]
+  start = start if start is not None else 0
+  end = end if end is not None else self.type.shape[dim]
+
+  start, end = np.clip(
+      [start, end], -self.type.shape[dim], self.type.shape[dim]
+  )
+
   if start < 0:
     start = self.type.shape[dim] + start
   if end < 0:
     end = self.type.shape[dim] + end
 
-  end = start + step * math.ceil((end - start) / step) - (step - 1)
+  if end <= start or np.prod(src.type.shape) == 0:
+    return self
 
+  end = start + step * math.ceil((end - start) / step) - (step - 1)
   padding_low = start
   padding_high = self.type.shape[dim] - end
+  interior_padding = step - 1
 
   rank = len(self.type.shape)
   src = stablehlo.pad(
@@ -230,7 +238,9 @@ def _aten_slice_scatter(lctx, self, src, dim=0, start=None, end=None, step=1):
       utils.splat(0, src.type.element_type, []),
       edge_padding_low=[padding_low if i == dim else 0 for i in range(rank)],
       edge_padding_high=[padding_high if i == dim else 0 for i in range(rank)],
-      interior_padding=[step - 1 if i == dim else 0 for i in range(rank)],
+      interior_padding=[
+          interior_padding if i == dim else 0 for i in range(rank)
+      ],
   )
   pred = np.ones(self.type.shape, dtype=np.bool_)
   pred[*[

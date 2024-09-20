@@ -13,39 +13,43 @@
 # limitations under the License.
 # ==============================================================================
 
-"""Example of converting a Gemma model to multi-signature tflite model."""
-
-import os
-import pathlib
+"""Common utility functions for model conversion."""
 
 import ai_edge_torch
-from ai_edge_torch.generative.examples.gemma import gemma
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.quantize import quant_recipes
 import torch
 
 
-def convert_gemma_to_tflite(
-    checkpoint_path: str,
+def convert_to_tflite(
+    pytorch_model: torch.nn.Module,
+    tflite_path: str,
     prefill_seq_len: int = 512,
-    kv_cache_max_len: int = 1024,
     quantize: bool = True,
 ):
-  """Converts a Gemma 2B model to multi-signature tflite model.
+  """Converts a nn.Module model to multi-signature tflite model.
+
+  A PyTorch model will be converted to a tflite model with two signatures:
+  "prefill" and "decode".
+
+  "prefill" signature takes a tensor of shape [1, prefill_seq_len] of token
+  sequence, a tensor of shape [1, prefill_seq_len] of token positions, and an
+  external KV cache as a sample input.
+
+  "decode" signature takes a tensor of shape [1, 1] of token sequence, a tensor
+  of shape [1, 1] of the token position, and an external KV cache as a sample
+  input.
+
+  The final tflite model will be exported to tflite_path.
 
   Args:
-      checkpoint_path (str): The filepath to the model checkpoint, or directory
-        holding the checkpoint.
+      pytorch_model (torch.nn.Module): PyTorch model to convert to tflite.
+      tflite_path (str): The tflite file path to export.
       prefill_seq_len (int, optional): The maximum size of prefill input tensor.
         Defaults to 512.
-      kv_cache_max_len (int, optional): The maximum size of KV cache buffer,
-        including both prefill and decode. Defaults to 1024.
       quantize (bool, optional): Whether the model should be quanized. Defaults
         to True.
   """
-  pytorch_model = gemma.build_2b_model(
-      checkpoint_path, kv_cache_max_len=kv_cache_max_len
-  )
   # Tensors used to trace the model graph during conversion.
   prefill_tokens = torch.full((1, prefill_seq_len), 0, dtype=torch.int)
   prefill_input_pos = torch.arange(0, prefill_seq_len, dtype=torch.int)
@@ -75,12 +79,4 @@ def convert_gemma_to_tflite(
       )
       .convert(quant_config=quant_config)
   )
-  quant_suffix = 'q8' if quantize else 'f32'
-  edge_model.export(
-      f'/tmp/gemma_{quant_suffix}_seq{prefill_seq_len}_ekv{kv_cache_max_len}.tflite'
-  )
-
-
-if __name__ == '__main__':
-  path = os.path.join(pathlib.Path.home(), 'Downloads/llm_data/gemma-2b')
-  convert_gemma_to_tflite(path)
+  edge_model.export(tflite_path)

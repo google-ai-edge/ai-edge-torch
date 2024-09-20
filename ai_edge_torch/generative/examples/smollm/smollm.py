@@ -16,15 +16,10 @@
 """Example of building a SmolLM model."""
 
 import copy
-import os
-import pathlib
 
 from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
-from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
-import numpy as np
-import torch
 from torch import nn
 
 TENSOR_NAMES = copy.copy(tiny_llama.TENSOR_NAMES)
@@ -104,28 +99,3 @@ def build_model(checkpoint_path: str, **kwargs) -> nn.Module:
   loader.load(model, strict=False)
   model.eval()
   return model
-
-
-def define_and_run(checkpoint_path: str) -> None:
-  """Instantiates and runs a SmolLM model."""
-
-  current_dir = pathlib.Path(__file__).parent.resolve()
-  smollm_goldens = torch.load(current_dir / "smollm_lm_logits.pt")
-  kv_cache_max_len = 1024
-  model = build_model(checkpoint_path, kv_cache_max_len=kv_cache_max_len)
-  idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
-  tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.int, device="cpu")
-  tokens[0, :4] = idx
-  input_pos = torch.arange(0, kv_cache_max_len, dtype=torch.int)
-  kv = kv_utils.KVCache.from_model_config(model.config)
-  output = model.forward(tokens, input_pos, kv)
-  assert torch.allclose(
-      smollm_goldens, output["logits"][0, idx.shape[1] - 1, :], atol=1e-05
-  )
-
-
-if __name__ == "__main__":
-  input_checkpoint_path = os.path.join(
-      pathlib.Path.home(), "Downloads/llm_data/smollm"
-  )
-  define_and_run(input_checkpoint_path)

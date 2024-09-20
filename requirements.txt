@@ -7,8 +7,11 @@ torchaudio==2.4.0+cpu
 torch_xla==2.4.0
 --pre
 tf-nightly>=2.18.0.dev20240905
+ai-edge-litert-nightly
 ai-edge-quantizer-nightly
 scipy
 numpy
 tabulate
 safetensors
+kagglehub
+transformers
