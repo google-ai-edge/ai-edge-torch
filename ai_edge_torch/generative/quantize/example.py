@@ -14,7 +14,7 @@
 # ==============================================================================
 
 import ai_edge_torch
-from ai_edge_torch.generative.examples.gemma import gemma
+from ai_edge_torch.generative.examples.gemma import gemma1
 from ai_edge_torch.generative.quantize import quant_recipes
 import numpy as np
 import torch
@@ -22,8 +22,8 @@ import torch
 
 def main():
   # Build a PyTorch model as usual
-  config = gemma.get_fake_model_config()
-  model = gemma.Gemma(config)
+  config = gemma1.get_fake_model_config()
+  model = gemma1.Gemma(config)
   idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
   tokens = torch.full((1, 10), 0, dtype=torch.int, device="cpu")
   tokens[0, :4] = idx

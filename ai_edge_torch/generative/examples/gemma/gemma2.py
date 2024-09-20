@@ -267,29 +267,3 @@ def build_2b_model(checkpoint_path: str, **kwargs) -> nn.Module:
   loader.load(model, strict=False)
   model.eval()
   return model
-
-
-def define_and_run_2b(checkpoint_path: str) -> None:
-  """Instantiates and runs a Gemma2 2B model."""
-
-  current_dir = pathlib.Path(__file__).parent.resolve()
-  gemma2_goldens = torch.load(current_dir / "gemma2it_2b_golden.pt")
-  print("Running GEMMA 2")
-  kv_cache_max_len = 1024
-  model = build_2b_model(checkpoint_path, kv_cache_max_len=kv_cache_max_len)
-  toks = torch.from_numpy(
-      np.array([2, 651, 9456, 576, 573, 3520, 3858, 603, 235248])
-  )
-  tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.int, device="cpu")
-  tokens[0, :9] = toks
-  input_pos = torch.arange(0, kv_cache_max_len, dtype=torch.int)
-  kv = kv_utils.KVCache.from_model_config(model.config)
-  out = model.forward(tokens, input_pos, kv)
-  out_final = out["logits"][0, 8, :]
-  assert torch.allclose(gemma2_goldens, out_final, atol=1e-04)
-
-
-if __name__ == "__main__":
-  torch.set_printoptions(sci_mode=True)
-  path = os.path.join(pathlib.Path.home(), "Downloads/llm_data/gemma2-2b")
-  define_and_run_2b(path)

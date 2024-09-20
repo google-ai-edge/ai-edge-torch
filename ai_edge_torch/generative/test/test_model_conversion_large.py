@@ -17,7 +17,7 @@
 
 import ai_edge_torch
 from ai_edge_torch import config as ai_edge_config
-from ai_edge_torch.generative.examples.gemma import gemma
+from ai_edge_torch.generative.examples.gemma import gemma1
 from ai_edge_torch.generative.examples.gemma import gemma2
 from ai_edge_torch.generative.examples.openelm import openelm
 from ai_edge_torch.generative.examples.phi import phi2
@@ -82,9 +82,9 @@ class TestModelConversion(googletest.TestCase):
       ai_edge_config.Config.use_torch_xla,
       reason="tests with custom ops are not supported on oss",
   )
-  def test_gemma(self):
-    config = gemma.get_fake_model_config()
-    pytorch_model = gemma.Gemma(config).eval()
+  def test_gemma1(self):
+    config = gemma1.get_fake_model_config()
+    pytorch_model = gemma1.Gemma(config).eval()
     self._test_model(
         config, pytorch_model, "serving_default", atol=1e-2, rtol=1e-5
     )

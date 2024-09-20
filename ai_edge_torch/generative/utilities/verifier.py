@@ -19,7 +19,6 @@ import datetime
 from typing import List, Optional, Union
 
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
-import numpy as np
 import torch
 import transformers
 
@@ -126,7 +125,7 @@ def generate(
 def verify_with_input_ids(
     original_model: ModelWrapper,
     reauthored_model: torch.nn.Module,
-    input_ids: torch.Tensor = torch.from_numpy(np.array([[1, 2, 3, 4]])).int(),
+    input_ids: List[int],
     kv_cache_max_len: int = 1024,
     rtol: float = 1e-05,
     atol: float = 1e-05,
@@ -139,7 +138,7 @@ def verify_with_input_ids(
     original_model (ModelWrapper): The original model.
     reauthored_model (torch.nn.Module): The model reauthored with ai_edge_torch
       Generative API.
-    input_ids (torch.Tensor): The input token IDs to forward.
+    input_ids (List[int]): The input token IDs to forward with.
     kv_cache_max_len (int): The maximum sequence length of the KV cache.
     rtol (float): The relative tolerance for the comparison.
     atol (float): The absolute tolerance for the comparison.
@@ -148,18 +147,17 @@ def verify_with_input_ids(
     True if the model reauthored generates the same output of the original.
   """
   tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.int, device="cpu")
-  input_ids_len = input_ids.shape[1]
-  tokens[0, :input_ids_len] = input_ids
+  tokens[0, : len(input_ids)] = torch.tensor([input_ids]).int()
 
   log_msg("Forwarding the original model...")
   outputs_original = original_model.forward(tokens)
-  logits_original = outputs_original.logits[0, input_ids_len - 1, :]
+  logits_original = outputs_original.logits[0, len(input_ids) - 1, :]
   log_msg("logits_original: ", logits_original)
 
   log_msg("Forwarding the reauthored model...")
   kv_cache = kv_utils.KVCache.from_model_config(reauthored_model.config)
   outputs_reauthored = forward(reauthored_model, tokens, kv_cache)
-  logits_reauthored = outputs_reauthored[0][0, input_ids_len - 1, :]
+  logits_reauthored = outputs_reauthored[0][0, len(input_ids) - 1, :]
   log_msg("logits_reauthored:", logits_reauthored)
 
   return torch.allclose(
@@ -208,7 +206,8 @@ def verify_reauthored_model(
     original_model: ModelWrapper,
     reauthored_model: torch.nn.Module,
     tokenizer: torch.nn.Module,
-    prompts: List[str],
+    generate_prompts: List[str],
+    forward_input_ids: List[List[int]] = [[1, 2, 3, 4]],
     rtol: float = 1e-05,
     atol: float = 1e-05,
 ):
@@ -227,22 +226,25 @@ def verify_reauthored_model(
     reauthored_model (torch.nn.Module): The model reauthored with ai_edge_torch
       Generative API.
     tokenizer (torch.nn.Module): The tokenizer.
-    prompts (List[str]): List of the input prompts to generate answers.
+    generate_prompts (List[str]): List of the input prompts to generate answers.
+    forward_input_ids (List[torch.Tensor]): List if ihe input token IDs to
+      forward with.
     rtol (float): The relative tolerance for the comparison.
     atol (float): The absolute tolerance for the comparison.
   """
-  log_msg("Verifying the reauthored model with an arbitrary input...")
-  if verify_with_input_ids(
-      original_model, reauthored_model, rtol=rtol, atol=atol
-  ):
-    log_msg("PASS")
-  else:
-    log_msg("FAILED")
+  for input_ids in forward_input_ids:
+    log_msg("Verifying the reauthored model with input IDs:", input_ids)
+    if verify_with_input_ids(
+        original_model, reauthored_model, input_ids, rtol=rtol, atol=atol
+    ):
+      log_msg("PASS")
+    else:
+      log_msg("FAILED")
 
-  for p in prompts:
-    log_msg("Verifying the reauthored model with prompts:", p)
+  for prompts in generate_prompts:
+    log_msg("Verifying the reauthored model with prompts:", prompts)
     if verify_model_with_prompts(
-        original_model, reauthored_model, tokenizer, p
+        original_model, reauthored_model, tokenizer, prompts
     ):
       log_msg("PASS")
     else:

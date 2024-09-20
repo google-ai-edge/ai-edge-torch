@@ -13,10 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-"""Example of building a Gemma model."""
-
-import os
-import pathlib
+"""Example of building a Gemma1 model."""
 
 from ai_edge_torch.generative.layers import attention
 from ai_edge_torch.generative.layers import builder
@@ -24,7 +21,6 @@ from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
-import numpy as np
 import torch
 from torch import nn
 
@@ -32,13 +28,11 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.up_proj",
     ff_down_proj="model.layers.{}.mlp.down_proj",
     ff_gate_proj="model.layers.{}.mlp.gate_proj",
-    attn_query_proj="model.layers.{}.self_attn.q_proj",
-    attn_key_proj="model.layers.{}.self_attn.k_proj",
-    attn_value_proj="model.layers.{}.self_attn.v_proj",
+    attn_fused_qkv_proj="model.layers.{}.self_attn.qkv_proj",
     attn_output_proj="model.layers.{}.self_attn.o_proj",
     pre_attn_norm="model.layers.{}.input_layernorm",
     post_attn_norm="model.layers.{}.post_attention_layernorm",
-    embedding="model.embed_tokens",
+    embedding="embedder",
     final_norm="model.norm",
     lm_head=None,
 )
@@ -192,30 +186,3 @@ def build_2b_model(checkpoint_path: str, **kwargs) -> nn.Module:
   loader.load(model, strict=False)
   model.eval()
   return model
-
-
-def define_and_run_2b(checkpoint_path: str) -> None:
-  """Instantiates and runs a Gemma 2B model."""
-
-  current_dir = pathlib.Path(__file__).parent.resolve()
-  gemma_goldens = torch.load(current_dir / "gemma_lm_logits.pt")
-
-  kv_cache_max_len = 1024
-  model = build_2b_model(checkpoint_path, kv_cache_max_len=kv_cache_max_len)
-  idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
-  tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.int, device="cpu")
-  tokens[0, :4] = idx
-  input_pos = torch.arange(0, kv_cache_max_len, dtype=torch.int)
-  kv = kv_utils.KVCache.from_model_config(model.config)
-  output = model.forward(tokens, input_pos, kv)
-  print("comparing with goldens..")
-  assert torch.allclose(
-      gemma_goldens, output["logits"][0, idx.shape[1] - 1, :], atol=1e-02
-  )
-
-
-if __name__ == "__main__":
-  input_checkpoint_path = os.path.join(
-      pathlib.Path.home(), "Downloads/llm_data/gemma-2b"
-  )
-  define_and_run_2b(input_checkpoint_path)

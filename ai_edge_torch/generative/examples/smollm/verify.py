@@ -51,7 +51,7 @@ def main(_):
       original_model=wrapper_model,
       reauthored_model=reauthored_model,
       tokenizer=tokenizer,
-      prompts=_PROMPTS.value,
+      generate_prompts=_PROMPTS.value,
       atol=1e-04,
   )
 

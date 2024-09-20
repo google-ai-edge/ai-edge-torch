@@ -13,14 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 
-"""Example of converting a Gemma model to multi-signature tflite model."""
+"""Example of converting a Gemma1 model to multi-signature tflite model."""
 
 import os
 import pathlib
 
 from absl import app
 from absl import flags
-from ai_edge_torch.generative.examples.gemma import gemma
+from ai_edge_torch.generative.examples.gemma import gemma1
 from ai_edge_torch.generative.utilities import converter
 
 _CHECKPOINT_PATH = flags.DEFINE_string(
@@ -51,7 +51,7 @@ _QUANTIZE = flags.DEFINE_bool(
 
 
 def main(_):
-  pytorch_model = gemma.build_2b_model(
+  pytorch_model = gemma1.build_2b_model(
       _CHECKPOINT_PATH.value, kv_cache_max_len=_KV_CACHE_MAX_LEN.value
   )
   quant_suffix = 'q8' if _QUANTIZE.value else 'f32'
