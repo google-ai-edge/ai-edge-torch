@@ -16,15 +16,64 @@
 """Common utility functions to verify the reauthored models."""
 
 import datetime
-from typing import List
+from typing import List, Optional, Union
 
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import numpy as np
 import torch
+import transformers
 
 
 def log_msg(*args):
   print("[%s]" % datetime.datetime.now(), *args)
+
+
+class ModelWrapper(torch.nn.Module):
+  """A wrapper for the model to be verified, this could be a HuggingFace model
+
+  or a regular PyTorch model.
+  """
+
+  def __init__(
+      self,
+      model: torch.nn.Module,
+      model_format: str = "huggingface",
+      hf_generation_config: Optional[transformers.GenerationConfig] = None,
+  ):
+    """Initializes the wrapper.
+
+    Args:
+      model (torch.nn.Module): The original model. This could be a model built
+        from HuggingFace transformers, or a regular PyTorch model.
+      model_format (str): The format of the model. It should be either
+        "huggingface" or "pytorch".
+      hf_generation_config (transformers.GenerationConfig): The HuggingFace
+        generation config. This config will only be used if the underlying model
+        is built from HuggingFace transformers.
+    """
+    super().__init__()
+    self.model = model
+    self.model_format = model_format
+    self.hf_generation_config = hf_generation_config
+
+  def generate(
+      self, inputs: torch.Tensor
+  ) -> Union[transformers.utils.ModelOutput, torch.LongTensor]:
+    if self.model_format == "huggingface":
+      return self.model.generate(
+          inputs=inputs, generation_config=self.hf_generation_config
+      )
+    else:
+      raise NotImplementedError(
+          "generate() is not implemented for model format: %s"
+          % self.model_format
+      )
+
+  def forward(
+      self,
+      inputs: torch.Tensor,
+  ):
+    return self.model.forward(inputs)
 
 
 def forward(
@@ -75,7 +124,7 @@ def generate(
 
 
 def verify_with_input_ids(
-    original_model: torch.nn.Module,
+    original_model: ModelWrapper,
     reauthored_model: torch.nn.Module,
     input_ids: torch.Tensor = torch.from_numpy(np.array([[1, 2, 3, 4]])).int(),
     kv_cache_max_len: int = 1024,
@@ -87,7 +136,7 @@ def verify_with_input_ids(
   It compares only one outputs from the original and the reauthored model.
 
   Args:
-    original_model (torch.nn.Module): The original model.
+    original_model (ModelWrapper): The original model.
     reauthored_model (torch.nn.Module): The model reauthored with ai_edge_torch
       Generative API.
     input_ids (torch.Tensor): The input token IDs to forward.
@@ -119,7 +168,7 @@ def verify_with_input_ids(
 
 
 def verify_model_with_prompts(
-    original_model: torch.nn.Module,
+    original_model: ModelWrapper,
     reauthored_model: torch.nn.Module,
     tokenizer: torch.nn.Module,
     prompts: str,
@@ -130,7 +179,7 @@ def verify_model_with_prompts(
   original and the reauthored model.
 
   Args:
-    original_model (torch.nn.Module): The original model.
+    original_model (ModelWrapper): The original model.
     reauthored_model (torch.nn.Module): The model reauthored with ai_edge_torch
       Generative API.
     tokenizer (torch.nn.Module): The tokenizer.
@@ -156,7 +205,7 @@ def verify_model_with_prompts(
 
 
 def verify_reauthored_model(
-    original_model: torch.nn.Module,
+    original_model: ModelWrapper,
     reauthored_model: torch.nn.Module,
     tokenizer: torch.nn.Module,
     prompts: List[str],
@@ -174,7 +223,7 @@ def verify_reauthored_model(
   It prints out "PASS" or "FAILED" to the console.
 
   Args:
-    original_model (torch.nn.Module): The original model.
+    original_model (ModelWrapper): The original model.
     reauthored_model (torch.nn.Module): The model reauthored with ai_edge_torch
       Generative API.
     tokenizer (torch.nn.Module): The tokenizer.

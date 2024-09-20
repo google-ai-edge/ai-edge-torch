@@ -33,8 +33,9 @@ _PROMPTS = flags.DEFINE_multi_string(
 def main(_):
   checkpoint = "HuggingFaceTB/SmolLM-135M"
   verifier.log_msg("Loading the original model from", checkpoint)
-  original_model = transformers.AutoModelForCausalLM.from_pretrained(checkpoint)
-
+  wrapper_model = verifier.ModelWrapper(
+      model=transformers.AutoModelForCausalLM.from_pretrained(checkpoint),
+  )
   # Locate the cached dir.
   cached_config_file = transformers.utils.cached_file(
       checkpoint, transformers.utils.CONFIG_NAME
@@ -47,7 +48,7 @@ def main(_):
   tokenizer = transformers.AutoTokenizer.from_pretrained(checkpoint)
 
   verifier.verify_reauthored_model(
-      original_model=original_model,
+      original_model=wrapper_model,
       reauthored_model=reauthored_model,
       tokenizer=tokenizer,
       prompts=_PROMPTS.value,

@@ -24,15 +24,25 @@ import transformers
 
 _PROMPTS = flags.DEFINE_multi_string(
     "prompts",
-    "What is the meaning of life?",
+    "Instruct: Write an email about the weather Output:",
     "The input prompts to generate answers.",
 )
 
+_MAX_NEW_TOKENS = flags.DEFINE_integer(
+    "max_new_tokens",
+    30,
+    "The maximum size of the generated tokens.",
+)
 
 def main(_):
   checkpoint = kagglehub.model_download("Microsoft/phi/transformers/2")
   verifier.log_msg("Loading the original model from", checkpoint)
-  original_model = transformers.AutoModelForCausalLM.from_pretrained(checkpoint)
+  generation_config = transformers.GenerationConfig.from_pretrained(checkpoint)
+  generation_config.max_new_tokens = _MAX_NEW_TOKENS.value
+  wrapper_model = verifier.ModelWrapper(
+      model=transformers.AutoModelForCausalLM.from_pretrained(checkpoint),
+      hf_generation_config=generation_config,
+  )
 
   verifier.log_msg("Building the reauthored model from", checkpoint)
   reauthored_model = phi2.build_model(checkpoint)
@@ -41,7 +51,7 @@ def main(_):
   tokenizer = transformers.AutoTokenizer.from_pretrained(checkpoint)
 
   verifier.verify_reauthored_model(
-      original_model=original_model,
+      original_model=wrapper_model,
       reauthored_model=reauthored_model,
       tokenizer=tokenizer,
       prompts=_PROMPTS.value,

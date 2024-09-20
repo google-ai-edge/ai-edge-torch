@@ -33,8 +33,10 @@ _PROMPTS = flags.DEFINE_multi_string(
 def main(_):
   checkpoint = "apple/OpenELM-3B"
   verifier.log_msg("Loading the original model from", checkpoint)
-  original_model = transformers.AutoModelForCausalLM.from_pretrained(
-      checkpoint, trust_remote_code=True
+  wrapper_model = verifier.ModelWrapper(
+      model=transformers.AutoModelForCausalLM.from_pretrained(
+          checkpoint, trust_remote_code=True
+      ),
   )
 
   # Locate the cached dir.
@@ -50,7 +52,7 @@ def main(_):
   tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_checkpoint)
 
   verifier.verify_reauthored_model(
-      original_model=original_model,
+      original_model=wrapper_model,
       reauthored_model=reauthored_model,
       tokenizer=tokenizer,
       prompts=_PROMPTS.value,
