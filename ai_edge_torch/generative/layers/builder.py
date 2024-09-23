@@ -44,11 +44,17 @@ def build_glu(
     A callable activation function with GLU.
   """
 
-  def _glu(x):
-    x, y = x.chunk(2, dim=-1)
-    if gate_is_front:
+  if gate_is_front:
+
+    def _glu(x):
+      x, y = x.chunk(2, dim=-1)
       return act(x) * y
-    return x * act(y)
+
+  else:
+
+    def _glu(x):
+      x, y = x.chunk(2, dim=-1)
+      return x * act(y)
 
   return _glu
 
