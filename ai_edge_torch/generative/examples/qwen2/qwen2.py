@@ -278,7 +278,7 @@ def define_and_run() -> None:
   checkpoint_path = os.path.join(Path.home(), "Downloads/llm_data/qwen2")
   model = build_qwen2_model(checkpoint_path, kv_cache_max_len=kv_cache_max_len)
   toks = torch.from_numpy(
-      np.array([2, 651, 9456, 576, 573, 3520, 3858, 603, 235248])
+      np.array([2, 651, 9456, 576, 573, 3520, 3858, 603, 151935])
   )
   tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.long, device="cpu")
   tokens[0, :9] = toks
