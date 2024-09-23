@@ -34,6 +34,7 @@ _MAX_NEW_TOKENS = flags.DEFINE_integer(
     "The maximum size of the generated tokens.",
 )
 
+
 def main(_):
   checkpoint = kagglehub.model_download("Microsoft/phi/transformers/2")
   verifier.log_msg("Loading the original model from", checkpoint)
