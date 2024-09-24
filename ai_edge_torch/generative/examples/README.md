@@ -7,9 +7,13 @@ Gemma is Google's open-source LLM. The model has both a 2B and 7B versions. See 
 ## TinyLlama
 [TinyLlama](https://github.com/jzhang38/TinyLlama) is a popular OSS smaller version of Meta's Llama2 model, with only 1.1B parameters. [HuggingFace checkpoint](https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0).
 
-## Microsoft Phi-2
-Microsoft Phi-2 is also a decoder-only LLM with 2.7B parameters, see details on
-[Kaggle](https://www.kaggle.com/models/Microsoft/phi/transformers/2).
+## Microsoft Phi-2 and 3.5-mini
+Microsoft Phi-2 and Phi-3.5-mini are also decoder-only LLMs with 2.7B and 3.82B
+parameters each. See details on
+[Kaggle](https://www.kaggle.com/models/Microsoft/phi/transformers/2) for Phi-2
+and [HuggingFace](https://huggingface.co/microsoft/Phi-3.5-mini-instruct) for
+Phi-3.5-mini. Note that the example of Phi-3.5-mini supports up to 4K tokens,
+not to 128K tokens which the original Phi-3.5 supports.
 
 ## Apple OpenELM
 [Apple OpenELM](https://huggingface.co/apple/OpenELM) is also a decoder-only LLM
