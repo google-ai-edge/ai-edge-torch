@@ -161,9 +161,7 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
         ),
         ff_config=cfg.FeedForwardConfig(
             type=cfg.FeedForwardType.SEQUENTIAL,
-            activation=cfg.ActivationConfig(
-                cfg.ActivationType.SILU_GLU, gate_is_front=True
-            ),
+            activation=cfg.ActivationConfig(cfg.ActivationType.SILU_GLU),
             intermediate_size=get_intermediate_size(idx),
             pre_ff_norm_config=norm_config,
         ),
