@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from ai_edge_torch.generative.layers.attention import CrossAttention
 from ai_edge_torch.generative.layers.attention import SelfAttention
@@ -416,7 +416,7 @@ class DownEncoderBlock2D(nn.Module):
       time_emb: Optional[torch.Tensor] = None,
       context_tensor: Optional[torch.Tensor] = None,
       output_hidden_states: bool = False,
-  ) -> torch.Tensor | Tuple[torch.Tensor, List[torch.Tensor]]:
+  ) -> Union[torch.Tensor, Tuple[torch.Tensor, List[torch.Tensor]]]:
     """Forward function of the DownEncoderBlock2D.
 
     Args:

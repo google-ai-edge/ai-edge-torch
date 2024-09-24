@@ -603,7 +603,7 @@ def get_model_config(batch_size: int) -> unet_cfg.DiffusionModelConfig:
   # Transformer configs.
   transformer_num_attention_heads = 8
   transformer_batch_size = batch_size
-  transformer_cross_attention_dim = 768  # Embedding fomr CLIP model
+  transformer_cross_attention_dim = 768  # Embedding from CLIP model
   transformer_pre_conv_norm_config = layers_cfg.NormalizationConfig(
       layers_cfg.NormalizationType.GROUP_NORM, epsilon=1e-6, group_num=32
   )
@@ -622,6 +622,74 @@ def get_model_config(batch_size: int) -> unet_cfg.DiffusionModelConfig:
   # Finaly layer configs.
   final_norm_config = layers_cfg.NormalizationConfig(
       layers_cfg.NormalizationType.GROUP_NORM, group_num=32
+  )
+  final_activation_type = layers_cfg.ActivationType.SILU
+
+  return unet_cfg.DiffusionModelConfig(
+      in_channels=in_channels,
+      out_channels=out_channels,
+      block_out_channels=block_out_channels,
+      layers_per_block=layers_per_block,
+      downsample_padding=downsample_padding,
+      residual_norm_config=residual_norm_config,
+      residual_activation_type=residual_activation_type,
+      transformer_batch_size=transformer_batch_size,
+      transformer_num_attention_heads=transformer_num_attention_heads,
+      transformer_cross_attention_dim=transformer_cross_attention_dim,
+      transformer_pre_conv_norm_config=transformer_pre_conv_norm_config,
+      transformer_norm_config=transformer_norm_config,
+      transformer_ff_activation_type=transformer_ff_activation_type,
+      mid_block_layers=mid_block_layers,
+      time_embedding_dim=time_embedding_dim,
+      time_embedding_blocks_dim=time_embedding_blocks_dim,
+      final_norm_config=final_norm_config,
+      final_activation_type=final_activation_type,
+  )
+
+
+def get_fake_model_config(batch_size: int) -> unet_cfg.DiffusionModelConfig:
+  """Get fake configs for the Diffusion model of Stable Diffusion v1.5 for testing.
+
+  Args:
+    batch_size (int): the batch size of input.
+
+  Retruns:
+    The configuration of diffusion model of Stable Diffusion v1.5.
+  """
+  in_channels = 4
+  out_channels = 4
+  block_out_channels = [2, 4, 8, 8]
+  layers_per_block = 1
+  downsample_padding = 1
+
+  # Residual configs.
+  residual_norm_config = layers_cfg.NormalizationConfig(
+      layers_cfg.NormalizationType.GROUP_NORM, group_num=2
+  )
+  residual_activation_type = layers_cfg.ActivationType.SILU
+
+  # Transformer configs.
+  transformer_num_attention_heads = 1
+  transformer_batch_size = batch_size
+  transformer_cross_attention_dim = 4  # Embedding from CLIP model
+  transformer_pre_conv_norm_config = layers_cfg.NormalizationConfig(
+      layers_cfg.NormalizationType.GROUP_NORM, epsilon=1e-6, group_num=2
+  )
+  transformer_norm_config = layers_cfg.NormalizationConfig(
+      layers_cfg.NormalizationType.LAYER_NORM
+  )
+  transformer_ff_activation_type = layers_cfg.ActivationType.GE_GLU
+
+  # Time embedding configs.
+  time_embedding_dim = 2
+  time_embedding_blocks_dim = 4
+
+  # Mid block configs.
+  mid_block_layers = 1
+
+  # Finaly layer configs.
+  final_norm_config = layers_cfg.NormalizationConfig(
+      layers_cfg.NormalizationType.GROUP_NORM, group_num=2
   )
   final_activation_type = layers_cfg.ActivationType.SILU
 

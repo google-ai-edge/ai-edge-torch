@@ -48,7 +48,7 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
 
 
 class CLIP(nn.Module):
-  """CLIP text encoder
+  """CLIP text encoder.
 
   For details, see https://arxiv.org/abs/2103.00020
   """
@@ -86,12 +86,63 @@ class CLIP(nn.Module):
 
 
 def get_model_config() -> cfg.ModelConfig:
+  """Get configs for the CLIP of Stable Diffusion v1.5."""
   max_seq_len = 77
   vocab_size = 49408
   num_layers = 12
   num_heads = 12
   num_query_groups = 12
   embedding_dim = 768
+
+  attn_config = cfg.AttentionConfig(
+      num_heads=num_heads,
+      head_dim=embedding_dim // num_heads,
+      num_query_groups=num_query_groups,
+      rotary_percentage=0.0,
+      qkv_use_bias=True,
+      qkv_transpose_before_split=True,
+      qkv_fused_interleaved=False,
+      output_proj_use_bias=True,
+      enable_kv_cache=False,
+  )
+
+  ff_config = cfg.FeedForwardConfig(
+      type=cfg.FeedForwardType.SEQUENTIAL,
+      activation=cfg.ActivationConfig(cfg.ActivationType.GELU_QUICK),
+      intermediate_size=embedding_dim * 4,
+      use_bias=True,
+  )
+
+  norm_config = cfg.NormalizationConfig(type=cfg.NormalizationType.LAYER_NORM)
+
+  block_config = cfg.TransformerBlockConfig(
+      attn_config=attn_config,
+      ff_config=ff_config,
+      pre_attention_norm_config=norm_config,
+      post_attention_norm_config=norm_config,
+  )
+
+  config = cfg.ModelConfig(
+      vocab_size=vocab_size,
+      num_layers=num_layers,
+      max_seq_len=max_seq_len,
+      embedding_dim=embedding_dim,
+      block_configs=block_config,
+      final_norm_config=norm_config,
+      enable_hlfb=True,
+  )
+
+  return config
+
+
+def get_fake_model_config() -> cfg.ModelConfig:
+  """Get fake configs for the CLIP of Stable Diffusion v1.5 for testing."""
+  max_seq_len = 6
+  vocab_size = 100
+  num_layers = 2
+  num_heads = 12
+  num_query_groups = 12
+  embedding_dim = 24
 
   attn_config = cfg.AttentionConfig(
       num_heads=num_heads,

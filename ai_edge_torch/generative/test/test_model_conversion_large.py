@@ -23,6 +23,9 @@ from ai_edge_torch.generative.examples.openelm import openelm
 from ai_edge_torch.generative.examples.phi import phi2
 from ai_edge_torch.generative.examples.phi import phi3
 from ai_edge_torch.generative.examples.smollm import smollm
+from ai_edge_torch.generative.examples.stable_diffusion import clip as sd_clip
+from ai_edge_torch.generative.examples.stable_diffusion import decoder as sd_decoder
+from ai_edge_torch.generative.examples.stable_diffusion import diffusion as sd_diffusion
 from ai_edge_torch.generative.layers import kv_cache
 from ai_edge_torch.generative.test import utils as test_utils
 import numpy as np
@@ -138,6 +141,110 @@ class TestModelConversion(googletest.TestCase):
     config = openelm.get_fake_model_config()
     pytorch_model = openelm.OpenELM(config).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
+
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
+  def test_stable_diffusion_clip(self):
+    config = sd_clip.get_fake_model_config()
+    prompt_tokens = torch.from_numpy(
+        np.array([[1, 2, 3, 4, 5, 6]], dtype=np.int32)
+    )
+
+    pytorch_model = sd_clip.CLIP(config).eval()
+    torch_output = pytorch_model(prompt_tokens)
+
+    edge_model = ai_edge_torch.signature(
+        "encode", pytorch_model, (prompt_tokens,)
+    ).convert()
+    edge_model.set_interpreter_builder(
+        self._interpreter_builder(edge_model.tflite_model())
+    )
+    edge_output = edge_model(
+        prompt_tokens.numpy(),
+        signature_name="encode",
+    )
+    self.assertTrue(
+        np.allclose(
+            edge_output,
+            torch_output.detach().numpy(),
+            atol=1e-4,
+            rtol=1e-5,
+        )
+    )
+
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
+  def test_stable_diffusion_diffusion(self):
+    config = sd_diffusion.get_fake_model_config(2)
+    latents = torch.from_numpy(
+        np.random.normal(size=(2, 4, 8, 8)).astype(np.float32)
+    )
+    context = torch.from_numpy(
+        np.random.normal(size=(2, 4, 4)).astype(np.float32)
+    )
+    time_embedding = torch.from_numpy(
+        np.random.normal(size=(2, 2)).astype(np.float32)
+    )
+
+    pytorch_model = sd_diffusion.Diffusion(config).eval()
+    torch_output = pytorch_model(latents, context, time_embedding)
+
+    edge_model = ai_edge_torch.signature(
+        "diffusion", pytorch_model, (latents, context, time_embedding)
+    ).convert()
+    edge_model.set_interpreter_builder(
+        self._interpreter_builder(edge_model.tflite_model())
+    )
+    edge_output = edge_model(
+        latents.numpy(),
+        context.numpy(),
+        time_embedding.numpy(),
+        signature_name="diffusion",
+    )
+    self.assertTrue(
+        np.allclose(
+            edge_output,
+            torch_output.detach().numpy(),
+            atol=1e-4,
+            rtol=1e-5,
+        )
+    )
+
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
+  def test_stable_diffusion_decoder(self):
+    config = sd_decoder.get_fake_model_config()
+    latents = torch.from_numpy(
+        np.random.normal(size=(1, 4, 64, 64)).astype(np.float32)
+    )
+
+    pytorch_model = sd_decoder.Decoder(config).eval()
+    torch_output = pytorch_model(latents)
+
+    edge_model = ai_edge_torch.signature(
+        "decode", pytorch_model, (latents,)
+    ).convert()
+    edge_model.set_interpreter_builder(
+        self._interpreter_builder(edge_model.tflite_model())
+    )
+    edge_output = edge_model(
+        latents.numpy(),
+        signature_name="decode",
+    )
+    self.assertTrue(
+        np.allclose(
+            edge_output,
+            torch_output.detach().numpy(),
+            atol=1e-4,
+            rtol=1e-5,
+        )
+    )
 
 
 if __name__ == "__main__":
