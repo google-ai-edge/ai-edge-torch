@@ -189,7 +189,7 @@ def group_norm_with_hlfb(
       name="odml.group_norm",
       attr={
           "num_groups": num_groups,
-          "eps": eps,
+          "epsilon": eps,
           "reduction_axes": 3,
           "channel_axis": 3,
       },
@@ -226,7 +226,7 @@ def layer_norm_with_hlfb(
   """
   builder = StableHLOCompositeBuilder(
       name="odml.group_norm",
-      attr={"num_groups": 1, "eps": eps, "channel_axis": 1},
+      attr={"num_groups": 1, "epsilon": eps, "channel_axis": 1},
   )
   x, w, b = builder.mark_inputs(x, w, b)
   if use_input_shape:
