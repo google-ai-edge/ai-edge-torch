@@ -26,6 +26,7 @@ from absl import flags
 from ai_edge_torch.generative.examples.gemma import gemma1
 from ai_edge_torch.generative.examples.gemma import gemma2
 from ai_edge_torch.generative.examples.phi import phi2
+from ai_edge_torch.generative.examples.phi import phi3
 from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
 from ai_edge_torch.generative.utilities import converter
 from ai_edge_torch.generative.utilities import verifier
@@ -118,6 +119,15 @@ def prepare_conversion_configs() -> Sequence[ConversionConfig]:
           kv_cache_max_len=1280,
           export_precision=[ExportPrecision.INT8, ExportPrecision.FP32],
           model_builder=phi2.build_model,
+      ),
+      ConversionConfig(
+          model_name="phi3",
+          input_checkpoint=os.path.join(_CHECKPOINT_ROOT_PATH.value, "phi3"),
+          tflite_output_path=os.path.join(_OUTPUT_DIR.value, "phi3"),
+          prefill_seq_len=1024,
+          kv_cache_max_len=1280,
+          export_precision=[ExportPrecision.INT8, ExportPrecision.FP32],
+          model_builder=phi3.build_model,
       ),
   ]
   return conversion_configs

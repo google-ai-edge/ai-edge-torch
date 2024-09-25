@@ -17,15 +17,14 @@
 
 from typing import Tuple
 
-import ai_edge_torch
-from ai_edge_torch import lowertools
+from absl import app
 from ai_edge_torch.generative.layers import attention
 from ai_edge_torch.generative.layers import builder
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 import torch
-import torch.nn as nn
+from torch import nn
 
 RoPECache = Tuple[torch.Tensor, torch.Tensor]
 
@@ -87,11 +86,6 @@ class ToyModelWithKVCache(torch.nn.Module):
     return {'logits': self.lm_head(x), 'kv_cache': updated_kv_cache}
 
 
-def _export_stablehlo_mlir(model, args):
-  ep = torch.export.export(model, args)
-  return lowertools.exported_program_to_mlir_text(ep)
-
-
 def get_model_config() -> cfg.ModelConfig:
   attn_config = cfg.AttentionConfig(
       num_heads=32,
@@ -133,51 +127,3 @@ def get_sample_decode_inputs() -> Tuple[torch.Tensor, torch.Tensor]:
   tokens = torch.tensor([[1]], dtype=torch.int)
   input_pos = torch.tensor([10])
   return tokens, input_pos
-
-
-def define_and_run() -> None:
-  dump_mlir = False
-
-  config = get_model_config()
-  model = ToyModelWithExternalKV(config)
-  model.eval()
-  print('running an inference')
-  kv = kv_utils.KVCache.from_model_config(config)
-
-  tokens, input_pos = get_sample_prefill_inputs()
-  decode_token, decode_input_pos = get_sample_decode_inputs()
-  print(model.forward(tokens, input_pos, kv))
-
-  if dump_mlir:
-    mlir_text = _export_stablehlo_mlir(model, (tokens, input_pos, kv))
-    with open('/tmp/toy_model_with_external_kv.stablehlo.mlir', 'w') as f:
-      f.write(mlir_text)
-
-  # Convert model to tflite with 2 signatures (prefill + decode).
-  print('converting toy model to tflite with 2 signatures (prefill + decode)')
-  edge_model = (
-      ai_edge_torch.signature(
-          'prefill',
-          model,
-          sample_kwargs={
-              'tokens': tokens,
-              'input_pos': input_pos,
-              'kv_cache': kv,
-          },
-      )
-      .signature(
-          'decode',
-          model,
-          sample_kwargs={
-              'tokens': decode_token,
-              'input_pos': decode_input_pos,
-              'kv_cache': kv,
-          },
-      )
-      .convert()
-  )
-  edge_model.export('/tmp/toy_external_kv_cache.tflite')
-
-
-if __name__ == '__main__':
-  define_and_run()

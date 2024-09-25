@@ -19,6 +19,9 @@ package(
     default_applicable_licenses = [
         "//third_party/py/ai_edge_torch:license",
     ],
+    default_visibility = [
+        "//third_party/py/ai_edge_torch:__subpackages__",
+    ],
 )
 
 py_binary(
