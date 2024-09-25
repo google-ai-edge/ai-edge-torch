@@ -154,6 +154,9 @@ tflite::SignatureRunner* GetSignatureRunner(
     std::map<std::string, std::vector<float>>& kv_cache) {
   tflite::SignatureRunner* runner =
       interpreter->GetSignatureRunner(signature_name.c_str());
+  int64_t flag = 0;
+  flag |= kTfLiteCustomAllocationFlagsNone;
+  flag |= kTfLiteCustomAllocationFlagsSkipAlignCheck;
   for (auto& [name, cache] : kv_cache) {
     TfLiteCustomAllocation allocation = {
         .data = static_cast<void*>(cache.data()),
@@ -162,9 +165,9 @@ tflite::SignatureRunner* GetSignatureRunner(
     // delegates support this in-place update. For those cases, we need to do
     // a ping-pong buffer and update the pointers between inference calls.
     TFLITE_MINIMAL_CHECK(runner->SetCustomAllocationForInputTensor(
-                             name.c_str(), allocation) == kTfLiteOk);
+                             name.c_str(), allocation, flag) == kTfLiteOk);
     TFLITE_MINIMAL_CHECK(runner->SetCustomAllocationForOutputTensor(
-                             name.c_str(), allocation) == kTfLiteOk);
+                             name.c_str(), allocation, flag) == kTfLiteOk);
   }
   TFLITE_MINIMAL_CHECK(runner->AllocateTensors() == kTfLiteOk);
   return runner;
