@@ -118,9 +118,9 @@ class AttentionConfig:
 @dataclass
 class ActivationConfig:
   type: ActivationType = ActivationType.LINEAR
-  # Whether to GLU gate is the front part instead of the back part of input
-  # when ActivationType is `GE_GLU` or `SILU_GLU`.
-  gate_is_front: bool = False
+  # Dimension of input and output, used in GeGLU.
+  dim_in: Optional[int] = None
+  dim_out: Optional[int] = None
 
 
 @dataclass

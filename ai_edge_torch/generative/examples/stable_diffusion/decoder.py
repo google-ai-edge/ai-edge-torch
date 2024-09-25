@@ -324,3 +324,59 @@ def get_model_config() -> unet_cfg.AutoEncoderConfig:
       mid_block_config=mid_block_config,
   )
   return config
+
+
+def get_fake_model_config() -> unet_cfg.AutoEncoderConfig:
+  """Get fake configs for the Decoder of Stable Diffusion v1.5 for testing."""
+  in_channels = 3
+  latent_channels = 4
+  out_channels = 3
+  block_out_channels = [2, 4]
+  scaling_factor = 0.18215
+  layers_per_block = 2
+
+  norm_config = layers_cfg.NormalizationConfig(
+      layers_cfg.NormalizationType.GROUP_NORM, group_num=2
+  )
+
+  att_config = unet_cfg.AttentionBlock2DConfig(
+      dim=block_out_channels[-1],
+      normalization_config=norm_config,
+      attention_config=layers_cfg.AttentionConfig(
+          num_heads=1,
+          head_dim=block_out_channels[-1],
+          num_query_groups=1,
+          qkv_use_bias=True,
+          output_proj_use_bias=True,
+          enable_kv_cache=False,
+          qkv_transpose_before_split=True,
+          qkv_fused_interleaved=False,
+          rotary_percentage=0.0,
+      ),
+      enable_hlfb=False,
+  )
+
+  mid_block_config = unet_cfg.MidBlock2DConfig(
+      in_channels=block_out_channels[-1],
+      normalization_config=norm_config,
+      activation_config=layers_cfg.ActivationConfig(
+          layers_cfg.ActivationType.SILU
+      ),
+      num_layers=1,
+      attention_block_config=att_config,
+  )
+
+  config = unet_cfg.AutoEncoderConfig(
+      in_channels=in_channels,
+      latent_channels=latent_channels,
+      out_channels=out_channels,
+      activation_config=layers_cfg.ActivationConfig(
+          layers_cfg.ActivationType.SILU
+      ),
+      block_out_channels=block_out_channels,
+      scaling_factor=scaling_factor,
+      layers_per_block=layers_per_block,
+      normalization_config=norm_config,
+      mid_block_config=mid_block_config,
+  )
+  return config

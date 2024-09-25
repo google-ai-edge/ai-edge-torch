@@ -183,8 +183,16 @@ def group_norm_with_hlfb(
   """
   x = torch.permute(x, (0, 2, 3, 1))
 
+  # TODO: b/366544750 - Change "reduction_axes" field as an array, rather than
+  # int32 when the bug is fixed.
   builder = StableHLOCompositeBuilder(
-      name="odml.group_norm", attr={"num_groups": num_groups, "eps": eps}
+      name="odml.group_norm",
+      attr={
+          "num_groups": num_groups,
+          "epsilon": eps,
+          "reduction_axes": 3,
+          "channel_axis": 3,
+      },
   )
   x, w, b = builder.mark_inputs(x, w, b)
   x = torch.permute(x, (0, 3, 1, 2))
@@ -206,7 +214,7 @@ def layer_norm_with_hlfb(
   """Layer Normalization with high-level function boundary enabled.
 
   Args:
-    x (torch.Tensor): Input tensor for Layer Normalization.
+    x (torch.Tensor): Input tensor for Layer Normalization, with BCHW shape.
     w (torch.Tensor): The weight tensor for the normalization.
     b (torch.Tensor): The bias tensor for the normalization.
     eps (float): A small float value to ensure numerical stability.
@@ -216,7 +224,10 @@ def layer_norm_with_hlfb(
   Returns:
     The output tensor of Layer Normalization.
   """
-  builder = StableHLOCompositeBuilder(name="odml.layer_norm", attr={"eps": eps})
+  builder = StableHLOCompositeBuilder(
+      name="odml.group_norm",
+      attr={"num_groups": 1, "epsilon": eps, "channel_axis": 1},
+  )
   x, w, b = builder.mark_inputs(x, w, b)
   if use_input_shape:
     normalized_shape = x.shape

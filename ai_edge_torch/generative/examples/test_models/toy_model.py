@@ -15,13 +15,12 @@
 # A toy example which has a single-layer transformer block.
 from typing import Tuple
 
-import ai_edge_torch
+from ai_edge_torch.generative.layers import builder
 from ai_edge_torch.generative.layers.attention import TransformerBlock
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
-import ai_edge_torch.generative.layers.builder as builder
 import ai_edge_torch.generative.layers.model_config as cfg
 import torch
-import torch.nn as nn
+from torch import nn
 
 RoPECache = Tuple[torch.Tensor, torch.Tensor]
 KV_CACHE_MAX_LEN = 100
@@ -149,31 +148,3 @@ def get_model_config() -> cfg.ModelConfig:
       final_norm_config=norm_config,
   )
   return config
-
-
-def define_and_run() -> None:
-  model = ToySingleLayerModel(get_model_config())
-  idx = torch.unsqueeze(torch.arange(0, KV_CACHE_MAX_LEN), 0)
-  input_pos = torch.arange(0, KV_CACHE_MAX_LEN)
-  print('running an inference')
-  print(
-      model.forward(
-          idx,
-          input_pos,
-      )
-  )
-
-  # Convert model to tflite.
-  print('converting model to tflite')
-  edge_model = ai_edge_torch.convert(
-      model,
-      (
-          idx,
-          input_pos,
-      ),
-  )
-  edge_model.export('/tmp/toy_model.tflite')
-
-
-if __name__ == '__main__':
-  define_and_run()

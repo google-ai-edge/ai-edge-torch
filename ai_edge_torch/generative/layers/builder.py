@@ -23,34 +23,35 @@ from torch import nn
 import torch.nn.functional as F
 
 
-def build_glu(
-    act: Callable[[torch.Tensor], torch.Tensor], gate_is_front: bool = False
-) -> Callable[[torch.Tensor], torch.Tensor]:
-  """Builds an activation function with GLU (Gated Linear Unit).
+class GeGLU(nn.Module):
+  """GeGLU is an activation function which is a variant of GELU.
 
-  If gate_is_front is True,
-    f(x) = act(x) * y
-  otherwise,
-    f(x) = x * act(y),
-  where x is the first half of the input and y is the second half of the input.
-
-  Args:
-    act (Callable[[torch.Tensor], torch.Tensor]): activation function to apply
-      to the gate.
-    gate_is_front: whether the gate is in front half of the input. Other part is
-      the output in GLU.
-
-  Returns:
-    A callable activation function with GLU.
+  GeGLU(x) = (xW+b) * GELU(xV+c)
+  See: https://arxiv.org/abs/2002.05202v1
   """
 
-  def _glu(x):
-    x, y = x.chunk(2, dim=-1)
-    if gate_is_front:
-      return act(x) * y
-    return x * act(y)
+  def __init__(self, d_in: int, d_out: int):
+    super().__init__()
+    self.proj = nn.Linear(d_in, d_out * 2)
 
-  return _glu
+  def forward(self, x: torch.Tensor):
+    x, gate = self.proj(x).chunk(2, dim=-1)
+    return x * F.gelu(gate)
+
+
+class SwiGLU(nn.Module):
+  """SwiGLU is an activation function which is a variant of GLU.
+
+  SwiGLU is same as SiLU_GLU, because The SiLU function is also known as the
+  swish function.
+
+  SwiGLU(x) = Swish(xW+b) * (xV+c)
+  See: https://paperswithcode.com/method/swiglu
+  """
+
+  def forward(self, x: torch.Tensor):
+    x, y = x.chunk(2, dim=-1)
+    return F.silu(x) * y
 
 
 def build_norm(dim: int, config: cfg.NormalizationConfig):
@@ -151,10 +152,10 @@ def get_activation(config: cfg.ActivationConfig):
     # See: https://github.com/hendrycks/GELUs
     return lambda x: x * F.sigmoid(1.702 * x)
   elif config.type == cfg.ActivationType.GE_GLU:
-    return build_glu(F.gelu, config.gate_is_front)
+    return GeGLU(config.dim_in, config.dim_out)
   elif config.type == cfg.ActivationType.RELU:
     return F.relu
   elif config.type == cfg.ActivationType.SILU_GLU:
-    return build_glu(F.silu, config.gate_is_front)
+    return SwiGLU()
   else:
     raise ValueError("Unsupported activation type.")
