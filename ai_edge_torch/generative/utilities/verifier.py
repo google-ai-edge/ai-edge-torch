@@ -15,16 +15,12 @@
 
 """Common utility functions to verify the reauthored models."""
 
-import datetime
+import logging
 from typing import List, Optional, Union
 
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import torch
 import transformers
-
-
-def log_msg(*args):
-  print("[%s]" % datetime.datetime.now(), *args)
 
 
 class ModelWrapper(torch.nn.Module):
@@ -149,16 +145,16 @@ def verify_with_input_ids(
   tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.int, device="cpu")
   tokens[0, : len(input_ids)] = torch.tensor([input_ids]).int()
 
-  log_msg("Forwarding the original model...")
+  logging.info("Forwarding the original model...")
   outputs_original = original_model.forward(tokens)
   logits_original = outputs_original.logits[0, len(input_ids) - 1, :]
-  log_msg("logits_original: ", logits_original)
+  logging.info("logits_original: %s", logits_original)
 
-  log_msg("Forwarding the reauthored model...")
+  logging.info("Forwarding the reauthored model...")
   kv_cache = kv_utils.KVCache.from_model_config(reauthored_model.config)
   outputs_reauthored = forward(reauthored_model, tokens, kv_cache)
   logits_reauthored = outputs_reauthored[0][0, len(input_ids) - 1, :]
-  log_msg("logits_reauthored:", logits_reauthored)
+  logging.info("logits_reauthored: %s", logits_reauthored)
 
   return torch.allclose(
       logits_original, logits_reauthored, rtol=rtol, atol=atol
@@ -188,16 +184,16 @@ def verify_model_with_prompts(
   """
   prompt_tokens = tokenizer.encode(prompts, return_tensors="pt")
 
-  log_msg("Generating answer with the original model...")
+  logging.info("Generating answer with the original model...")
   outputs_original = original_model.generate(prompt_tokens)
   response_original = tokenizer.decode(outputs_original[0])
-  log_msg("outputs_from_original_model: [[", response_original, "]]")
+  logging.info("outputs_from_original_model: [[%s]]", response_original)
 
-  log_msg("Generating answer with the reauthored model...")
+  logging.info("Generating answer with the reauthored model...")
   generate_len = len(outputs_original[0])
   outputs_reauthored = generate(reauthored_model, prompt_tokens, generate_len)
   response_reauthored = tokenizer.decode(outputs_reauthored[0])
-  log_msg("outputs from reauthored model: [[", response_reauthored, "]]")
+  logging.info("outputs from reauthored model: [[%s]]", response_reauthored)
 
   return response_original == response_reauthored
 
@@ -233,19 +229,19 @@ def verify_reauthored_model(
     atol (float): The absolute tolerance for the comparison.
   """
   for input_ids in forward_input_ids:
-    log_msg("Verifying the reauthored model with input IDs:", input_ids)
+    logging.info("Verifying the reauthored model with input IDs: %s", input_ids)
     if verify_with_input_ids(
         original_model, reauthored_model, input_ids, rtol=rtol, atol=atol
     ):
-      log_msg("PASS")
+      logging.info("PASS")
     else:
-      log_msg("FAILED")
+      logging.info("FAILED")
 
   for prompts in generate_prompts:
-    log_msg("Verifying the reauthored model with prompts:", prompts)
+    logging.info("Verifying the reauthored model with prompts:%s", prompts)
     if verify_model_with_prompts(
         original_model, reauthored_model, tokenizer, prompts
     ):
-      log_msg("PASS")
+      logging.info("PASS")
     else:
-      log_msg("FAILED")
+      logging.info("FAILED")

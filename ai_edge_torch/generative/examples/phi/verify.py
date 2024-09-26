@@ -14,6 +14,7 @@
 # ==============================================================================
 
 """Verifies the reauthored Phi-2 model."""
+import logging
 
 from absl import app
 from absl import flags
@@ -21,6 +22,7 @@ from ai_edge_torch.generative.examples.phi import phi2
 from ai_edge_torch.generative.utilities import verifier
 import kagglehub
 import transformers
+
 
 _PROMPTS = flags.DEFINE_multi_string(
     "prompts",
@@ -36,7 +38,7 @@ _MAX_NEW_TOKENS = flags.DEFINE_integer(
 
 def main(_):
   checkpoint = kagglehub.model_download("Microsoft/phi/transformers/2")
-  verifier.log_msg("Loading the original model from", checkpoint)
+  logging.info("Loading the original model from: %s", checkpoint)
   generation_config = transformers.GenerationConfig.from_pretrained(checkpoint)
   generation_config.max_new_tokens = _MAX_NEW_TOKENS.value
   wrapper_model = verifier.ModelWrapper(
@@ -44,10 +46,10 @@ def main(_):
       hf_generation_config=generation_config,
   )
 
-  verifier.log_msg("Building the reauthored model from", checkpoint)
+  logging.info("Building the reauthored model from: %s", checkpoint)
   reauthored_model = phi2.build_model(checkpoint)
 
-  verifier.log_msg("Loading the tokenizer from", checkpoint)
+  logging.info("Loading the tokenizer from: %s", checkpoint)
   tokenizer = transformers.AutoTokenizer.from_pretrained(checkpoint)
 
   verifier.verify_reauthored_model(

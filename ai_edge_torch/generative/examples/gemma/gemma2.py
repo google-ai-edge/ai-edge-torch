@@ -16,7 +16,6 @@
 """Example of building a Gemma2 model."""
 
 import os
-import pathlib
 from typing import Optional, Tuple
 
 from ai_edge_torch.generative.layers import attention
@@ -25,7 +24,6 @@ from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
-import numpy as np
 import torch
 from torch import nn
 

@@ -16,6 +16,7 @@
 """Utility functions to verify the reauthored Gemma model."""
 
 import dataclasses
+import logging
 import os
 from typing import List, Tuple
 
@@ -127,7 +128,7 @@ def verify_reauthored_gemma_model(
   # Use float32 to be compatible with the reauthored model.
   config.dtype = torch.float32
 
-  verifier.log_msg("Loading the original model from", checkpoint)
+  logging.info("Loading the original model from: %s", checkpoint)
   original_model = gemma_model.GemmaForCausalLM(config).eval()
   original_model.load_weights(os.path.join(checkpoint, weight_filename))
 

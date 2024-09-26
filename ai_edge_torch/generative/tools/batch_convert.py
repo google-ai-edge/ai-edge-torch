@@ -17,6 +17,7 @@
 
 import dataclasses
 import enum
+import logging
 import os
 import pathlib
 from typing import Callable, Sequence
@@ -29,7 +30,6 @@ from ai_edge_torch.generative.examples.phi import phi2
 from ai_edge_torch.generative.examples.phi import phi3
 from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities import verifier
 import torch
 
 _CHECKPOINT_ROOT_PATH = flags.DEFINE_string(
@@ -67,12 +67,12 @@ class ConversionConfig:
 
   def print_config(self) -> None:
     """Prints the conversion config."""
-    verifier.log_msg("Model name:", self.model_name)
-    verifier.log_msg("Input checkpoint:", self.input_checkpoint)
-    verifier.log_msg("TF Lite output path:", self.tflite_output_path)
-    verifier.log_msg("Prefill seq len:", self.prefill_seq_len)
-    verifier.log_msg("KV cache max len:", self.kv_cache_max_len)
-    verifier.log_msg("Export precision:", self.export_precision)
+    logging.info("Model name: %s", self.model_name)
+    logging.info("Input checkpoint: %s", self.input_checkpoint)
+    logging.info("TF Lite output path: %s", self.tflite_output_path)
+    logging.info("Prefill seq len: %s", self.prefill_seq_len)
+    logging.info("KV cache max len: %s", self.kv_cache_max_len)
+    logging.info("Export precision: %s", self.export_precision)
 
 
 def prepare_conversion_configs() -> Sequence[ConversionConfig]:
@@ -143,7 +143,7 @@ def get_output_filename(
   if precision == ExportPrecision.INT8:
     precision_str = "q8"
   elif precision == ExportPrecision.FP32:
-    precision_str = "fp32"
+    precision_str = "f32"
   else:
     raise ValueError(f"Unsupported precision: {precision}")
   return f"{model_name}_{precision_str}_seq{prefill_seq_len}_ekv{kv_cache_max_len}.tflite"
@@ -152,8 +152,8 @@ def get_output_filename(
 def convert_models(conversion_configs: Sequence[ConversionConfig]) -> None:
   """Executes the conversion for a batch of models specified by the `conversion_configs`."""
   for config in conversion_configs:
-    verifier.log_msg(
-        "Converting model:", config.model_name, " with the following config:"
+    logging.info(
+        "Converting model: %s with the following config:", config.model_name
     )
     config.print_config()
     pytorch_model = config.model_builder(
@@ -172,7 +172,7 @@ def convert_models(conversion_configs: Sequence[ConversionConfig]) -> None:
           prefill_seq_len=config.prefill_seq_len,
           quantize=True if precision == ExportPrecision.INT8 else False,
       )
-      verifier.log_msg("Successfully converted model:", output_filename)
+      logging.info("Successfully converted model: %s", output_filename)
 
 
 def main(_):
