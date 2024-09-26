@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-"""Example of building a Llama 3.2-1B model."""
+"""Example of building Llama 3.2 models."""
 
 import copy
 import math
@@ -160,6 +160,18 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
+def get_3b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+  """Returns the model config for a Llama 3.2-3B model."""
+  config = get_model_config(kv_cache_max_len)
+  # Llama 3.2 has only one block config.
+  attn_config = config.block_config(0).attn_config
+  attn_config.num_heads = 24
+  attn_config.head_dim = 128
+  config.num_layers = 28
+  config.embedding_dim = 3072
+  return config
+
+
 def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
   config = get_model_config(**kwargs)
   config.vocab_size = 128
@@ -171,6 +183,17 @@ def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
 
 def build_model(checkpoint_path: str, **kwargs) -> nn.Module:
   config = get_model_config(**kwargs)
+  model = Llama(config)
+  loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
+  # Since embedding and lm-head use the same weight, we need to set strict
+  # to False.
+  loader.load(model, strict=False)
+  model.eval()
+  return model
+
+
+def build_3b_model(checkpoint_path: str, **kwargs) -> nn.Module:
+  config = get_3b_model_config(**kwargs)
   model = Llama(config)
   loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
   # Since embedding and lm-head use the same weight, we need to set strict

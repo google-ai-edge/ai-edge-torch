@@ -7,8 +7,8 @@ Gemma is Google's open-source LLM. The model has both a 2B and 7B versions. See 
 ## Llama
 [Llama 3.2 model](https://ai.meta.com/blog/llama-3-2-connect-2024-vision-edge-mobile-devices/)
 is Meta's open-source LLM with 1B and 3B for text, and 11B and 90B for vision.
-The example we provide is Llama 3.2 1B for text. The checkpoint can be found
-[here](https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct/tree/main).
+The examples we provide are Llama 3.2 1B and 3B for text. The checkpoint can be
+found [here](https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct/tree/main).
 
 ## TinyLlama
 [TinyLlama](https://github.com/jzhang38/TinyLlama) is a popular OSS smaller version of Meta's Llama2 model, with only 1.1B parameters. [HuggingFace checkpoint](https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0).
