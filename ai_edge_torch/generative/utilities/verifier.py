@@ -16,111 +16,129 @@
 """Common utility functions to verify the reauthored models."""
 
 import logging
-from typing import List, Optional, Union
+from typing import List
 
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import torch
-import transformers
 
 
 class ModelWrapper(torch.nn.Module):
-  """A wrapper for the model to be verified, this could be a HuggingFace model
+  """A wrapper for the model to be verified.
 
-  or a regular PyTorch model.
+  It unifies the interface of forward() and generate() of models for the
+  verification to call.
   """
 
-  def __init__(
-      self,
-      model: torch.nn.Module,
-      model_format: str = "huggingface",
-      hf_generation_config: Optional[transformers.GenerationConfig] = None,
-  ):
+  def __init__(self, model: torch.nn.Module):
     """Initializes the wrapper.
 
     Args:
-      model (torch.nn.Module): The original model. This could be a model built
-        from HuggingFace transformers, or a regular PyTorch model.
-      model_format (str): The format of the model. It should be either
-        "huggingface" or "pytorch".
-      hf_generation_config (transformers.GenerationConfig): The HuggingFace
-        generation config. This config will only be used if the underlying model
-        is built from HuggingFace transformers.
+      model (torch.nn.Module): The model which might have different interfaces
+        of forward() and generate(). It could be a model built from HuggingFace
+        transformers, a regular PyTorch model, or a model re-authored with
+        ai_edge_torch Generative API.
     """
     super().__init__()
     self.model = model
-    self.model_format = model_format
-    self.hf_generation_config = hf_generation_config
+
+  def forward(self, tokens: torch.Tensor) -> torch.Tensor:
+    """Gets output logits by forwarding the input tokens.
+
+    Args:
+      tokens (torch.Tensor): The input tokens to forward. Its dimension is
+        expected to be (batch_size=1, kv_cache_max_len).
+
+    Returns:
+      The output logits.
+    """
+    raise NotImplementedError("forward() is not implemented.")
 
   def generate(
-      self, inputs: torch.Tensor
-  ) -> Union[transformers.utils.ModelOutput, torch.LongTensor]:
-    if self.model_format == "huggingface":
-      return self.model.generate(
-          inputs=inputs, generation_config=self.hf_generation_config
-      )
-    else:
-      raise NotImplementedError(
-          "generate() is not implemented for model format: %s"
-          % self.model_format
-      )
+      self, prompts: torch.Tensor, max_new_tokens: int
+  ) -> torch.IntTensor:
+    """Returns the response token IDs to the given prompts tensor.
 
-  def forward(
+    The maximum number of tokens to generate might be set by subclasses.
+
+    Args:
+      prompts (torch.Tensor): The input token IDs to generate with. Its shape is
+        expected to be (batch_size=1, input_ids_len).
+      max_new_tokens (int): The maximum number of response token IDs to
+        generate.
+
+    Returns:
+      The tensor of response token IDs with shape of (batch_size=1,
+      response_ids_len).
+    """
+    raise NotImplementedError("generate() is not implemented.")
+
+
+class ReauthoredModelWrapper(ModelWrapper):
+  """A wrapper for the model reauthored with ai_edge_torch Generative API."""
+
+  def _init_kv_cache(self):
+    """Returns an initialized KV cache."""
+    return kv_utils.KVCache.from_model_config(self.model.config)
+
+  def _forward_with_kv_cache(
       self,
-      inputs: torch.Tensor,
-  ):
-    return self.model.forward(inputs)
+      tokens: torch.Tensor,
+      kv_cache: kv_utils.KVCache,
+  ) -> tuple[torch.Tensor, kv_utils.KVCache]:
+    """Forwards the model and updates an external KV cache.
+
+    Args:
+      tokens (torch.Tensor): The input tokens to forward.
+      kv_cache (KVCache): The KV cache to forward.
+
+    Returns:
+      The output logits and the updated KV cache.
+    """
+    input_pos = torch.arange(0, tokens.shape[1], dtype=torch.int)
+    output = self.model.forward(tokens, input_pos, kv_cache)
+    return output["logits"], output["kv_cache"]
+
+  def forward(self, tokens: torch.Tensor) -> torch.Tensor:
+    logits, _ = self._forward_with_kv_cache(tokens, self._init_kv_cache())
+    return logits
+
+  def generate(
+      self, prompts: torch.Tensor, max_new_tokens: int
+  ) -> torch.IntTensor:
+    input_ids = prompts[0].int().tolist()
+    kv_cache = self._init_kv_cache()
+    for _ in range(max_new_tokens):
+      tokens = torch.tensor([input_ids])
+      logits, kv_cache = self._forward_with_kv_cache(tokens, kv_cache)
+      generated_token = logits[0][-1].argmax().item()
+      input_ids.append(generated_token)
+    return torch.tensor([input_ids])
 
 
-def forward(
-    model: torch.nn.Module,
-    tokens: torch.Tensor,
-    kv_cache: kv_utils.KVCache,
-) -> tuple[torch.Tensor, kv_utils.KVCache]:
-  """Forwards the model reauthored with ai_edge_torch Generative API.
+class TokenizerWrapper(torch.nn.Module):
+  """A wrapper for the tokenizer used for verification."""
 
-  Args:
-    model (torch.nn.Module): The model to forward. It should be a model built
-      with ai_edge_torch Generative API.
-    tokens (torch.Tensor): The input tokens to forward.
-    kv_cache (KVCache): The KV cache to forward.
+  def __init__(self, tokenizer: torch.nn.Module):
+    """Initializes the wrapper.
 
-  Returns:
-    The output logits and the updated KV cache.
-  """
-  input_pos = torch.arange(0, tokens.shape[1], dtype=torch.int)
-  output = model.forward(tokens, input_pos, kv_cache)
-  return output["logits"], output["kv_cache"]
+    Args:
+      tokenizer (torch.nn.Module): The tokenizer to wrap.
+    """
+    super().__init__()
+    self.tokenizer = tokenizer
 
+  def encode(self, prompts: str) -> torch.Tensor:
+    """Encodes the prompts to token IDs."""
+    return self.tokenizer.encode(prompts, return_tensors="pt")
 
-def generate(
-    model: torch.nn.Module, prompts: torch.Tensor, response_len: int
-) -> torch.Tensor:
-  """Generates the response to the prompts.
-
-  It appends tokens output by the model to the prompts and feeds them back to
-  the model up to decode_len.
-
-  Args:
-    model (torch.nn.Module): The model to generate. It should be a model built
-      with ai_edge_torch Generative API.
-    prompts (torch.Tensor): The prompts to generate.
-    response_len (int): The number of tokens to generate.
-
-  Returns:
-    The generated tokens.
-  """
-  input_ids = prompts[0].int().tolist()
-  kv_cache = kv_utils.KVCache.from_model_config(model.config)
-  for _ in range(response_len - len(input_ids)):
-    logits, kv_cache = forward(model, torch.tensor([input_ids]), kv_cache)
-    generated_token = logits[0][-1].argmax().item()
-    input_ids.append(generated_token)
-  return torch.tensor([input_ids])
+  def decode(self, token_ids: torch.Tensor) -> str:
+    """Decodes the token IDs to a string."""
+    return self.tokenizer.decode(token_ids)
 
 
 def verify_with_input_ids(
     original_model: ModelWrapper,
-    reauthored_model: torch.nn.Module,
+    reauthored_model: ReauthoredModelWrapper,
     input_ids: List[int],
     kv_cache_max_len: int = 1024,
     rtol: float = 1e-05,
@@ -132,8 +150,8 @@ def verify_with_input_ids(
 
   Args:
     original_model (ModelWrapper): The original model.
-    reauthored_model (torch.nn.Module): The model reauthored with ai_edge_torch
-      Generative API.
+    reauthored_model (ReauthoredModelWrapper): The model reauthored with
+      ai_edge_torch Generative API.
     input_ids (List[int]): The input token IDs to forward with.
     kv_cache_max_len (int): The maximum sequence length of the KV cache.
     rtol (float): The relative tolerance for the comparison.
@@ -147,13 +165,12 @@ def verify_with_input_ids(
 
   logging.info("Forwarding the original model...")
   outputs_original = original_model.forward(tokens)
-  logits_original = outputs_original.logits[0, len(input_ids) - 1, :]
+  logits_original = outputs_original[0, len(input_ids) - 1, :]
   logging.info("logits_original: %s", logits_original)
 
   logging.info("Forwarding the reauthored model...")
-  kv_cache = kv_utils.KVCache.from_model_config(reauthored_model.config)
-  outputs_reauthored = forward(reauthored_model, tokens, kv_cache)
-  logits_reauthored = outputs_reauthored[0][0, len(input_ids) - 1, :]
+  outputs_reauthored = reauthored_model.forward(tokens)
+  logits_reauthored = outputs_reauthored[0, len(input_ids) - 1, :]
   logging.info("logits_reauthored: %s", logits_reauthored)
 
   return torch.allclose(
@@ -163,9 +180,10 @@ def verify_with_input_ids(
 
 def verify_model_with_prompts(
     original_model: ModelWrapper,
-    reauthored_model: torch.nn.Module,
-    tokenizer: torch.nn.Module,
+    reauthored_model: ReauthoredModelWrapper,
+    tokenizer: TokenizerWrapper,
     prompts: str,
+    max_new_tokens: int,
 ) -> bool:
   """Verifies if the model reauthored generates the same answer of the oringal.
 
@@ -174,24 +192,24 @@ def verify_model_with_prompts(
 
   Args:
     original_model (ModelWrapper): The original model.
-    reauthored_model (torch.nn.Module): The model reauthored with ai_edge_torch
-      Generative API.
-    tokenizer (torch.nn.Module): The tokenizer.
+    reauthored_model (ReauthoredModelWrapper): The model reauthored with
+      ai_edge_torch Generative API.
+    tokenizer (TokenizerWrapper): The tokenizer.
     prompts (str): The input prompts to generate answers.
+    max_new_tokens (int): The maximum number of new tokens to generate.
 
   Returns:
     True if the model reauthored generates the same answer of the original.
   """
-  prompt_tokens = tokenizer.encode(prompts, return_tensors="pt")
+  prompt_tokens = tokenizer.encode(prompts)
 
   logging.info("Generating answer with the original model...")
-  outputs_original = original_model.generate(prompt_tokens)
+  outputs_original = original_model.generate(prompt_tokens, max_new_tokens)
   response_original = tokenizer.decode(outputs_original[0])
   logging.info("outputs_from_original_model: [[%s]]", response_original)
 
   logging.info("Generating answer with the reauthored model...")
-  generate_len = len(outputs_original[0])
-  outputs_reauthored = generate(reauthored_model, prompt_tokens, generate_len)
+  outputs_reauthored = reauthored_model.generate(prompt_tokens, max_new_tokens)
   response_reauthored = tokenizer.decode(outputs_reauthored[0])
   logging.info("outputs from reauthored model: [[%s]]", response_reauthored)
 
@@ -200,9 +218,10 @@ def verify_model_with_prompts(
 
 def verify_reauthored_model(
     original_model: ModelWrapper,
-    reauthored_model: torch.nn.Module,
-    tokenizer: torch.nn.Module,
+    reauthored_model: ReauthoredModelWrapper,
+    tokenizer: TokenizerWrapper,
     generate_prompts: List[str],
+    max_new_tokens: int = 30,
     forward_input_ids: List[List[int]] = [[1, 2, 3, 4]],
     rtol: float = 1e-05,
     atol: float = 1e-05,
@@ -219,10 +238,11 @@ def verify_reauthored_model(
 
   Args:
     original_model (ModelWrapper): The original model.
-    reauthored_model (torch.nn.Module): The model reauthored with ai_edge_torch
-      Generative API.
-    tokenizer (torch.nn.Module): The tokenizer.
+    reauthored_model (ReauthoredModelWrapper): The model reauthored with
+      ai_edge_torch Generative API.
+    tokenizer (TokenizerWrapper): The tokenizer.
     generate_prompts (List[str]): List of the input prompts to generate answers.
+    max_new_tokens (int): The maximum number of new tokens to generate.
     forward_input_ids (List[torch.Tensor]): List if ihe input token IDs to
       forward with.
     rtol (float): The relative tolerance for the comparison.
@@ -235,13 +255,13 @@ def verify_reauthored_model(
     ):
       logging.info("PASS")
     else:
-      logging.info("FAILED")
+      logging.error("FAILED")
 
   for prompts in generate_prompts:
     logging.info("Verifying the reauthored model with prompts:%s", prompts)
     if verify_model_with_prompts(
-        original_model, reauthored_model, tokenizer, prompts
+        original_model, reauthored_model, tokenizer, prompts, max_new_tokens
     ):
       logging.info("PASS")
     else:
-      logging.info("FAILED")
+      logging.error("FAILED")

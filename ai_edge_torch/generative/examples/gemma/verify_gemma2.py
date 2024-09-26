@@ -20,7 +20,6 @@ from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.gemma import gemma2
 from ai_edge_torch.generative.examples.gemma import verify_util
-from ai_edge_torch.generative.utilities import verifier
 import kagglehub
 
 

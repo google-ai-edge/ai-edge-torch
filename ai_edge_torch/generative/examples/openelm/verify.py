@@ -20,6 +20,7 @@ import pathlib
 from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.openelm import openelm
+from ai_edge_torch.generative.utilities import transformers_verifier
 from ai_edge_torch.generative.utilities import verifier
 import transformers
 
@@ -29,15 +30,18 @@ _PROMPTS = flags.DEFINE_multi_string(
     "What is the meaning of life?",
     "The input prompts to generate answers.",
 )
+_MAX_NEW_TOKENS = flags.DEFINE_integer(
+    "max_new_tokens",
+    30,
+    "The maximum size of the generated tokens.",
+)
 
 
 def main(_):
   checkpoint = "apple/OpenELM-3B"
   logging.info("Loading the original model from: %s", checkpoint)
-  wrapper_model = verifier.ModelWrapper(
-      model=transformers.AutoModelForCausalLM.from_pretrained(
-          checkpoint, trust_remote_code=True
-      ),
+  original_model = transformers.AutoModelForCausalLM.from_pretrained(
+      checkpoint, trust_remote_code=True
   )
 
   # Locate the cached dir.
@@ -53,10 +57,13 @@ def main(_):
   tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_checkpoint)
 
   verifier.verify_reauthored_model(
-      original_model=wrapper_model,
-      reauthored_model=reauthored_model,
-      tokenizer=tokenizer,
+      original_model=transformers_verifier.TransformersModelWrapper(
+          original_model
+      ),
+      reauthored_model=verifier.ReauthoredModelWrapper(reauthored_model),
+      tokenizer=verifier.TokenizerWrapper(tokenizer),
       generate_prompts=_PROMPTS.value,
+      max_new_tokens=_MAX_NEW_TOKENS.value,
   )
 
 
