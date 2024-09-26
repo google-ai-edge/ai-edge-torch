@@ -97,15 +97,15 @@ ROPE_SHORT_FACTOR = [
 ]
 
 
-def build_rope_cache(
+def _build_rope_cache(
     size: int,
     dim: int,
-    base: int = 10000,
-    condense_ratio: int = 1,
-    dtype: torch.dtype = torch.float32,
-    device: torch.device = None,
-    theta_factors: torch.Tensor = None,
-    scale: float = 1.0,
+    base: int,
+    condense_ratio: int,
+    dtype: torch.dtype,
+    device: torch.device,
+    theta_factors: torch.Tensor,
+    scale: float,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
   """Precomputes Rotary Positional Embeddings for Phi-3.5 model.
 
@@ -116,26 +116,20 @@ def build_rope_cache(
   Args:
       size (int): The size of the built cache.
       dim (int): Each sequence's dimmension.
-      base (int, optional): Rope base value. Defaults to 10000.
+      base (int, optional): Rope base value.
       condense_ratio (int, optional): The ratio by which sequence indicies are
-        condensed. Defaults to 1.
-      dtype (torch.dtype, optional): Output tensor's data type. Defaults to
-        torch.float32.
-      device (torch.device, optional): Output tensor's data type. Defaults to
-        None in which case "cpu" is used.
+        condensed.
+      dtype (torch.dtype, optional): Output tensor's data type.
+      device (torch.device, optional): Output tensor's data type.
       theta_factors (torch.Tensor, optional): A tensor of shape (dim,) used to
-        scale the theta values. Defaults to None.
-      scale (float, optional): A float used to scale the rope values. Defaults
-        to 1.0.
+        scale the theta values.
+      scale (float, optional): A float used to scale the rope values.
 
   Returns:
       Tuple[torch.Tensor, torch.Tensor]: Rope's Cosine and Sine waves.
   """
-  if device is None:
-    device = torch.device('cpu')
   theta = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))
-  if theta_factors is not None:
-    theta = theta / theta_factors
+  theta = theta / theta_factors
   seq_idx = torch.arange(size) / condense_ratio
   idx_theta = torch.outer(seq_idx, theta)
   cos = torch.cos(idx_theta).to(dtype=dtype, device=device) * scale
@@ -167,7 +161,7 @@ class Phi3_5Mini(nn.Module):
         config.final_norm_config,
     )
     attn_config = block_config.attn_config
-    self.rope_cache = build_rope_cache(
+    self.rope_cache = _build_rope_cache(
         size=config.kv_cache_max,
         dim=int(attn_config.rotary_percentage * attn_config.head_dim),
         base=10_000,

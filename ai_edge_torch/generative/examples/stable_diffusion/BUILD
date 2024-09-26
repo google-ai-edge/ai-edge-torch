@@ -53,6 +53,7 @@ py_library(
     srcs = ["decoder.py"],
     deps = [
         "//third_party/py/ai_edge_torch",
+        "//third_party/py/ai_edge_torch/generative/utilities:stable_diffusion_loader",
         "//third_party/py/torch:pytorch",
     ],
 )

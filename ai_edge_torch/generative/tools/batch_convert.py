@@ -26,8 +26,11 @@ from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.gemma import gemma1
 from ai_edge_torch.generative.examples.gemma import gemma2
+from ai_edge_torch.generative.examples.llama import llama
+from ai_edge_torch.generative.examples.openelm import openelm
 from ai_edge_torch.generative.examples.phi import phi2
 from ai_edge_torch.generative.examples.phi import phi3
+from ai_edge_torch.generative.examples.smollm import smollm
 from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
 from ai_edge_torch.generative.utilities import converter
 import torch
@@ -112,6 +115,15 @@ def prepare_conversion_configs() -> Sequence[ConversionConfig]:
           model_builder=gemma2.build_2b_model,
       ),
       ConversionConfig(
+          model_name="llama",
+          input_checkpoint=os.path.join(_CHECKPOINT_ROOT_PATH.value, "llama"),
+          tflite_output_path=os.path.join(_OUTPUT_DIR.value, "llama"),
+          prefill_seq_len=1024,
+          kv_cache_max_len=1280,
+          export_precision=[ExportPrecision.INT8, ExportPrecision.FP32],
+          model_builder=llama.build_model,
+      ),
+      ConversionConfig(
           model_name="phi2",
           input_checkpoint=os.path.join(_CHECKPOINT_ROOT_PATH.value, "phi2"),
           tflite_output_path=os.path.join(_OUTPUT_DIR.value, "phi2"),
@@ -128,6 +140,24 @@ def prepare_conversion_configs() -> Sequence[ConversionConfig]:
           kv_cache_max_len=1280,
           export_precision=[ExportPrecision.INT8, ExportPrecision.FP32],
           model_builder=phi3.build_model,
+      ),
+      ConversionConfig(
+          model_name="openelm",
+          input_checkpoint=os.path.join(_CHECKPOINT_ROOT_PATH.value, "openelm"),
+          tflite_output_path=os.path.join(_OUTPUT_DIR.value, "openelm"),
+          prefill_seq_len=1024,
+          kv_cache_max_len=1280,
+          export_precision=[ExportPrecision.INT8, ExportPrecision.FP32],
+          model_builder=openelm.build_model,
+      ),
+      ConversionConfig(
+          model_name="smollm",
+          input_checkpoint=os.path.join(_CHECKPOINT_ROOT_PATH.value, "smollm"),
+          tflite_output_path=os.path.join(_OUTPUT_DIR.value, "smollm"),
+          prefill_seq_len=1024,
+          kv_cache_max_len=1280,
+          export_precision=[ExportPrecision.INT8, ExportPrecision.FP32],
+          model_builder=smollm.build_model,
       ),
   ]
   return conversion_configs
