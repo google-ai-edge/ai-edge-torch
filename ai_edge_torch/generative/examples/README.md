@@ -33,6 +33,10 @@ LLM with 135M, 360M, 1.7B parameters. The example we provide is SmolLM 135M, and
 the checkpoint for the model can be found
 [here](https://huggingface.co/HuggingFaceTB/SmolLM-135M).
 
+## Qwen
+Alibaba's [Qwen 2.5](https://huggingface.co/collections/Qwen/qwen25-66e81a666513e518adb90d9e)
+0.5B, 1B, 3B modes are also provided as examples.
+
 ## Overall workflow
 To support a new LLM with the Edge Generative API, we need to go through the process of model (re)authoring, checkpoint mapping/loading, model quantization (via PT2E), model conversion to flatbuffer schema, model quality evaluation, benchmarking and on-device inference pipeline authoring.
 

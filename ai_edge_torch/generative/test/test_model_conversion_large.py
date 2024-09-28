@@ -23,6 +23,7 @@ from ai_edge_torch.generative.examples.llama import llama
 from ai_edge_torch.generative.examples.openelm import openelm
 from ai_edge_torch.generative.examples.phi import phi2
 from ai_edge_torch.generative.examples.phi import phi3
+from ai_edge_torch.generative.examples.qwen import qwen
 from ai_edge_torch.generative.examples.smollm import smollm
 from ai_edge_torch.generative.examples.stable_diffusion import clip as sd_clip
 from ai_edge_torch.generative.examples.stable_diffusion import decoder as sd_decoder
@@ -151,6 +152,15 @@ class TestModelConversion(googletest.TestCase):
     config = openelm.get_fake_model_config()
     pytorch_model = openelm.OpenELM(config).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
+
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
+  def test_qwen(self):
+    config = qwen.get_fake_model_config()
+    pytorch_model = qwen.Qwen(config).eval()
+    self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
 
   @googletest.skipIf(
       ai_edge_config.Config.use_torch_xla,
