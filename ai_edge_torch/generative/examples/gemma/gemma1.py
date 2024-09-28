@@ -69,15 +69,10 @@ class Gemma(nn.Module):
     self.rope_cache = attn_utils.build_rope_cache(
         size=config.kv_cache_max,
         dim=int(attn_config.rotary_percentage * attn_config.head_dim),
-        base=10_000,
-        condense_ratio=1,
-        dtype=torch.float32,
-        device=torch.device("cpu"),
+        base=attn_config.rotary_base,
     )
     self.mask_cache = attn_utils.build_causal_mask_cache(
         size=config.kv_cache_max,
-        dtype=torch.float32,
-        device=torch.device("cpu"),
     )
     self.config = config
 
@@ -135,6 +130,7 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       num_heads=8,
       head_dim=256,
       num_query_groups=1,
+      rotary_base=10000,
       rotary_percentage=1.0,
   )
   ff_config = cfg.FeedForwardConfig(

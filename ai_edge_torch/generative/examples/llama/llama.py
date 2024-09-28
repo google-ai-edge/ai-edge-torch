@@ -108,7 +108,7 @@ class Llama(tiny_llama.TinyLlama):
     self.rope_cache = _build_llama3_rope_cache(
         size=self.config.kv_cache_max,
         dim=int(attn_config.rotary_percentage * attn_config.head_dim),
-        base=500_000,
+        base=attn_config.rotary_base,
         condense_ratio=1,
         dtype=torch.float32,
         device=torch.device("cpu"),
@@ -133,6 +133,7 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       num_heads=32,
       head_dim=64,
       num_query_groups=8,
+      rotary_base=500000,
       rotary_percentage=1.0,
   )
   ff_config = cfg.FeedForwardConfig(

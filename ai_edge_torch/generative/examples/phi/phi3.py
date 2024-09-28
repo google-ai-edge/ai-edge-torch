@@ -164,7 +164,7 @@ class Phi3_5Mini(nn.Module):
     self.rope_cache = _build_rope_cache(
         size=config.kv_cache_max,
         dim=int(attn_config.rotary_percentage * attn_config.head_dim),
-        base=10_000,
+        base=attn_config.rotary_base,
         condense_ratio=1,
         dtype=torch.float32,
         device=torch.device("cpu"),
@@ -175,8 +175,6 @@ class Phi3_5Mini(nn.Module):
     )
     self.mask_cache = attn_utils.build_causal_mask_cache(
         size=config.kv_cache_max,
-        dtype=torch.float32,
-        device=torch.device("cpu"),
     )
     self.config = config
 
@@ -232,6 +230,7 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       num_heads=32,
       head_dim=96,
       num_query_groups=32,
+      rotary_base=10000,
       rotary_percentage=1.0,
       qkv_transpose_before_split=True,
   )

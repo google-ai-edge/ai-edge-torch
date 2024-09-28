@@ -51,13 +51,10 @@ class ToyModelWithKVCache(torch.nn.Module):
     self.rope_cache = attn_utils.build_rope_cache(
         size=config.max_seq_len,
         dim=int(attn_config.rotary_percentage * attn_config.head_dim),
-        base=10_000,
-        condense_ratio=1,
-        dtype=torch.float32,
-        device=torch.device('cpu'),
+        base=attn_config.rotary_base,
     )
     self.mask_cache = attn_utils.build_causal_mask_cache(
-        size=config.max_seq_len, dtype=torch.float32, device=torch.device('cpu')
+        size=config.max_seq_len,
     )
     self.config = config
 
@@ -91,6 +88,7 @@ def get_model_config() -> cfg.ModelConfig:
       num_heads=32,
       head_dim=4,
       num_query_groups=4,
+      rotary_base=10000,
       rotary_percentage=1.0,
   )
   ff_config = cfg.FeedForwardConfig(

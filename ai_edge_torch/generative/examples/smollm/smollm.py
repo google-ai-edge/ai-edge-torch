@@ -54,6 +54,7 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       num_heads=9,
       head_dim=64,
       num_query_groups=3,
+      rotary_base=10000,
       rotary_percentage=1.0,
   )
   ff_config = cfg.FeedForwardConfig(

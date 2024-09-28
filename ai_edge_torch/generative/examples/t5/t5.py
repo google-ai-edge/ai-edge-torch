@@ -335,8 +335,6 @@ class T5Decoder(nn.Module):
 
     self.dec_attn_mask_cache = attn_utils.build_causal_mask_cache(
         size=config.kv_cache_max,
-        dtype=torch.float32,
-        device=torch.device("cpu"),
     )
 
   @torch.inference_mode
