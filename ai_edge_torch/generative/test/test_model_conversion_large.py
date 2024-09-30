@@ -131,9 +131,7 @@ class TestModelConversion(googletest.TestCase):
   def test_phi3(self):
     config = phi3.get_fake_model_config()
     pytorch_model = phi3.Phi3_5Mini(config).eval()
-    self._test_model(
-        config, pytorch_model, "prefill", atol=1e-5, rtol=1e-5
-    )
+    self._test_model(config, pytorch_model, "prefill", atol=1e-5, rtol=1e-5)
 
   @googletest.skipIf(
       ai_edge_config.Config.use_torch_xla,
