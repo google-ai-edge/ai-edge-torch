@@ -41,11 +41,32 @@ _CHECKPOINT_ROOT_PATH = flags.DEFINE_string(
     os.path.join(pathlib.Path.home(), "Downloads/llm_data/"),
     "The root path to the checkpoints.",
 )
-
 _OUTPUT_DIR = flags.DEFINE_string(
     "output_dir",
     os.path.join(pathlib.Path.home(), "models"),
     "The output directory to store the converted models.",
+)
+
+_MODELS = flags.DEFINE_list(
+    "models",
+    [
+        "gemma",
+        "gemma2",
+        "llama3.2",
+        "openelm",
+        "phi2",
+        "phi3.5",
+        "qwen2.5",
+        "smollm",
+        "tinyllama",
+    ],
+    "The list of models to convert.",
+)
+
+_PRECISIONS = flags.DEFINE_list(
+    "precisions",
+    ["q8", "f32"],
+    "The list of precisions to convert.",
 )
 
 
@@ -80,96 +101,133 @@ class ConversionConfig:
 
 
 def prepare_conversion_configs() -> Sequence[ConversionConfig]:
-  """Prepares the conversion configs for a batch of models."""
-  conversion_configs = [
-      ConversionConfig(
-          model_name="tinyllama",
-          input_checkpoint=os.path.join(
-              _CHECKPOINT_ROOT_PATH.value, "tiny_llama"
-          ),
-          tflite_output_path=os.path.join(_OUTPUT_DIR.value, "tiny_llama"),
-          prefill_seq_len=1024,
-          kv_cache_max_len=1280,
-          export_precision=[ExportPrecision.INT8, ExportPrecision.FP32],
-          model_builder=tiny_llama.build_model,
-      ),
-      ConversionConfig(
-          model_name="gemma",
-          input_checkpoint=os.path.join(
-              _CHECKPOINT_ROOT_PATH.value, "gemma-2b"
-          ),
-          tflite_output_path=os.path.join(_OUTPUT_DIR.value, "gemma"),
-          prefill_seq_len=1024,
-          kv_cache_max_len=1280,
-          export_precision=[ExportPrecision.INT8, ExportPrecision.FP32],
-          model_builder=gemma1.build_2b_model,
-      ),
-      ConversionConfig(
-          model_name="gemma2",
-          input_checkpoint=os.path.join(
-              _CHECKPOINT_ROOT_PATH.value, "gemma2-2b"
-          ),
-          tflite_output_path=os.path.join(_OUTPUT_DIR.value, "gemma2"),
-          prefill_seq_len=1024,
-          kv_cache_max_len=1280,
-          export_precision=[ExportPrecision.INT8, ExportPrecision.FP32],
-          model_builder=gemma2.build_2b_model,
-      ),
-      ConversionConfig(
-          model_name="llama",
-          input_checkpoint=os.path.join(_CHECKPOINT_ROOT_PATH.value, "llama"),
-          tflite_output_path=os.path.join(_OUTPUT_DIR.value, "llama"),
-          prefill_seq_len=1024,
-          kv_cache_max_len=1280,
-          export_precision=[ExportPrecision.INT8, ExportPrecision.FP32],
-          model_builder=llama.build_model,
-      ),
-      ConversionConfig(
-          model_name="phi2",
-          input_checkpoint=os.path.join(_CHECKPOINT_ROOT_PATH.value, "phi2"),
-          tflite_output_path=os.path.join(_OUTPUT_DIR.value, "phi2"),
-          prefill_seq_len=1024,
-          kv_cache_max_len=1280,
-          export_precision=[ExportPrecision.INT8, ExportPrecision.FP32],
-          model_builder=phi2.build_model,
-      ),
-      ConversionConfig(
-          model_name="phi3",
-          input_checkpoint=os.path.join(_CHECKPOINT_ROOT_PATH.value, "phi3"),
-          tflite_output_path=os.path.join(_OUTPUT_DIR.value, "phi3"),
-          prefill_seq_len=1024,
-          kv_cache_max_len=1280,
-          export_precision=[ExportPrecision.INT8, ExportPrecision.FP32],
-          model_builder=phi3.build_model,
-      ),
-      ConversionConfig(
-          model_name="openelm",
-          input_checkpoint=os.path.join(_CHECKPOINT_ROOT_PATH.value, "openelm"),
-          tflite_output_path=os.path.join(_OUTPUT_DIR.value, "openelm"),
-          prefill_seq_len=1024,
-          kv_cache_max_len=1280,
-          export_precision=[ExportPrecision.INT8, ExportPrecision.FP32],
-          model_builder=openelm.build_model,
-      ),
-      ConversionConfig(
-          model_name="smollm",
-          input_checkpoint=os.path.join(_CHECKPOINT_ROOT_PATH.value, "smollm"),
-          tflite_output_path=os.path.join(_OUTPUT_DIR.value, "smollm"),
-          prefill_seq_len=1024,
-          kv_cache_max_len=1280,
-          export_precision=[ExportPrecision.INT8, ExportPrecision.FP32],
-          model_builder=smollm.build_model,
-      ),
-      ConversionConfig(
-          model_name="qwen",
-          input_checkpoint=os.path.join(_CHECKPOINT_ROOT_PATH.value, "qwen"),
-          tflite_output_path=os.path.join(_OUTPUT_DIR.value, "qwen"),
-          prefill_seq_len=1024,
-          kv_cache_max_len=1280,
-          export_precision=[ExportPrecision.INT8, ExportPrecision.FP32],
-          model_builder=qwen.build_3b_model,
-      ),
-  ]
+  """Prepares the conversion configs according to the flags."""
+
+  export_precision = []
+  if "q8" in _PRECISIONS.value:
+    export_precision.append(ExportPrecision.INT8)
+  if "f32" in _PRECISIONS.value:
+    export_precision.append(ExportPrecision.FP32)
+
+  conversion_configs = []
+  if "tinyllama" in _MODELS.value:
+    conversion_configs.append(
+        ConversionConfig(
+            model_name="tinyllama",
+            input_checkpoint=os.path.join(
+                _CHECKPOINT_ROOT_PATH.value, "tiny_llama"
+            ),
+            tflite_output_path=os.path.join(_OUTPUT_DIR.value, "tiny_llama"),
+            prefill_seq_len=1024,
+            kv_cache_max_len=1280,
+            export_precision=export_precision,
+            model_builder=tiny_llama.build_model,
+        )
+    )
+  if "gemma" in _MODELS.value:
+    conversion_configs.append(
+        ConversionConfig(
+            model_name="gemma",
+            input_checkpoint=os.path.join(
+                _CHECKPOINT_ROOT_PATH.value, "gemma-2b"
+            ),
+            tflite_output_path=os.path.join(_OUTPUT_DIR.value, "gemma"),
+            prefill_seq_len=1024,
+            kv_cache_max_len=1280,
+            export_precision=export_precision,
+            model_builder=gemma1.build_2b_model,
+        )
+    )
+  if "gemma2" in _MODELS.value:
+    conversion_configs.append(
+        ConversionConfig(
+            model_name="gemma2",
+            input_checkpoint=os.path.join(
+                _CHECKPOINT_ROOT_PATH.value, "gemma2-2b"
+            ),
+            tflite_output_path=os.path.join(_OUTPUT_DIR.value, "gemma2"),
+            prefill_seq_len=1024,
+            kv_cache_max_len=1280,
+            export_precision=export_precision,
+            model_builder=gemma2.build_2b_model,
+        )
+    )
+  if "llama3.2" in _MODELS.value:
+    conversion_configs.append(
+        ConversionConfig(
+            model_name="llama3_2",
+            input_checkpoint=os.path.join(_CHECKPOINT_ROOT_PATH.value, "llama"),
+            tflite_output_path=os.path.join(_OUTPUT_DIR.value, "llama"),
+            prefill_seq_len=1024,
+            kv_cache_max_len=1280,
+            export_precision=export_precision,
+            model_builder=llama.build_3b_model,
+        )
+    )
+  if "phi2" in _MODELS.value:
+    conversion_configs.append(
+        ConversionConfig(
+            model_name="phi2",
+            input_checkpoint=os.path.join(_CHECKPOINT_ROOT_PATH.value, "phi2"),
+            tflite_output_path=os.path.join(_OUTPUT_DIR.value, "phi2"),
+            prefill_seq_len=1024,
+            kv_cache_max_len=1280,
+            export_precision=export_precision,
+            model_builder=phi2.build_model,
+        )
+    )
+  if "phi3.5" in _MODELS.value:
+    conversion_configs.append(
+        ConversionConfig(
+            model_name="phi3_5",
+            input_checkpoint=os.path.join(_CHECKPOINT_ROOT_PATH.value, "phi3"),
+            tflite_output_path=os.path.join(_OUTPUT_DIR.value, "phi3"),
+            prefill_seq_len=1024,
+            kv_cache_max_len=1280,
+            export_precision=export_precision,
+            model_builder=phi3.build_model,
+        )
+    )
+  if "openelm" in _MODELS.value:
+    conversion_configs.append(
+        ConversionConfig(
+            model_name="openelm",
+            input_checkpoint=os.path.join(
+                _CHECKPOINT_ROOT_PATH.value, "openelm"
+            ),
+            tflite_output_path=os.path.join(_OUTPUT_DIR.value, "openelm"),
+            prefill_seq_len=1024,
+            kv_cache_max_len=1280,
+            export_precision=export_precision,
+            model_builder=openelm.build_model,
+        )
+    )
+  if "smollm" in _MODELS.value:
+    conversion_configs.append(
+        ConversionConfig(
+            model_name="smollm",
+            input_checkpoint=os.path.join(
+                _CHECKPOINT_ROOT_PATH.value, "smollm"
+            ),
+            tflite_output_path=os.path.join(_OUTPUT_DIR.value, "smollm"),
+            prefill_seq_len=1024,
+            kv_cache_max_len=1280,
+            export_precision=export_precision,
+            model_builder=smollm.build_model,
+        )
+    )
+  if "qwen2.5" in _MODELS.value:
+    conversion_configs.append(
+        ConversionConfig(
+            model_name="qwen2_5",
+            input_checkpoint=os.path.join(_CHECKPOINT_ROOT_PATH.value, "qwen"),
+            tflite_output_path=os.path.join(_OUTPUT_DIR.value, "qwen"),
+            prefill_seq_len=1024,
+            kv_cache_max_len=1280,
+            export_precision=export_precision,
+            model_builder=qwen.build_3b_model,
+        )
+    )
   return conversion_configs
 
 
