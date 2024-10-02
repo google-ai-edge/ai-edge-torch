@@ -21,6 +21,7 @@ from ai_edge_torch.generative.examples.test_models import toy_model_with_kv_cach
 from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
 from ai_edge_torch.generative.layers import kv_cache
 from ai_edge_torch.generative.test import utils as test_utils
+from ai_edge_torch.generative.utilities import model_builder
 import numpy as np
 import torch
 
@@ -163,7 +164,7 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_tiny_llama_multisig(self):
     config = tiny_llama.get_fake_model_config()
-    pytorch_model = tiny_llama.TinyLlama(config).eval()
+    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
     self._test_multisig_model(config, pytorch_model, atol=1e-5, rtol=1e-5)
 
 

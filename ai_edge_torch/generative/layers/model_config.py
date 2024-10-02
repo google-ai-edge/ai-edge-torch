@@ -184,8 +184,14 @@ class ModelConfig:
       default_factory=NormalizationConfig
   )
 
+  # Scale factor of the embedding.
+  embedding_scale: Optional[float] = None
+
   # Use bias term within LLM's HEAD.
   lm_head_use_bias: bool = False
+  # Whether LLM's HEAD shares the weight of the embedding.
+  lm_head_share_weight_with_embedding: bool = True
+
   # Whether to turn on high-level function boundary.
   enable_hlfb: bool = False
 

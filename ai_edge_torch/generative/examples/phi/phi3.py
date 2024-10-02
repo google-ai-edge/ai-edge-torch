@@ -18,14 +18,10 @@
 import math
 from typing import Tuple
 
-from ai_edge_torch.generative.layers import attention
-from ai_edge_torch.generative.layers import builder
-from ai_edge_torch.generative.layers import kv_cache as kv_utils
-import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
+from ai_edge_torch.generative.utilities import model_builder
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
-from torch import nn
 
 TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.gate_up_proj",
@@ -137,32 +133,14 @@ def _build_rope_cache(
   return cos, sin
 
 
-class Phi3_5Mini(nn.Module):
+class Phi3_5Mini(model_builder.DecoderOnlyModel):
   """A Phi-3.5 model built from the Edge Generative API layers."""
 
   def __init__(self, config: cfg.ModelConfig):
-    super().__init__()
-
-    # Construct model layers.
-    self.lm_head = nn.Linear(
-        config.embedding_dim, config.vocab_size, bias=config.lm_head_use_bias
-    )
-    self.tok_embedding = nn.Embedding(
-        config.vocab_size, config.embedding_dim, padding_idx=0
-    )
-    # Phi-3.5 has only one block config.
-    block_config = config.block_config(0)
-    self.transformer_blocks = nn.ModuleList(
-        attention.TransformerBlock(block_config, config)
-        for _ in range(config.num_layers)
-    )
-    self.final_norm = builder.build_norm(
-        config.embedding_dim,
-        config.final_norm_config,
-    )
-    attn_config = block_config.attn_config
+    super().__init__(config)
+    attn_config = self.config.block_config(0).attn_config
     self.rope_cache = _build_rope_cache(
-        size=config.kv_cache_max,
+        size=self.config.kv_cache_max,
         dim=int(attn_config.rotary_percentage * attn_config.head_dim),
         base=attn_config.rotary_base,
         condense_ratio=1,
@@ -173,47 +151,6 @@ class Phi3_5Mini(nn.Module):
             1 + math.log(ROPE_SCALE_FACTOR) / math.log(config.max_seq_len)
         ),
     )
-    self.mask_cache = attn_utils.build_causal_mask_cache(
-        size=config.kv_cache_max,
-    )
-    self.config = config
-
-  @torch.inference_mode
-  def forward(
-      self,
-      tokens: torch.Tensor,
-      input_pos: torch.Tensor,
-      kv_cache: kv_utils.KVCache,
-  ) -> dict[torch.Tensor, kv_utils.KVCache]:
-    _, seq_len = tokens.size()
-    assert self.config.max_seq_len >= seq_len, (
-        f"Cannot forward sequence of length {seq_len}, max seq length is only"
-        f" {self.config.max_seq_len}"
-    )
-    assert len(self.transformer_blocks) == len(kv_cache.caches), (
-        "The number of transformer blocks and the number of KV cache entries"
-        " must be the same."
-    )
-
-    cos, sin = self.rope_cache
-    cos = cos.index_select(0, input_pos)
-    sin = sin.index_select(0, input_pos)
-    mask = self.mask_cache.index_select(2, input_pos)
-    mask = mask[:, :, :, : self.config.kv_cache_max]
-
-    x = self.tok_embedding(tokens)
-
-    updated_kv_entires = []
-    for i, block in enumerate(self.transformer_blocks):
-      kv_entry = kv_cache.caches[i] if kv_cache else None
-      x, kv_entry = block(x, (cos, sin), mask, input_pos, kv_entry)
-      if kv_entry:
-        updated_kv_entires.append(kv_entry)
-    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entires))
-
-    x = self.final_norm(x)
-    logits = self.lm_head(x)  # (b, t, vocab_size)
-    return {"logits": logits, "kv_cache": updated_kv_cache}
 
 
 def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
@@ -254,6 +191,7 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       embedding_dim=3072,
       block_configs=block_config,
       final_norm_config=norm_config,
+      lm_head_share_weight_with_embedding=False,
       enable_hlfb=True,
   )
   return config
@@ -269,7 +207,9 @@ def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
   return config
 
 
-def build_model(checkpoint_path: str, **kwargs) -> nn.Module:
+def build_model(
+    checkpoint_path: str, **kwargs
+) -> model_builder.DecoderOnlyModel:
   """Instantiates the model instance and load checkpoint if provided."""
   config = get_model_config(**kwargs)
   model = Phi3_5Mini(config)

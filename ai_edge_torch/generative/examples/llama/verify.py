@@ -25,7 +25,12 @@ from ai_edge_torch.generative.utilities import transformers_verifier
 from ai_edge_torch.generative.utilities import verifier
 import transformers
 
-
+_MODEL_SIZE = flags.DEFINE_enum(
+    "model_size",
+    "1b",
+    ["1b", "3b"],
+    "The size of the model to verify.",
+)
 _PROMPTS = flags.DEFINE_multi_string(
     "prompts",
     "What is the meaning of life?",
@@ -37,9 +42,19 @@ _MAX_NEW_TOKENS = flags.DEFINE_integer(
     "The maximum size of the generated tokens.",
 )
 
+_CHECKPOINT = {
+    "1b": "meta-llama/Llama-3.2-1B-Instruct",
+    "3b": "meta-llama/Llama-3.2-3B-Instruct",
+}
+
+_BUILDER = {
+    "1b": llama.build_1b_model,
+    "3b": llama.build_3b_model,
+}
+
 
 def main(_):
-  checkpoint = "meta-llama/Llama-3.2-1B-Instruct"
+  checkpoint = _CHECKPOINT[_MODEL_SIZE.value]
   logging.info("Loading the original model from: %s", checkpoint)
   original_model = transformers.AutoModelForCausalLM.from_pretrained(checkpoint)
 
@@ -49,7 +64,7 @@ def main(_):
   )
   reauthored_checkpoint = pathlib.Path(cached_config_file).parent
   logging.info("Building the reauthored model from: %s", reauthored_checkpoint)
-  reauthored_model = llama.build_model(reauthored_checkpoint)
+  reauthored_model = _BUILDER[_MODEL_SIZE.value](reauthored_checkpoint)
 
   logging.info("Loading the tokenizer from: %s", checkpoint)
   # Llama tokenizer_config.json sets a fast tokenizer class explicitly,

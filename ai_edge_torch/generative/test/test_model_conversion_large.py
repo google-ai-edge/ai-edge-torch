@@ -29,6 +29,7 @@ from ai_edge_torch.generative.examples.stable_diffusion import clip as sd_clip
 from ai_edge_torch.generative.examples.stable_diffusion import decoder as sd_decoder
 from ai_edge_torch.generative.examples.stable_diffusion import diffusion as sd_diffusion
 from ai_edge_torch.generative.layers import kv_cache
+from ai_edge_torch.generative.utilities import model_builder
 from ai_edge_torch.generative.test import utils as test_utils
 import numpy as np
 import torch
@@ -90,7 +91,7 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_gemma1(self):
     config = gemma1.get_fake_model_config()
-    pytorch_model = gemma1.Gemma(config).eval()
+    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
     self._test_model(
         config, pytorch_model, "serving_default", atol=1e-2, rtol=1e-5
     )
@@ -119,7 +120,7 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_phi2(self):
     config = phi2.get_fake_model_config()
-    pytorch_model = phi2.Phi2(config).eval()
+    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
     self._test_model(
         config, pytorch_model, "serving_default", atol=1e-3, rtol=1e-3
     )
@@ -139,7 +140,7 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_smollm(self):
     config = smollm.get_fake_model_config()
-    pytorch_model = smollm.SmolLM(config).eval()
+    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
 
   @googletest.skipIf(
@@ -148,7 +149,7 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_openelm(self):
     config = openelm.get_fake_model_config()
-    pytorch_model = openelm.OpenELM(config).eval()
+    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
 
   @googletest.skipIf(
@@ -157,7 +158,7 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_qwen(self):
     config = qwen.get_fake_model_config()
-    pytorch_model = qwen.Qwen(config).eval()
+    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
 
   @googletest.skipIf(

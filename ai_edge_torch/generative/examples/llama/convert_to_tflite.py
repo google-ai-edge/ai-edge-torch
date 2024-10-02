@@ -23,6 +23,12 @@ from absl import flags
 from ai_edge_torch.generative.examples.llama import llama
 from ai_edge_torch.generative.utilities import converter
 
+_MODEL_SIZE = flags.DEFINE_enum(
+    'model_size',
+    '1b',
+    ['1b', '3b'],
+    'The size of the model to verify.',
+)
 _CHECKPOINT_PATH = flags.DEFINE_string(
     'checkpoint_path',
     os.path.join(pathlib.Path.home(), 'Downloads/llm_data/llama'),
@@ -49,13 +55,18 @@ _QUANTIZE = flags.DEFINE_bool(
     'Whether the model should be quantized.',
 )
 
+_BUILDER = {
+    '1b': llama.build_1b_model,
+    '3b': llama.build_3b_model,
+}
+
 
 def main(_):
-  pytorch_model = llama.build_model(
+  pytorch_model = _BUILDER[_MODEL_SIZE.value](
       _CHECKPOINT_PATH.value, kv_cache_max_len=_KV_CACHE_MAX_LEN.value
   )
   quant_suffix = 'q8' if _QUANTIZE.value else 'f32'
-  output_filename = f'llama_{quant_suffix}_seq{_PREFILL_SEQ_LEN.value}_ekv{_KV_CACHE_MAX_LEN.value}.tflite'
+  output_filename = f'llama_{_MODEL_SIZE.value}_{quant_suffix}_seq{_PREFILL_SEQ_LEN.value}_ekv{_KV_CACHE_MAX_LEN.value}.tflite'
   converter.convert_to_tflite(
       pytorch_model,
       tflite_path=os.path.join(_TFLITE_PATH.value, output_filename),

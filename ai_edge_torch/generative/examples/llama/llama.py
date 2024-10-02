@@ -15,19 +15,15 @@
 
 """Example of building Llama 3.2 models."""
 
-import copy
 import math
 from typing import Tuple
 
-from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
 import ai_edge_torch.generative.layers.model_config as cfg
+from ai_edge_torch.generative.utilities import model_builder
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
-from torch import nn
 
-TENSOR_NAMES = copy.copy(tiny_llama.TENSOR_NAMES)
-# SmolLM re-uses the embedding as the head projection layer.
-TENSOR_NAMES.lm_head = None
+TENSOR_NAMES = model_builder.TENSOR_NAMES
 
 
 def _build_llama3_rope_cache(
@@ -93,7 +89,7 @@ def _build_llama3_rope_cache(
   return cos, sin
 
 
-class Llama(tiny_llama.TinyLlama):
+class Llama(model_builder.DecoderOnlyModel):
   """A Llama model built from the Edge Generative API layers.
 
   Llama 3.2 shares the same architecture as TinyLlama except ROPE calculation.
@@ -101,9 +97,6 @@ class Llama(tiny_llama.TinyLlama):
 
   def __init__(self, config: cfg.ModelConfig):
     super().__init__(config)
-    # Llama 3.2 re-uses the embedding as the head projection layer.
-    self.lm_head.weight.data = self.tok_embedding.weight.data
-    # Llama has only one block config.
     attn_config = self.config.block_config(0).attn_config
     self.rope_cache = _build_llama3_rope_cache(
         size=self.config.kv_cache_max,
@@ -119,7 +112,7 @@ class Llama(tiny_llama.TinyLlama):
     )
 
 
-def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+def get_1b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   """Returns the model config for a Llama 3.2-1B model.
 
   Args:
@@ -163,7 +156,7 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
 
 def get_3b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   """Returns the model config for a Llama 3.2-3B model."""
-  config = get_model_config(kv_cache_max_len)
+  config = get_1b_model_config(kv_cache_max_len)
   # Llama 3.2 has only one block config.
   attn_config = config.block_config(0).attn_config
   attn_config.num_heads = 24
@@ -174,7 +167,7 @@ def get_3b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
 
 
 def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
-  config = get_model_config(**kwargs)
+  config = get_1b_model_config(**kwargs)
   config.vocab_size = 128
   config.num_layers = 2
   # SmolLM has only one block config.
@@ -182,8 +175,9 @@ def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
   return config
 
 
-def build_model(checkpoint_path: str, **kwargs) -> nn.Module:
-  config = get_model_config(**kwargs)
+def _build_model(
+    checkpoint_path: str, config: cfg.ModelConfig
+) -> model_builder.DecoderOnlyModel:
   model = Llama(config)
   loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
   # Since embedding and lm-head use the same weight, we need to set strict
@@ -193,12 +187,13 @@ def build_model(checkpoint_path: str, **kwargs) -> nn.Module:
   return model
 
 
-def build_3b_model(checkpoint_path: str, **kwargs) -> nn.Module:
-  config = get_3b_model_config(**kwargs)
-  model = Llama(config)
-  loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
-  # Since embedding and lm-head use the same weight, we need to set strict
-  # to False.
-  loader.load(model, strict=False)
-  model.eval()
-  return model
+def build_1b_model(
+    checkpoint_path: str, **kwargs
+) -> model_builder.DecoderOnlyModel:
+  return _build_model(checkpoint_path, get_1b_model_config(**kwargs))
+
+
+def build_3b_model(
+    checkpoint_path: str, **kwargs
+) -> model_builder.DecoderOnlyModel:
+  return _build_model(checkpoint_path, get_3b_model_config(**kwargs))

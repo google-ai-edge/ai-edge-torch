@@ -15,7 +15,6 @@
 
 """Example of building a Gemma2 model."""
 
-import os
 from typing import Optional, Tuple
 
 from ai_edge_torch.generative.layers import attention

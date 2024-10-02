@@ -15,28 +15,10 @@
 
 """Example of building Qwen 2.5 models."""
 
-import copy
-
-from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
 import ai_edge_torch.generative.layers.model_config as cfg
-import ai_edge_torch.generative.utilities.loader as loading_utils
-from torch import nn
+from ai_edge_torch.generative.utilities import model_builder
 
-TENSOR_NAMES = copy.copy(tiny_llama.TENSOR_NAMES)
-# Qwen re-uses the embedding as the head projection layer.
-TENSOR_NAMES.lm_head = None
-
-
-class Qwen(tiny_llama.TinyLlama):
-  """A Qwen model built from the Edge Generative API layers.
-
-  Qwen 2.5 shares the same architecture as TinyLlama.
-  """
-
-  def __init__(self, config: cfg.ModelConfig):
-    super().__init__(config)
-    # Qwen re-uses the embedding as the head projection layer.
-    self.lm_head.weight.data = self.tok_embedding.weight.data
+TENSOR_NAMES = model_builder.TENSOR_NAMES
 
 
 def get_3b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
@@ -119,23 +101,31 @@ def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
   return config
 
 
-def _build_model(checkpoint_path: str, config: cfg.ModelConfig) -> nn.Module:
-  model = Qwen(config)
-  loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
-  # Since embedding and lm-head use the same weight, we need to set strict
-  # to False.
-  loader.load(model, strict=False)
-  model.eval()
-  return model
+def build_3b_model(
+    checkpoint_path: str, **kwargs
+) -> model_builder.DecoderOnlyModel:
+  return model_builder.build_decoder_only_model(
+      checkpoint_path=checkpoint_path,
+      config=get_3b_model_config(**kwargs),
+      tensor_names=TENSOR_NAMES,
+  )
 
 
-def build_3b_model(checkpoint_path: str, **kwargs) -> nn.Module:
-  return _build_model(checkpoint_path, get_3b_model_config(**kwargs))
+def build_1_5b_model(
+    checkpoint_path: str, **kwargs
+) -> model_builder.DecoderOnlyModel:
+  return model_builder.build_decoder_only_model(
+      checkpoint_path=checkpoint_path,
+      config=get_1_5b_model_config(**kwargs),
+      tensor_names=TENSOR_NAMES,
+  )
 
 
-def build_1_5b_model(checkpoint_path: str, **kwargs) -> nn.Module:
-  return _build_model(checkpoint_path, get_1_5b_model_config(**kwargs))
-
-
-def build_0_5b_model(checkpoint_path: str, **kwargs) -> nn.Module:
-  return _build_model(checkpoint_path, get_0_5b_model_config(**kwargs))
+def build_0_5b_model(
+    checkpoint_path: str, **kwargs
+) -> model_builder.DecoderOnlyModel:
+  return model_builder.build_decoder_only_model(
+      checkpoint_path=checkpoint_path,
+      config=get_0_5b_model_config(**kwargs),
+      tensor_names=TENSOR_NAMES,
+  )
