@@ -21,3 +21,8 @@ As an example, you can run `text_generator_main`  for an exported Gemma model as
 ```
 bazel run -c opt //ai_edge_torch/generative/examples/c++:text_generator_main -- --tflite_model=PATH/gemma_it.tflite  --sentencepiece_model=PATH/tokenizer.model --start_token="<bos>" --stop_token="<eos>" --num_threads=16 --prompt="Write an email:" --weight_cache_path=PATH/gemma.xnnpack_cache
 ```
+
+In `text_generator_main.cc`, pay close attention to how external KV Cache buffers are managed. These buffers are manually allocated and then propagated to the interpreter using `TfLiteCustomAllocation`.
+This approach eliminates unnecessary data movements between calls, resulting in optimal overall performance.
+
+It's important to note that not all delegates support this in-place update. For those cases, it's necessary to implement a ping-pong buffer and update the pointers between inference calls.
