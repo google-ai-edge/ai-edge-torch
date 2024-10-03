@@ -17,15 +17,15 @@
 import os
 from pathlib import Path
 from typing import Optional, Tuple
-
-from ai_edge_torch.generative.layers.attention import TransformerBlock
+import copy
+from ai_edge_torch.generative.layers import attention
+from ai_edge_torch.generative.layers import builder
+from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
-import ai_edge_torch.generative.layers.builder as builder
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
-import numpy as np
 import torch
-import torch.nn as nn
+from torch import nn
 
 # Below are weight mappings from the model definition code
 # you can go the modeling code and find the tensor names
@@ -36,7 +36,6 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.up_proj",
     ff_down_proj="model.layers.{}.mlp.down_proj",
     ff_gate_proj="model.layers.{}.mlp.gate_proj",
-    # TODO @merron continue from here
     attn_query_proj="model.layers.{}.self_attn.q_proj",# from Qwen2Attention class
     attn_key_proj="model.layers.{}.self_attn.k_proj",# from Qwen2Attention class
     attn_value_proj="model.layers.{}.self_attn.v_proj",# from Qwen2Attention class
@@ -45,43 +44,10 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     post_attn_norm="model.layers.{}.post_attention_layernorm",# from Qwen2DecoderLayer class'
     embedding="model.embed_tokens",#from Qwen2Model model
     final_norm="model.norm",# from Qwen2Model model
-    lm_head= None,# from Qwen2ForCausalLM class
 )
 
 
-class Qwen2Block(TransformerBlock):
-
-  def forward(
-      self,
-      x: torch.Tensor,
-      rope: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
-      mask: Optional[torch.Tensor] = None,
-      input_pos: Optional[torch.Tensor] = None,
-  ) -> torch.Tensor:
-    """Forward function of the Qwen2Block.
-
-    Exactly the same as TransformerBlock but we call the post-attention norm
-    immediately after attention and not after the residual pointwise addition.
-
-    Args:
-      x (torch.Tensor): the input tensor.
-      rope (Tuple[torch.Tensor, torch.Tensor]): the input rope tensor.
-      mask (torch.Tensor): the optional mask tensor.
-      input_pos (torch.Tensor): the optional input position tensor.
-
-    Returns:
-      output activation from this transformer block.
-    """
-
-    x_norm = self.pre_atten_norm(x)
-    attn_out = self.atten_func(x_norm, rope, mask, input_pos)
-    attn_out_norm = self.post_atten_norm(attn_out)
-    x = x + attn_out_norm
-    output = x + self.ff(x)
-    return output
-
-
-class Qwen2(nn.Module):
+class Qwen2Model(nn.Module):
 
   def __init__(self, config: cfg.ModelConfig):
     super().__init__()
@@ -96,178 +62,135 @@ class Qwen2(nn.Module):
         config.vocab_size,
         bias=config.lm_head_use_bias,
     )
-    # Qwen2 re-uses the embedding as the head projection layer.
-    self.lm_head.weight.data = self.tok_embedding.weight.data
+    if config.lm_head_share_weight_with_embedding:
+      self.lm_head.weight.data = self.tok_embedding.weight.data
     self.transformer_blocks = nn.ModuleList(
-        Qwen2Block(config) for _ in range(config.num_layers)
+        attention.TransformerBlock(config.block_config(idx), config)
+        for idx in range(config.num_layers)
     )
     self.final_norm = builder.build_norm(
         config.embedding_dim,
         config.final_norm_config,
     )
+    # ROPE parameters for all attn_configs are the same. Take the first one.
+    attn_config = config.block_config(0).attn_config
     self.rope_cache = attn_utils.build_rope_cache(
         size=config.kv_cache_max,
-        dim=int(
-            config.attn_config.rotary_percentage * config.attn_config.head_dim
-        ),
-        base=10_000,
-        condense_ratio=1,
-        dtype=torch.float32,
-        device=torch.device("cpu"),
+        dim=int(attn_config.rotary_percentage * attn_config.head_dim),
+        base=attn_config.rotary_base,
     )
     self.mask_cache = attn_utils.build_causal_mask_cache(
         size=config.kv_cache_max,
-        dtype=torch.float32,
-        device=torch.device("cpu"),
     )
-
-    self.sliding_window_mask_cache = attn_utils.build_sliding_window_mask_cache(
-        size=config.kv_cache_max,
-        window_size=self.config.attn_config.sliding_window_size,
-        dtype=torch.float32,
-        device=torch.device("cpu"),
-    )
-
     self.config = config
 
-  def get_attention_mask(
-      self, idx: int, input_pos: torch.Tensor
-  ) -> torch.Tensor:
-    if self.config.attn_config.attn_types:
-      if (
-          self.config.attn_config.attn_types[idx]
-          == cfg.AttentionType.LOCAL_SLIDING
-      ):
-        return self.sliding_window_mask_cache.index_select(2, input_pos)
-
-    return self.mask_cache.index_select(2, input_pos)
-
   @torch.inference_mode
-  def forward(self, idx: torch.Tensor, input_pos: torch.Tensor) -> torch.Tensor:
-    B, T = idx.size()
-    assert self.config.max_seq_len >= T, (
-        f"Cannot forward sequence of length {T}, max seq length is only"
+  def forward(
+      self,
+      tokens: torch.Tensor,
+      input_pos: torch.Tensor,
+      kv_cache: kv_utils.KVCache,
+  ) -> dict[torch.Tensor, kv_utils.KVCache]:
+    _, seq_len = tokens.size()
+    assert self.config.max_seq_len >= seq_len, (
+        f"Cannot forward sequence of length {seq_len}, max seq length is only"
         f" {self.config.max_seq_len}"
+    )
+    assert len(self.transformer_blocks) == len(kv_cache.caches), (
+        "The number of transformer blocks and the number of KV cache entries"
+        " must be the same."
     )
 
     cos, sin = self.rope_cache
     cos = cos.index_select(0, input_pos)
     sin = sin.index_select(0, input_pos)
+    mask = self.mask_cache.index_select(2, input_pos)
+    mask = mask[:, :, :, : self.config.kv_cache_max]
 
     # token embeddings of shape (b, t, n_embd)
-    x = self.tok_embedding(idx)
-    x = x * (self.config.embedding_dim**0.5)
+    x = self.tok_embedding(tokens)
+    if self.config.embedding_scale is not None:
+      x = x * self.config.embedding_scale
 
+    updated_kv_entires = []
     for i, block in enumerate(self.transformer_blocks):
-      mask = self.get_attention_mask(i, input_pos)
-      x = block(x, (cos, sin), mask, input_pos)
+      kv_entry = kv_cache.caches[i] if kv_cache else None
+      x, kv_entry = block(x, (cos, sin), mask, input_pos, kv_entry)
+      if kv_entry:
+        updated_kv_entires.append(kv_entry)
+    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entires))
 
     x = self.final_norm(x)
-    res = self.lm_head(x)  # (b, t, vocab_size)
-    if self.config.final_logit_softcap is not None:
-      res = res / self.config.final_logit_softcap
-      res = torch.tanh(res)
-      res = res * self.config.final_logit_softcap
-    return res
+    logits = self.lm_head(x)  # (b, t, vocab_size)
+    return {"logits": logits, "kv_cache": updated_kv_cache}
 
-# Below model config you can find in:
-# https://github.com/huggingface/transformers/blob/main/src/transformers/models/qwen2/configuration_qwen2.py
-def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
-  attn_config = cfg.AttentionConfig(
-      num_heads=14, # num_attention_heads,
-      head_dim=64,#hidden_size // self.num_heads
-      num_query_groups=2,# num_key_value_heads
-      rotary_percentage=1.0,
-      qkv_transpose_before_split=True,
-      logit_softcap=50.0,
-      sliding_window_size=32768,# sliding_window,"use_sliding_window": false,
-      attn_types=[cfg.AttentionType.GLOBAL, cfg.AttentionType.LOCAL_SLIDING]
-      * 13,
+
+def build_qwen2_model(
+    checkpoint_path: str,
+    config: cfg.ModelConfig,
+    tensor_names: loading_utils.ModelLoader.TensorNames,
+) -> Qwen2Model:
+  model = Qwen2Model(config)
+  loader = loading_utils.ModelLoader(checkpoint_path, tensor_names)
+  loader.load(
+      model, strict=not config.lm_head_share_weight_with_embedding
   )
+  model.eval()
+  return model
 
-  norm_config = cfg.NormalizationConfig(
-      type=cfg.NormalizationType.RMS_NORM,
-      epsilon=1e-6,# rms_norm_eps
-      zero_centered=True,
+
+def get_qwen2_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+
+  attn_config = cfg.AttentionConfig(
+      num_heads=14,
+      head_dim=64,
+      num_query_groups=2,
+      rotary_base=1000000,
+      rotary_percentage=1.0,
+      qkv_use_bias=True,
   )
   ff_config = cfg.FeedForwardConfig(
       type=cfg.FeedForwardType.GATED,
       activation=cfg.ActivationConfig(cfg.ActivationType.SILU),
-      intermediate_size=4864, #intermediate_size,
-      pre_ff_norm_config=norm_config,
-      post_ff_norm_config=norm_config,
+      intermediate_size=4864,
   )
-  config = cfg.ModelConfig(
-        vocab_size=151936,#vocab_size
-        num_layers=24,#num_hidden_layers
-        max_seq_len=32768,#max_position_embeddings
-        embedding_dim=896,#hidden_size
-        kv_cache_max_len=kv_cache_max_len,
-        attn_config=attn_config,
-        ff_config=ff_config,
-        pre_attention_norm_config=norm_config,
-        post_attention_norm_config=norm_config,
-        final_norm_config=norm_config,
-        parallel_residual=False,
-        lm_head_use_bias=False,
-        final_logit_softcap=30.0,
-    )
-  return config
-
-# TODO(b/363021962): Clean up this part to streamline fake model config generation.
-def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
-  attn_config = cfg.AttentionConfig(
-      num_heads=14, # num_attention_heads,
-      head_dim=64,#hidden_size // self.num_heads
-      num_query_groups=2,# num_key_value_heads
-      rotary_percentage=1.0,
-      qkv_transpose_before_split=True,
-      logit_softcap=50.0,
-      sliding_window_size=32768,# sliding_window,"use_sliding_window": false,
-      attn_types=[cfg.AttentionType.GLOBAL, cfg.AttentionType.LOCAL_SLIDING]
-      * 13,
-  )
-
   norm_config = cfg.NormalizationConfig(
       type=cfg.NormalizationType.RMS_NORM,
-      epsilon=1e-6,
-      zero_centered=True,
+      epsilon=1e-06,
   )
-  ff_config = cfg.FeedForwardConfig(
-      type=cfg.FeedForwardType.GATED,
-      activation=cfg.ActivationConfig(cfg.ActivationType.SILU),
-      intermediate_size=128,
-      pre_ff_norm_config=norm_config,
-      post_ff_norm_config=norm_config,
-      use_bias=True,
-  )
-  config = cfg.ModelConfig(
-      vocab_size=128,
-      num_layers=2,
-      max_seq_len=2 * kv_cache_max_len,
-      embedding_dim=128,
-      kv_cache_max_len=kv_cache_max_len,
+  block_config = cfg.TransformerBlockConfig(
       attn_config=attn_config,
       ff_config=ff_config,
       pre_attention_norm_config=norm_config,
       post_attention_norm_config=norm_config,
+  )
+  config = cfg.ModelConfig(
+      vocab_size=151936,
+      num_layers=24,
+      max_seq_len=32768,
+      embedding_dim=896,
+      kv_cache_max_len=kv_cache_max_len,
+      block_configs=block_config,
       final_norm_config=norm_config,
-      parallel_residual=False,
-      lm_head_use_bias=False,
       enable_hlfb=True,
-      final_logit_softcap=30.0,
   )
   return config
 
-def build_qwen2_model(checkpoint_path, **kwargs) -> nn.Module:
-  config = get_model_config(**kwargs)
-  model = Qwen2(config)
-  loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
-  # since embedding and lm-head use the same weight, we need to set strict
-  # to False.
-  loader.load(model, strict=False)
-  model.eval()
-  return model
+def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
+  config = get_qwen2_model_config(**kwargs)
+  config.vocab_size = 128
+  config.num_layers = 2
+  config.block_config(0).ff_config.intermediate_size = 64
+  return config
+
+def build_0_5b_model(
+    checkpoint_path: str, **kwargs
+) -> Qwen2Model:
+  return build_qwen2_model(
+      checkpoint_path=checkpoint_path,
+      config=get_qwen2_model_config(**kwargs),
+      tensor_names=TENSOR_NAMES,
+  )
 
 
 def define_and_run() -> None:
