@@ -75,9 +75,7 @@ class CLIP(nn.Module):
     )
 
   @torch.inference_mode
-  def forward(self, tokens: torch.LongTensor) -> torch.FloatTensor:
-    tokens = tokens.type(torch.int)
-
+  def forward(self, tokens: torch.IntTensor) -> torch.FloatTensor:
     state = self.tok_embedding(tokens) + self.tok_embedding_position
     for layer in self.transformer_blocks:
       state = layer(state, mask=self.mask_cache)
