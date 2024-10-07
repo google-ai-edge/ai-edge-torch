@@ -60,7 +60,6 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   )
   norm_config = cfg.NormalizationConfig(
       type=cfg.NormalizationType.LAYER_NORM,
-      use_input_shape=False,  # Phi-2 does layer-norm with the weight shape.
   )
   block_config = cfg.TransformerBlockConfig(
       attn_config=attn_config,

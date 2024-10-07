@@ -69,9 +69,6 @@ class NormalizationConfig:
   zero_centered: bool = False
   # Number of groups used in group normalization.
   group_num: Optional[float] = None
-  # Whether to use the input shape to determine the dimension of normalization
-  # when type is LAYER_NORM.
-  use_input_shape: bool = True
 
 
 @dataclass
