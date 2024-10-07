@@ -17,7 +17,6 @@
 
 from typing import Tuple
 
-from absl import app
 from ai_edge_torch.generative.layers import attention
 from ai_edge_torch.generative.layers import builder
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
