@@ -13,6 +13,7 @@
    * [Error during torch.export.export](#error-during-torchexportexport)
    * [Error during ExportedProgram to edge model lowering](#error-during-exportedprogram-to-edge-model-lowering)
 * [Visualization](#visualization)
+* [Use ODML Torch Conversion Backend (Experimental)](#use-odml-torch-conversion-backend-experimental)
 
 <!-- Created by https://github.com/ekalinin/github-markdown-toc -->
 <!-- Added by: cnchan, at: Wed Jul 24 09:51:17 PM PDT 2024 -->
@@ -324,4 +325,21 @@ Once the exported TFLite model is obtained, you can visualize the model structur
 ```
 pip install ai-edge-model-explorer
 model-explorer 'resnet.tflite'
+```
+
+# Use ODML Torch Conversion Backend (Experimental)
+
+ODML Torch is an experimental conversion backend for AI Edge Torch, which enables
+conversion on macOS and generates TFLite Flatbuffer with higher quality and better
+performance. To use AI Edge Torch with ODML Torch, setup your environment these
+commands:
+
+```bash
+# Install ODML Torch backend dependencies
+pip install -r https://raw.githubusercontent.com/google-ai-edge/ai-edge-torch/main/odmltorch-requirements.txt
+# Install ai-edge-torch with no default backend (Torch XLA) dependencies
+pip install ai-edge-torch-nightly --no-deps
+
+# Disable default AI Edge Torch backend (Torch XLA)
+export USE_TORCH_XLA=0
 ```

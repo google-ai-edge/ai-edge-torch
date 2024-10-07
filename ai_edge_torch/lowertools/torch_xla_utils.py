@@ -25,8 +25,8 @@ from typing import Any, Dict, Optional, Tuple, Union
 from ai_edge_torch import model
 from ai_edge_torch._convert import conversion_utils
 from ai_edge_torch._convert import signature as signature_module
-from ai_edge_torch.generative.quantize.ai_edge_quantizer_glue import translate_recipe  # NOQA
 from ai_edge_torch.lowertools import common_utils
+from ai_edge_torch.lowertools import translate_recipe
 from ai_edge_torch.quantize import quant_config as qcfg
 import torch
 from torch_xla import stablehlo
@@ -250,6 +250,7 @@ def merged_bundle_to_tfl_model(
         },
     )
     # Clean up intermediate memory early.
+    del tf_functions
     del tf_module
     del tf_concrete_funcs
     gc.collect()
@@ -271,6 +272,8 @@ def merged_bundle_to_tfl_model(
     conversion_utils.apply_tfl_converter_flags(converter, _tfl_converter_flags)
 
     tflite_model = converter.convert()
+    del converter
+    gc.collect()
 
     if (
         quant_config is not None

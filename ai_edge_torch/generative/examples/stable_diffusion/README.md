@@ -12,8 +12,7 @@ python ai_edge_torch/generative/examples/stable_diffusion/convert_to_tflite.py \
 --clip_ckpt=$HOME/stable-diffusion-v1-5/v1-5-pruned-emaonly.safetensors \
 --diffusion_ckpt=$HOME/stable-diffusion-v1-5/v1-5-pruned-emaonly.safetensors \
 --decoder_ckpt=$HOME/stable-diffusion-v1-5/v1-5-pruned-emaonly.safetensors \
---output_dir=/tmp/stable_diffusion_safetensors/ \
---ckpt_format=safetensors
+--output_dir=/tmp/stable_diffusion_safetensors/
 ```
 
 ## Run Stable Diffusion pipeline

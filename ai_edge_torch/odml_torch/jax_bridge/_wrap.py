@@ -35,7 +35,7 @@ jax.config.update("jax_enable_x64", True)
 
 def _lower_to_ir_text(
     jaxfn, args, kwargs, ir_input_names: list[str] = None
-) -> str:
+) -> tuple[str, list[ir.Value]]:
   args = utils.tree_map_list_to_tuple(args)
   kwargs = utils.tree_map_list_to_tuple(kwargs)
 
@@ -74,7 +74,9 @@ def _lower_to_ir_text(
             x for x in pytree.tree_flatten(arg)[0] if isinstance(x, ir.Value)
         ]
 
-  def new_lowering(*args, **jax_lower_static_kwargs):
+  def lower_wrapper(*args):
+    nonlocal jax_lower_static_kwargs
+
     jaxfn_args = []
     jaxfn_kwargs = jax_lower_static_kwargs.copy()
     for name, arg in zip(jax_lower_argnames, args):
@@ -85,11 +87,7 @@ def _lower_to_ir_text(
 
     return jaxfn(*jaxfn_args, **jaxfn_kwargs)
 
-  return (
-      jax.jit(new_lowering, static_argnames=static_argnames)
-      .lower(*jax_lower_args, **jax_lower_static_kwargs)
-      .as_text()
-  ), ir_inputs
+  return jax.jit(lower_wrapper).lower(*jax_lower_args).as_text(), ir_inputs
 
 
 def wrap(jaxfn: Callable[Any, Any], ir_input_names: list[str] = None):

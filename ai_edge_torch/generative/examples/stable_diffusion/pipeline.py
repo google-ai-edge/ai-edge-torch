@@ -180,9 +180,13 @@ def run_tflite_pipeline(
 
   # Text embedding.
   cond_tokens = model.tokenizer.encode(prompt)
-  cond_context = model.clip(np.array(cond_tokens), signature_name='encode')
+  cond_context = model.clip(
+      np.array(cond_tokens).astype(np.int32), signature_name='encode'
+  )
   uncond_tokens = model.tokenizer.encode(uncond_prompt)
-  uncond_context = model.clip(np.array(uncond_tokens), signature_name='encode')
+  uncond_context = model.clip(
+      np.array(uncond_tokens).astype(np.int32), signature_name='encode'
+  )
   context = np.concatenate([cond_context, uncond_context], axis=0)
   noise_shape = (1, 4, height // 8, width // 8)
 
@@ -198,7 +202,7 @@ def run_tflite_pipeline(
     input_image_np = util.rescale(input_image, (0, 255), (-1, 1))
     input_image_np = util.move_channel(input_image_np, to='first')
     encoder_noise = np.random.normal(size=noise_shape).astype(np.float32)
-    latents = model.encoder(input_image_np, encoder_noise)
+    latents = model.encoder(input_image_np.astype(np.float32), encoder_noise)
     latents_noise = np.random.normal(size=noise_shape).astype(np.float32)
     sampler.set_strength(strength=strength)
     latents += latents_noise * sampler.initial_scale
@@ -214,7 +218,10 @@ def run_tflite_pipeline(
     input_latents = latents * sampler.get_input_scale()
     input_latents = input_latents.repeat(2, axis=0)
     output = model.diffusion(
-        input_latents, context, time_embedding, signature_name='diffusion'
+        input_latents.astype(np.float32),
+        context.astype(np.float32),
+        time_embedding,
+        signature_name='diffusion',
     )
     output_cond, output_uncond = np.split(output, 2, axis=0)
     output = cfg_scale * (output_cond - output_uncond) + output_uncond
@@ -222,7 +229,7 @@ def run_tflite_pipeline(
     latents = sampler.step(latents, output)
 
   # Image decoding.
-  images = model.decoder(latents, signature_name='decode')
+  images = model.decoder(latents.astype(np.float32), signature_name='decode')
   images = util.rescale(images, (-1, 1), (0, 255), clamp=True)
   images = util.move_channel(images, to='last')
   if not os.path.exists(output_path):

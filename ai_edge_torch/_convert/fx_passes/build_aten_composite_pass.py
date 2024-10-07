@@ -13,11 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
-from functools import reduce
 from typing import Any, Callable
+from ai_edge_torch import fx_pass_base
 from ai_edge_torch import lowertools
 import torch
-from torch.fx.passes.infra import pass_base
 import torch.utils._pytree as pytree
 
 _composite_builders: dict[
@@ -277,7 +276,7 @@ def _aten_embedding(gm: torch.fx.GraphModule, node: torch.fx.Node):
   node.target = embedding
 
 
-class BuildAtenCompositePass(pass_base.PassBase):
+class BuildAtenCompositePass(fx_pass_base.PassBase):
 
   def call(self, graph_module: torch.fx.GraphModule):
     for node in graph_module.graph.nodes:
@@ -286,4 +285,4 @@ class BuildAtenCompositePass(pass_base.PassBase):
 
     graph_module.graph.lint()
     graph_module.recompile()
-    return pass_base.PassResult(graph_module, True)
+    return fx_pass_base.PassResult(graph_module, True)

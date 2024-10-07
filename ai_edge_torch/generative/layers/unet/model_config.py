@@ -48,6 +48,7 @@ class DownSamplingConfig:
 @dataclasses.dataclass
 class ResidualBlock2DConfig:
   in_channels: int
+  hidden_channels: int
   out_channels: int
   normalization_config: layers_cfg.NormalizationConfig
   activation_config: layers_cfg.ActivationConfig
@@ -68,6 +69,8 @@ class AttentionBlock2DConfig:
 class CrossAttentionBlock2DConfig:
   query_dim: int
   cross_dim: int
+  hidden_dim: int
+  output_dim: int
   normalization_config: layers_cfg.NormalizationConfig
   attention_config: layers_cfg.AttentionConfig
   enable_hlfb: bool = True

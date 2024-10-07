@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from ai_edge_torch._convert.fx_passes import CanonicalizePass
-from ai_edge_torch._convert.fx_passes import run_passes
-from ai_edge_torch.generative.fx_passes.remove_sdpa_zero_mask_pass import RemoveSDPACompositeZeroMaskPass  # NOQA
+from ai_edge_torch import fx_pass_base
+from ai_edge_torch.fx_pass_base import CanonicalizePass
+from ai_edge_torch.generative.fx_passes.remove_sdpa_zero_mask_pass import RemoveSDPACompositeZeroMaskPass
 import torch
 
 
 def run_generative_passes(
     exported_program: torch.export.ExportedProgram,
 ) -> torch.export.ExportedProgram:
-  return run_passes(
+  return fx_pass_base.run_passes(
       exported_program,
       [
           RemoveSDPACompositeZeroMaskPass(),

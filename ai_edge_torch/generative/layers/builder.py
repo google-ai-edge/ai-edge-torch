@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 # Builder class for individual components.
+from typing import Callable
+
 import ai_edge_torch.generative.layers.feed_forward as feed_forward
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.layers.normalization as normalization
@@ -37,6 +39,21 @@ class GeGLU(nn.Module):
     return x * F.gelu(gate)
 
 
+class SwiGLU(nn.Module):
+  """SwiGLU is an activation function which is a variant of GLU.
+
+  SwiGLU is same as SiLU_GLU, because The SiLU function is also known as the
+  swish function.
+
+  SwiGLU(x) = Swish(xW+b) * (xV+c)
+  See: https://paperswithcode.com/method/swiglu
+  """
+
+  def forward(self, x: torch.Tensor):
+    x, y = x.chunk(2, dim=-1)
+    return F.silu(x) * y
+
+
 def build_norm(dim: int, config: cfg.NormalizationConfig):
   """Builder function for normalizers.
 
@@ -59,9 +76,13 @@ def build_norm(dim: int, config: cfg.NormalizationConfig):
         zero_centered_gamma=config.zero_centered,
     )
   elif config.type == cfg.NormalizationType.LAYER_NORM:
-    return nn.LayerNorm(dim, eps=config.epsilon)
+    return normalization.LayerNorm(
+        dim, config.epsilon, config.enable_hlfb
+    )
   elif config.type == cfg.NormalizationType.GROUP_NORM:
-    return nn.GroupNorm(config.group_num, dim, config.epsilon)
+    return normalization.GroupNorm(
+        config.group_num, dim, config.epsilon, config.enable_hlfb
+    )
   else:
     raise ValueError("Unsupported norm type.")
 
@@ -71,7 +92,7 @@ def build_ff(dim: int, config: cfg.FeedForwardConfig):
 
   Args:
     dim (int): dimension of the input tensor.
-    config (`ModelConfig` object): the model configuration.
+    config (`FeedForwardConfig` object): the model configuration.
 
   Returns:
     The constructed `nn.Module` feedforward layer.
@@ -97,6 +118,10 @@ def build_ff(dim: int, config: cfg.FeedForwardConfig):
       hidden_dim=config.intermediate_size,
       activation=activation,
       use_bias=config.use_bias,
+      use_glu=(
+          config.activation.type == cfg.ActivationType.GE_GLU
+          or config.activation.type == cfg.ActivationType.SILU_GLU
+      ),
       pre_ff_norm=pre_ff_norm,
       post_ff_norm=post_ff_norm,
   )
@@ -130,5 +155,7 @@ def get_activation(config: cfg.ActivationConfig):
     return GeGLU(config.dim_in, config.dim_out)
   elif config.type == cfg.ActivationType.RELU:
     return F.relu
+  elif config.type == cfg.ActivationType.SILU_GLU:
+    return SwiGLU()
   else:
     raise ValueError("Unsupported activation type.")

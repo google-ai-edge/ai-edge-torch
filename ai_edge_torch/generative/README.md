@@ -80,7 +80,7 @@ The user needs to implement the entire LLM Pipeline themselves, and call TFLite 
 
 This approach provides users with the most control. For example, they can implement streaming, get more control over system memory or implement advanced features such as constrained grammar decoding, speculative decoding etc.
 
-A very simple text generation pipeline based on a decoder-only-transformer is provided [here](https://github.com/google-ai-edge/ai-edge-torch/blob/main/ai_edge_torch/generative/examples/c%2B%2B/text_generator_main.cc) for reference. Note that this example serves as a starting point, and users are expected to implement their own pipelines based on their model's specific requirements.
+A very simple text generation pipeline based on a decoder-only-transformer is provided [here](https://github.com/google-ai-edge/ai-edge-torch/blob/main/ai_edge_torch/generative/examples/cpp/text_generator_main.cc) for reference. Note that this example serves as a starting point, and users are expected to implement their own pipelines based on their model's specific requirements.
 
 #### Use MediaPipe LLM Inference API
 

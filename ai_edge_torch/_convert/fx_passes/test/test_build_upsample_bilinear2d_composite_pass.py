@@ -16,6 +16,7 @@
 
 from typing import Any, Callable, Union
 
+from ai_edge_torch import fx_pass_base
 from ai_edge_torch import lowertools
 from ai_edge_torch._convert import fx_passes
 import torch
@@ -39,7 +40,7 @@ def _export_to_stablehlo_with_composite(
     module = func
 
   exported_program = torch.export.export(module, export_args)
-  exported_program = fx_passes.run_passes(
+  exported_program = fx_pass_base.run_passes(
       exported_program, [fx_passes.BuildInterpolateCompositePass()]
   )
 

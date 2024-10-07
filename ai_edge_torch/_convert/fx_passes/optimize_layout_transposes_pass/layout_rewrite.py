@@ -229,11 +229,12 @@ def transpose_first_arg_rewriter(node: torch.fx.Node):
   node.target = nhwc_op
 
 
+@rewriters.register(aten.conv2d)
 @rewriters.register(aten.convolution)
 def _aten_convolution_rewriter(node: torch.fx.Node):
   op = node.target
 
-  def conv_nhwc(input, weight, bias, *args, **kwargs):
+  def conv_nhwc(input, weight, bias=None, *args, **kwargs):
     nonlocal op
     nhwc_bias = None
     if bias is not None and len(bias.shape) == 1:

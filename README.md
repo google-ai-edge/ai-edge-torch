@@ -49,7 +49,7 @@ mobile-optimized PyTorch Transformer models, which can be converted to TFLite,
 allowing users to easily deploy Large Language Models (LLMs) on mobile
 devices. Users can convert the models using the AI Edge Torch PyTorch
 Converter, and run them via the TensorFlow Lite runtime. See
-[here](ai_edge_torch/generative/examples/c%2B%2B).
+[here](ai_edge_torch/generative/examples/cpp).
 
 Mobile app developers can also use the Edge Generative API to integrate PyTorch
 LLMs directly with the MediaPipe LLM Inference API for easy integration within

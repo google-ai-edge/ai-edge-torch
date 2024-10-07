@@ -12,21 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# Testing model conversion for a few gen-ai models.
-import copy
+
+"""Testing model conversion for a few gen-ai models."""
 
 import ai_edge_torch
 from ai_edge_torch import config as ai_edge_config
-from ai_edge_torch.generative.examples.gemma import gemma, gemma2
-from ai_edge_torch.generative.examples.phi2 import phi2
-from ai_edge_torch.generative.examples.test_models import toy_model_with_kv_cache  # NOQA
+from ai_edge_torch.generative.examples.test_models import toy_model_with_kv_cache
 from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
-from ai_edge_torch.testing import model_coverage
+from ai_edge_torch.generative.layers import kv_cache
+from ai_edge_torch.generative.test import utils as test_utils
+from ai_edge_torch.generative.utilities import model_builder
 import numpy as np
 import torch
 
 from absl.testing import absltest as googletest
-from tensorflow.lite.python import interpreter
+from ai_edge_litert import interpreter
 
 
 class TestModelConversion(googletest.TestCase):
@@ -43,87 +43,139 @@ class TestModelConversion(googletest.TestCase):
         )
     )
 
+  def _get_params(self, enable_hlfb: bool):
+    """Returns a model, edge model and the kwargs to use for testing."""
+    config = toy_model_with_kv_cache.get_model_config()
+    config.enable_hlfb = enable_hlfb
+    pytorch_model = toy_model_with_kv_cache.ToyModelWithKVCache(config).eval()
+    tokens, input_pos = torch.tensor([[1]], dtype=torch.int), torch.tensor(
+        [10], dtype=torch.int
+    )
+    kv = kv_cache.KVCache.from_model_config(config)
+    kwargs = {
+        "tokens": tokens,
+        "input_pos": input_pos,
+        "kv_cache": kv,
+    }
+
+    edge_model = ai_edge_torch.convert(
+        pytorch_model,
+        sample_kwargs=kwargs,
+    )
+    edge_model.set_interpreter_builder(
+        self._interpreter_builder(edge_model.tflite_model())
+    )
+    return pytorch_model, edge_model, kwargs
+
+  def _test_model_with_kv_cache(self, enable_hlfb: bool):
+    pytorch_model, edge_model, kwargs = self._get_params(enable_hlfb)
+
+    self.assertTrue(
+        test_utils.compare_tflite_torch(
+            edge_model,
+            pytorch_model,
+            kwargs["tokens"],
+            kwargs["input_pos"],
+            kwargs["kv_cache"],
+            signature_name="serving_default",
+            atol=1e-5,
+            rtol=1e-5,
+        )
+    )
+
   @googletest.skipIf(
       ai_edge_config.Config.use_torch_xla,
       reason="tests with custom ops are not supported on oss",
   )
   def test_toy_model_with_kv_cache(self):
-    config = toy_model_with_kv_cache.get_model_config()
-    pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config).eval()
-    idx, input_pos = torch.tensor([[1]], dtype=torch.long), torch.tensor(
-        [10], dtype=torch.int64
-    )
-
-    edge_model = ai_edge_torch.convert(pytorch_model, (idx, input_pos))
-    edge_model.set_interpreter_builder(
-        self._interpreter_builder(edge_model.tflite_model())
-    )
-
-    self.assertTrue(
-        model_coverage.compare_tflite_torch(
-            edge_model,
-            pytorch_model,
-            (idx, input_pos),
-            num_valid_inputs=1,
-            atol=1e-5,
-            rtol=1e-5,
-        )
-    )
-
-  @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
-  )
-  def test_toy_model_with_multi_batches(self):
-    self.skipTest("b/362842043")
-    config = toy_model_with_kv_cache.get_model_config()
-    config.batch_size = 2
-    pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config).eval()
-    idx, input_pos = torch.tensor([[1], [2]], dtype=torch.long), torch.tensor(
-        [10], dtype=torch.int64
-    )
-
-    edge_model = ai_edge_torch.convert(pytorch_model, (idx, input_pos))
-    edge_model.set_interpreter_builder(
-        self._interpreter_builder(edge_model.tflite_model())
-    )
-
-    self.assertTrue(
-        model_coverage.compare_tflite_torch(
-            edge_model,
-            pytorch_model,
-            (idx, input_pos),
-            num_valid_inputs=1,
-            atol=1e-5,
-            rtol=1e-5,
-        )
-    )
+    self._test_model_with_kv_cache(enable_hlfb=False)
 
   @googletest.skipIf(
       ai_edge_config.Config.use_torch_xla,
       reason="tests with custom ops are not supported on oss",
   )
   def test_toy_model_with_kv_cache_with_hlfb(self):
-    config = toy_model_with_kv_cache.get_model_config()
-    config.enable_hlfb = True
-    pytorch_model = toy_model_with_kv_cache.ToyModelWithKV(config).eval()
-    idx, input_pos = torch.tensor([[1]], dtype=torch.long), torch.tensor(
-        [10], dtype=torch.int64
+    self._test_model_with_kv_cache(enable_hlfb=True)
+
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
+  def test_toy_model_has_ekv_op(self):
+    """Tests that the model has the external kv cache op."""
+    _, edge_model, _ = self._get_params(enable_hlfb=True)
+    interpreter_ = interpreter.InterpreterWithCustomOps(
+        custom_op_registerers=["GenAIOpsRegisterer"],
+        model_content=edge_model.tflite_model(),
+        experimental_default_delegate_latest_features=True,
     )
 
-    edge_model = ai_edge_torch.convert(pytorch_model, (idx, input_pos))
+    # pylint: disable=protected-access
+    op_names = [op["op_name"] for op in interpreter_._get_ops_details()]
+    self.assertIn("odml.update_external_kv_cache", op_names)
+
+  def _test_multisig_model(self, config, pytorch_model, atol, rtol):
+    # prefill
+    seq_len = 10
+    prefill_tokens = torch.full((1, seq_len), 0, dtype=torch.int, device="cpu")
+    prompt_token = torch.from_numpy(np.array([1, 2, 3, 4]))
+    prefill_tokens[0, : len(prompt_token)] = prompt_token
+    prefill_input_pos = torch.arange(0, seq_len, dtype=torch.int)
+
+    # decode
+    decode_token = torch.tensor([[1]], dtype=torch.int)
+    decode_input_pos = torch.tensor([5], dtype=torch.int)
+
+    kv = kv_cache.KVCache.from_model_config(config)
+
+    edge_model = (
+        ai_edge_torch.signature(
+            "prefill",
+            pytorch_model,
+            sample_kwargs={
+                "tokens": prefill_tokens,
+                "input_pos": prefill_input_pos,
+                "kv_cache": kv,
+            },
+        )
+        .signature(
+            "decode",
+            pytorch_model,
+            sample_kwargs={
+                "tokens": decode_token,
+                "input_pos": decode_input_pos,
+                "kv_cache": kv,
+            },
+        )
+        .convert()
+    )
     edge_model.set_interpreter_builder(
         self._interpreter_builder(edge_model.tflite_model())
     )
 
     self.assertTrue(
-        model_coverage.compare_tflite_torch(
+        test_utils.compare_tflite_torch(
             edge_model,
             pytorch_model,
-            (idx, input_pos),
-            num_valid_inputs=1,
-            atol=1e-5,
-            rtol=1e-5,
+            prefill_tokens,
+            prefill_input_pos,
+            kv,
+            signature_name="prefill",
+            atol=atol,
+            rtol=atol,
+        )
+    )
+
+    self.assertTrue(
+        test_utils.compare_tflite_torch(
+            edge_model,
+            pytorch_model,
+            decode_token,
+            decode_input_pos,
+            kv,
+            signature_name="decode",
+            atol=atol,
+            rtol=atol,
         )
     )
 
@@ -133,54 +185,8 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_tiny_llama_multisig(self):
     config = tiny_llama.get_fake_model_config()
-    pytorch_model = tiny_llama.TinyLLamma(config).eval()
-
-    # prefill
-    seq_len = 10
-    prefill_tokens = torch.full((1, seq_len), 0, dtype=torch.long, device="cpu")
-    prompt_token = torch.from_numpy(np.array([1, 2, 3, 4]))
-    prefill_tokens[0, : len(prompt_token)] = prompt_token
-    prefill_input_pos = torch.arange(0, seq_len)
-
-    # decode
-    decode_token = torch.tensor([[1]], dtype=torch.long)
-    decode_input_pos = torch.tensor([5], dtype=torch.int64)
-
-    edge_model = (
-        ai_edge_torch.signature(
-            "prefill", pytorch_model, (prefill_tokens, prefill_input_pos)
-        )
-        .signature("decode", pytorch_model, (decode_token, decode_input_pos))
-        .convert()
-    )
-    edge_model.set_interpreter_builder(
-        self._interpreter_builder(edge_model.tflite_model())
-    )
-
-    copied_model = copy.deepcopy(pytorch_model)
-
-    self.assertTrue(
-        model_coverage.compare_tflite_torch(
-            edge_model,
-            pytorch_model,
-            (prefill_tokens, prefill_input_pos),
-            signature_name="prefill",
-            num_valid_inputs=1,
-        )
-    )
-
-    # TODO(b/362840003): figure why this decode output has big numerical diff.
-    skip_output_check = True
-    if not skip_output_check:
-      self.assertTrue(
-          model_coverage.compare_tflite_torch(
-              edge_model,
-              copied_model,
-              (decode_token, decode_input_pos),
-              signature_name="decode",
-              num_valid_inputs=1,
-          )
-      )
+    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
+    self._test_multisig_model(config, pytorch_model, atol=1e-5, rtol=1e-5)
 
 
 if __name__ == "__main__":

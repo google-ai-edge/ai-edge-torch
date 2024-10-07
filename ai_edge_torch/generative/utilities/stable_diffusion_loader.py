@@ -412,6 +412,7 @@ class BaseLoader(loader.ModelLoader):
   ):
     residual_block_config = unet_config.ResidualBlock2DConfig(
         in_channels=config.in_channels,
+        hidden_channels=config.in_channels,
         out_channels=config.in_channels,
         time_embedding_channels=config.time_embedding_channels,
         normalization_config=config.normalization_config,
@@ -466,6 +467,7 @@ class BaseLoader(loader.ModelLoader):
           f"{converted_state_param_prefix}.resnets.{i}",
           unet_config.ResidualBlock2DConfig(
               in_channels=input_channels,
+              hidden_channels=config.out_channels,
               out_channels=config.out_channels,
               time_embedding_channels=config.time_embedding_channels,
               normalization_config=config.normalization_config,
@@ -508,6 +510,7 @@ class BaseLoader(loader.ModelLoader):
           f"{converted_state_param_prefix}.resnets.{i}",
           unet_config.ResidualBlock2DConfig(
               in_channels=input_channels,
+              hidden_channels=config.out_channels,
               out_channels=config.out_channels,
               time_embedding_channels=config.time_embedding_channels,
               normalization_config=config.normalization_config,
@@ -554,6 +557,7 @@ class BaseLoader(loader.ModelLoader):
           f"{converted_state_param_prefix}.resnets.{i}",
           unet_config.ResidualBlock2DConfig(
               in_channels=resnet_in_channels + res_skip_channels,
+              hidden_channels=config.out_channels,
               out_channels=config.out_channels,
               time_embedding_channels=config.time_embedding_channels,
               normalization_config=config.normalization_config,
@@ -811,6 +815,8 @@ class DiffusionModelLoader(BaseLoader):
                 cross_attention_block_config=unet_config.CrossAttentionBlock2DConfig(
                     query_dim=output_channel,
                     cross_dim=config.transformer_cross_attention_dim,
+                    hidden_dim=output_channel,
+                    output_dim=output_channel,
                     normalization_config=config.transformer_norm_config,
                     attention_config=build_attention_config(
                         num_heads=config.transformer_num_attention_heads,
@@ -877,6 +883,8 @@ class DiffusionModelLoader(BaseLoader):
             cross_attention_block_config=unet_config.CrossAttentionBlock2DConfig(
                 query_dim=mid_block_channels,
                 cross_dim=config.transformer_cross_attention_dim,
+                hidden_dim=mid_block_channels,
+                output_dim=mid_block_channels,
                 normalization_config=config.transformer_norm_config,
                 attention_config=build_attention_config(
                     num_heads=config.transformer_num_attention_heads,
@@ -950,6 +958,8 @@ class DiffusionModelLoader(BaseLoader):
                 cross_attention_block_config=unet_config.CrossAttentionBlock2DConfig(
                     query_dim=output_channel,
                     cross_dim=config.transformer_cross_attention_dim,
+                    hidden_dim=output_channel,
+                    output_dim=output_channel,
                     normalization_config=config.transformer_norm_config,
                     attention_config=build_attention_config(
                         num_heads=config.transformer_num_attention_heads,

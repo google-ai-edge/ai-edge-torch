@@ -18,8 +18,7 @@ import operator
 import os
 from typing import Union
 
-from ai_edge_torch._convert.fx_passes import ExportedProgramPassBase
-from ai_edge_torch._convert.fx_passes import ExportedProgramPassResult
+from ai_edge_torch import fx_pass_base
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import layout_check  # NOQA
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import layout_mark  # NOQA
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import layout_partitioners  # NOQA
@@ -31,7 +30,7 @@ import torch.ao.quantization.quantize_pt2e
 TransposeFunc = Union[utils.tensor_to_nchw, utils.tensor_to_nhwc]
 
 
-class OptimizeLayoutTransposesPass(ExportedProgramPassBase):
+class OptimizeLayoutTransposesPass(fx_pass_base.ExportedProgramPassBase):
 
   def get_source_meta(self, node: torch.fx.Node):
     keys = ["stack_trace", "nn_module_stack", "source_fn_stack", "from_node"]
@@ -94,7 +93,7 @@ class OptimizeLayoutTransposesPass(ExportedProgramPassBase):
 
     q_args = input_q.args[1:]
     q_kwargs = input_q.kwargs
-    q_op, dq_op = self.get_paired_q_dq_ops(input_q.target)
+    q_op, dq_op = utils.get_paired_q_dq_ops(input_q.target)
     with graph.inserting_before(target):
       # Q and DQ inserted here may required updating the `axis` arg when they
       # are per_channel ops. However, instead of updating here, the nodes would
@@ -301,4 +300,4 @@ class OptimizeLayoutTransposesPass(ExportedProgramPassBase):
     # Mark const node again for debugging
     self.mark_const_nodes(exported_program)
 
-    return ExportedProgramPassResult(exported_program, True)
+    return fx_pass_base.ExportedProgramPassResult(exported_program, True)

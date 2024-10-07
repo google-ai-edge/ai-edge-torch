@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from ai_edge_torch.generative.layers.attention import CrossAttention
 from ai_edge_torch.generative.layers.attention import SelfAttention
@@ -41,22 +41,22 @@ class ResidualBlock2D(nn.Module):
     )
     self.conv_1 = nn.Conv2d(
         config.in_channels,
-        config.out_channels,
+        config.hidden_channels,
         kernel_size=3,
         stride=1,
         padding=1,
     )
     if config.time_embedding_channels is not None:
       self.time_emb_proj = nn.Linear(
-          config.time_embedding_channels, config.out_channels
+          config.time_embedding_channels, config.hidden_channels
       )
     else:
       self.time_emb_proj = None
     self.norm_2 = layers_builder.build_norm(
-        config.out_channels, config.normalization_config
+        config.hidden_channels, config.normalization_config
     )
     self.conv_2 = nn.Conv2d(
-        config.out_channels,
+        config.hidden_channels,
         config.out_channels,
         kernel_size=3,
         stride=1,
@@ -122,7 +122,6 @@ class AttentionBlock2D(nn.Module):
         config.attention_batch_size,
         config.dim,
         config.attention_config,
-        0,
         enable_hlfb=config.enable_hlfb,
     )
 
@@ -145,14 +144,15 @@ class AttentionBlock2D(nn.Module):
       x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
     else:
-      x = input_tensor.view(B, C, H * W)
-      x = x.transpose(-1, -2)
+      x = torch.permute(input_tensor, (0, 2, 3, 1))
       x = self.norm(x)
+      x = x.view(B, H * W, C)
     x = x.contiguous()  # Prevent BATCH_MATMUL op in converted tflite.
     x = self.attention(x)
-    x = x.transpose(-1, -2)
-    x = x.view(B, C, H, W)
+    x = x.view(B, H, W, C)
+    residual = torch.permute(residual, (0, 2, 3, 1))
     x = x + residual
+    x = torch.permute(x, (0, 3, 1, 2))
     return x
 
 
@@ -178,8 +178,9 @@ class CrossAttentionBlock2D(nn.Module):
         config.attention_batch_size,
         config.query_dim,
         config.cross_dim,
+        config.hidden_dim,
+        config.output_dim,
         config.attention_config,
-        0,
         enable_hlfb=config.enable_hlfb,
     )
 
@@ -206,13 +207,14 @@ class CrossAttentionBlock2D(nn.Module):
       x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
     else:
-      x = input_tensor.view(B, C, H * W)
-      x = x.transpose(-1, -2)
+      x = torch.permute(input_tensor, (0, 2, 3, 1))
       x = self.norm(x)
+      x = x.view(B, H * W, C)
     x = self.attention(x, context_tensor)
-    x = x.transpose(-1, -2)
-    x = x.view(B, C, H, W)
+    x = x.view(B, H, W, C)
+    residual = torch.permute(residual, (0, 2, 3, 1))
     x = x + residual
+    x = torch.permute(x, (0, 3, 1, 2))
     return x
 
 
@@ -250,17 +252,17 @@ class FeedForwardBlock2D(nn.Module):
       x = x.view(B, C, H * W)
       x = x.transpose(-1, -2)
     else:
-      x = input_tensor.view(B, C, H * W)
-      x = x.transpose(-1, -2)
+      x = torch.permute(input_tensor, (0, 2, 3, 1))
       x = self.norm(x)
+      x = x.view(B, H * W, C)
     x = self.w1(x)
     x = self.act(x)
     x = self.w2(x)
-
-    x = x.transpose(-1, -2)  # (B, C, HW)
-    x = x.view((B, C, H, W))
-
-    return x + residual
+    x = x.view(B, H, W, C)
+    residual = torch.permute(residual, (0, 2, 3, 1))
+    x = x + residual
+    x = torch.permute(x, (0, 3, 1, 2))
+    return x
 
 
 class TransformerBlock2D(nn.Module):
@@ -389,6 +391,7 @@ class DownEncoderBlock2D(nn.Module):
           ResidualBlock2D(
               unet_cfg.ResidualBlock2DConfig(
                   in_channels=input_channels,
+                  hidden_channels=config.out_channels,
                   out_channels=config.out_channels,
                   time_embedding_channels=config.time_embedding_channels,
                   normalization_config=config.normalization_config,
@@ -413,7 +416,7 @@ class DownEncoderBlock2D(nn.Module):
       time_emb: Optional[torch.Tensor] = None,
       context_tensor: Optional[torch.Tensor] = None,
       output_hidden_states: bool = False,
-  ) -> torch.Tensor | Tuple[torch.Tensor, List[torch.Tensor]]:
+  ) -> Union[torch.Tensor, Tuple[torch.Tensor, List[torch.Tensor]]]:
     """Forward function of the DownEncoderBlock2D.
 
     Args:
@@ -490,6 +493,7 @@ class UpDecoderBlock2D(nn.Module):
           ResidualBlock2D(
               unet_cfg.ResidualBlock2DConfig(
                   in_channels=input_channels,
+                  hidden_channels=config.out_channels,
                   out_channels=config.out_channels,
                   time_embedding_channels=config.time_embedding_channels,
                   normalization_config=config.normalization_config,
@@ -600,6 +604,7 @@ class SkipUpDecoderBlock2D(nn.Module):
           ResidualBlock2D(
               unet_cfg.ResidualBlock2DConfig(
                   in_channels=resnet_in_channels + res_skip_channels,
+                  hidden_channels=config.out_channels,
                   out_channels=config.out_channels,
                   time_embedding_channels=config.time_embedding_channels,
                   normalization_config=config.normalization_config,
@@ -704,6 +709,7 @@ class MidBlock2D(nn.Module):
         ResidualBlock2D(
             unet_cfg.ResidualBlock2DConfig(
                 in_channels=config.in_channels,
+                hidden_channels=config.in_channels,
                 out_channels=config.in_channels,
                 time_embedding_channels=config.time_embedding_channels,
                 normalization_config=config.normalization_config,
@@ -722,6 +728,7 @@ class MidBlock2D(nn.Module):
           ResidualBlock2D(
               unet_cfg.ResidualBlock2DConfig(
                   in_channels=config.in_channels,
+                  hidden_channels=config.in_channels,
                   out_channels=config.in_channels,
                   time_embedding_channels=config.time_embedding_channels,
                   normalization_config=config.normalization_config,

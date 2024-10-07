@@ -16,8 +16,7 @@
 
 import functools
 
-from ai_edge_torch._convert.fx_passes._pass_base import ExportedProgramPassBase
-from ai_edge_torch._convert.fx_passes._pass_base import ExportedProgramPassResult  # NOQA
+from ai_edge_torch import fx_pass_base
 from ai_edge_torch.hlfb import mark_pattern
 from ai_edge_torch.hlfb.mark_pattern import pattern as pattern_module
 import torch
@@ -103,7 +102,7 @@ def _get_interpolate_nearest2d_pattern():
   return pattern
 
 
-class BuildInterpolateCompositePass(ExportedProgramPassBase):
+class BuildInterpolateCompositePass(fx_pass_base.ExportedProgramPassBase):
 
   def __init__(self):
     super().__init__()
@@ -124,4 +123,4 @@ class BuildInterpolateCompositePass(ExportedProgramPassBase):
 
     graph_module.graph.lint()
     graph_module.recompile()
-    return ExportedProgramPassResult(exported_program, True)
+    return fx_pass_base.ExportedProgramPassResult(exported_program, True)

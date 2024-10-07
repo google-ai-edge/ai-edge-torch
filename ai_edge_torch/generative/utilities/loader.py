@@ -101,6 +101,8 @@ class ModelLoader:
     attn_value_proj: str = None
     attn_fused_qkv_proj: str = None
     attn_output_proj: str = None
+    attn_query_norm: str = None
+    attn_key_norm: str = None
 
     ff_up_proj: str = None
     ff_down_proj: str = None
@@ -208,7 +210,7 @@ class ModelLoader:
     if self._file_name.endswith(".safetensors"):
       return load_safetensors
 
-    if self._file_name.endswith(".bin") or self._file_name.endswith(".pt"):
+    if self._file_name.endswith(".bin") or self._file_name.endswith("pt"):
       return load_pytorch_statedict
 
     raise ValueError("File format not supported.")
@@ -221,7 +223,8 @@ class ModelLoader:
       converted_state: Dict[str, torch.Tensor],
   ):
     prefix = f"transformer_blocks.{idx}"
-    if config.ff_config.type == model_config.FeedForwardType.SEQUENTIAL:
+    ff_config = config.block_config(idx).ff_config
+    if ff_config.type == model_config.FeedForwardType.SEQUENTIAL:
       ff_up_proj_name = self._names.ff_up_proj.format(idx)
       ff_down_proj_name = self._names.ff_down_proj.format(idx)
       converted_state[f"{prefix}.ff.w1.weight"] = state.pop(
@@ -230,7 +233,7 @@ class ModelLoader:
       converted_state[f"{prefix}.ff.w2.weight"] = state.pop(
           f"{ff_down_proj_name}.weight"
       )
-      if config.ff_config.use_bias:
+      if ff_config.use_bias:
         converted_state[f"{prefix}.ff.w1.bias"] = state.pop(
             f"{ff_up_proj_name}.bias"
         )
@@ -250,7 +253,7 @@ class ModelLoader:
       converted_state[f"{prefix}.ff.w1.weight"] = state.pop(
           f"{ff_gate_proj_name}.weight"
       )
-      if config.ff_config.use_bias:
+      if ff_config.use_bias:
         converted_state[f"{prefix}.ff.w3.bias"] = state.pop(
             f"{ff_up_proj_name}.bias"
         )
@@ -289,6 +292,7 @@ class ModelLoader:
       converted_state: Dict[str, torch.Tensor],
   ):
     prefix = f"transformer_blocks.{idx}"
+    attn_config = config.block_config(idx).attn_config
     if self._names.attn_fused_qkv_proj:
       fused_qkv_name = self._names.attn_fused_qkv_proj.format(idx)
       converted_state[f"{prefix}.atten_func.qkv_projection.weight"] = state.pop(
@@ -300,13 +304,13 @@ class ModelLoader:
       v_name = self._names.attn_value_proj.format(idx)
       converted_state[f"{prefix}.atten_func.qkv_projection.weight"] = (
           self._fuse_qkv(
-              config,
+              attn_config,
               state.pop(f"{q_name}.weight"),
               state.pop(f"{k_name}.weight"),
               state.pop(f"{v_name}.weight"),
           )
       )
-    if config.attn_config.qkv_use_bias:
+    if attn_config.qkv_use_bias:
       if self._names.attn_fused_qkv_proj:
         converted_state[f"{prefix}.atten_func.qkv_projection.bias"] = state.pop(
             f"{fused_qkv_name}.bias"
@@ -314,18 +318,29 @@ class ModelLoader:
       else:
         converted_state[f"{prefix}.atten_func.qkv_projection.bias"] = (
             self._fuse_qkv(
-                config,
+                attn_config,
                 state.pop(f"{q_name}.bias"),
                 state.pop(f"{k_name}.bias"),
                 state.pop(f"{v_name}.bias"),
             )
         )
 
+    if self._names.attn_query_norm is not None:
+      attn_query_norm_name = self._names.attn_query_norm.format(idx)
+      converted_state[f"{prefix}.atten_func.query_norm.weight"] = state.pop(
+          f"{attn_query_norm_name}.weight"
+      )
+    if self._names.attn_key_norm is not None:
+      attn_key_norm_name = self._names.attn_key_norm.format(idx)
+      converted_state[f"{prefix}.atten_func.key_norm.weight"] = state.pop(
+          f"{attn_key_norm_name}.weight"
+      )
+
     o_name = self._names.attn_output_proj.format(idx)
     converted_state[f"{prefix}.atten_func.output_projection.weight"] = (
         state.pop(f"{o_name}.weight")
     )
-    if config.attn_config.output_proj_use_bias:
+    if attn_config.output_proj_use_bias:
       converted_state[f"{prefix}.atten_func.output_projection.bias"] = (
           state.pop(f"{o_name}.bias")
       )
@@ -360,18 +375,16 @@ class ModelLoader:
 
   def _fuse_qkv(
       self,
-      config: model_config.ModelConfig,
+      attn_config: model_config.AttentionConfig,
       q: torch.Tensor,
       k: torch.Tensor,
       v: torch.Tensor,
   ) -> torch.Tensor:
-    if config.attn_config.qkv_fused_interleaved:
-      q_per_kv = (
-          config.attn_config.num_heads // config.attn_config.num_query_groups
-      )
-      qs = torch.split(q, config.attn_config.head_dim * q_per_kv)
-      ks = torch.split(k, config.attn_config.head_dim)
-      vs = torch.split(v, config.attn_config.head_dim)
+    if attn_config.qkv_fused_interleaved:
+      q_per_kv = attn_config.num_heads // attn_config.num_query_groups
+      qs = torch.split(q, attn_config.head_dim * q_per_kv)
+      ks = torch.split(k, attn_config.head_dim)
+      vs = torch.split(v, attn_config.head_dim)
       cycled = [t for group in zip(qs, ks, vs) for t in group]
       return torch.cat(cycled)
     else:

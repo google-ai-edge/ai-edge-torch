@@ -279,7 +279,8 @@ class ModelLoader:
     prefix = additional_prefix + f"transformer_blocks.{idx}"
     if names.ff_up_proj is None or names.ff_down_proj is None:
       return
-    if config.ff_config.type == model_config.FeedForwardType.SEQUENTIAL:
+    ff_config = config.block_config(idx).ff_config
+    if ff_config.type == model_config.FeedForwardType.SEQUENTIAL:
       ff_up_proj_name = names.ff_up_proj.format(idx)
       ff_down_proj_name = names.ff_down_proj.format(idx)
       converted_state[f"{prefix}.ff.w1.weight"] = state.pop(
@@ -288,7 +289,7 @@ class ModelLoader:
       converted_state[f"{prefix}.ff.w2.weight"] = state.pop(
           f"{ff_down_proj_name}.weight"
       )
-      if config.ff_config.use_bias:
+      if ff_config.use_bias:
         converted_state[f"{prefix}.ff.w1.bias"] = state.pop(
             f"{ff_up_proj_name}.bias"
         )
@@ -309,7 +310,7 @@ class ModelLoader:
         converted_state[f"{prefix}.ff.w1.weight"] = state.pop(
             f"{ff_gate_proj_name}.weight"
         )
-        if config.ff_config.use_bias:
+        if ff_config.use_bias:
           converted_state[f"{prefix}.ff.w3.bias"] = state.pop(
               f"{ff_up_proj_name}.bias"
           )
@@ -337,20 +338,21 @@ class ModelLoader:
     ):
       return
     prefix = additional_prefix + f"transformer_blocks.{idx}"
+    attn_config = config.block_config(idx).attn_config
     q_name = names.attn_query_proj.format(idx)
     k_name = names.attn_key_proj.format(idx)
     v_name = names.attn_value_proj.format(idx)
     # model.encoder.transformer_blocks[0].atten_func.q_projection.weight
     if fuse_attention:
       converted_state[f"{prefix}.atten_func.attn.weight"] = self._fuse_qkv(
-          config,
+          attn_config,
           state.pop(f"{q_name}.weight"),
           state.pop(f"{k_name}.weight"),
           state.pop(f"{v_name}.weight"),
       )
-      if config.attn_config.qkv_use_bias:
+      if attn_config.qkv_use_bias:
         converted_state[f"{prefix}.atten_func.attn.bias"] = self._fuse_qkv(
-            config,
+            attn_config,
             state.pop(f"{q_name}.bias"),
             state.pop(f"{k_name}.bias"),
             state.pop(f"{v_name}.bias"),
@@ -365,7 +367,7 @@ class ModelLoader:
       converted_state[f"{prefix}.atten_func.v_projection.weight"] = state.pop(
           f"{v_name}.weight"
       )
-      if config.attn_config.qkv_use_bias:
+      if attn_config.qkv_use_bias:
         converted_state[f"{prefix}.atten_func.q_projection.bias"] = state.pop(
             f"{q_name}.bias"
         )
@@ -380,7 +382,7 @@ class ModelLoader:
     converted_state[f"{prefix}.atten_func.output_projection.weight"] = (
         state.pop(f"{o_name}.weight")
     )
-    if config.attn_config.output_proj_use_bias:
+    if attn_config.output_proj_use_bias:
       converted_state[f"{prefix}.atten_func.output_projection.bias"] = (
           state.pop(f"{o_name}.bias")
       )
@@ -402,6 +404,7 @@ class ModelLoader:
     ):
       return
     prefix = additional_prefix + f"transformer_blocks.{idx}"
+    attn_config = config.block_config(idx).attn_config
     q_name = names.cross_attn_query_proj.format(idx)
     k_name = names.cross_attn_key_proj.format(idx)
     v_name = names.cross_attn_value_proj.format(idx)
@@ -409,16 +412,16 @@ class ModelLoader:
     if fuse_attention:
       converted_state[f"{prefix}.cross_atten_func.attn.weight"] = (
           self._fuse_qkv(
-              config,
+              attn_config,
               state.pop(f"{q_name}.weight"),
               state.pop(f"{k_name}.weight"),
               state.pop(f"{v_name}.weight"),
           )
       )
-      if config.attn_config.qkv_use_bias:
+      if attn_config.qkv_use_bias:
         converted_state[f"{prefix}.cross_atten_func.attn.bias"] = (
             self._fuse_qkv(
-                config,
+                attn_config,
                 state.pop(f"{q_name}.bias"),
                 state.pop(f"{k_name}.bias"),
                 state.pop(f"{v_name}.bias"),
@@ -434,7 +437,7 @@ class ModelLoader:
       converted_state[f"{prefix}.cross_atten_func.v_projection.weight"] = (
           state.pop(f"{v_name}.weight")
       )
-      if config.attn_config.qkv_use_bias:
+      if attn_config.qkv_use_bias:
         converted_state[f"{prefix}.cross_atten_func.q_projection.bias"] = (
             state.pop(f"{q_name}.bias")
         )
@@ -449,7 +452,7 @@ class ModelLoader:
     converted_state[f"{prefix}.cross_atten_func.output_projection.weight"] = (
         state.pop(f"{o_name}.weight")
     )
-    if config.attn_config.output_proj_use_bias:
+    if attn_config.output_proj_use_bias:
       converted_state[f"{prefix}.cross_atten_func.output_projection.bias"] = (
           state.pop(f"{o_name}.bias")
       )
@@ -496,16 +499,14 @@ class ModelLoader:
 
   def _fuse_qkv(
       self,
-      config: model_config.ModelConfig,
+      attn_config: model_config.AttentionConfig,
       q: torch.Tensor,
       k: torch.Tensor,
       v: torch.Tensor,
   ) -> torch.Tensor:
-    q_per_kv = (
-        config.attn_config.num_heads // config.attn_config.num_query_groups
-    )
-    qs = torch.split(q, config.attn_config.head_dim * q_per_kv)
-    ks = torch.split(k, config.attn_config.head_dim)
-    vs = torch.split(v, config.attn_config.head_dim)
+    q_per_kv = attn_config.num_heads // attn_config.num_query_groups
+    qs = torch.split(q, attn_config.head_dim * q_per_kv)
+    ks = torch.split(k, attn_config.head_dim)
+    vs = torch.split(v, attn_config.head_dim)
     cycled = [t for group in zip(qs, ks, vs) for t in group]
     return torch.cat(cycled)
