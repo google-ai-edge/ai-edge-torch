@@ -13,58 +13,66 @@
 # limitations under the License.
 # ==============================================================================
 
+
 import os
-from pathlib import Path
-import ai_edge_torch
+import pathlib
+
+from absl import app
+from absl import flags
 from ai_edge_torch.generative.examples.qwen2 import qwen2
-from ai_edge_torch.generative.quantize import quant_recipes
-import torch
-from safetensors import safe_open
-def convert_qwen_to_tflite(
-    checkpoint_path: str,
-    prefill_seq_len: int = 512,
-    kv_cache_max_len: int = 1024,
-    quantize: bool = True,
-):
-  """Converting a Qwen2 model to multi-signature
-  tflite model.
+from ai_edge_torch.generative.utilities import converter
 
-  Args:
-      checkpoint_path (str): The filepath to the model checkpoint, or directory holding the checkpoint.
-      prefill_seq_len (int, optional): The maximum size of prefill input tensor.
-        Defaults to 512.
-      kv_cache_max_len (int, optional): The maximum size of KV cache buffer,
-        including both prefill and decode. Defaults to 1024.
-      quantize (bool, optional): Whether the model should be quanized.
-        Defaults to True.
-  """
+_MODEL_SIZE = flags.DEFINE_enum(
+    'model_size',
+    '0.5b',
+    ['0.5b', '1.5b', '3b'],
+    'The size of the model to convert.',
+)
+_CHECKPOINT_PATH = flags.DEFINE_string(
+    'checkpoint_path',
+    os.path.join(pathlib.Path.home(), '/Downloads/llm_data/qwen2'),
+    'The path to the model checkpoint, or directory holding the checkpoint.',
+)
+_TFLITE_PATH = flags.DEFINE_string(
+    'tflite_path',
+    '/tmp/',
+    'The tflite file path to export.',
+)
+_PREFILL_SEQ_LEN = flags.DEFINE_integer(
+    'prefill_seq_len',
+    1024,
+    'The maximum size of prefill input tensor.',
+)
+_KV_CACHE_MAX_LEN = flags.DEFINE_integer(
+    'kv_cache_max_len',
+    1280,
+    'The maximum size of KV cache buffer, including both prefill and decode.',
+)
+_QUANTIZE = flags.DEFINE_bool(
+    'quantize',
+    True,
+    'Whether the model should be quantized.',
+)
 
-  pytorch_model = qwen2.build_qwen2_model(
-      checkpoint_path, kv_cache_max_len=kv_cache_max_len
+_BUILDER = {
+    '0.5b': qwen2.build_0_5b_model,
+}
+
+
+def main(_):
+  pytorch_model = _BUILDER[_MODEL_SIZE.value](
+      _CHECKPOINT_PATH.value, kv_cache_max_len=_KV_CACHE_MAX_LEN.value
   )
-  # Tensors used to trace the model graph during conversion.
-  prefill_tokens = torch.full((1, prefill_seq_len), 0, dtype=torch.long)
-  prefill_input_pos = torch.arange(0, prefill_seq_len)
-  decode_token = torch.tensor([[0]], dtype=torch.long)
-  decode_input_pos = torch.tensor([0], dtype=torch.int64)
-
-  quant_config = quant_recipes.full_int8_dynamic_recipe() if quantize else None
-  edge_model = (
-      ai_edge_torch.signature(
-          'prefill', pytorch_model, (prefill_tokens, prefill_input_pos)
-      )
-      .signature('decode', pytorch_model, (decode_token, decode_input_pos))
-      .convert(quant_config=quant_config)
-  )
-  edge_model.export(
-      f'/tmp/qwen2_seq{prefill_seq_len}_kv{kv_cache_max_len}.tflite'
+  quant_suffix = 'q8' if _QUANTIZE.value else 'f32'
+  model_size = _MODEL_SIZE.value.replace('.', '_')
+  output_filename = f'qwen_{model_size}_{quant_suffix}_seq{_PREFILL_SEQ_LEN.value}_ekv{_KV_CACHE_MAX_LEN.value}.tflite'
+  converter.convert_to_tflite(
+      pytorch_model,
+      tflite_path=os.path.join(_TFLITE_PATH.value, output_filename),
+      prefill_seq_len=_PREFILL_SEQ_LEN.value,
+      quantize=_QUANTIZE.value,
   )
 
 
 if __name__ == '__main__':
-  checkpoint_path = 'Downloads/llm_data/Qwen2'
-
-# Load the model state using safetensors
-  with safe_open(checkpoint_path, framework="pt", device="cpu") as f:
-      state_dict = {key: f.get_tensor(key) for key in f.keys()}
-  convert_qwen_to_tflite(checkpoint_path)
+  app.run(main)
