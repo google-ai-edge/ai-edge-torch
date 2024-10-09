@@ -24,6 +24,7 @@ from ai_edge_torch.odml_torch.jax_bridge import utils
 import jax
 from jax._src.lib.mlir import ir
 from jax._src.lib.mlir.dialects import func
+from jax._src.lib.mlir.dialects import hlo as stablehlo
 import torch.utils._pytree as pytree
 
 # Jax double (64bit) precision is required to generate StableHLO mlir with
@@ -143,8 +144,39 @@ def wrap(jaxfn: Callable[Any, Any], ir_input_names: list[str] = None):
       ir_inputs = []
 
     results = func.CallOp(cloned_func, ir_inputs).results
+
+    if lctx.node is None:
+      return results[0] if len(results) == 1 else results
+
+    out_avals = lctx.node.meta.get("tensor_meta") or lctx.node.meta.get("val")
+
+    if out_avals is None:
+      return results[0] if len(results) == 1 else results
+
+    def sanitize_result_elty(result, aval):
+      # JAX implementation may not respect aten op's output dtype. For example,
+      # JAX may implement a slightly different dtype upcast rules, leads to
+      # different result's dtype from bridged lowering and torch op output.
+      # Here we add an additional `stablehlo.convert` op when dtype does not
+      # match, to ensure the lowering's result dtype will always be the same
+      # as torch op's output dtype.
+      if aval is None:
+        return result
+
+      target_elty = export_utils.torch_dtype_to_ir_element_type(
+          lctx.ir_context, aval.dtype
+      )
+      if result.type.element_type == target_elty:
+        return result
+      return stablehlo.convert(
+          ir.RankedTensorType.get(result.type.shape, target_elty), result
+      )
+
     if len(results) == 1:
-      return results[0]
-    return results
+      return sanitize_result_elty(results[0], out_avals)
+    return [
+        sanitize_result_elty(result, aval)
+        for result, aval in zip(results, out_avals)
+    ]
 
   return wrapped
