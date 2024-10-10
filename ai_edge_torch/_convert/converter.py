@@ -15,7 +15,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Literal, Optional, Tuple, Union
 
 from ai_edge_torch import model
 from ai_edge_torch._convert import conversion
@@ -102,6 +102,7 @@ class Converter:
       sample_args=None,
       sample_kwargs=None,
       *,
+      strict_export: Union[Literal["auto"], bool] = True,
       quant_config: Optional[qcfg.QuantConfig] = None,
       dynamic_shapes: Optional[Union[dict[str, Any], Tuple[Any, ...]]] = None,
       _ai_edge_converter_flags: Optional[dict[str, Any]] = None,
@@ -123,6 +124,11 @@ class Converter:
         with prior to conversion.
       sample_kwargs: Dict of str to tensor by which the torch module will be
         traced with prior to conversion.
+      strict_export: Experimental `strict` arg for torch.export.export. When
+        enabled, the export function will trace the program through TorchDynamo
+        and ensure the soundness of the exported graph. When
+        strict_export="auto", the function will try to export module in both
+        modes and use the first one succeeds for downstream conversion.
       quant_config: User-defined quantization method and scheme of the model.
       dynamic_shapes: Optional dict or tuple that specify dynamic shape
         specifications for each input in original order. See
@@ -162,6 +168,7 @@ class Converter:
         )
     return conversion.convert_signatures(
         self._signatures,
+        strict_export=strict_export,
         quant_config=quant_config,
         _tfl_converter_flags=_ai_edge_converter_flags,
     )
@@ -205,6 +212,7 @@ def convert(
     sample_args=None,
     sample_kwargs=None,
     *,
+    strict_export: Union[Literal["auto"], bool] = True,
     quant_config: Optional[qcfg.QuantConfig] = None,
     dynamic_shapes: Optional[Union[dict[str, Any], Tuple[Any, ...]]] = None,
     _ai_edge_converter_flags: Optional[dict[str, Any]] = None,
@@ -217,6 +225,11 @@ def convert(
       prior to conversion.
     sample_kwargs: Dict of str to tensor by which the torch module will be
       traced with prior to conversion.
+    strict_export: Experimental `strict` arg for torch.export.export. When
+      enabled, the export function will trace the program through TorchDynamo
+      and ensure the soundness of the exported graph. When strict_export="auto",
+      the function will try to export module in both modes and use the first one
+      succeeds for downstream conversion.
     quant_config: User-defined quantization method and scheme of the model.
     dynamic_shapes: Optional dict or tuple that specify dynamic shape
       specifications for each input in original order. See
@@ -242,6 +255,7 @@ def convert(
       module,
       sample_args,
       sample_kwargs,
+      strict_export=strict_export,
       quant_config=quant_config,
       dynamic_shapes=dynamic_shapes,
       _ai_edge_converter_flags=_ai_edge_converter_flags,

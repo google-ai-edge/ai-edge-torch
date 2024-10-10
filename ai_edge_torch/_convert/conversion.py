@@ -15,7 +15,7 @@
 
 import logging
 import os
-from typing import Any, Optional
+from typing import Any, Literal, Optional, Union
 
 from ai_edge_torch import fx_pass_base
 from ai_edge_torch import lowertools
@@ -73,6 +73,7 @@ def _warn_training_modules(signatures: list[signature.Signature]):
 def convert_signatures(
     signatures: list[signature.Signature],
     *,
+    strict_export: Union[Literal["auto"], bool] = True,
     quant_config: Optional[qcfg.QuantConfig] = None,
     _tfl_converter_flags: Optional[dict[str, Any]],
 ) -> model.TfLiteModel:
@@ -81,6 +82,11 @@ def convert_signatures(
   Args:
       signatures: The list of 'signature.Signature' objects containing PyTorch
         modules to be converted.
+      strict_export: Experimental `strict` arg for torch.export.export. When
+        enabled, the export function will trace the program through TorchDynamo
+        and ensure the soundness of the exported graph. When
+        strict_export="auto", the function will try to export module in both
+        modes and use the first one succeeds for downstream conversion.
       quant_config: User-defined quantization method and scheme of the model.
       _tfl_converter_flags: A nested dictionary allowing setting flags for the
         underlying tflite converter.
@@ -93,10 +99,24 @@ def convert_signatures(
 
   _warn_training_modules(signatures)
 
-  exported_programs: torch.export.torch.export.ExportedProgram = [
-      torch.export.export(
-          sig.module, sig.flat_args, dynamic_shapes=sig.dynamic_shapes
-      )
+  def export(*args, **kwargs):
+    nonlocal strict_export
+    if strict_export == "auto":
+      try:
+        return torch.export.export(*args, **kwargs, strict=True)
+      except Exception:
+        logging.warning(
+            "torch.export.export(..., strict=True) failed. Retrying with"
+            " strict=False"
+        )
+        return torch.export.export(*args, **kwargs, strict=False)
+    elif not strict_export:
+      return torch.export.export(*args, **kwargs, strict=False)
+    else:
+      return torch.export.export(*args, **kwargs, strict=True)
+
+  exported_programs: torch.export.ExportedProgram = [
+      export(sig.module, sig.flat_args, dynamic_shapes=sig.dynamic_shapes)
       for sig in signatures
   ]
 
