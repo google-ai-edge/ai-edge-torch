@@ -102,7 +102,7 @@ class CanonicalizePass(ExportedProgramPassBase):
         # for retracing. If the input memory format is already contiguous,
         # retracing in run_decomposition below would decompose torch.reshape
         # back to one aten.view.
-        node.target = lambda self, size: torch.reshape(self, size)
+        node.target = lambda self, size: torch.reshape(self.contiguous(), size)
 
     exported_program = exported_program.run_decompositions(
         self._DUMMY_DECOMP_TABLE

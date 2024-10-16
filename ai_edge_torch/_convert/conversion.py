@@ -35,7 +35,7 @@ def _run_convert_passes(
   exported_program = generative_fx_passes.run_generative_passes(
       exported_program
   )
-  return fx_pass_base.run_passes(
+  exported_program = fx_pass_base.run_passes(
       exported_program,
       [
           fx_passes.BuildInterpolateCompositePass(),
@@ -48,6 +48,7 @@ def _run_convert_passes(
           fx_passes.CanonicalizePass(),
       ],
   )
+  return exported_program
 
 
 def _warn_training_modules(signatures: list[signature.Signature]):
