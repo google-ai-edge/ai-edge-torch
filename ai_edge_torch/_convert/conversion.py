@@ -44,6 +44,8 @@ def _run_convert_passes(
           fx_passes.CanonicalizePass(),
           fx_passes.BuildAtenCompositePass(),
           fx_passes.CanonicalizePass(),
+          fx_passes.RemoveNonUserOutputsPass(),
+          fx_passes.CanonicalizePass(),
           fx_passes.InjectMlirDebuginfoPass(),
           fx_passes.CanonicalizePass(),
       ],
