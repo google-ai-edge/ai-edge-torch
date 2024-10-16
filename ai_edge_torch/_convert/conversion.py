@@ -104,17 +104,27 @@ def convert_signatures(
     nonlocal strict_export
     if strict_export == "auto":
       try:
-        return torch.export.export(*args, **kwargs, strict=True)
+        exported_program = torch.export.export(*args, **kwargs, strict=True)
       except Exception:
         logging.warning(
             "torch.export.export(..., strict=True) failed. Retrying with"
             " strict=False"
         )
-        return torch.export.export(*args, **kwargs, strict=False)
+        exported_program = torch.export.export(*args, **kwargs, strict=False)
     elif not strict_export:
-      return torch.export.export(*args, **kwargs, strict=False)
+      exported_program = torch.export.export(*args, **kwargs, strict=False)
     else:
-      return torch.export.export(*args, **kwargs, strict=True)
+      exported_program = torch.export.export(*args, **kwargs, strict=True)
+
+    if hasattr(torch._decomp, "_decomp_table_to_post_autograd_aten"):
+      # Available after torch 2.5.0: `_decomp_table_to_post_autograd_aten` is a
+      # stop-gap table which replicates the old behaviour of post-dispatch IR.
+      # This could help ensure the collection of aten ops remaining still as the
+      # implementation of torch.export changes.
+      exported_program = exported_program.run_decompositions(
+          torch._decomp._decomp_table_to_post_autograd_aten()
+      )
+    return exported_program
 
   exported_programs: torch.export.ExportedProgram = [
       export(sig.module, sig.flat_args, dynamic_shapes=sig.dynamic_shapes)
