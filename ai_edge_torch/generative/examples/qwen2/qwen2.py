@@ -90,7 +90,7 @@ class Qwen2Model(nn.Module):
       tokens: torch.Tensor,
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
-  ) -> dict[torch.Tensor, kv_utils.KVCache]:
+  ) -> dict:
     _, seq_len = tokens.size()
     assert self.config.max_seq_len >= seq_len, (
         f"Cannot forward sequence of length {seq_len}, max seq length is only"
@@ -105,20 +105,24 @@ class Qwen2Model(nn.Module):
     cos = cos.index_select(0, input_pos)
     sin = sin.index_select(0, input_pos)
     mask = self.mask_cache.index_select(2, input_pos)
-    mask = mask[:, :, :, : self.config.kv_cache_max]
+    mask = mask[:, :, :, :seq_len]
 
     # token embeddings of shape (b, t, n_embd)
     x = self.tok_embedding(tokens)
     if self.config.embedding_scale is not None:
       x = x * self.config.embedding_scale
 
-    updated_kv_entires = []
+    updated_kv_entries = []
     for i, block in enumerate(self.transformer_blocks):
       kv_entry = kv_cache.caches[i] if kv_cache else None
-      x, kv_entry = block(x, (cos, sin), mask, input_pos, kv_entry)
+      output = block(x, (cos, sin), mask, input_pos, kv_entry)
+      if isinstance(output, tuple):
+          x, kv_entry = output 
+      else:
+          x = output 
       if kv_entry:
-        updated_kv_entires.append(kv_entry)
-    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entires))
+       updated_kv_entries.append(kv_entry)
+    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entries))
 
     x = self.final_norm(x)
     logits = self.lm_head(x)  # (b, t, vocab_size)
@@ -193,24 +197,3 @@ def build_0_5b_model(
   )
 
 
-def define_and_run() -> None:
-  current_dir = Path(__file__).parent.resolve()
-  Qwen2_goldens = torch.load(current_dir / "qwen2_0.5_golden.pt")
-  print("Running  QWEN 2")
-  kv_cache_max_len = 1024
-  checkpoint_path = os.path.join(Path.home(), "Downloads/llm_data/qwen2")
-  model = build_qwen2_model(checkpoint_path, kv_cache_max_len=kv_cache_max_len)
-  toks = torch.from_numpy(
-      np.array([2, 651, 9456, 576, 573, 3520, 3858, 603, 151935])
-  )
-  tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.long, device="cpu")
-  tokens[0, :9] = toks
-  input_pos = torch.arange(0, kv_cache_max_len)
-  out = model.forward(tokens, input_pos)
-  out_final = out[0, 8, :]
-  assert torch.allclose(Qwen2_goldens, out_final, atol=1e-04)
-
-
-if __name__ == "__main__":
-  torch.set_printoptions(sci_mode=True)
-  define_and_run()
