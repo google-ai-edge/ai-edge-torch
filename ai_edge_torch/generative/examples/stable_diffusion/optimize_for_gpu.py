@@ -103,20 +103,28 @@ def main() -> None:
         subgraph_index = op.builtinOptions2.decompositionSubgraphIndex
         composite_subgraph_indices.add(subgraph_index)
 
-  composite_subgraph_indices = set()
-
-  for subgraph in model.subgraphs:
-    for op in subgraph.operators:
-      if get_opname(op) == "STABLEHLO_COMPOSITE":
-        subgraph_index = op.builtinOptions2.decompositionSubgraphIndex
-        composite_subgraph_indices.add(subgraph_index)
-
   for i in composite_subgraph_indices:
     subgraph = model.subgraphs[i]
-    subgraph.inputs = []
-    subgraph.operators = []
-    subgraph.outputs = []
-    subgraph.tensors = []
+    delete_ops = True
+
+    new_outputs = []
+    for output in subgraph.outputs:
+      for input in subgraph.inputs:
+        ti = subgraph.tensors[input]
+        to = subgraph.tensors[output]
+        if ti.shape.tolist() == to.shape.tolist() and ti.type == to.type:
+          new_outputs.append(input)
+          break
+      else:
+        delete_ops = False
+        break
+
+    if delete_ops:
+      print(f"Deleting operators in subgraph {i}")
+      assert max(subgraph.inputs) <= len(subgraph.inputs)
+      subgraph.operators = []
+      subgraph.outputs = new_outputs
+      subgraph.tensors = subgraph.tensors[: max(subgraph.inputs) + 1]
 
   print(f"Writing model to {args.output}...")
   if args.large:
