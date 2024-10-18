@@ -119,17 +119,56 @@ def main() -> None:
     opname = builtin_ops.get(opcode, None)
     return opname
 
-  composite_subgraph_indices = set()
+  def hash_composite(op):
+    assert get_opname(op) == "STABLEHLO_COMPOSITE"
+    hh = []
+    attrs = op.builtinOptions2.compositeAttributes
+    hh.append(tuple(attrs.tolist()) if attrs is not None else tuple())
+    for x in op.inputs:
+      x = subgraph.tensors[x]
+      hh.append((tuple(map(int, x.shape)), x.type))
+    return hash(tuple(hh))
+
+  composite_subgraph_common_index = {}
+  composite_subgraph_mapping = {}
 
   for subgraph in model.subgraphs:
     for op in subgraph.operators:
       if get_opname(op) == "STABLEHLO_COMPOSITE":
+        hh = hash_composite(op)
         subgraph_index = op.builtinOptions2.decompositionSubgraphIndex
-        composite_subgraph_indices.add(subgraph_index)
+        if hh in composite_subgraph_common_index:
+          composite_subgraph_mapping[subgraph_index] = (
+              composite_subgraph_common_index[hh]
+          )
+        else:
+          composite_subgraph_mapping[subgraph_index] = subgraph_index
+          composite_subgraph_common_index[hh] = subgraph_index
 
-  composite_subgraph_indices = list(sorted(composite_subgraph_indices))
-  for i in reversed(composite_subgraph_indices):
-    model.subgraphs.pop(i)
+  new_subgraphs = []
+  new_subgraph_mapping = {}
+  for i, subgraph in enumerate(model.subgraphs):
+    if i not in composite_subgraph_mapping:
+      new_subgraph_mapping[i] = len(new_subgraphs)
+      new_subgraphs.append(subgraph)
+    elif composite_subgraph_mapping[i] == i:
+      new_subgraph_mapping[i] = len(new_subgraphs)
+      new_subgraphs.append(subgraph)
+
+  for i, subgraph in enumerate(model.subgraphs):
+    if i in composite_subgraph_mapping and composite_subgraph_mapping[i] != i:
+      new_subgraph_mapping[i] = new_subgraph_mapping[
+          composite_subgraph_mapping[i]
+      ]
+
+  model.subgraphs = new_subgraphs
+  for subgraph in model.subgraphs:
+    for op in subgraph.operators:
+      if get_opname(op) == "STABLEHLO_COMPOSITE":
+        subgraph_index = op.builtinOptions2.decompositionSubgraphIndex
+        op.builtinOptions2.decompositionSubgraphIndex = new_subgraph_mapping[
+            subgraph_index
+        ]
 
   print(f"Writing model to {args.output}...")
   if args.large:
