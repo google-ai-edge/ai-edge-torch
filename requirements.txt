@@ -6,7 +6,7 @@ torchvision==0.19.0+cpu
 torchaudio==2.4.0+cpu
 torch_xla==2.4.0
 --pre
-tf-nightly>=2.18.0.dev20240905
+tf-nightly==2.19.0.dev20241001
 ai-edge-litert-nightly
 ai-edge-quantizer-nightly
 scipy
