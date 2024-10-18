@@ -100,6 +100,8 @@ pip install ai-edge-torch
 Alternately, the nightly version can be installed with:
 ```bash
 pip install ai-edge-torch-nightly
+pip install git+https://github.com/google-ai-edge/ai-edge-quantizer
+
 ```
 
 ### Update LD_LIBRARY_PATH if necessary
