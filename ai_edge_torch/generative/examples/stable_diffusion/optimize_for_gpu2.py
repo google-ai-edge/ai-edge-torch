@@ -15,7 +15,6 @@ parser.add_argument(
 
 
 def convert_object_to_bytearray(model_object, extra_buffer=b""):
-  """Converts a tflite model from an object to a immutable bytearray."""
   _TFLITE_FILE_IDENTIFIER = b"TFL3"
   # Initial size of the buffer, which will grow automatically if needed
   builder = flatbuffers.Builder(1024)
@@ -27,18 +26,6 @@ def convert_object_to_bytearray(model_object, extra_buffer=b""):
 
 
 def process_constant_map(model) -> int:
-  """Process the constant map after all transformations are applied.
-
-  If the resulting model is > 2GB then we would need to serialize constants
-  separately, as such, we collect all the constant buffers using this
-  function.
-
-  Args:
-    quantized_model: a quantized TFlite ModelT
-
-  Returns:
-    an integer representing the total size of the constant buffers
-  """
   buffer_size = 0
   constant_map = []
   for buffer in model.buffers:
@@ -54,17 +41,6 @@ def process_constant_map(model) -> int:
 
 
 def serialize_large_model(model, constant_map) -> bytearray:
-  """serialize models > 2GB.
-
-  Args:
-    quantized_model: a quantized TFlite ModelT
-
-  Returns:
-    a byte buffer that represents the serialized tflite model
-  """
-  # TODO: b/338244867 - we can have more efficient way to calculate the
-  # buffer offsets.
-
   # remove all the constant from the model.
   for buffer in model.buffers:
     if buffer.data is not None:
@@ -119,56 +95,36 @@ def main() -> None:
     opname = builtin_ops.get(opcode, None)
     return opname
 
-  def hash_composite(op):
-    assert get_opname(op) == "STABLEHLO_COMPOSITE"
-    hh = []
-    attrs = op.builtinOptions2.compositeAttributes
-    hh.append(tuple(attrs.tolist()) if attrs is not None else tuple())
-    for x in op.inputs:
-      x = subgraph.tensors[x]
-      hh.append((tuple(map(int, x.shape)), x.type))
-    return hash(tuple(hh))
-
-  composite_subgraph_common_index = {}
-  composite_subgraph_mapping = {}
+  composite_subgraph_indices = set()
 
   for subgraph in model.subgraphs:
     for op in subgraph.operators:
       if get_opname(op) == "STABLEHLO_COMPOSITE":
-        hh = hash_composite(op)
         subgraph_index = op.builtinOptions2.decompositionSubgraphIndex
-        if hh in composite_subgraph_common_index:
-          composite_subgraph_mapping[subgraph_index] = (
-              composite_subgraph_common_index[hh]
-          )
-        else:
-          composite_subgraph_mapping[subgraph_index] = subgraph_index
-          composite_subgraph_common_index[hh] = subgraph_index
+        composite_subgraph_indices.add(subgraph_index)
 
-  new_subgraphs = []
-  new_subgraph_mapping = {}
-  for i, subgraph in enumerate(model.subgraphs):
-    if i not in composite_subgraph_mapping:
-      new_subgraph_mapping[i] = len(new_subgraphs)
-      new_subgraphs.append(subgraph)
-    elif composite_subgraph_mapping[i] == i:
-      new_subgraph_mapping[i] = len(new_subgraphs)
-      new_subgraphs.append(subgraph)
+  for i in composite_subgraph_indices:
+    subgraph = model.subgraphs[i]
+    delete_ops = True
 
-  for i, subgraph in enumerate(model.subgraphs):
-    if i in composite_subgraph_mapping and composite_subgraph_mapping[i] != i:
-      new_subgraph_mapping[i] = new_subgraph_mapping[
-          composite_subgraph_mapping[i]
-      ]
+    new_outputs = []
+    for output in subgraph.outputs:
+      for input in subgraph.inputs:
+        ti = subgraph.tensors[input]
+        to = subgraph.tensors[output]
+        if ti.shape.tolist() == to.shape.tolist() and ti.type == to.type:
+          new_outputs.append(input)
+          break
+      else:
+        delete_ops = False
+        break
 
-  model.subgraphs = new_subgraphs
-  for subgraph in model.subgraphs:
-    for op in subgraph.operators:
-      if get_opname(op) == "STABLEHLO_COMPOSITE":
-        subgraph_index = op.builtinOptions2.decompositionSubgraphIndex
-        op.builtinOptions2.decompositionSubgraphIndex = new_subgraph_mapping[
-            subgraph_index
-        ]
+    if delete_ops:
+      print(f"Deleting operators in subgraph {i}")
+      assert max(subgraph.inputs) <= len(subgraph.inputs)
+      subgraph.operators = []
+      subgraph.outputs = new_outputs
+      subgraph.tensors = subgraph.tensors[: max(subgraph.inputs) + 1]
 
   print(f"Writing model to {args.output}...")
   if args.large:
