@@ -115,12 +115,15 @@ class AttentionBlock2D(nn.Module):
     """
     super().__init__()
     self.config = config
+    hidden_dim = config.hidden_dim
+    if not hidden_dim:
+      hidden_dim = config.dim
     self.norm = layers_builder.build_norm(
-        config.dim, config.normalization_config
+        hidden_dim, config.normalization_config
     )
     self.attention = SelfAttention(
         config.attention_batch_size,
-        config.dim,
+        hidden_dim,
         config.attention_config,
         enable_hlfb=config.enable_hlfb,
     )
@@ -172,7 +175,7 @@ class CrossAttentionBlock2D(nn.Module):
     super().__init__()
     self.config = config
     self.norm = layers_builder.build_norm(
-        config.query_dim, config.normalization_config
+        config.output_dim, config.normalization_config
     )
     self.attention = CrossAttention(
         config.attention_batch_size,
@@ -294,7 +297,7 @@ class TransformerBlock2D(nn.Module):
       hidden_states
   """
 
-  def __init__(self, config: unet_cfg.TransformerBlock2DConfig):
+  def __init__(self, config: unet_cfg.TransformerBlock2DConfig, dim_overwrite=None):
     """Initialize an instance of the TransformerBlock2D.
 
     Args:
@@ -303,12 +306,18 @@ class TransformerBlock2D(nn.Module):
     """
     super().__init__()
     self.config = config
+    attention_block_config_dim = config.attention_block_config.dim
+    attention_block_config_hidden_dim = config.attention_block_config.hidden_dim
+    if dim_overwrite: 
+      attention_block_config_dim = dim_overwrite
+    if not attention_block_config_hidden_dim:
+      attention_block_config_hidden_dim = attention_block_config_dim
     self.pre_conv_norm = layers_builder.build_norm(
-        config.attention_block_config.dim, config.pre_conv_normalization_config
+        attention_block_config_dim, config.pre_conv_normalization_config
     )
     self.conv_in = nn.Conv2d(
-        config.attention_block_config.dim,
-        config.attention_block_config.dim,
+        attention_block_config_dim,
+        attention_block_config_hidden_dim,
         kernel_size=1,
         padding=0,
     )
@@ -318,8 +327,8 @@ class TransformerBlock2D(nn.Module):
     )
     self.feed_forward = FeedForwardBlock2D(config.feed_forward_block_config)
     self.conv_out = nn.Conv2d(
-        config.attention_block_config.dim,
-        config.attention_block_config.dim,
+        attention_block_config_hidden_dim,
+        attention_block_config_dim,
         kernel_size=1,
         padding=0,
     )
@@ -385,14 +394,18 @@ class DownEncoderBlock2D(nn.Module):
     self.config = config
     resnets = []
     transformers = []
+    hidden_channels = config.hidden_channels
+    if not hidden_channels:
+      hidden_channels = config.out_channels
     for i in range(config.num_layers):
       input_channels = config.in_channels if i == 0 else config.out_channels
       resnets.append(
           ResidualBlock2D(
               unet_cfg.ResidualBlock2DConfig(
                   in_channels=input_channels,
-                  hidden_channels=config.out_channels,
+                  hidden_channels=hidden_channels,
                   out_channels=config.out_channels,
+                  residual_out_channels=config.out_channels,
                   time_embedding_channels=config.time_embedding_channels,
                   normalization_config=config.normalization_config,
                   activation_config=config.activation_config,
@@ -589,23 +602,27 @@ class SkipUpDecoderBlock2D(nn.Module):
     """
     super().__init__()
     self.config = config
+    hidden_channels=config.hidden_channels
+    if not hidden_channels:
+        hidden_channels=config.out_channels
+    sub_block_channels=config.sub_block_channels
+    if sub_block_channels:
+        assert len(sub_block_channels) == config.num_layers
+    else:
+        sub_block_channels = [config.out_channels] * config.num_layers
     resnets = []
     transformers = []
     for i in range(config.num_layers):
-      res_skip_channels = (
-          config.in_channels
-          if (i == config.num_layers - 1)
-          else config.out_channels
-      )
-      resnet_in_channels = (
-          config.prev_out_channels if i == 0 else config.out_channels
-      )
+      resnet_in_channels = config.prev_out_channels if i == 0 else sub_block_channels[i - 1]
+      res_skip_channels = config.in_channels if (i == config.num_layers - 1) else config.out_channels
+      residual_out_channel=sub_block_channels[i]
       resnets.append(
           ResidualBlock2D(
               unet_cfg.ResidualBlock2DConfig(
                   in_channels=resnet_in_channels + res_skip_channels,
-                  hidden_channels=config.out_channels,
-                  out_channels=config.out_channels,
+                  hidden_channels=hidden_channels,
+                  out_channels=sub_block_channels[i],
+                  residual_out_channels=residual_out_channel,
                   time_embedding_channels=config.time_embedding_channels,
                   normalization_config=config.normalization_config,
                   activation_config=config.activation_config,
@@ -613,7 +630,7 @@ class SkipUpDecoderBlock2D(nn.Module):
           )
       )
       if config.transformer_block_config:
-        transformers.append(TransformerBlock2D(config.transformer_block_config))
+        transformers.append(TransformerBlock2D(config.transformer_block_config, dim_overwrite=sub_block_channels[i]))
     self.resnets = nn.ModuleList(resnets)
     self.transformers = (
         nn.ModuleList(transformers) if len(transformers) > 0 else None
@@ -623,7 +640,7 @@ class SkipUpDecoderBlock2D(nn.Module):
       if config.upsample_conv:
         self.upsample_conv = nn.Conv2d(
             config.out_channels,
-            config.out_channels,
+            sub_block_channels[0],
             kernel_size=3,
             stride=1,
             padding=1,
@@ -711,6 +728,7 @@ class MidBlock2D(nn.Module):
                 in_channels=config.in_channels,
                 hidden_channels=config.in_channels,
                 out_channels=config.in_channels,
+                residual_out_channels=config.in_channels,
                 time_embedding_channels=config.time_embedding_channels,
                 normalization_config=config.normalization_config,
                 activation_config=config.activation_config,
