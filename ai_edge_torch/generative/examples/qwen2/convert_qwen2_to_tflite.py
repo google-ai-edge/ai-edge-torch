@@ -45,7 +45,7 @@ _PREFILL_SEQ_LEN = flags.DEFINE_integer(
 )
 _KV_CACHE_MAX_LEN = flags.DEFINE_integer(
     'kv_cache_max_len',
-    1280,
+    1024,
     'The maximum size of KV cache buffer, including both prefill and decode.',
 )
 _QUANTIZE = flags.DEFINE_bool(
