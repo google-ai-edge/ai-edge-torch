@@ -65,7 +65,7 @@ def export_without_scalar_inputs(model, args, kwargs):
 def rnd(dtype, shape, min_v=None, max_v=None):
   """Shortcut for creating a random torch tensor."""
   if dtype in (torch.int32, torch.int64, torch.bool):
-    min_v = min_v if min_v else 0
+    min_v = min_v if min_v else 1
     max_v = max_v if max_v else 10
     return torch.randint(min_v, max_v, shape).to(dtype)
   else:
@@ -137,7 +137,7 @@ class TestCoreAtenOps(parameterized.TestCase):
 
   @parameterized.named_parameters(
       # fmt: off
-      # pyformat: disable
+      # pyformat: disabledef 
       ("aten_abs_0", torch.ops.aten.abs, (rnd(torch.float32, (10, 10)),), dict()),
       ("aten_acos_0", torch.ops.aten.acos, (rnd(torch.float32, (10, 10)),), dict()),
       ("aten_acosh_0", torch.ops.aten.acosh, (rnd(torch.float32, (10, 10)),), dict()),
@@ -182,9 +182,10 @@ class TestCoreAtenOps(parameterized.TestCase):
       ("aten_avg_pool2d_padding_num", torch.ops.aten.avg_pool2d, (rnd(torch.float32, (1, 3, 6, 6)), [3, 3], [1, 1], 1, False, True, None), dict()),
       # ("aten_avg_pool3d_0", torch.ops.aten.avg_pool3d, (rnd(torch.float32, (1, 3, 10, 10, 10)), [2, 2, 2], [2, 2, 2], [0, 0, 0], False, False,), dict()),
       ("aten_bmm_0", torch.ops.aten.bmm, (rnd(torch.float32, (10, 10, 10)), rnd(torch.float32, (10, 10, 10)),), dict()),
-      ("aten_cat_0", torch.ops.aten.cat, ([torch.randn((10, 10)).to(torch.float32)], 1,), dict()),
-      ("aten_cat_1", torch.ops.aten.cat, ([torch.randn((10, 10)).to(torch.float32)], 1,), dict()),
-      ("aten_cat_2", torch.ops.aten.cat, ([torch.randn((10, 10)).to(torch.float32)], 1,), dict()),
+      ("aten_cat_0", torch.ops.aten.cat, ([rnd(torch.float32, (10, 10)), rnd(torch.float32, (1, 10))], 0,), dict()),
+      ("aten_cat_1", torch.ops.aten.cat, ([rnd(torch.float32, (10, 10)), rnd(torch.float32, (0, 10))], 0,), dict()),
+      ("aten_cat_2", torch.ops.aten.cat, ([rnd(torch.float32, (10, 10)), rnd(torch.float32, (0,))], 0,), dict()),
+      ("aten_cat_3", torch.ops.aten.cat, ([rnd(torch.float32, (10, 10)), rnd(torch.float32, (10, 10)), rnd(torch.float32, (10, 10))], 0,), dict()),
       ("aten__cdist_forward_0", torch.ops.aten._cdist_forward, (rnd(torch.float32, (5, 7, 10)), rnd(torch.float32, (5, 8, 10)), 1.0, None,), dict()),
       ("aten_ceil_0", torch.ops.aten.ceil, (rnd(torch.float32, (10, 10)),), dict()),
       ("aten_clamp_0", torch.ops.aten.clamp, (rnd(torch.float32, (10, 10)), 0, 1,), dict()),
@@ -229,7 +230,8 @@ class TestCoreAtenOps(parameterized.TestCase):
       ("aten_div_Scalar_0", torch.ops.aten.div.Scalar, (rnd(torch.float32, (10, 10)), 0.5,), dict()),
       ("aten_div_Scalar_mode_0", torch.ops.aten.div.Scalar_mode, (rnd(torch.float32, (10, 10)), 0.123,), {"rounding_mode": "trunc"}),
       ("aten_div_Tensor_0", torch.ops.aten.div.Tensor, (rnd(torch.float32, (10, 10)), rnd(torch.float32, (10, 10)),), dict()),
-      ("aten_div_Tensor_mode_0", torch.ops.aten.div.Tensor_mode, (rnd(torch.float32, (10, 10)), rnd(torch.float32, (10, 10)),), {"rounding_mode": "trunc"}),
+      ("aten_div_Tensor_mode_trunc_0", torch.ops.aten.div.Tensor_mode, (rnd(torch.float32, (10, 10)), rnd(torch.float32, (10, 10)),), {"rounding_mode": "trunc"}),
+      ("aten_div_Tensor_mode_trunc_1", torch.ops.aten.div.Tensor_mode, (rnd(torch.int32, (10, 10)), rnd(torch.int32, (10, 10)),), {"rounding_mode": "trunc"}),
       ("aten_embedding_0", torch.ops.aten.embedding, (rnd(torch.float32, (10, 10)), rnd(torch.int64, (10,)),), dict()),
       ("aten_eq_Scalar_2", torch.ops.aten.eq.Scalar, (rnd(torch.float32, (10, 10)), 1,), dict()),
       ("aten_eq_Tensor_0", torch.ops.aten.eq.Tensor, (rnd(torch.float32, (10, 10)), rnd(torch.float32, (10, 10)),), dict()),
