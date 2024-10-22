@@ -42,11 +42,18 @@ def lower_by_jax(op, ir_input_names=None):
   return inner
 
 
-_TORCH_XLA2_IMPLS = {
-    key: val.func
-    for key, val in torch_xla2.ops.ops_registry.all_aten_ops.items()
-    if val.is_jax_function
-}
+_TORCH_XLA2_IMPLS = {}
+
+for op, torch_xla2_op in torch_xla2.ops.ops_registry.all_aten_ops.items():
+  if not torch_xla2_op.is_jax_function:
+    continue
+  if isinstance(op, torch._ops.OpOverloadPacket):
+    ops = [getattr(op, overload) for overload in op.overloads()] + [op]
+  else:
+    ops = [op]
+
+  for op in ops:
+    _TORCH_XLA2_IMPLS[op] = torch_xla2_op.func
 
 
 def lower_by_torch_xla2(op):
@@ -229,7 +236,6 @@ lower_by_torch_xla2(torch.ops.aten.transpose_copy)
 lower_by_torch_xla2(torch.ops.aten.triu)
 lower_by_torch_xla2(torch.ops.aten.true_divide)
 lower_by_torch_xla2(torch.ops.aten.trunc)
-lower_by_torch_xla2(torch.ops.aten.unbind)
 lower_by_torch_xla2(torch.ops.aten.unbind_copy)
 lower_by_torch_xla2(torch.ops.aten.unsqueeze)
 lower_by_torch_xla2(torch.ops.aten.unsqueeze.default)
@@ -245,6 +251,11 @@ lower_by_torch_xla2(torch.ops.aten.where.ScalarSelf)
 lower_by_torch_xla2(torch.ops.aten.where.self)
 lower_by_torch_xla2(torch.ops.prims.broadcast_in_dim)
 lower_by_torch_xla2(torch.ops.prims.var)
+
+
+@lower_by_jax(torch.ops.aten.unbind)
+def _aten_copy(self, *args, **kwargs):
+  return _TORCH_XLA2_IMPLS[torch.ops.aten.unbind_copy](self, *args, **kwargs)
 
 
 @lower_by_jax(torch.ops.aten.copy, ir_input_names=["src"])
