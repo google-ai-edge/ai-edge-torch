@@ -29,6 +29,7 @@ py_library(
 py_library(
     name = "__init__",
     srcs = ["__init__.py"],
+    visibility = ["//third_party/odml/infra/genai/inference/sd/python:__subpackages__"],
     deps = [
         ":k_euler",
         ":k_euler_ancestral",
