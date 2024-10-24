@@ -42,14 +42,14 @@ jobs:
           python -m pip install --upgrade pip setuptools
           python -m pip cache purge
 
-      - name: Setup benchmark repository
-        run: |
-          bash ${{ github.workspace }}/benchmark/ci_ai_edge_torch/ci_setup.sh
-
       - name: Install ai-edge-torch
         run: |
           python -m pip install -r dev-requirements.txt --force-reinstall
           python -m pip install . --no-cache-dir
+
+      - name: Setup benchmark repository
+        run: |
+          bash ${{ github.workspace }}/benchmark/ci_ai_edge_torch/ci_setup.sh
 
       - name: Run tests
         run: |

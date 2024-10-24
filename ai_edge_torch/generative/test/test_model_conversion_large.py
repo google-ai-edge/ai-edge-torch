@@ -17,17 +17,21 @@
 
 import ai_edge_torch
 from ai_edge_torch import config as ai_edge_config
+from ai_edge_torch.generative.examples.amd_llama_135m import amd_llama_135m
 from ai_edge_torch.generative.examples.gemma import gemma1
 from ai_edge_torch.generative.examples.gemma import gemma2
+from ai_edge_torch.generative.examples.llama import llama
 from ai_edge_torch.generative.examples.openelm import openelm
 from ai_edge_torch.generative.examples.phi import phi2
 from ai_edge_torch.generative.examples.phi import phi3
+from ai_edge_torch.generative.examples.qwen import qwen
 from ai_edge_torch.generative.examples.smollm import smollm
 from ai_edge_torch.generative.examples.stable_diffusion import clip as sd_clip
 from ai_edge_torch.generative.examples.stable_diffusion import decoder as sd_decoder
 from ai_edge_torch.generative.examples.stable_diffusion import diffusion as sd_diffusion
 from ai_edge_torch.generative.layers import kv_cache
 from ai_edge_torch.generative.test import utils as test_utils
+from ai_edge_torch.generative.utilities import model_builder
 import numpy as np
 import torch
 
@@ -88,7 +92,7 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_gemma1(self):
     config = gemma1.get_fake_model_config()
-    pytorch_model = gemma1.Gemma(config).eval()
+    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
     self._test_model(
         config, pytorch_model, "serving_default", atol=1e-2, rtol=1e-5
     )
@@ -106,9 +110,18 @@ class TestModelConversion(googletest.TestCase):
       ai_edge_config.Config.use_torch_xla,
       reason="tests with custom ops are not supported on oss",
   )
+  def test_llama(self):
+    config = llama.get_fake_model_config()
+    pytorch_model = llama.Llama(config).eval()
+    self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
+
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
   def test_phi2(self):
     config = phi2.get_fake_model_config()
-    pytorch_model = phi2.Phi2(config).eval()
+    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
     self._test_model(
         config, pytorch_model, "serving_default", atol=1e-3, rtol=1e-3
     )
@@ -120,9 +133,7 @@ class TestModelConversion(googletest.TestCase):
   def test_phi3(self):
     config = phi3.get_fake_model_config()
     pytorch_model = phi3.Phi3_5Mini(config).eval()
-    self._test_model(
-        config, pytorch_model, "prefill", atol=1e-5, rtol=1e-5
-    )
+    self._test_model(config, pytorch_model, "prefill", atol=1e-5, rtol=1e-5)
 
   @googletest.skipIf(
       ai_edge_config.Config.use_torch_xla,
@@ -130,7 +141,7 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_smollm(self):
     config = smollm.get_fake_model_config()
-    pytorch_model = smollm.SmolLM(config).eval()
+    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
 
   @googletest.skipIf(
@@ -139,8 +150,26 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_openelm(self):
     config = openelm.get_fake_model_config()
-    pytorch_model = openelm.OpenELM(config).eval()
+    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
+
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
+  def test_qwen(self):
+    config = qwen.get_fake_model_config()
+    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
+    self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
+
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
+  def test_amd_llama_135m(self):
+    config = amd_llama_135m.get_fake_model_config()
+    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
+    self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
 
   @googletest.skipIf(
       ai_edge_config.Config.use_torch_xla,

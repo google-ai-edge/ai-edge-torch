@@ -15,29 +15,10 @@
 
 """Example of building a SmolLM model."""
 
-import copy
-
-from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
 import ai_edge_torch.generative.layers.model_config as cfg
-import ai_edge_torch.generative.utilities.loader as loading_utils
-from torch import nn
+from ai_edge_torch.generative.utilities import model_builder
 
-TENSOR_NAMES = copy.copy(tiny_llama.TENSOR_NAMES)
-# SmolLM re-uses the embedding as the head projection layer.
-TENSOR_NAMES.lm_head = None
-
-
-class SmolLM(tiny_llama.TinyLlama):
-  """A SmolLM model built from the Edge Generative API layers.
-
-  SmolLM shares the same architecture as TinyLlama, but with different model
-  sizes.
-  """
-
-  def __init__(self, config: cfg.ModelConfig):
-    super().__init__(config)
-    # SmolLM re-uses the embedding as the head projection layer.
-    self.lm_head.weight.data = self.tok_embedding.weight.data
+TENSOR_NAMES = model_builder.TENSOR_NAMES
 
 
 def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
@@ -54,6 +35,7 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       num_heads=9,
       head_dim=64,
       num_query_groups=3,
+      rotary_base=10000,
       rotary_percentage=1.0,
   )
   ff_config = cfg.FeedForwardConfig(
@@ -90,12 +72,11 @@ def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
   return config
 
 
-def build_model(checkpoint_path: str, **kwargs) -> nn.Module:
-  config = get_model_config(**kwargs)
-  model = SmolLM(config)
-  loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
-  # Since embedding and lm-head use the same weight, we need to set strict
-  # to False.
-  loader.load(model, strict=False)
-  model.eval()
-  return model
+def build_model(
+    checkpoint_path: str, **kwargs
+) -> model_builder.DecoderOnlyModel:
+  return model_builder.build_decoder_only_model(
+      checkpoint_path=checkpoint_path,
+      config=get_model_config(**kwargs),
+      tensor_names=TENSOR_NAMES,
+  )

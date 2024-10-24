@@ -156,8 +156,8 @@ def translate_to_ai_edge_recipe(
 
 
 def quantize_model(
-    model: bytearray, recipe: quantizer.recipe_manager.ModelQuantizationRecipe
+    model: bytes, recipe: quantizer.recipe_manager.ModelQuantizationRecipe
 ) -> bytearray:
-  qt = quantizer.Quantizer(bytearray(model), recipe)
+  qt = quantizer.Quantizer(model, recipe)
   result = qt.quantize()
   return result.quantized_model

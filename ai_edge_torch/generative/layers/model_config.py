@@ -69,9 +69,6 @@ class NormalizationConfig:
   zero_centered: bool = False
   # Number of groups used in group normalization.
   group_num: Optional[float] = None
-  # Whether to use the input shape to determine the dimension of normalization
-  # when type is LAYER_NORM.
-  use_input_shape: bool = True
 
 
 @dataclass
@@ -83,6 +80,8 @@ class AttentionConfig:
   # Used to determine number of groups in grouped query attention (GQA)
   # https://arxiv.org/pdf/2305.13245.pdf
   num_query_groups: Optional[int]
+  # Base of rotary positional embedding.
+  rotary_base: int = 10_000
   # Percentage of Rotary Positional Embedding added Q and K projections.
   rotary_percentage: Optional[float] = None
   # Whether to transpose the query groups of qkv bundled tensor before
@@ -182,8 +181,14 @@ class ModelConfig:
       default_factory=NormalizationConfig
   )
 
+  # Scale factor of the embedding.
+  embedding_scale: Optional[float] = None
+
   # Use bias term within LLM's HEAD.
   lm_head_use_bias: bool = False
+  # Whether LLM's HEAD shares the weight of the embedding.
+  lm_head_share_weight_with_embedding: bool = True
+
   # Whether to turn on high-level function boundary.
   enable_hlfb: bool = False
 

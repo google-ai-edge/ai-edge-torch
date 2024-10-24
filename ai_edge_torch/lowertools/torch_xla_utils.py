@@ -250,6 +250,7 @@ def merged_bundle_to_tfl_model(
         },
     )
     # Clean up intermediate memory early.
+    del tf_functions
     del tf_module
     del tf_concrete_funcs
     gc.collect()
@@ -271,6 +272,8 @@ def merged_bundle_to_tfl_model(
     conversion_utils.apply_tfl_converter_flags(converter, _tfl_converter_flags)
 
     tflite_model = converter.convert()
+    del converter
+    gc.collect()
 
     if (
         quant_config is not None

@@ -15,14 +15,9 @@
 
 """Example of building a Phi-2 model."""
 
-from ai_edge_torch.generative.layers import attention
-from ai_edge_torch.generative.layers import builder
-from ai_edge_torch.generative.layers import kv_cache as kv_utils
-import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
+from ai_edge_torch.generative.utilities import model_builder
 import ai_edge_torch.generative.utilities.loader as loading_utils
-import torch
-from torch import nn
 
 TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.fc1",
@@ -36,83 +31,6 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     final_norm="model.final_layernorm",
     lm_head="lm_head",
 )
-
-
-class Phi2(nn.Module):
-  """A Phi-2 model built from the Edge Generative API layers."""
-
-  def __init__(self, config: cfg.ModelConfig):
-    super().__init__()
-
-    # Construct model layers.
-    self.lm_head = nn.Linear(
-        config.embedding_dim, config.vocab_size, bias=config.lm_head_use_bias
-    )
-    self.tok_embedding = nn.Embedding(
-        config.vocab_size, config.embedding_dim, padding_idx=0
-    )
-    # Phi-2 has only one block config.
-    block_config = config.block_config(0)
-    self.transformer_blocks = nn.ModuleList(
-        attention.TransformerBlock(block_config, config)
-        for _ in range(config.num_layers)
-    )
-    self.final_norm = builder.build_norm(
-        config.embedding_dim,
-        config.final_norm_config,
-    )
-    attn_config = block_config.attn_config
-    self.rope_cache = attn_utils.build_rope_cache(
-        size=config.kv_cache_max,
-        dim=int(attn_config.rotary_percentage * attn_config.head_dim),
-        base=10_000,
-        condense_ratio=1,
-        dtype=torch.float32,
-        device=torch.device("cpu"),
-    )
-    self.mask_cache = attn_utils.build_causal_mask_cache(
-        size=config.kv_cache_max,
-        dtype=torch.float32,
-        device=torch.device("cpu"),
-    )
-    self.config = config
-
-  @torch.inference_mode
-  def forward(
-      self,
-      tokens: torch.Tensor,
-      input_pos: torch.Tensor,
-      kv_cache: kv_utils.KVCache,
-  ) -> dict[torch.Tensor, kv_utils.KVCache]:
-    _, seq_len = tokens.size()
-    assert self.config.max_seq_len >= seq_len, (
-        f"Cannot forward sequence of length {seq_len}, max seq length is only"
-        f" {self.config.max_seq_len}"
-    )
-    assert len(self.transformer_blocks) == len(kv_cache.caches), (
-        "The number of transformer blocks and the number of KV cache entries"
-        " must be the same."
-    )
-
-    cos, sin = self.rope_cache
-    cos = cos.index_select(0, input_pos)
-    sin = sin.index_select(0, input_pos)
-    mask = self.mask_cache.index_select(2, input_pos)
-    mask = mask[:, :, :, : self.config.kv_cache_max]
-
-    x = self.tok_embedding(tokens)
-
-    updated_kv_entires = []
-    for i, block in enumerate(self.transformer_blocks):
-      kv_entry = kv_cache.caches[i] if kv_cache else None
-      x, kv_entry = block(x, (cos, sin), mask, input_pos, kv_entry)
-      if kv_entry:
-        updated_kv_entires.append(kv_entry)
-    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entires))
-
-    x = self.final_norm(x)
-    logits = self.lm_head(x)  # (b, t, vocab_size)
-    return {"logits": logits, "kv_cache": updated_kv_cache}
 
 
 def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
@@ -129,6 +47,7 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       num_heads=32,
       head_dim=80,
       num_query_groups=32,
+      rotary_base=10000,
       rotary_percentage=0.4,
       qkv_use_bias=True,
       output_proj_use_bias=True,
@@ -141,7 +60,6 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   )
   norm_config = cfg.NormalizationConfig(
       type=cfg.NormalizationType.LAYER_NORM,
-      use_input_shape=False,  # Phi-2 does layer-norm with the weight shape.
   )
   block_config = cfg.TransformerBlockConfig(
       attn_config=attn_config,
@@ -158,6 +76,7 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       block_configs=block_config,
       final_norm_config=norm_config,
       lm_head_use_bias=True,
+      lm_head_share_weight_with_embedding=False,
       enable_hlfb=True,
   )
   return config
@@ -173,11 +92,11 @@ def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
   return config
 
 
-def build_model(checkpoint_path: str, **kwargs) -> nn.Module:
-  """Instantiates the model instance and load checkpoint if provided."""
-  config = get_model_config(**kwargs)
-  model = Phi2(config)
-  loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
-  loader.load(model)
-  model.eval()
-  return model
+def build_model(
+    checkpoint_path: str, **kwargs
+) -> model_builder.DecoderOnlyModel:
+  return model_builder.build_decoder_only_model(
+      checkpoint_path=checkpoint_path,
+      config=get_model_config(**kwargs),
+      tensor_names=TENSOR_NAMES,
+  )

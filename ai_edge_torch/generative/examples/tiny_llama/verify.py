@@ -15,45 +15,55 @@
 
 """Verifies the reauthored TinyLlama-1.1B model."""
 
+import logging
 import pathlib
 
 from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
+from ai_edge_torch.generative.utilities import transformers_verifier
 from ai_edge_torch.generative.utilities import verifier
 import transformers
+
 
 _PROMPTS = flags.DEFINE_multi_string(
     "prompts",
     "Show me the program to add 2 and 3.",
     "The input prompts to generate answers.",
 )
+_MAX_NEW_TOKENS = flags.DEFINE_integer(
+    "max_new_tokens",
+    30,
+    "The maximum size of the generated tokens.",
+)
 
 
 def main(_):
   checkpoint = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
-  verifier.log_msg("Loading the original model from", checkpoint)
-  wrapper_model = verifier.ModelWrapper(
-      model=transformers.AutoModelForCausalLM.from_pretrained(
-          checkpoint, trust_remote_code=True
-      ),
+  logging.info("Loading the original model from: %s", checkpoint)
+  original_model = transformers.AutoModelForCausalLM.from_pretrained(
+      checkpoint, trust_remote_code=True
   )
+
   # Locate the cached dir.
   cached_config_file = transformers.utils.cached_file(
       checkpoint, transformers.utils.CONFIG_NAME
   )
   reauthored_checkpoint = pathlib.Path(cached_config_file).parent
-  verifier.log_msg("Building the reauthored model from", reauthored_checkpoint)
+  logging.info("Building the reauthored model from: %s", reauthored_checkpoint)
   reauthored_model = tiny_llama.build_model(reauthored_checkpoint)
 
-  verifier.log_msg("Loading the tokenizer from", checkpoint)
+  logging.info("Loading the tokenizer from: %s", checkpoint)
   tokenizer = transformers.AutoTokenizer.from_pretrained(checkpoint)
 
   verifier.verify_reauthored_model(
-      original_model=wrapper_model,
-      reauthored_model=reauthored_model,
-      tokenizer=tokenizer,
+      original_model=transformers_verifier.TransformersModelWrapper(
+          original_model
+      ),
+      reauthored_model=verifier.ReauthoredModelWrapper(reauthored_model),
+      tokenizer=verifier.TokenizerWrapper(tokenizer),
       generate_prompts=_PROMPTS.value,
+      max_new_tokens=_MAX_NEW_TOKENS.value,
       atol=1e-04,
   )
 

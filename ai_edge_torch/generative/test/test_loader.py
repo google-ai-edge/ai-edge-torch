@@ -19,6 +19,7 @@ import tempfile
 
 from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
 from ai_edge_torch.generative.utilities import loader as loading_utils
+from ai_edge_torch.generative.utilities import model_builder
 import safetensors.torch
 import torch
 
@@ -71,7 +72,7 @@ class TestLoader(googletest.TestCase):
       safetensors.torch.save_file(test_weights, file_path)
       cfg = tiny_llama.get_model_config()
       cfg.num_layers = 1
-      model = tiny_llama.TinyLlama(cfg)
+      model = model_builder.DecoderOnlyModel(cfg)
 
       loader = loading_utils.ModelLoader(file_path, tiny_llama.TENSOR_NAMES)
       # if returns successfully, it means all the tensors were initiallized.

@@ -75,9 +75,7 @@ class CLIP(nn.Module):
     )
 
   @torch.inference_mode
-  def forward(self, tokens: torch.LongTensor) -> torch.FloatTensor:
-    tokens = tokens.type(torch.int)
-
+  def forward(self, tokens: torch.IntTensor) -> torch.FloatTensor:
     state = self.tok_embedding(tokens) + self.tok_embedding_position
     for layer in self.transformer_blocks:
       state = layer(state, mask=self.mask_cache)
@@ -98,6 +96,7 @@ def get_model_config() -> cfg.ModelConfig:
       num_heads=num_heads,
       head_dim=embedding_dim // num_heads,
       num_query_groups=num_query_groups,
+      rotary_base=0,
       rotary_percentage=0.0,
       qkv_use_bias=True,
       qkv_transpose_before_split=True,
@@ -148,6 +147,7 @@ def get_fake_model_config() -> cfg.ModelConfig:
       num_heads=num_heads,
       head_dim=embedding_dim // num_heads,
       num_query_groups=num_query_groups,
+      rotary_base=0,
       rotary_percentage=0.0,
       qkv_use_bias=True,
       qkv_transpose_before_split=True,

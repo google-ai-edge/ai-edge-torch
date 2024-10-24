@@ -15,7 +15,7 @@
 
 """Utility functions to verify the reauthored Gemma model."""
 
-import dataclasses
+import logging
 import os
 from typing import List, Tuple
 
@@ -26,25 +26,16 @@ from gemma import model as gemma_model
 import torch
 
 
-@dataclasses.dataclass
-class _Output:
-  logits: torch.Tensor
-
-
 class GemmaWrapper(verifier.ModelWrapper):
   """Gemma model wrapper for verification.
 
   Verifier calls model.forward() with maxium sequence length (1024) expecting
-  the output has 'logits' field while Gemma gets the input tokens with the
-  actual length and returns logits in a tuple.
+  the output is logits while Gemma gets the input tokens with the actual length
+  and returns logits in a tuple.
 
   Verifier runs tokenizer before model.generate() while Gemma runs the tokenizer
   inside model.generate().
   """
-
-  def __init__(self, model: torch.nn.Module, max_new_tokens: int):
-    super().__init__(model)
-    self.max_new_tokens = max_new_tokens
 
   def _get_actual_input_len(self, tokens: torch.Tensor) -> int:
     for i in range(tokens.shape[1]):
@@ -62,7 +53,7 @@ class GemmaWrapper(verifier.ModelWrapper):
         (cache.clone(), cache.clone()) for _ in range(config.num_hidden_layers)
     ]
 
-  def forward(self, tokens: torch.Tensor) -> _Output:
+  def forward(self, tokens: torch.Tensor) -> torch.Tensor:
     """Forwards the model after reducing input tokens to the actual length."""
     actual_input_len = self._get_actual_input_len(tokens)
     input_pos = torch.arange(0, actual_input_len, dtype=torch.long)
@@ -78,27 +69,25 @@ class GemmaWrapper(verifier.ModelWrapper):
         top_ps=torch.tensor([1.0], dtype=torch.float),
         top_ks=torch.tensor([1], dtype=torch.long),
     )
-    return _Output(logits.float())
+    return logits
 
-  def generate(self, tokens: torch.Tensor) -> torch.Tensor:
+  def generate(
+      self, tokens: torch.Tensor, max_new_tokens: int
+  ) -> torch.IntTensor:
     """Generates the response after decoding the tokens into a string."""
     prompts = self.model.tokenizer.decode(tokens[0].tolist())
     response = self.model.generate(
-        prompts, device="cpu", output_len=self.max_new_tokens, top_k=1
+        prompts, device="cpu", output_len=max_new_tokens, top_k=1
     )
     return torch.tensor([self.model.tokenizer.encode(prompts + response)])
 
 
-class TokenizerWrapper(torch.nn.Module):
+class GemmaTokenizerWrapper(verifier.TokenizerWrapper):
   """Tokenizer wrapper for verification.
 
   Verifier expects the tokenizer to handle tokens in torch.Tensor while Gemma
   tokenizer expects tokens in a list.
   """
-
-  def __init__(self, tokenizer: torch.nn.Module):
-    super().__init__()
-    self.tokenizer = tokenizer
 
   def encode(self, text: str, **_) -> torch.Tensor:
     """Adds one more dimension to the output of the tokenizer."""
@@ -127,15 +116,16 @@ def verify_reauthored_gemma_model(
   # Use float32 to be compatible with the reauthored model.
   config.dtype = torch.float32
 
-  verifier.log_msg("Loading the original model from", checkpoint)
+  logging.info("Loading the original model from: %s", checkpoint)
   original_model = gemma_model.GemmaForCausalLM(config).eval()
   original_model.load_weights(os.path.join(checkpoint, weight_filename))
 
   verifier.verify_reauthored_model(
-      original_model=GemmaWrapper(original_model, max_new_tokens),
-      reauthored_model=reauthored_model,
-      tokenizer=TokenizerWrapper(original_model.tokenizer),
+      original_model=GemmaWrapper(original_model),
+      reauthored_model=verifier.ReauthoredModelWrapper(reauthored_model),
+      tokenizer=GemmaTokenizerWrapper(original_model.tokenizer),
       generate_prompts=generate_prompts,
+      max_new_tokens=max_new_tokens,
       forward_input_ids=forward_input_ids,
       rtol=rtol,
       atol=atol,

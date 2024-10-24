@@ -15,13 +15,16 @@
 
 """Verifies the reauthored Phi-3.5 model."""
 
+import logging
 import pathlib
 
 from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.phi import phi3
+from ai_edge_torch.generative.utilities import transformers_verifier
 from ai_edge_torch.generative.utilities import verifier
 import transformers
+
 
 _PROMPTS = flags.DEFINE_multi_string(
     "prompts",
@@ -37,30 +40,28 @@ _MAX_NEW_TOKENS = flags.DEFINE_integer(
 
 def main(_):
   checkpoint = "microsoft/Phi-3.5-mini-instruct"
-  verifier.log_msg("Loading the original model from", checkpoint)
-  generation_config = transformers.GenerationConfig.from_pretrained(checkpoint)
-  generation_config.max_new_tokens = _MAX_NEW_TOKENS.value
-  wrapper_model = verifier.ModelWrapper(
-      model=transformers.AutoModelForCausalLM.from_pretrained(checkpoint),
-      hf_generation_config=generation_config,
-  )
+  logging.info("Loading the original model from: %s", checkpoint)
+  original_model = transformers.AutoModelForCausalLM.from_pretrained(checkpoint)
 
   # Locate the cached dir.
   cached_config_file = transformers.utils.cached_file(
       checkpoint, transformers.utils.CONFIG_NAME
   )
   reauthored_checkpoint = pathlib.Path(cached_config_file).parent
-  verifier.log_msg("Building the reauthored model from", reauthored_checkpoint)
+  logging.info("Building the reauthored model from: %s", reauthored_checkpoint)
   reauthored_model = phi3.build_model(reauthored_checkpoint)
 
-  verifier.log_msg("Loading the tokenizer from", checkpoint)
+  logging.info("Loading the tokenizer from: %s", checkpoint)
   tokenizer = transformers.AutoTokenizer.from_pretrained(checkpoint)
 
   verifier.verify_reauthored_model(
-      original_model=wrapper_model,
-      reauthored_model=reauthored_model,
-      tokenizer=tokenizer,
+      original_model=transformers_verifier.TransformersModelWrapper(
+          original_model
+      ),
+      reauthored_model=verifier.ReauthoredModelWrapper(reauthored_model),
+      tokenizer=verifier.TokenizerWrapper(tokenizer),
       generate_prompts=_PROMPTS.value,
+      max_new_tokens=_MAX_NEW_TOKENS.value,
   )
 
 

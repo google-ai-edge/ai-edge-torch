@@ -490,6 +490,22 @@ class TestConvert(googletest.TestCase):
     tflite_output = edge_model(**flat_inputs)
     np.testing.assert_almost_equal(reference_output, tflite_output)
 
+  def test_convert_model_with_input_mutation(self):
+    class SampleModel(nn.Module):
+
+      def forward(self, x):
+        x /= 1
+        x = x + 10
+        return x
+
+    args = (torch.randn(10, 10),)
+    torch_module = SampleModel().eval()
+    edge_model = ai_edge_torch.convert(torch_module, args)
+
+    self.assertTrue(
+        model_coverage.compare_tflite_torch(edge_model, torch_module, args)
+    )
+
 
 if __name__ == "__main__":
   googletest.main()

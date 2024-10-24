@@ -32,9 +32,11 @@ py_binary(
         ":clip",
         ":decoder",
         ":diffusion",
-        ":encoder",
         ":util",
+        "//third_party/py/absl:app",
+        "//third_party/py/absl/flags",
         "//third_party/py/ai_edge_torch",
+        "//third_party/py/ai_edge_torch/generative/utilities:stable_diffusion_loader",
         "//third_party/py/torch:pytorch",
     ],
 )
@@ -43,7 +45,11 @@ py_library(
     name = "clip",
     srcs = ["clip.py"],
     deps = [
-        "//third_party/py/ai_edge_torch",
+        "//third_party/py/ai_edge_torch/generative/layers:attention",
+        "//third_party/py/ai_edge_torch/generative/layers:attention_utils",
+        "//third_party/py/ai_edge_torch/generative/layers:builder",
+        "//third_party/py/ai_edge_torch/generative/layers:model_config",
+        "//third_party/py/ai_edge_torch/generative/utilities:loader",
         "//third_party/py/torch:pytorch",
     ],
 )
@@ -52,7 +58,11 @@ py_library(
     name = "decoder",
     srcs = ["decoder.py"],
     deps = [
-        "//third_party/py/ai_edge_torch",
+        "//third_party/py/ai_edge_torch/generative/layers:builder",
+        "//third_party/py/ai_edge_torch/generative/layers:model_config",
+        "//third_party/py/ai_edge_torch/generative/layers/unet:blocks_2d",
+        "//third_party/py/ai_edge_torch/generative/layers/unet:model_config",
+        "//third_party/py/ai_edge_torch/generative/utilities:stable_diffusion_loader",
         "//third_party/py/torch:pytorch",
     ],
 )
@@ -85,7 +95,11 @@ py_library(
     name = "diffusion",
     srcs = ["diffusion.py"],
     deps = [
-        "//third_party/py/ai_edge_torch",
+        "//third_party/py/ai_edge_torch/generative/layers:builder",
+        "//third_party/py/ai_edge_torch/generative/layers:model_config",
+        "//third_party/py/ai_edge_torch/generative/layers/unet:blocks_2d",
+        "//third_party/py/ai_edge_torch/generative/layers/unet:model_config",
+        "//third_party/py/ai_edge_torch/generative/utilities:stable_diffusion_loader",
         "//third_party/py/torch:pytorch",
     ],
 )
@@ -98,6 +112,7 @@ py_library(
         ":util",
         "//third_party/py/PIL:pil",
         "//third_party/py/ai_edge_torch",
+        "//third_party/py/ai_edge_torch/generative/examples/stable_diffusion/samplers:__init__",
         "//third_party/py/numpy",
         "//third_party/py/tqdm",
     ],

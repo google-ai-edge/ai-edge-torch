@@ -15,14 +15,9 @@
 
 """Example of building a Gemma1 model."""
 
-from ai_edge_torch.generative.layers import attention
-from ai_edge_torch.generative.layers import builder
-from ai_edge_torch.generative.layers import kv_cache as kv_utils
-import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
+from ai_edge_torch.generative.utilities import model_builder
 import ai_edge_torch.generative.utilities.loader as loading_utils
-import torch
-from torch import nn
 
 TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.up_proj",
@@ -36,89 +31,6 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     final_norm="model.norm",
     lm_head=None,
 )
-
-
-class Gemma(nn.Module):
-  """A Gemma model built from the Edge Generative API layers."""
-
-  def __init__(self, config: cfg.ModelConfig):
-    super().__init__()
-
-    # Construct model layers.
-    self.tok_embedding = nn.Embedding(
-        config.vocab_size, config.embedding_dim, padding_idx=0
-    )
-    self.lm_head = nn.Linear(
-        config.embedding_dim,
-        config.vocab_size,
-        bias=config.lm_head_use_bias,
-    )
-    # Gemma re-uses the embedding as the head projection layer.
-    self.lm_head.weight.data = self.tok_embedding.weight.data
-    # Gemma has only one block config.
-    block_config = config.block_config(0)
-    self.transformer_blocks = nn.ModuleList(
-        attention.TransformerBlock(block_config, config)
-        for _ in range(config.num_layers)
-    )
-    self.final_norm = builder.build_norm(
-        config.embedding_dim,
-        config.final_norm_config,
-    )
-    attn_config = block_config.attn_config
-    self.rope_cache = attn_utils.build_rope_cache(
-        size=config.kv_cache_max,
-        dim=int(attn_config.rotary_percentage * attn_config.head_dim),
-        base=10_000,
-        condense_ratio=1,
-        dtype=torch.float32,
-        device=torch.device("cpu"),
-    )
-    self.mask_cache = attn_utils.build_causal_mask_cache(
-        size=config.kv_cache_max,
-        dtype=torch.float32,
-        device=torch.device("cpu"),
-    )
-    self.config = config
-
-  @torch.inference_mode
-  def forward(
-      self,
-      tokens: torch.Tensor,
-      input_pos: torch.Tensor,
-      kv_cache: kv_utils.KVCache,
-  ) -> dict[torch.Tensor, kv_utils.KVCache]:
-    _, seq_len = tokens.size()
-    assert self.config.max_seq_len >= seq_len, (
-        f"Cannot forward sequence of length {seq_len}, max seq length is only"
-        f" {self.config.max_seq_len}"
-    )
-    assert len(self.transformer_blocks) == len(kv_cache.caches), (
-        "The number of transformer blocks and the number of KV cache entries"
-        " must be the same."
-    )
-
-    cos, sin = self.rope_cache
-    cos = cos.index_select(0, input_pos)
-    sin = sin.index_select(0, input_pos)
-    mask = self.mask_cache.index_select(2, input_pos)
-    mask = mask[:, :, :, : self.config.kv_cache_max]
-
-    # token embeddings of shape (b, t, n_embd)
-    x = self.tok_embedding(tokens)
-    x = x * (self.config.embedding_dim**0.5)
-
-    updated_kv_entires = []
-    for i, block in enumerate(self.transformer_blocks):
-      kv_entry = kv_cache.caches[i] if kv_cache else None
-      x, kv_entry = block(x, (cos, sin), mask, input_pos, kv_entry)
-      if kv_entry:
-        updated_kv_entires.append(kv_entry)
-    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entires))
-
-    x = self.final_norm(x)
-    logits = self.lm_head(x)  # (b, t, vocab_size)
-    return {"logits": logits, "kv_cache": updated_kv_cache}
 
 
 def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
@@ -135,6 +47,7 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       num_heads=8,
       head_dim=256,
       num_query_groups=1,
+      rotary_base=10000,
       rotary_percentage=1.0,
   )
   ff_config = cfg.FeedForwardConfig(
@@ -158,6 +71,7 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       num_layers=18,
       max_seq_len=8192,
       embedding_dim=2048,
+      embedding_scale=2048**0.5,
       kv_cache_max_len=kv_cache_max_len,
       block_configs=block_config,
       final_norm_config=norm_config,
@@ -177,12 +91,11 @@ def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
   return config
 
 
-def build_2b_model(checkpoint_path: str, **kwargs) -> nn.Module:
-  config = get_model_config_2b(**kwargs)
-  model = Gemma(config)
-  loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
-  # Since embedding and lm-head use the same weight, we need to set strict
-  # to False.
-  loader.load(model, strict=False)
-  model.eval()
-  return model
+def build_2b_model(
+    checkpoint_path: str, **kwargs
+) -> model_builder.DecoderOnlyModel:
+  return model_builder.build_decoder_only_model(
+      checkpoint_path=checkpoint_path,
+      config=get_model_config_2b(**kwargs),
+      tensor_names=TENSOR_NAMES,
+  )

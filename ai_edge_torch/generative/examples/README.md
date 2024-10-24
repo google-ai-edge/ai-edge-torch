@@ -4,6 +4,12 @@ Here we provide a list of popular decoder-only LLMs composed via the transformer
 ## Gemma
 Gemma is Google's open-source LLM. The model has both a 2B and 7B versions. See the [model's Kaggle page](https://www.kaggle.com/models/google/gemma-2). The example we provide is Gemma 2B, and the checkpoint for the PyTorch model can be downloaded from [here](https://www.kaggle.com/models/google/gemma-2/pyTorch/gemma-2-2b-it).
 
+## Llama
+[Llama 3.2 model](https://ai.meta.com/blog/llama-3-2-connect-2024-vision-edge-mobile-devices/)
+is Meta's open-source LLM with 1B and 3B for text, and 11B and 90B for vision.
+The examples we provide are Llama 3.2 1B and 3B for text. The checkpoint can be
+found [here](https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct/tree/main).
+
 ## TinyLlama
 [TinyLlama](https://github.com/jzhang38/TinyLlama) is a popular OSS smaller version of Meta's Llama2 model, with only 1.1B parameters. [HuggingFace checkpoint](https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0).
 
@@ -26,6 +32,14 @@ and the checkpoint for the model can be found
 LLM with 135M, 360M, 1.7B parameters. The example we provide is SmolLM 135M, and
 the checkpoint for the model can be found
 [here](https://huggingface.co/HuggingFaceTB/SmolLM-135M).
+
+## Qwen
+Alibaba's [Qwen 2.5](https://huggingface.co/collections/Qwen/qwen25-66e81a666513e518adb90d9e)
+0.5B, 1B, 3B modes are also provided as examples.
+
+## AMD-Llama-135m
+
+[AMD-Llama-135m](https://huggingface.co/amd/AMD-Llama-135m) is a 135M parameter model based on the Llama2 architecture and uses the same tokenizer as Llama2. It was trained on AMD Instinct MI250 accelerators. 
 
 ## Overall workflow
 To support a new LLM with the Edge Generative API, we need to go through the process of model (re)authoring, checkpoint mapping/loading, model quantization (via PT2E), model conversion to flatbuffer schema, model quality evaluation, benchmarking and on-device inference pipeline authoring.
@@ -79,7 +93,16 @@ LlamaForCausalLM(
 ```
 
 Based on the original model structure, construct a new nn.Module model using
-the AI Edge Torch Generative API
+the AI Edge Torch Generative API. As many examples do, either use
+[`DecoderOnlyModel`](https://github.com/protobird-git/ai-edge-torch/blob/main/ai_edge_torch/generative/utilities/model_builder.py)
+class as is like [SmolLM](https://github.com/protobird-git/ai-edge-torch/blob/main/ai_edge_torch/generative/examples/smollm/smollm.py),
+or inherit [`DecoderOnlyModel`](https://github.com/protobird-git/ai-edge-torch/blob/main/ai_edge_torch/generative/utilities/model_builder.py)
+class then modify only some component like
+[Llama 3.2](https://github.com/protobird-git/ai-edge-torch/blob/main/ai_edge_torch/generative/examples/llama/llama.py),
+or construct entirely a new nn.Module from scratch like
+[Gemma 2](https://github.com/protobird-git/ai-edge-torch/blob/main/ai_edge_torch/generative/examples/gemma/gemma2.py).
+
+Here is an example of TinyLlama constructed from scratch.
 
 https://github.com/google-ai-edge/ai-edge-torch/blob/853301630f2b2455bd2e2f73d8a47e1a1534c91c/ai_edge_torch/generative/examples/tiny_llama/tiny_llama.py#L46-L77
 

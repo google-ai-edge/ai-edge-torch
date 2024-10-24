@@ -86,8 +86,8 @@ class GroupNorm(torch.nn.Module):
     self.enable_hlfb = enable_hlfb
     self.group_num = group_num
     self.eps = eps
-    self.weight = torch.nn.Parameter(torch.ones(dim))
-    self.bias = torch.nn.Parameter(torch.ones(dim))
+    self.weight = torch.nn.Parameter(torch.empty(dim))
+    self.bias = torch.nn.Parameter(torch.empty(dim))
 
   def forward(self, x):
     """Running the forward pass of GroupNorm layer.
@@ -117,25 +117,22 @@ class LayerNorm(torch.nn.Module):
       dim: int,
       eps: float = 1e-5,
       enable_hlfb: bool = False,
-      use_input_shape: bool = True,
   ):
     """Initialize the LayerNorm layer.
 
     Args:
       dim (int): dimension of the input tensor.
       eps (float): A small float value to ensure numerical stability (default:
-        1e-6).
+        1e-5).
       enable_hlfb (bool): Whether to convert this normalization into a single
         op.
-      use_input_shape (bool): Whether to use the input shape to determine the
-        dimension of normalization (default: True).
     """
     super().__init__()
     self.enable_hlfb = enable_hlfb
-    self.use_input_shape = use_input_shape
+    self.normalized_shape = (dim,)
     self.eps = eps
-    self.weight = torch.nn.Parameter(torch.ones(dim))
-    self.bias = torch.nn.Parameter(torch.ones(dim))
+    self.weight = torch.nn.Parameter(torch.empty(dim))
+    self.bias = torch.nn.Parameter(torch.empty(dim))
 
   def forward(self, x):
     """Running the forward pass of LayerNorm layer.
@@ -148,18 +145,11 @@ class LayerNorm(torch.nn.Module):
     """
     if self.enable_hlfb:
       return layer_norm_with_hlfb(
-          x, self.weight, self.bias, self.eps, self.use_input_shape
+          x, self.normalized_shape, self.weight, self.bias, self.eps
       )
-
-    if self.use_input_shape:
-      normalized_shape = x.shape
-      weight = self.weight.broadcast_to(x.shape)
-      bias = self.bias.broadcast_to(x.shape)
-    else:
-      normalized_shape = self.weight.shape
-      weight = self.weight
-      bias = self.bias
-    return F.layer_norm(x, normalized_shape, weight, bias, self.eps)
+    return F.layer_norm(
+        x, self.normalized_shape, self.weight, self.bias, self.eps
+    )
 
 
 def group_norm_with_hlfb(
@@ -206,20 +196,20 @@ def group_norm_with_hlfb(
 
 def layer_norm_with_hlfb(
     x: torch.Tensor,
+    normalized_shape: list[int],
     w: torch.Tensor,
     b: torch.Tensor,
     eps: float,
-    use_input_shape: bool,
 ):
   """Layer Normalization with high-level function boundary enabled.
 
   Args:
     x (torch.Tensor): Input tensor for Layer Normalization, with BCHW shape.
+    normalized_shape (list[int]): Input shape from an expected input of size,
+      same as https://pytorch.org/docs/stable/generated/torch.nn.LayerNorm.html.
     w (torch.Tensor): The weight tensor for the normalization.
     b (torch.Tensor): The bias tensor for the normalization.
     eps (float): A small float value to ensure numerical stability.
-    use_input_shape (bool): Whether to use the input shape to determine the
-      dimension of normalization.
 
   Returns:
     The output tensor of Layer Normalization.
@@ -229,12 +219,6 @@ def layer_norm_with_hlfb(
       attr={"num_groups": 1, "epsilon": eps, "channel_axis": 1},
   )
   x, w, b = builder.mark_inputs(x, w, b)
-  if use_input_shape:
-    normalized_shape = x.shape
-    w = w.broadcast_to(x.shape)
-    b = b.broadcast_to(x.shape)
-  else:
-    normalized_shape = w.shape
   y = F.layer_norm(x, normalized_shape, w, b, eps=eps)
   y = builder.mark_outputs(y)
   return y

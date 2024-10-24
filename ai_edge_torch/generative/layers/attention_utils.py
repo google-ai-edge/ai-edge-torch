@@ -107,7 +107,7 @@ def build_sliding_window_mask_cache(
   sliding_mask = torch.triu(all_ones, -1 * window_size + 1) * torch.tril(
       all_ones, window_size - 1
   )
-  return torch.where(sliding_mask == 1, mask, -2.3819763e38)
+  return torch.where(sliding_mask == 1, mask, float('-inf'))
 
 
 def relative_position_bucket(

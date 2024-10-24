@@ -13,45 +13,52 @@
 # limitations under the License.
 # ==============================================================================
 
-import argparse
 import os
-from pathlib import Path
-from typing import Optional
+import pathlib
 
+from absl import app
+from absl import flags
 import ai_edge_torch
-import ai_edge_torch.generative.examples.stable_diffusion.clip as clip
-import ai_edge_torch.generative.examples.stable_diffusion.decoder as decoder
-import ai_edge_torch.generative.examples.stable_diffusion.diffusion as diffusion
-from ai_edge_torch.generative.examples.stable_diffusion.encoder import Encoder
-import ai_edge_torch.generative.examples.stable_diffusion.util as util
+from ai_edge_torch.generative.examples.stable_diffusion import clip
+from ai_edge_torch.generative.examples.stable_diffusion import decoder
+from ai_edge_torch.generative.examples.stable_diffusion import diffusion
+from ai_edge_torch.generative.examples.stable_diffusion import util
 from ai_edge_torch.generative.quantize import quant_recipes
-import ai_edge_torch.generative.utilities.stable_diffusion_loader as stable_diffusion_loader
+from ai_edge_torch.generative.utilities import stable_diffusion_loader
 import torch
 
-arg_parser = argparse.ArgumentParser()
-arg_parser.add_argument(
-    '--clip_ckpt',
-    type=str,
+_CLIP_CKPT = flags.DEFINE_string(
+    'clip_ckpt',
+    None,
     help='Path to source CLIP model checkpoint',
     required=True,
 )
-arg_parser.add_argument(
-    '--diffusion_ckpt',
-    type=str,
+
+_DIFFUSION_CKPT = flags.DEFINE_string(
+    'diffusion_ckpt',
+    None,
     help='Path to source diffusion model checkpoint',
     required=True,
 )
-arg_parser.add_argument(
-    '--decoder_ckpt',
-    type=str,
+
+_DECODER_CKPT = flags.DEFINE_string(
+    'decoder_ckpt',
+    None,
     help='Path to source image decoder model checkpoint',
     required=True,
 )
-arg_parser.add_argument(
-    '--output_dir',
-    type=str,
+
+_OUTPUT_DIR = flags.DEFINE_string(
+    'output_dir',
+    None,
     help='Path to the converted TF Lite directory.',
     required=True,
+)
+
+_QUANTIZE = flags.DEFINE_bool(
+    'quantize',
+    help='Whether to quantize the model during conversion.',
+    default=True,
 )
 
 
@@ -111,7 +118,7 @@ def convert_stable_diffusion_to_tflite(
   time_embedding = util.get_time_embedding(timestamp)
 
   if not os.path.exists(output_dir):
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
 
   quant_config = (
       quant_recipes.full_int8_weight_only_recipe() if quantize else None
@@ -142,14 +149,15 @@ def convert_stable_diffusion_to_tflite(
   ).export(f'{output_dir}/decoder.tflite')
 
 
-if __name__ == '__main__':
-  args = arg_parser.parse_args()
+def main(_):
   convert_stable_diffusion_to_tflite(
-      output_dir=args.output_dir,
-      clip_ckpt_path=args.clip_ckpt,
-      diffusion_ckpt_path=args.diffusion_ckpt,
-      decoder_ckpt_path=args.decoder_ckpt,
-      image_height=512,
-      image_width=512,
-      quantize=True,
+      output_dir=_OUTPUT_DIR.value,
+      clip_ckpt_path=_CLIP_CKPT.value,
+      diffusion_ckpt_path=_DIFFUSION_CKPT.value,
+      decoder_ckpt_path=_DECODER_CKPT.value,
+      quantize=_QUANTIZE.value,
   )
+
+
+if __name__ == '__main__':
+  app.run(main)

@@ -15,8 +15,6 @@
 
 """Example of building a Gemma2 model."""
 
-import os
-import pathlib
 from typing import Optional, Tuple
 
 from ai_edge_torch.generative.layers import attention
@@ -25,7 +23,6 @@ from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
-import numpy as np
 import torch
 from torch import nn
 
@@ -111,21 +108,14 @@ class Gemma2(nn.Module):
     self.rope_cache = attn_utils.build_rope_cache(
         size=config.kv_cache_max,
         dim=int(attn_config.rotary_percentage * attn_config.head_dim),
-        base=10_000,
-        condense_ratio=1,
-        dtype=torch.float32,
-        device=torch.device("cpu"),
+        base=attn_config.rotary_base,
     )
     self.mask_cache = attn_utils.build_causal_mask_cache(
         size=config.kv_cache_max,
-        dtype=torch.float32,
-        device=torch.device("cpu"),
     )
     self.sliding_window_mask_cache = attn_utils.build_sliding_window_mask_cache(
         size=config.kv_cache_max,
         window_size=attn_config.sliding_window_size,
-        dtype=torch.float32,
-        device=torch.device("cpu"),
     )
     self.config = config
 
@@ -210,6 +200,7 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
         num_heads=8,
         head_dim=256,
         num_query_groups=4,
+        rotary_base=10000,
         rotary_percentage=1.0,
         qkv_transpose_before_split=True,
         logit_softcap=50.0,

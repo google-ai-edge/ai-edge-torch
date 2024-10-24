@@ -77,7 +77,7 @@ def build_norm(dim: int, config: cfg.NormalizationConfig):
     )
   elif config.type == cfg.NormalizationType.LAYER_NORM:
     return normalization.LayerNorm(
-        dim, config.epsilon, config.enable_hlfb, config.use_input_shape
+        dim, config.epsilon, config.enable_hlfb
     )
   elif config.type == cfg.NormalizationType.GROUP_NORM:
     return normalization.GroupNorm(

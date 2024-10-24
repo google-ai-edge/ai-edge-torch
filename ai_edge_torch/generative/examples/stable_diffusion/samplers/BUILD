@@ -29,6 +29,11 @@ py_library(
 py_library(
     name = "__init__",
     srcs = ["__init__.py"],
+    deps = [
+        ":k_euler",
+        ":k_euler_ancestral",
+        ":k_lms",
+    ],
 )
 
 py_library(
