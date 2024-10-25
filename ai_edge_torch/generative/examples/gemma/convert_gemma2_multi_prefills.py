@@ -51,6 +51,10 @@ _QUANTIZE = flags.DEFINE_bool(
 )
 
 
+# Note that the converted model is not compatible with LLM Inference engine for
+# now. The main purpose for this function is to allow you export a tflite model
+# with multiple prefill signatures for different prefill lengths for faster
+# inference.
 def convert_to_tflite_multi_prefill_lens():
   pytorch_model = gemma2.build_2b_model(
       _CHECKPOINT_PATH.value, kv_cache_max_len=_KV_CACHE_MAX_LEN.value
