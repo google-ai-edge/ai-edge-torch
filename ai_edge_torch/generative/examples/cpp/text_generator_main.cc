@@ -35,6 +35,7 @@ limitations under the License.
 #include "tensorflow/lite/kernels/register.h"
 #include "tensorflow/lite/model_builder.h"
 #include "tensorflow/lite/signature_runner.h"
+#include "tensorflow/lite/util.h"
 
 // This is a simplified example of using TFLite to generate text.
 // Please note that this is only a starting point and the user is expected
@@ -48,7 +49,7 @@ limitations under the License.
 //    --max_decode_steps=64 \
 //    --start_token="<bos>" \
 //    --stop_token="<eos>"  \
-//    --num_threads=4 \
+//    --num_threads=4
 
 #define TFLITE_MINIMAL_CHECK(x)                              \
   if (!(x)) {                                                \
@@ -123,7 +124,32 @@ std::unique_ptr<tflite::Interpreter> BuildInterpreter(
   return interpreter;
 }
 
-std::map<std::string, std::vector<float>> BuildKVCache(
+// TF Lite requires all buffers (including external buffers used for KV cache
+// here) be `tflite::kDefaultTensorAlignment` aligned. To ensure that, we use
+// this custom allocator. Please use with caution as different platforms may
+// have different alignment requirements.
+template <typename T>
+class AlignedAllocator {
+ public:
+  using value_type = T;
+
+  T* allocate(std::size_t n) {
+    void* ptr;
+    std::size_t size = n * sizeof(T);
+    std::size_t padding = tflite::kDefaultTensorAlignment -
+                          (size % tflite::kDefaultTensorAlignment);
+    size += padding;
+    int ret = posix_memalign(&ptr, tflite::kDefaultTensorAlignment, size);
+    if (ret != 0) {
+      return nullptr;
+    }
+    return static_cast<T*>(ptr);
+  }
+
+  void deallocate(T* p, std::size_t n) { free(p); }
+};
+
+std::map<std::string, std::vector<float, AlignedAllocator<float>>> BuildKVCache(
     tflite::Interpreter* interpreter) {
   tflite::SignatureRunner* runner = interpreter->GetSignatureRunner("prefill");
   if (runner == nullptr) {
@@ -135,15 +161,17 @@ std::map<std::string, std::vector<float>> BuildKVCache(
     return {};
   }
 
-  std::map<std::string, std::vector<float>> kv_cache;
+  std::map<std::string, std::vector<float, AlignedAllocator<float>>> kv_cache;
   for (int i = 0; i < num_layers; ++i) {
     std::string k_cache_name = "kv_cache_k_" + std::to_string(i);
     std::string v_cache_name = "kv_cache_v_" + std::to_string(i);
     // We are assuming K and V tensors are of the same shape.
     TfLiteTensor* tensor = runner->input_tensor(k_cache_name.c_str());
     size_t count = tensor->bytes / sizeof(float);
-    kv_cache.emplace(k_cache_name, std::vector<float>(count, 0.0));
-    kv_cache.emplace(v_cache_name, std::vector<float>(count, 0.0));
+    kv_cache.emplace(k_cache_name,
+                     std::vector<float, AlignedAllocator<float>>(count, 0.0));
+    kv_cache.emplace(v_cache_name,
+                     std::vector<float, AlignedAllocator<float>>(count, 0.0));
   }
 
   return kv_cache;
@@ -151,7 +179,8 @@ std::map<std::string, std::vector<float>> BuildKVCache(
 
 tflite::SignatureRunner* GetSignatureRunner(
     tflite::Interpreter* interpreter, const std::string& signature_name,
-    std::map<std::string, std::vector<float>>& kv_cache) {
+    std::map<std::string, std::vector<float, AlignedAllocator<float>>>&
+        kv_cache) {
   tflite::SignatureRunner* runner =
       interpreter->GetSignatureRunner(signature_name.c_str());
   for (auto& [name, cache] : kv_cache) {
@@ -207,7 +236,7 @@ int main(int argc, char* argv[]) {
       BuildInterpreter(model.get(), absl::GetFlag(FLAGS_num_threads));
   std::unique_ptr<sentencepiece::SentencePieceProcessor> sp_processor =
       LoadSentencePieceProcessor();
-  std::map<std::string, std::vector<float>> kv_cache =
+  std::map<std::string, std::vector<float, AlignedAllocator<float>>> kv_cache =
       BuildKVCache(interpreter.get());
   TFLITE_MINIMAL_CHECK(!kv_cache.empty())
 
