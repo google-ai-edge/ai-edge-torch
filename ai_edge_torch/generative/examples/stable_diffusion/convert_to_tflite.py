@@ -63,9 +63,10 @@ _QUANTIZE = flags.DEFINE_bool(
 
 _DEVICE_TYPE = flags.DEFINE_string(
     'device_type',
-    'cpu',
+    None,
     help='The device type of the model. Currently supported: cpu, gpu.',
     default='cpu',
+    required=True,
 )
 
 
