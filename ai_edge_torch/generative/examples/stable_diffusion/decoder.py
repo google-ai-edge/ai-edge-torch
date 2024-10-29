@@ -270,8 +270,8 @@ class Decoder(nn.Module):
     return x
 
 
-def get_model_config() -> unet_cfg.AutoEncoderConfig:
-  """Get configs for the Decoder of Stable Diffusion v1.5"""
+def get_model_config(device_type: str = "cpu") -> unet_cfg.AutoEncoderConfig:
+  """Get configs for the Decoder of Stable Diffusion v1.5."""
   in_channels = 3
   latent_channels = 4
   out_channels = 3
@@ -279,8 +279,14 @@ def get_model_config() -> unet_cfg.AutoEncoderConfig:
   scaling_factor = 0.18215
   layers_per_block = 3
 
+  # For now, only turns on StableHLO composite ops on GPU backend for better
+  # performance. CPU should also switch to it once the support is done.
+  enable_hlfb = True if device_type == "gpu" else False
+
   norm_config = layers_cfg.NormalizationConfig(
-      layers_cfg.NormalizationType.GROUP_NORM, group_num=32
+      layers_cfg.NormalizationType.GROUP_NORM,
+      group_num=32,
+      enable_hlfb=enable_hlfb,
   )
 
   att_config = unet_cfg.AttentionBlock2DConfig(
@@ -298,7 +304,7 @@ def get_model_config() -> unet_cfg.AutoEncoderConfig:
           rotary_base=0,
           rotary_percentage=0.0,
       ),
-      enable_hlfb=False,
+      enable_hlfb=enable_hlfb,
   )
 
   mid_block_config = unet_cfg.MidBlock2DConfig(
@@ -327,7 +333,9 @@ def get_model_config() -> unet_cfg.AutoEncoderConfig:
   return config
 
 
-def get_fake_model_config() -> unet_cfg.AutoEncoderConfig:
+def get_fake_model_config(
+    device_type: str = "cpu",
+) -> unet_cfg.AutoEncoderConfig:
   """Get fake configs for the Decoder of Stable Diffusion v1.5 for testing."""
   in_channels = 3
   latent_channels = 4
@@ -336,8 +344,14 @@ def get_fake_model_config() -> unet_cfg.AutoEncoderConfig:
   scaling_factor = 0.18215
   layers_per_block = 2
 
+  # For now, only turns on StableHLO composite ops on GPU backend for better
+  # performance. CPU should also switch to it once the support is done.
+  enable_hlfb = True if device_type == "gpu" else False
+
   norm_config = layers_cfg.NormalizationConfig(
-      layers_cfg.NormalizationType.GROUP_NORM, group_num=2
+      layers_cfg.NormalizationType.GROUP_NORM,
+      group_num=2,
+      enable_hlfb=enable_hlfb,
   )
 
   att_config = unet_cfg.AttentionBlock2DConfig(
@@ -355,7 +369,7 @@ def get_fake_model_config() -> unet_cfg.AutoEncoderConfig:
           rotary_base=0,
           rotary_percentage=0.0,
       ),
-      enable_hlfb=False,
+      enable_hlfb=enable_hlfb,
   )
 
   mid_block_config = unet_cfg.MidBlock2DConfig(
