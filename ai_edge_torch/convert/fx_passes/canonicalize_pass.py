@@ -33,5 +33,14 @@ _dummy_decomp_table = {
 class CanonicalizePass(ExportedProgramPassBase):
 
   def call(self, exported_program: ExportedProgram):
+    for node in exported_program.graph.nodes:
+      if node.target == torch.ops.aten.view.default:
+        # Passes or torch.export may generate aten.view nodes not respecting the
+        # tensor memory format. Changes all the aten.view to torch.reshape
+        # for retracing. If the input memory format is already contiguous,
+        # retracing in run_decomposition below would decompose torch.reshape
+        # back to one aten.view.
+        node.target = lambda self, size: torch.reshape(self.contiguous(), size)
+        
     exported_program = exported_program.run_decompositions(_dummy_decomp_table)
     return ExportedProgramPassResult(exported_program, True)

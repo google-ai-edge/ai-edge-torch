@@ -112,6 +112,10 @@ class BuildInterpolateCompositePass(ExportedProgramPassBase):
     ]
 
   def call(self, exported_program: torch.export.ExportedProgram):
+    from ai_edge_torch.convert import fx_passes
+    exported_program = fx_passes.run_passes(
+        exported_program, [fx_passes.CanonicalizePass()]
+    )
     exported_program = exported_program.run_decompositions(_INTERPOLATE_DECOMPOSITIONS)
 
     graph_module = exported_program.graph_module

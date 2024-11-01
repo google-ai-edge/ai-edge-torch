@@ -91,7 +91,17 @@ def convert_signatures(
       torch.export.export(sig.module, sig.flat_args, dynamic_shapes=sig.dynamic_shapes)
       for sig in signatures
   ]
-
+  for i, exported_program in enumerate(exported_programs):
+    if hasattr(torch._decomp, "_decomp_table_to_post_autograd_aten"):
+      # Available after torch 2.5.0: `_decomp_table_to_post_autograd_aten` is a
+      # stop-gap table which replicates the old behaviour of post-dispatch IR.
+      # This could help ensure the collection of aten ops remaining still as the
+      # implementation of torch.export changes.
+      exported_program = exported_program.run_decompositions(
+          torch._decomp._decomp_table_to_post_autograd_aten()
+      )
+      exported_programs[i] = exported_program
+    
   # Apply default fx passes
   exported_programs = list(map(_run_convert_passes, exported_programs))
   shlo_bundles: list[stablehlo.StableHLOModelBundle] = [

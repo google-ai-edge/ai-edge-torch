@@ -24,6 +24,7 @@ from torch.fx.passes.utils.matcher_utils import InternalMatch
 from torch.fx.passes.utils.matcher_utils import SubgraphMatcher
 
 from ai_edge_torch.hlfb.mark_pattern import passes
+from ai_edge_torch.convert import fx_passes
 
 
 def _are_equal(x: Any, y: Any) -> bool:
@@ -111,6 +112,7 @@ def _find_scalar_attr(
     track_args[tracker.pattern_arg_pos] = source
     ep = torch.export.export(pattern_module, tuple(track_args))
     if decomp_table is not None:
+      ep = fx_passes.run_passes(ep, [fx_passes.CanonicalizePass()])
       ep = ep.run_decompositions(decomp_table)
 
     scalar_locs = set()
@@ -193,6 +195,9 @@ class Pattern:
 
     exported_program = torch.export.export(module, export_args)
     if decomp_table is not None:
+      exported_program = fx_passes.run_passes(
+          exported_program, [fx_passes.CanonicalizePass()]
+      )
       exported_program = exported_program.run_decompositions(decomp_table)
 
     self.exported_program = exported_program
