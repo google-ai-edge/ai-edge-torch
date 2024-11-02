@@ -58,14 +58,14 @@ _OUTPUT_DIR = flags.DEFINE_string(
 _QUANTIZE = flags.DEFINE_bool(
     'quantize',
     help='Whether to quantize the model during conversion.',
-    default=True,
+    default=False,
 )
 
 _DEVICE_TYPE = flags.DEFINE_string(
     'device_type',
     None,
     help='The device type of the model. Currently supported: cpu, gpu.',
-    default='cpu',
+    default='gpu',
     required=True,
 )
 
