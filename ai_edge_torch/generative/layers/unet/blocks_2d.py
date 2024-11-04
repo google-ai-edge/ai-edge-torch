@@ -297,19 +297,20 @@ class TransformerBlock2D(nn.Module):
       hidden_states
   """
 
-  def __init__(self, config: unet_cfg.TransformerBlock2DConfig, dim_overwrite=None):
+  def __init__(self, config: unet_cfg.TransformerBlock2DConfig, dim_override=None):
     """Initialize an instance of the TransformerBlock2D.
 
     Args:
       config (unet_cfg.TransformerBlock2Dconfig): the configuration of this
         block.
+      dim_override: in case specified, overrides config.attention_block_config.hidden_dim. Set to None by default.
     """
     super().__init__()
     self.config = config
     attention_block_config_dim = config.attention_block_config.dim
     attention_block_config_hidden_dim = config.attention_block_config.hidden_dim
-    if dim_overwrite: 
-      attention_block_config_dim = dim_overwrite
+    if dim_override: 
+      attention_block_config_dim = dim_override
     if not attention_block_config_hidden_dim:
       attention_block_config_hidden_dim = attention_block_config_dim
     self.pre_conv_norm = layers_builder.build_norm(
@@ -607,7 +608,7 @@ class SkipUpDecoderBlock2D(nn.Module):
         hidden_channels=config.out_channels
     sub_block_channels=config.sub_block_channels
     if sub_block_channels:
-        assert len(sub_block_channels) == config.num_layers
+      assert len(sub_block_channels) == config.num_layers, f"Assertion failed: The length of 'sub_block_channels' ({len(sub_block_channels)}) does not match 'config.num_layers' ({config.num_layers})."
     else:
         sub_block_channels = [config.out_channels] * config.num_layers
     resnets = []
@@ -630,7 +631,7 @@ class SkipUpDecoderBlock2D(nn.Module):
           )
       )
       if config.transformer_block_config:
-        transformers.append(TransformerBlock2D(config.transformer_block_config, dim_overwrite=sub_block_channels[i]))
+        transformers.append(TransformerBlock2D(config.transformer_block_config, dim_override=sub_block_channels[i]))
     self.resnets = nn.ModuleList(resnets)
     self.transformers = (
         nn.ModuleList(transformers) if len(transformers) > 0 else None

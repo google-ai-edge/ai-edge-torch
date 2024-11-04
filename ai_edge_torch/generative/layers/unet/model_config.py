@@ -181,7 +181,6 @@ class MidBlock2DConfig:
   transformer_block_config: Optional[TransformerBlock2DConfig] = None
   # Optional dimension of context tensor if context tensor is given as input.
   context_dim: Optional[int] = None
-  attention_hidden_channels: Optional[int] = 736
 
 
 @dataclasses.dataclass
@@ -278,11 +277,3 @@ class DiffusionModelConfig:
 
   # Activation type used in final layer
   final_activation_type: layers_cfg.ActivationType
-
-  # Additional parameters
-  attention_hidden_channels: Optional[List[int]] = None
-  hidden_channels: Optional[List[int]] = None
-  block_out_channels_up: Optional[List[int]] = None
-  sub_block_channels: Optional[List[tuple]] = None
-  mid_block_attention_hidden_channels: Optional[int] = None
-  cross_attention_dim: Optional[int] = None
