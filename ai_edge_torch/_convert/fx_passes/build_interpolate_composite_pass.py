@@ -113,6 +113,9 @@ class BuildInterpolateCompositePass(fx_pass_base.ExportedProgramPassBase):
     ]
 
   def call(self, exported_program: torch.export.ExportedProgram):
+    exported_program = fx_pass_base.run_passes(
+        exported_program, [fx_pass_base.CanonicalizePass()]
+    )
     exported_program = exported_program.run_decompositions(
         _INTERPOLATE_DECOMPOSITIONS
     )

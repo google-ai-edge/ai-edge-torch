@@ -17,6 +17,7 @@
 import dataclasses
 from typing import Any, Callable, Optional, Union
 
+from ai_edge_torch import fx_pass_base
 from ai_edge_torch.hlfb.mark_pattern import passes
 import torch
 from torch.export.graph_signature import TensorArgument
@@ -116,6 +117,7 @@ def _find_scalar_attr(
     track_args[tracker.pattern_arg_pos] = source
     ep = torch.export.export(pattern_module, tuple(track_args))
     if decomp_table is not None:
+      ep = fx_pass_base.run_passes(ep, [fx_pass_base.CanonicalizePass()])
       ep = ep.run_decompositions(decomp_table)
 
     scalar_locs = set()
@@ -198,6 +200,9 @@ class Pattern:
 
     exported_program = torch.export.export(module, export_args)
     if decomp_table is not None:
+      exported_program = fx_pass_base.run_passes(
+          exported_program, [fx_pass_base.CanonicalizePass()]
+      )
       exported_program = exported_program.run_decompositions(decomp_table)
 
     self.exported_program = exported_program

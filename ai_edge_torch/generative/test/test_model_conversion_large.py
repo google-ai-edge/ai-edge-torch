@@ -17,6 +17,7 @@
 
 import ai_edge_torch
 from ai_edge_torch import config as ai_edge_config
+from ai_edge_torch.generative.examples.amd_llama_135m import amd_llama_135m
 from ai_edge_torch.generative.examples.gemma import gemma1
 from ai_edge_torch.generative.examples.gemma import gemma2
 from ai_edge_torch.generative.examples.llama import llama
@@ -29,8 +30,8 @@ from ai_edge_torch.generative.examples.stable_diffusion import clip as sd_clip
 from ai_edge_torch.generative.examples.stable_diffusion import decoder as sd_decoder
 from ai_edge_torch.generative.examples.stable_diffusion import diffusion as sd_diffusion
 from ai_edge_torch.generative.layers import kv_cache
-from ai_edge_torch.generative.utilities import model_builder
 from ai_edge_torch.generative.test import utils as test_utils
+from ai_edge_torch.generative.utilities import model_builder
 import numpy as np
 import torch
 
@@ -158,6 +159,15 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_qwen(self):
     config = qwen.get_fake_model_config()
+    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
+    self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
+
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
+  def test_amd_llama_135m(self):
+    config = amd_llama_135m.get_fake_model_config()
     pytorch_model = model_builder.DecoderOnlyModel(config).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
 

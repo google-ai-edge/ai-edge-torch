@@ -87,7 +87,7 @@ setup(
         "tabulate",
         "torch>=2.4.0",
         "torch_xla>=2.4.0",
-        "tf-nightly>=2.18.0.dev20240722",
+        "tf-nightly==2.19.0.dev20241001",
         "ai-edge-litert-nightly",
         "ai-edge-quantizer-nightly",
     ],

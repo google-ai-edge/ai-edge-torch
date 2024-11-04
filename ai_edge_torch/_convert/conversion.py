@@ -15,7 +15,7 @@
 
 import logging
 import os
-from typing import Any, Optional
+from typing import Any, Literal, Optional, Union
 
 from ai_edge_torch import fx_pass_base
 from ai_edge_torch import lowertools
@@ -35,7 +35,7 @@ def _run_convert_passes(
   exported_program = generative_fx_passes.run_generative_passes(
       exported_program
   )
-  return fx_pass_base.run_passes(
+  exported_program = fx_pass_base.run_passes(
       exported_program,
       [
           fx_passes.BuildInterpolateCompositePass(),
@@ -44,10 +44,13 @@ def _run_convert_passes(
           fx_passes.CanonicalizePass(),
           fx_passes.BuildAtenCompositePass(),
           fx_passes.CanonicalizePass(),
+          fx_passes.RemoveNonUserOutputsPass(),
+          fx_passes.CanonicalizePass(),
           fx_passes.InjectMlirDebuginfoPass(),
           fx_passes.CanonicalizePass(),
       ],
   )
+  return exported_program
 
 
 def _warn_training_modules(signatures: list[signature.Signature]):
@@ -73,6 +76,7 @@ def _warn_training_modules(signatures: list[signature.Signature]):
 def convert_signatures(
     signatures: list[signature.Signature],
     *,
+    strict_export: Union[Literal["auto"], bool] = True,
     quant_config: Optional[qcfg.QuantConfig] = None,
     _tfl_converter_flags: Optional[dict[str, Any]],
 ) -> model.TfLiteModel:
@@ -81,6 +85,11 @@ def convert_signatures(
   Args:
       signatures: The list of 'signature.Signature' objects containing PyTorch
         modules to be converted.
+      strict_export: Experimental `strict` arg for torch.export.export. When
+        enabled, the export function will trace the program through TorchDynamo
+        and ensure the soundness of the exported graph. When
+        strict_export="auto", the function will try to export module in both
+        modes and use the first one succeeds for downstream conversion.
       quant_config: User-defined quantization method and scheme of the model.
       _tfl_converter_flags: A nested dictionary allowing setting flags for the
         underlying tflite converter.
@@ -93,10 +102,34 @@ def convert_signatures(
 
   _warn_training_modules(signatures)
 
-  exported_programs: torch.export.torch.export.ExportedProgram = [
-      torch.export.export(
-          sig.module, sig.flat_args, dynamic_shapes=sig.dynamic_shapes
+  def export(*args, **kwargs):
+    nonlocal strict_export
+    if strict_export == "auto":
+      try:
+        exported_program = torch.export.export(*args, **kwargs, strict=True)
+      except Exception:
+        logging.warning(
+            "torch.export.export(..., strict=True) failed. Retrying with"
+            " strict=False"
+        )
+        exported_program = torch.export.export(*args, **kwargs, strict=False)
+    elif not strict_export:
+      exported_program = torch.export.export(*args, **kwargs, strict=False)
+    else:
+      exported_program = torch.export.export(*args, **kwargs, strict=True)
+
+    if hasattr(torch._decomp, "_decomp_table_to_post_autograd_aten"):
+      # Available after torch 2.5.0: `_decomp_table_to_post_autograd_aten` is a
+      # stop-gap table which replicates the old behaviour of post-dispatch IR.
+      # This could help ensure the collection of aten ops remaining still as the
+      # implementation of torch.export changes.
+      exported_program = exported_program.run_decompositions(
+          torch._decomp._decomp_table_to_post_autograd_aten()
       )
+    return exported_program
+
+  exported_programs: torch.export.ExportedProgram = [
+      export(sig.module, sig.flat_args, dynamic_shapes=sig.dynamic_shapes)
       for sig in signatures
   ]
 

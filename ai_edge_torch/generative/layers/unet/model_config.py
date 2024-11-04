@@ -277,3 +277,6 @@ class DiffusionModelConfig:
 
   # Activation type used in final layer
   final_activation_type: layers_cfg.ActivationType
+
+  # Whether to enable StableHLO composite ops in the model.
+  enable_hlfb: bool = False

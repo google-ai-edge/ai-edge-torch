@@ -91,6 +91,27 @@ To deploy using the MP LLM Inference API, you need to
 * Bundle the converted TFLite files along with some other configurations such as start/stop tokens, tokenizer model etc. See [here](http://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference#ai_edge_model_conversion)
 * Once the bundle is created, you can easily invoke the pipeline using the mobile APIs [here](https://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference/android#create_the_task).
 
+#### Tokenizer
+
+The bundle files used by MediaPipe LLM Interface API require SentencePiece model
+protobuf files as the tokenizer model. Many PyTorch models don't provide
+SentencePiece model protobuf files when they uses BPE tokenization. In that
+case, SentencePiece model protobuf files can be built from tokenizer config json
+files. `generative/tools/tokenizer_to_sentencepiece.py` might be enough to do it
+though the generated SentencePiece model would not output the same token IDs for
+all input strings. For example, the SentencePiece model of Llama3.2 built by
+`generative/tools/tokenizer_to_sentencepiece.py` outputs token IDs mismatched
+with ones by the original BPE tokenizer around by 1%.
+
+```
+python tokenizer_to_sentencepiece.py \
+    --checkpoint=meta-llama/Llama-3.2-3B-Instruct \
+    --output_path=llama3.spm.model
+...
+I1011 tokenizer_to_sentencepiece.py:203] Not matched strictly 35/1000 pairs: 3.50%, loosely 9/1000 pairs: 0.90%
+I1011 tokenizer_to_sentencepiece.py:274] Writing the SentencePieceModel protobuf file to: llama3.spm.model
+```
+
 <br/>
 
 ## Model visualization
