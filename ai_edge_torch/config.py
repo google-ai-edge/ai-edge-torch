@@ -25,3 +25,7 @@ class Config:
       "1",
       "true",
   )
+
+
+# Force enabling torch_xla (TEST CHANGE)
+Config.use_torch_xla = True
