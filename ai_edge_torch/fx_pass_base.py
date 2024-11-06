@@ -76,7 +76,7 @@ def run_passes(
             range_constraints=exported_program.range_constraints,
             module_call_graph=exported_program.module_call_graph,
             example_inputs=exported_program.example_inputs,
-            verifier=exported_program.verifier,
+            verifiers=exported_program.verifiers,
             constants=exported_program.constants,
         )
   return exported_program

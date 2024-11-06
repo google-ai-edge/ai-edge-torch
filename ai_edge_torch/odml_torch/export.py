@@ -262,13 +262,13 @@ def exported_program_to_mlir(
     exported_program: torch.export.ExportedProgram,
 ) -> MlirLowered:
   """Lower the exported program to MLIR."""
-  exported_program = exported_program.run_decompositions(
-      lowerings.decompositions()
+  exported_program = _torch_future.safe_run_decompositions(
+      exported_program, lowerings.decompositions()
   )
 
   _convert_i64_to_i32(exported_program)
-  exported_program = exported_program.run_decompositions(
-      lowerings.decompositions()
+  exported_program = _torch_future.safe_run_decompositions(
+      exported_program, lowerings.decompositions()
   )
 
   with export_utils.create_ir_context() as context, ir.Location.unknown():

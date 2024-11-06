@@ -161,6 +161,9 @@ def update(
   Returns:
       KVCacheEntry: The updated KVCache entry based on the passed inputs.
   """
+  # Don't enable HLFB for kv cache op for now, since it won't work with LLM
+  # inference engine. Remove this part once we ship a new LLM inference engine.
+  enable_hlfb=False
   update_func = _update_kv_hlfb_impl if enable_hlfb else _update_kv_base_impl
   return update_func(cache, input_pos, k_slice, v_slice)
 
