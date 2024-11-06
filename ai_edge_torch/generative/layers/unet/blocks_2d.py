@@ -297,7 +297,9 @@ class TransformerBlock2D(nn.Module):
       hidden_states
   """
 
-  def __init__(self, config: unet_cfg.TransformerBlock2DConfig, dim_override=None):
+  def __init__(
+      self, config: unet_cfg.TransformerBlock2DConfig, dim_override=None
+  ):
     """Initialize an instance of the TransformerBlock2D.
 
     Args:
@@ -309,7 +311,7 @@ class TransformerBlock2D(nn.Module):
     self.config = config
     attention_block_config_dim = config.attention_block_config.dim
     attention_block_config_hidden_dim = config.attention_block_config.hidden_dim
-    if dim_override: 
+    if dim_override:
       attention_block_config_dim = dim_override
     if not attention_block_config_hidden_dim:
       attention_block_config_hidden_dim = attention_block_config_dim
@@ -603,20 +605,30 @@ class SkipUpDecoderBlock2D(nn.Module):
     """
     super().__init__()
     self.config = config
-    hidden_channels=config.hidden_channels
+    hidden_channels = config.hidden_channels
     if not hidden_channels:
-        hidden_channels=config.out_channels
-    sub_block_channels=config.sub_block_channels
+      hidden_channels = config.out_channels
+    sub_block_channels = config.sub_block_channels
     if sub_block_channels:
-      assert len(sub_block_channels) == config.num_layers, f"Assertion failed: The length of 'sub_block_channels' ({len(sub_block_channels)}) does not match 'config.num_layers' ({config.num_layers})."
+      assert len(sub_block_channels) == config.num_layers, (
+          "Assertion failed: The length of 'sub_block_channels'"
+          f" ({len(sub_block_channels)}) does not match 'config.num_layers'"
+          f" ({config.num_layers})."
+      )
     else:
-        sub_block_channels = [config.out_channels] * config.num_layers
+      sub_block_channels = [config.out_channels] * config.num_layers
     resnets = []
     transformers = []
     for i in range(config.num_layers):
-      resnet_in_channels = config.prev_out_channels if i == 0 else sub_block_channels[i - 1]
-      res_skip_channels = config.in_channels if (i == config.num_layers - 1) else config.out_channels
-      residual_out_channel=sub_block_channels[i]
+      resnet_in_channels = (
+          config.prev_out_channels if i == 0 else sub_block_channels[i - 1]
+      )
+      res_skip_channels = (
+          config.in_channels
+          if (i == config.num_layers - 1)
+          else config.out_channels
+      )
+      residual_out_channel = sub_block_channels[i]
       resnets.append(
           ResidualBlock2D(
               unet_cfg.ResidualBlock2DConfig(
@@ -631,7 +643,12 @@ class SkipUpDecoderBlock2D(nn.Module):
           )
       )
       if config.transformer_block_config:
-        transformers.append(TransformerBlock2D(config.transformer_block_config, dim_override=sub_block_channels[i]))
+        transformers.append(
+            TransformerBlock2D(
+                config.transformer_block_config,
+                dim_override=sub_block_channels[i],
+            )
+        )
     self.resnets = nn.ModuleList(resnets)
     self.transformers = (
         nn.ModuleList(transformers) if len(transformers) > 0 else None

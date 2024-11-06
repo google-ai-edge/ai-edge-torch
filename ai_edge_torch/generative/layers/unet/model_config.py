@@ -165,7 +165,7 @@ class DownEncoderBlock2DConfig:
   # Optional dimension of context tensor if context tensor is given as input.
   context_dim: Optional[int] = None
   hidden_channels: Optional[int] = None
-  
+
 
 @dataclasses.dataclass
 class MidBlock2DConfig:
