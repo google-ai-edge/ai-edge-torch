@@ -93,6 +93,7 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       kv_cache_max_len=kv_cache_max_len,
       block_configs=[get_block_config(i) for i in range(num_layers)],
       final_norm_config=norm_config,
+      enable_hlfb=True,
   )
   return config
 
