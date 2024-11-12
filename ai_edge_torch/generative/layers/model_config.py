@@ -164,6 +164,16 @@ class TransformerBlockConfig:
 
 
 @dataclass
+class ImageEmbeddingConfig:
+  """Image embedding parameters."""
+
+  channels: int
+  # All images should be normalized to the size of [image_size * image_size].
+  image_size: int
+  patch_size: int
+
+
+@dataclass
 class ModelConfig:
   """Base configurations for building a transformer architecture."""
 
@@ -183,6 +193,10 @@ class ModelConfig:
 
   # Scale factor of the embedding.
   embedding_scale: Optional[float] = None
+  # Use bias term within embedding.
+  embedding_use_bias: bool = False
+  # Image embedding parameters.
+  image_embedding: Optional[ImageEmbeddingConfig] = None
 
   # Use bias term within LLM's HEAD.
   lm_head_use_bias: bool = False

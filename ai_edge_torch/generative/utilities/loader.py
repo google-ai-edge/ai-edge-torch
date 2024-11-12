@@ -157,6 +157,10 @@ class ModelLoader:
       converted_state["tok_embedding.weight"] = state.pop(
           f"{self._names.embedding}.weight"
       )
+      if model.config.embedding_use_bias:
+        converted_state["tok_embedding.bias"] = state.pop(
+            f"{self._names.embedding}.bias"
+        )
       if self._names.embedding_position is not None:
         converted_state["tok_embedding_position"] = state.pop(
             f"{self._names.embedding_position}"
