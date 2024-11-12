@@ -50,10 +50,12 @@ class ResidualBlock2DConfig:
   in_channels: int
   hidden_channels: int
   out_channels: int
+  hidden_channels: int
   normalization_config: layers_cfg.NormalizationConfig
   activation_config: layers_cfg.ActivationConfig
   # Optional time embedding channels if the residual block takes a time embedding context as input
   time_embedding_channels: Optional[int] = None
+  residual_out_channels: Optional[int] = None
 
 
 @dataclasses.dataclass
@@ -63,6 +65,7 @@ class AttentionBlock2DConfig:
   attention_config: layers_cfg.AttentionConfig
   enable_hlfb: bool = True
   attention_batch_size: int = 1
+  hidden_dim: Optional[int] = None
 
 
 @dataclasses.dataclass
@@ -101,6 +104,8 @@ class UpDecoderBlock2DConfig:
   normalization_config: layers_cfg.NormalizationConfig
   activation_config: layers_cfg.ActivationConfig
   num_layers: int
+  # The dimension of output channels of previous connected block
+  prev_out_channels: Optional[int] = None
   # Optional time embedding channels if the residual blocks take a time embedding as input
   time_embedding_channels: Optional[int] = None
   # Whether to add upsample operation after residual blocks
@@ -136,6 +141,8 @@ class SkipUpDecoderBlock2DConfig:
   transformer_block_config: Optional[TransformerBlock2DConfig] = None
   # Optional dimension of context tensor if context tensor is given as input.
   context_dim: Optional[int] = None
+  sub_block_channels: Optional[tuple] = None
+  hidden_channels: Optional[int] = None
 
 
 @dataclasses.dataclass
@@ -157,6 +164,7 @@ class DownEncoderBlock2DConfig:
   transformer_block_config: Optional[TransformerBlock2DConfig] = None
   # Optional dimension of context tensor if context tensor is given as input.
   context_dim: Optional[int] = None
+  hidden_channels: Optional[int] = None
 
 
 @dataclasses.dataclass
