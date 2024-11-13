@@ -51,6 +51,7 @@ def _get_upsample_bilinear2d_pattern():
     return {
         "output": (int(output_h), int(output_w)),
         "align_corners": False,
+        "is_nchw_op": True,
     }
 
   return pattern
@@ -74,6 +75,7 @@ def _get_upsample_bilinear2d_align_corners_pattern():
     return {
         "output": (int(output_h), int(output_w)),
         "align_corners": True,
+        "is_nchw_op": True,
     }
 
   return pattern
