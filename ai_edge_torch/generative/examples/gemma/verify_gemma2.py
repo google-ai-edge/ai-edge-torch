@@ -15,10 +15,8 @@
 
 """Verifies the reauthored Gemma2 model."""
 
-import logging
 from absl import app
 from absl import flags
-from ai_edge_torch.generative.examples.gemma import gemma2
 from ai_edge_torch.generative.examples.gemma import verify_util
 import kagglehub
 
@@ -38,18 +36,7 @@ _MAX_NEW_TOKENS = flags.DEFINE_integer(
 def main(_):
   checkpoint = kagglehub.model_download("google/gemma-2/pyTorch/gemma-2-2b-it")
 
-  logging.info("Building the reauthored model from: %s", checkpoint)
-  reauthored_model = gemma2.build_2b_model(checkpoint)
-
-  verify_util.verify_reauthored_gemma_model(
-      checkpoint=checkpoint,
-      variant="2b-v2",
-      reauthored_model=reauthored_model,
-      generate_prompts=_PROMPTS.value,
-      forward_input_ids=[[2, 651, 9456, 576, 573, 3520, 3858, 603, 235248]],
-      max_new_tokens=_MAX_NEW_TOKENS.value,
-      atol=1e-04,
-  )
+  verify_util.verify_gemma2(checkpoint, _PROMPTS.value, _MAX_NEW_TOKENS.value)
 
 
 if __name__ == "__main__":

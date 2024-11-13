@@ -19,6 +19,7 @@ import logging
 import os
 from typing import List, Tuple
 
+from ai_edge_torch.generative.examples.gemma import gemma2
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 from ai_edge_torch.generative.utilities import verifier
 from gemma import config as gemma_config
@@ -109,8 +110,11 @@ def verify_reauthored_gemma_model(
     max_new_tokens: int = 20,
     rtol: float = 1e-05,
     atol: float = 1e-05,
-):
-  """Verifies the reauthored Gemma model against the original model."""
+) -> bool:
+  """Verifies the reauthored Gemma model against the original model.
+
+  Returns True if the verification passes, False otherwise.
+  """
   config = gemma_config.get_model_config(variant)
   config.tokenizer = os.path.join(checkpoint, tokenizer_filename)
   # Use float32 to be compatible with the reauthored model.
@@ -120,7 +124,7 @@ def verify_reauthored_gemma_model(
   original_model = gemma_model.GemmaForCausalLM(config).eval()
   original_model.load_weights(os.path.join(checkpoint, weight_filename))
 
-  verifier.verify_reauthored_model(
+  return verifier.verify_reauthored_model(
       original_model=GemmaWrapper(original_model),
       reauthored_model=verifier.ReauthoredModelWrapper(reauthored_model),
       tokenizer=GemmaTokenizerWrapper(original_model.tokenizer),
@@ -129,4 +133,25 @@ def verify_reauthored_gemma_model(
       forward_input_ids=forward_input_ids,
       rtol=rtol,
       atol=atol,
+  )
+
+
+def verify_gemma2(
+    gemma2_model_path: str, prompts: List[str], max_new_tokens: int
+) -> bool:
+  """Verifies the reauthored Gemma2 model.
+
+  Return True if the verification passes, False otherwise.
+  """
+  logging.info("Building the reauthored model from: %s", gemma2_model_path)
+  reauthored_model = gemma2.build_2b_model(gemma2_model_path)
+
+  return verify_reauthored_gemma_model(
+      checkpoint=gemma2_model_path,
+      variant="2b-v2",
+      reauthored_model=reauthored_model,
+      generate_prompts=prompts,
+      forward_input_ids=[[2, 651, 9456, 576, 573, 3520, 3858, 603, 235248]],
+      max_new_tokens=max_new_tokens,
+      atol=1e-04,
   )
