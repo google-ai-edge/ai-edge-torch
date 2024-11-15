@@ -16,6 +16,7 @@
 """Utilities to be used for re-authoring transformer models."""
 
 import copy
+from typing import Tuple
 
 from ai_edge_torch.generative.layers import attention
 from ai_edge_torch.generative.layers import builder
@@ -98,26 +99,40 @@ class DecoderOnlyModel(nn.Module):
         f"Cannot forward sequence of length {seq_len}, max seq length is only"
         f" {self.config.max_seq_len}"
     )
+
+    # token embeddings of shape (b, t, n_embd)
+    input_embeds = self.tok_embedding(tokens)
+    cos, sin = self.rope_cache
+    rope = (cos.index_select(0, input_pos), sin.index_select(0, input_pos))
+    mask = self.mask_cache.index_select(2, input_pos)
+    mask = mask[:, :, :, : self.config.kv_cache_max]
+
+    return self.forward_with_embeds(
+        input_embeds, rope, mask, input_pos, kv_cache
+    )
+
+  def forward_with_embeds(
+      self,
+      input_embeds: torch.Tensor,
+      rope: Tuple[torch.Tensor, torch.Tensor],
+      mask: torch.Tensor,
+      input_pos: torch.Tensor,
+      kv_cache: kv_utils.KVCache,
+  ) -> dict[torch.Tensor, kv_utils.KVCache]:
+    """Forwards the model with input embeddings."""
     assert len(self.transformer_blocks) == len(kv_cache.caches), (
         "The number of transformer blocks and the number of KV cache entries"
         " must be the same."
     )
 
-    cos, sin = self.rope_cache
-    cos = cos.index_select(0, input_pos)
-    sin = sin.index_select(0, input_pos)
-    mask = self.mask_cache.index_select(2, input_pos)
-    mask = mask[:, :, :, : self.config.kv_cache_max]
-
-    # token embeddings of shape (b, t, n_embd)
-    x = self.tok_embedding(tokens)
+    x = input_embeds
     if self.config.embedding_scale is not None:
       x = x * self.config.embedding_scale
 
     updated_kv_entires = []
     for i, block in enumerate(self.transformer_blocks):
       kv_entry = kv_cache.caches[i] if kv_cache else None
-      x, kv_entry = block(x, (cos, sin), mask, input_pos, kv_entry)
+      x, kv_entry = block(x, rope, mask, input_pos, kv_entry)
       if kv_entry:
         updated_kv_entires.append(kv_entry)
     updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entires))

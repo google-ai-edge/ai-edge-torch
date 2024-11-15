@@ -15,9 +15,11 @@
 
 """Example of building a decoder of PaliGemma 3B model which is Gemma1."""
 
+from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.utilities import model_builder
 import ai_edge_torch.generative.utilities.loader as loading_utils
+import torch
 
 TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="language_model.model.layers.{}.mlp.up_proj",
@@ -33,6 +35,41 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     final_norm="language_model.model.norm",
     lm_head=None,
 )
+
+
+class Decoder(model_builder.DecoderOnlyModel):
+  """A decoder of PaliGemma 3B model which is Gemma1.
+
+  Besides a tensor of text token IDs, forward() can also take a tensor of
+  embeddings which may include text or image or both.
+  """
+
+  @torch.inference_mode
+  def forward(
+      self,
+      tokens: torch.Tensor,
+      input_pos: torch.Tensor,
+      kv_cache: kv_utils.KVCache,
+      input_embeds: torch.Tensor = None,
+  ) -> dict[torch.Tensor, kv_utils.KVCache]:
+    if input_embeds is None:
+      return super().forward(tokens, input_pos, kv_cache)
+
+    assert input_embeds is not None
+
+    repo_pos = input_pos + 1  # PaliGemma position is 1-based.
+    cos, sin = self.rope_cache
+    rope = (cos.index_select(0, repo_pos), sin.index_select(0, repo_pos))
+
+    # The first part of input_embeds are image embeddings. Diagonal causal mask
+    # doesn't work here.
+    embeds_len = input_embeds.shape[1]
+    mask = torch.zeros(embeds_len, self.config.kv_cache_max)
+    mask[:, embeds_len:] = float("-inf")
+
+    return self.forward_with_embeds(
+        input_embeds, rope, mask, input_pos, kv_cache
+    )
 
 
 def get_decoder_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
@@ -96,8 +133,9 @@ def get_fake_decoder_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
 def build_decoder(
     checkpoint_path: str, **kwargs
 ) -> model_builder.DecoderOnlyModel:
-  return model_builder.build_decoder_only_model(
-      checkpoint_path=checkpoint_path,
-      config=get_decoder_config(**kwargs),
-      tensor_names=TENSOR_NAMES,
-  )
+  decoder = Decoder(get_decoder_config(**kwargs))
+  loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
+  # Loose the strictness because only decoder is being loaded.
+  loader.load(decoder, strict=False)
+  decoder.eval()
+  return decoder

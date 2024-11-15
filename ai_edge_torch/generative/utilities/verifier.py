@@ -41,7 +41,9 @@ class ModelWrapper(torch.nn.Module):
     super().__init__()
     self.model = model
 
-  def forward(self, tokens: torch.Tensor) -> torch.Tensor:
+  def forward(
+      self, tokens: torch.Tensor, pixel_values: torch.Tensor = None
+  ) -> torch.Tensor:
     """Gets output logits by forwarding the input tokens.
 
     Args:
@@ -54,7 +56,10 @@ class ModelWrapper(torch.nn.Module):
     raise NotImplementedError("forward() is not implemented.")
 
   def generate(
-      self, prompts: torch.Tensor, max_new_tokens: int
+      self,
+      prompts: torch.Tensor,
+      max_new_tokens: int,
+      pixel_values: torch.Tensor = None,
   ) -> torch.IntTensor:
     """Returns the response token IDs to the given prompts tensor.
 
@@ -83,35 +88,59 @@ class ReauthoredModelWrapper(ModelWrapper):
   def _forward_with_kv_cache(
       self,
       tokens: torch.Tensor,
+      input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
+      pixel_values: torch.Tensor,
   ) -> tuple[torch.Tensor, kv_utils.KVCache]:
     """Forwards the model and updates an external KV cache.
 
     Args:
       tokens (torch.Tensor): The input tokens to forward.
+      input_pos (torch.Tensor): The input positions to forward.
       kv_cache (KVCache): The KV cache to forward.
+      pixel_values (torch.Tensor): The input pixel values to forward.
 
     Returns:
       The output logits and the updated KV cache.
     """
-    input_pos = torch.arange(0, tokens.shape[1], dtype=torch.int)
-    output = self.model.forward(tokens, input_pos, kv_cache)
+    # Since the reauthored model doesn't include keyword arguments, pass
+    # pixel_values only when it is not None. Otherwise, it may raise an error.
+    if pixel_values is None:
+      output = self.model.forward(tokens, input_pos, kv_cache)
+    else:
+      output = self.model.forward(
+          tokens, input_pos, kv_cache, pixel_values=pixel_values
+      )
     return output["logits"], output["kv_cache"]
 
-  def forward(self, tokens: torch.Tensor) -> torch.Tensor:
-    logits, _ = self._forward_with_kv_cache(tokens, self._init_kv_cache())
+  def forward(
+      self, tokens: torch.Tensor, pixel_values: torch.Tensor = None
+  ) -> torch.Tensor:
+    input_pos = torch.arange(0, tokens.shape[1], dtype=torch.int)
+    logits, _ = self._forward_with_kv_cache(
+        tokens, input_pos, self._init_kv_cache(), pixel_values
+    )
     return logits
 
   def generate(
-      self, prompts: torch.Tensor, max_new_tokens: int
+      self,
+      prompts: torch.Tensor,
+      max_new_tokens: int,
+      pixel_values: torch.Tensor = None,
   ) -> torch.IntTensor:
     input_ids = prompts[0].int().tolist()
+    tokens = torch.tensor([input_ids])
+    input_pos = torch.arange(0, tokens.shape[1], dtype=torch.int)
     kv_cache = self._init_kv_cache()
     for _ in range(max_new_tokens):
-      tokens = torch.tensor([input_ids])
-      logits, kv_cache = self._forward_with_kv_cache(tokens, kv_cache)
+      logits, kv_cache = self._forward_with_kv_cache(
+          tokens, input_pos, kv_cache, pixel_values
+      )
       generated_token = logits[0][-1].argmax().item()
       input_ids.append(generated_token)
+      tokens = torch.tensor([[generated_token]])
+      input_pos = torch.tensor([len(input_ids) - 1])
+      pixel_values = None  # Pass only for the first time.
     return torch.tensor([input_ids])
 
 
