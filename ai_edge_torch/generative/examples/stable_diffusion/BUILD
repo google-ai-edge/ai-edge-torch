@@ -20,6 +20,7 @@ package(
         "//third_party/py/ai_edge_torch:license",
     ],
     default_visibility = [
+        "//third_party/odml/experimental:__subpackages__",
         "//third_party/py/ai_edge_torch:__subpackages__",
     ],
 )
