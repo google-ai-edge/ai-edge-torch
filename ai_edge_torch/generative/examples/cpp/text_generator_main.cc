@@ -16,6 +16,7 @@ limitations under the License.
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <ios>
 #include <iterator>
@@ -284,6 +285,8 @@ int main(int argc, char* argv[]) {
   // NOTE: We skip the last token and use that during decode.
   int prefill_seq_size =
       std::min(static_cast<int>(prompt_tokens.size()), max_seq_size);
+  std::memset(prefill_input->data.i32, 0, prefill_input->bytes);
+  std::memset(prefill_input_pos->data.i32, 0, prefill_input_pos->bytes);
   for (int i = 0; i < prefill_seq_size - 1; ++i) {
     prefill_input->data.i32[i] = prompt_tokens[i];
     prefill_input_pos->data.i32[i] = i;
