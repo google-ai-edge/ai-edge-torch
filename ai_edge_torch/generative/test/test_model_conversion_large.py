@@ -22,6 +22,7 @@ from ai_edge_torch.generative.examples.gemma import gemma1
 from ai_edge_torch.generative.examples.gemma import gemma2
 from ai_edge_torch.generative.examples.llama import llama
 from ai_edge_torch.generative.examples.openelm import openelm
+from ai_edge_torch.generative.examples.paligemma import paligemma
 from ai_edge_torch.generative.examples.phi import phi2
 from ai_edge_torch.generative.examples.phi import phi3
 from ai_edge_torch.generative.examples.qwen import qwen
@@ -55,7 +56,7 @@ class TestModelConversion(googletest.TestCase):
 
   def _test_model(self, config, model, signature_name, atol, rtol):
     idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
-    tokens = torch.full((1, 10), 0, dtype=torch.int, device="cpu")
+    tokens = torch.zeros((1, 10), dtype=torch.int, device="cpu")
     tokens[0, :4] = idx
     input_pos = torch.arange(0, 10, dtype=torch.int)
     kv = kv_cache.KVCache.from_model_config(config)
@@ -170,6 +171,54 @@ class TestModelConversion(googletest.TestCase):
     config = amd_llama_135m.get_fake_model_config()
     pytorch_model = model_builder.DecoderOnlyModel(config).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
+
+  @googletest.skipIf(
+      ai_edge_config.Config.use_torch_xla,
+      reason="tests with custom ops are not supported on oss",
+  )
+  def test_paligemma(self):
+    config = paligemma.get_fake_model_config()
+    pytorch_model = paligemma.PaliGemma(config).eval()
+    idx = torch.from_numpy(np.array([[1, 2, 3, 4]]))
+    image_embedding_config = config.image_encoder_config.image_embedding
+    num_patches = (
+        image_embedding_config.image_size // image_embedding_config.patch_size
+    ) ** 2
+    # Make sure the token size is longer than the number of image patches.
+    tokens_len = num_patches + 10
+    tokens = torch.zeros((1, tokens_len), dtype=torch.int, device="cpu")
+    tokens[0, :4] = idx
+    input_pos = torch.arange(0, tokens_len, dtype=torch.int)
+    kv = kv_cache.KVCache.from_model_config(config.decoder_config)
+    pixel_values = torch.zeros((1, 3, 8, 8), dtype=torch.float32, device="cpu")
+
+    edge_model = ai_edge_torch.signature(
+        "prefill_pixel",
+        pytorch_model,
+        sample_kwargs={
+            "tokens": tokens,
+            "input_pos": input_pos,
+            "kv_cache": kv,
+            "pixel_values": pixel_values,
+        },
+    ).convert()
+    edge_model.set_interpreter_builder(
+        self._interpreter_builder(edge_model.tflite_model())
+    )
+
+    self.assertTrue(
+        test_utils.compare_tflite_torch(
+            edge_model,
+            pytorch_model,
+            tokens,
+            input_pos,
+            kv,
+            pixel_values=pixel_values,
+            signature_name="prefill_pixel",
+            atol=1e-3,
+            rtol=1e-5,
+        )
+    )
 
   @googletest.skipIf(
       ai_edge_config.Config.use_torch_xla,

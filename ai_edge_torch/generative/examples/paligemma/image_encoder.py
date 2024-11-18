@@ -59,7 +59,7 @@ class SiglipVisionEncoder(nn.Module):
         out_channels=config.embedding_dim,
         kernel_size=config.image_embedding.patch_size,
         stride=config.image_embedding.patch_size,
-        padding="valid",
+        padding=0,
     )
     num_patches = (
         config.image_embedding.image_size // config.image_embedding.patch_size
@@ -144,6 +144,8 @@ def get_fake_image_encoder_config() -> cfg.ModelConfig:
   config = get_image_encoder_config()
   # PaliGemma image encoder has only one block config.
   config.block_config(0).ff_config.intermediate_size = 128
+  config.image_embedding.image_size = 8
+  config.image_embedding.patch_size = 2
   config.num_layers = 2
   return config
 

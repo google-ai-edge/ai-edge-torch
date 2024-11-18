@@ -33,10 +33,10 @@ _TFLITE_PATH = flags.DEFINE_string(
     '/tmp/',
     'The tflite file path to export.',
 )
-_PREFILL_SEQ_LEN = flags.DEFINE_integer(
+_PREFILL_SEQ_LEN = flags.DEFINE_multi_integer(
     'prefill_seq_len',
-    1024,
-    'The maximum size of prefill input tensor.',
+    (8, 64, 128, 256, 512, 1024),
+    'List of the maximum sizes of prefill input tensors.',
 )
 _KV_CACHE_MAX_LEN = flags.DEFINE_integer(
     'kv_cache_max_len',

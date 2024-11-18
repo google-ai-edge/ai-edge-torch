@@ -54,6 +54,10 @@ class PaliGemma(nn.Module):
         bias=config.image_projection_use_bias,
     )
     self.decoder = decoder.Decoder(config.decoder_config)
+    image_embedding_config = config.image_encoder_config.image_embedding
+    self.num_patches = (
+        image_embedding_config.image_size // image_embedding_config.patch_size
+    ) ** 2
     self.config = config
 
   @torch.inference_mode
@@ -74,10 +78,22 @@ class PaliGemma(nn.Module):
     if self.config.decoder_config.embedding_scale is not None:
       image_embeds = image_embeds / self.config.decoder_config.embedding_scale
 
-    # Merge image_embeds into text_embeds as PaliGemmaForConditionalGeneration.
-    image_mask = tokens == self.config.image_token_id
-    image_mask = image_mask.unsqueeze(-1).expand_as(input_embeds)
-    input_embeds = input_embeds.masked_scatter(image_mask, image_embeds)
+    # Merging image_embeds into text_embeds as PaliGemmaForConditionalGeneration
+    # can be done like:
+    #
+    #   image_mask = tokens == self.config.image_token_id
+    #   image_mask = image_mask.unsqueeze(-1).expand_as(input_embeds)
+    #   input_embeds = input_embeds.masked_scatter(image_mask, image_embeds)
+    #
+    # Unfortunately, torch.Tensor.masked_scatter can't be lowered on CPU.
+    # Since PaliGemma token embedder reserves the first [num_patches] tokens
+    # for image tokens, we can use this property to merge image_embeds into
+    # input_embeds by concatenating them.
+    assert image_embeds.shape[1] == self.num_patches
+    assert input_embeds.shape[1] >= self.num_patches
+    input_embeds = torch.cat(
+        (image_embeds, input_embeds[:, self.num_patches:, :]), dim=1
+    )
 
     return self.decoder(
         tokens=None,
@@ -87,7 +103,7 @@ class PaliGemma(nn.Module):
     )
 
 
-def get_model_config() -> PaliGemmaConfig:
+def get_model_config(**kwargs) -> PaliGemmaConfig:
   """Returns the model config for a PaliGemma 3B-224 model.
 
   Returns:
@@ -95,13 +111,13 @@ def get_model_config() -> PaliGemmaConfig:
   """
   return PaliGemmaConfig(
       image_encoder_config=image_encoder.get_image_encoder_config(),
-      decoder_config=decoder.get_decoder_config(),
+      decoder_config=decoder.get_decoder_config(**kwargs),
       image_projection_use_bias=True,
       image_token_id=257152,
   )
 
 
-def get_fake_image_encoder_config() -> PaliGemmaConfig:
+def get_fake_model_config() -> PaliGemmaConfig:
   return PaliGemmaConfig(
       image_encoder_config=image_encoder.get_fake_image_encoder_config(),
       decoder_config=decoder.get_fake_decoder_config(),
@@ -110,8 +126,8 @@ def get_fake_image_encoder_config() -> PaliGemmaConfig:
   )
 
 
-def build_model(checkpoint_path: str) -> PaliGemma:
-  config = get_model_config()
+def build_model(checkpoint_path: str, **kwargs) -> PaliGemma:
+  config = get_model_config(**kwargs)
   model = PaliGemma(config)
   # Load the parameters of image encoder.
   loader = loading_utils.ModelLoader(
