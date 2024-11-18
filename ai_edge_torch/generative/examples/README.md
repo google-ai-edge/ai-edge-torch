@@ -4,6 +4,17 @@ Here we provide a list of popular decoder-only LLMs composed via the transformer
 ## Gemma
 Gemma is Google's open-source LLM. The model has both a 2B and 7B versions. See the [model's Kaggle page](https://www.kaggle.com/models/google/gemma-2). The example we provide is Gemma 2B, and the checkpoint for the PyTorch model can be downloaded from [here](https://www.kaggle.com/models/google/gemma-2/pyTorch/gemma-2-2b-it).
 
+## PaliGemma
+PaliGemma is a multimodal LLM which gets images and text as input, then
+generates text as output. See
+[model's Kaggle page](https://www.kaggle.com/models/google/paligemma).
+The example we provide is PaliGemma 3B with 224 image size. Since Kaggle has
+only Jax-version of PaliGemma, PyTorch model can be download from
+[here](https://huggingface.co/google/paligemma-3b-mix-224/tree/main).
+
+Note that PaliGemma can be converted to TfLite only with [ODML Torch conversion
+backend](https://github.com/google-ai-edge/ai-edge-torch/blob/main/docs/pytorch_converter/README.md#use-odml-torch-conversion-backend-experimental)
+
 ## Llama
 [Llama 3.2 model](https://ai.meta.com/blog/llama-3-2-connect-2024-vision-edge-mobile-devices/)
 is Meta's open-source LLM with 1B and 3B for text, and 11B and 90B for vision.
