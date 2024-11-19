@@ -49,7 +49,7 @@ def _get_upsample_bilinear2d_pattern():
     output = internal_match.returning_nodes[0]
     output_h, output_w = output.meta["val"].shape[-2:]
     return {
-        "output": (int(output_h), int(output_w)),
+        "size": (int(output_h), int(output_w)),
         "align_corners": False,
         "is_nchw_op": True,
     }
@@ -73,7 +73,7 @@ def _get_upsample_bilinear2d_align_corners_pattern():
     output = internal_match.returning_nodes[0]
     output_h, output_w = output.meta["val"].shape[-2:]
     return {
-        "output": (int(output_h), int(output_w)),
+        "size": (int(output_h), int(output_w)),
         "align_corners": True,
         "is_nchw_op": True,
     }
