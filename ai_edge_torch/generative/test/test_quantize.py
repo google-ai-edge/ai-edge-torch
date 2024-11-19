@@ -129,6 +129,7 @@ class TestQuantizeConvert(parameterized.TestCase):
     )
 
   def test_quantize_convert_toy_weight_sharing(self):
+    print("here we are")
     config = toy_model.get_model_config()
     pytorch_model = toy_model.ToySingleLayerModelWeightSharing(config)
     idx = torch.unsqueeze(torch.arange(0, 100, dtype=torch.int), 0)
