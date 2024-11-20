@@ -59,3 +59,17 @@ def graph_module_flat_inputs(ep: torch.export.ExportedProgram, args, kwargs):
     ordered_tensor_constants = tuple()
 
   return (*param_buffer_values, *flat_args, *ordered_tensor_constants)
+
+
+# TODO(b/331481564): Replace this with CanonicalizePass + run_decomposition
+def safe_run_decompositions(exported_program, decomp_table=None):
+  for node in exported_program.graph.nodes:
+    if node.target == torch.ops.aten.view.default:
+      # Passes or torch.export may generate aten.view nodes not respecting the
+      # tensor memory format. Changes all the aten.view to torch.reshape
+      # for retracing. If the input memory format is already contiguous,
+      # retracing in run_decomposition below would decompose torch.reshape
+      # back to one aten.view.
+      node.target = lambda self, size: torch.reshape(self.contiguous(), size)
+
+  return exported_program.run_decompositions(decomp_table)

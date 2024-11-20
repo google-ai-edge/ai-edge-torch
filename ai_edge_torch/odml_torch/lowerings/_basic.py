@@ -204,6 +204,13 @@ def _aten_div(mod, x, y, *, rounding_mode=None, out=None) -> ir.Value:
   return stablehlo.divide(x, y)
 
 
+# https://pytorch.org/docs/stable/generated/torch.floor.html
+# https://openxla.org/stablehlo/spec#floor
+@lower(torch.ops.aten.floor)
+def _aten_floor(lctx, x: ir.Value, *, out=None) -> ir.Value:
+  return stablehlo.floor(x)
+
+
 # Schema:
 #   - aten::slice_scatter(Tensor self, Tensor src, int dim=0, SymInt?
 #       start=None, SymInt? end=None, SymInt step=1) -> Tensor

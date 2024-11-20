@@ -19,8 +19,13 @@ from dataclasses import dataclass
 import gc
 import itertools
 import logging
+import os
 import tempfile
 from typing import Any, Dict, Optional, Tuple, Union
+
+if "PJRT_DEVICE" not in os.environ:
+  # https://github.com/google-ai-edge/ai-edge-torch/issues/326
+  os.environ["PJRT_DEVICE"] = "CPU"
 
 from ai_edge_torch import model
 from ai_edge_torch._convert import conversion_utils

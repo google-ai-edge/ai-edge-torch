@@ -16,6 +16,7 @@ limitations under the License.
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <ios>
 #include <iterator>
@@ -35,6 +36,7 @@ limitations under the License.
 #include "tensorflow/lite/kernels/register.h"
 #include "tensorflow/lite/model_builder.h"
 #include "tensorflow/lite/signature_runner.h"
+#include "tensorflow/lite/util.h"
 
 // This is a simplified example of using TFLite to generate text.
 // Please note that this is only a starting point and the user is expected
@@ -48,7 +50,7 @@ limitations under the License.
 //    --max_decode_steps=64 \
 //    --start_token="<bos>" \
 //    --stop_token="<eos>"  \
-//    --num_threads=4 \
+//    --num_threads=4
 
 #define TFLITE_MINIMAL_CHECK(x)                              \
   if (!(x)) {                                                \
@@ -62,14 +64,14 @@ ABSL_FLAG(std::string, tflite_model, "",
 ABSL_FLAG(std::string, sentencepiece_model, "", "Path to sentencepiece model.");
 ABSL_FLAG(std::string, prompt, "Write an email:", "Input prompt to the model.");
 ABSL_FLAG(int, max_decode_steps, -1,
-          "The number of tokens to generate. Defaults to maximum Sequence size "
+          "The number of tokens to generate. Defaults to the KV cache size "
           "defined during conversion.");
 ABSL_FLAG(std::string, start_token, "",
           "Start token is appended to the beginning of input prompt to "
           "signify start of sentence.");
 ABSL_FLAG(std::string, stop_token, "",
           "Stop token used to deterine end of decoding loop. If not provided "
-          "will decode until max_Seq_len or max_decode_steps.");
+          "will decode until max_kv_cache_size or max_decode_steps.");
 ABSL_FLAG(int, num_threads, 4, "Number of threads to use. Defaults to 4.");
 ABSL_FLAG(std::string, weight_cache_path, "",
           "XNNPACK weight caching path, e.g. /tmp/model.xnnpack_cache.");
@@ -123,7 +125,32 @@ std::unique_ptr<tflite::Interpreter> BuildInterpreter(
   return interpreter;
 }
 
-std::map<std::string, std::vector<float>> BuildKVCache(
+// TF Lite requires all buffers (including external buffers used for KV cache
+// here) be `tflite::kDefaultTensorAlignment` aligned. To ensure that, we use
+// this custom allocator. Please use with caution as different platforms may
+// have different alignment requirements.
+template <typename T>
+class AlignedAllocator {
+ public:
+  using value_type = T;
+
+  T* allocate(std::size_t n) {
+    void* ptr;
+    std::size_t size = n * sizeof(T);
+    std::size_t padding = tflite::kDefaultTensorAlignment -
+                          (size % tflite::kDefaultTensorAlignment);
+    size += padding;
+    int ret = posix_memalign(&ptr, tflite::kDefaultTensorAlignment, size);
+    if (ret != 0) {
+      return nullptr;
+    }
+    return static_cast<T*>(ptr);
+  }
+
+  void deallocate(T* p, std::size_t n) { free(p); }
+};
+
+std::map<std::string, std::vector<float, AlignedAllocator<float>>> BuildKVCache(
     tflite::Interpreter* interpreter) {
   tflite::SignatureRunner* runner = interpreter->GetSignatureRunner("prefill");
   if (runner == nullptr) {
@@ -135,15 +162,17 @@ std::map<std::string, std::vector<float>> BuildKVCache(
     return {};
   }
 
-  std::map<std::string, std::vector<float>> kv_cache;
+  std::map<std::string, std::vector<float, AlignedAllocator<float>>> kv_cache;
   for (int i = 0; i < num_layers; ++i) {
     std::string k_cache_name = "kv_cache_k_" + std::to_string(i);
     std::string v_cache_name = "kv_cache_v_" + std::to_string(i);
     // We are assuming K and V tensors are of the same shape.
     TfLiteTensor* tensor = runner->input_tensor(k_cache_name.c_str());
     size_t count = tensor->bytes / sizeof(float);
-    kv_cache.emplace(k_cache_name, std::vector<float>(count, 0.0));
-    kv_cache.emplace(v_cache_name, std::vector<float>(count, 0.0));
+    kv_cache.emplace(k_cache_name,
+                     std::vector<float, AlignedAllocator<float>>(count, 0.0));
+    kv_cache.emplace(v_cache_name,
+                     std::vector<float, AlignedAllocator<float>>(count, 0.0));
   }
 
   return kv_cache;
@@ -151,7 +180,8 @@ std::map<std::string, std::vector<float>> BuildKVCache(
 
 tflite::SignatureRunner* GetSignatureRunner(
     tflite::Interpreter* interpreter, const std::string& signature_name,
-    std::map<std::string, std::vector<float>>& kv_cache) {
+    std::map<std::string, std::vector<float, AlignedAllocator<float>>>&
+        kv_cache) {
   tflite::SignatureRunner* runner =
       interpreter->GetSignatureRunner(signature_name.c_str());
   for (auto& [name, cache] : kv_cache) {
@@ -207,7 +237,7 @@ int main(int argc, char* argv[]) {
       BuildInterpreter(model.get(), absl::GetFlag(FLAGS_num_threads));
   std::unique_ptr<sentencepiece::SentencePieceProcessor> sp_processor =
       LoadSentencePieceProcessor();
-  std::map<std::string, std::vector<float>> kv_cache =
+  std::map<std::string, std::vector<float, AlignedAllocator<float>>> kv_cache =
       BuildKVCache(interpreter.get());
   TFLITE_MINIMAL_CHECK(!kv_cache.empty())
 
@@ -229,7 +259,11 @@ int main(int argc, char* argv[]) {
   TfLiteTensor* decode_input = decode_runner->input_tensor("tokens");
   // Shape: [Seq], Dtype: int32
   TfLiteTensor* decode_input_pos = decode_runner->input_tensor("input_pos");
+  // shape: [Batch, kv_cache_max, num_query_groups, head_dim]
+  TfLiteTensor* kv_cache_k_0 = decode_runner->input_tensor("kv_cache_k_0");
+
   int max_seq_size = prefill_input->dims->data[1];
+  int kv_cache_max_size = kv_cache_k_0->dims->data[1];
 
   // Tokenize the input prompt.
   std::string prompt = absl::GetFlag(FLAGS_prompt);
@@ -251,22 +285,21 @@ int main(int argc, char* argv[]) {
   // NOTE: We skip the last token and use that during decode.
   int prefill_seq_size =
       std::min(static_cast<int>(prompt_tokens.size()), max_seq_size);
+  std::memset(prefill_input->data.i32, 0, prefill_input->bytes);
+  std::memset(prefill_input_pos->data.i32, 0, prefill_input_pos->bytes);
   for (int i = 0; i < prefill_seq_size - 1; ++i) {
     prefill_input->data.i32[i] = prompt_tokens[i];
     prefill_input_pos->data.i32[i] = i;
   }
   TFLITE_MINIMAL_CHECK(prefill_runner->Invoke() == kTfLiteOk);
 
-  // Decode until max sequence size or user defined step limit, whichever is
+  // Decode until max kv-cache size or user defined step limit, whichever is
   // smaller.
-  // NOTE: max kv-cache size is *not* necessarily the same size as the max
-  // sequence length. KV Cache buffer wraps around if exahusted before max
-  // sequence length or stopping criteria reach.
   int max_decode_steps = absl::GetFlag(FLAGS_max_decode_steps) == -1
-                             ? max_seq_size
+                             ? kv_cache_max_size
                              : absl::GetFlag(FLAGS_max_decode_steps);
   int decode_steps =
-      std::min(max_decode_steps, max_seq_size - prefill_seq_size);
+      std::min(max_decode_steps, kv_cache_max_size - prefill_seq_size);
   TFLITE_MINIMAL_CHECK(decode_steps > 0);
 
   std::vector<int> output_tokens;

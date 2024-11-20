@@ -235,9 +235,10 @@ class CausalSelfAttention(nn.Module):
     k = k.reshape(B, T, -1, self.config.head_dim)
     v = v.reshape(B, T, -1, self.config.head_dim)
 
-    # Compute rotary positional embedding for query and key.
-    n_elem = int(self.config.rotary_percentage * self.config.head_dim)
-    q, k = _embed_rope(q, k, n_elem, rope)
+    if rope is not None:
+      # Compute rotary positional embedding for query and key.
+      n_elem = int(self.config.rotary_percentage * self.config.head_dim)
+      q, k = _embed_rope(q, k, n_elem, rope)
 
     if kv_cache is not None:
       kv_cache = kv_utils.update(
@@ -372,9 +373,10 @@ class CrossAttention(nn.Module):
     k = k.view(interim_shape)
     v = v.view(interim_shape)
 
-    # Compute rotary positional embedding for query and key.
-    n_elem = int(self.config.rotary_percentage * self.config.head_dim)
-    q, k = _embed_rope(q, k, n_elem, rope)
+    if rope is not None:
+      # Compute rotary positional embedding for query and key.
+      n_elem = int(self.config.rotary_percentage * self.config.head_dim)
+      q, k = _embed_rope(q, k, n_elem, rope)
 
     if kv_cache is not None:
       kv_cache = kv_utils.update(

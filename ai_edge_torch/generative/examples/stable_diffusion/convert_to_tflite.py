@@ -61,6 +61,12 @@ _QUANTIZE = flags.DEFINE_bool(
     default=True,
 )
 
+_DEVICE_TYPE = flags.DEFINE_string(
+    'device_type',
+    'cpu',
+    help='The device type of the model. Currently supported: cpu, gpu.',
+)
+
 
 @torch.inference_mode
 def convert_stable_diffusion_to_tflite(
@@ -80,13 +86,17 @@ def convert_stable_diffusion_to_tflite(
   )
   loader.load(clip_model, strict=False)
 
-  diffusion_model = diffusion.Diffusion(diffusion.get_model_config(2))
+  diffusion_model = diffusion.Diffusion(
+      diffusion.get_model_config(batch_size=2, device_type=_DEVICE_TYPE.value)
+  )
   diffusion_loader = stable_diffusion_loader.DiffusionModelLoader(
       diffusion_ckpt_path, diffusion.TENSOR_NAMES
   )
   diffusion_loader.load(diffusion_model, strict=False)
 
-  decoder_model = decoder.Decoder(decoder.get_model_config())
+  decoder_model = decoder.Decoder(
+      decoder.get_model_config(device_type=_DEVICE_TYPE.value)
+  )
   decoder_loader = stable_diffusion_loader.AutoEncoderModelLoader(
       decoder_ckpt_path, decoder.TENSOR_NAMES
   )

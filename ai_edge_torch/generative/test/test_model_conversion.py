@@ -117,7 +117,7 @@ class TestModelConversion(googletest.TestCase):
   def _test_multisig_model(self, config, pytorch_model, atol, rtol):
     # prefill
     seq_len = 10
-    prefill_tokens = torch.full((1, seq_len), 0, dtype=torch.int, device="cpu")
+    prefill_tokens = torch.zeros((1, seq_len), dtype=torch.int, device="cpu")
     prompt_token = torch.from_numpy(np.array([1, 2, 3, 4]))
     prefill_tokens[0, : len(prompt_token)] = prompt_token
     prefill_input_pos = torch.arange(0, seq_len, dtype=torch.int)

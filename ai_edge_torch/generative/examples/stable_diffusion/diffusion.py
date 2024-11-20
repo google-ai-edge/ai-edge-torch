@@ -333,7 +333,7 @@ class Diffusion(nn.Module):
                                 dim=output_channel,
                                 num_query_groups=config.transformer_num_attention_heads,
                             ),
-                            enable_hlfb=False,
+                            enable_hlfb=config.enable_hlfb,
                         ),
                         cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                             query_dim=output_channel,
@@ -347,7 +347,7 @@ class Diffusion(nn.Module):
                                 dim=output_channel,
                                 num_query_groups=config.transformer_num_attention_heads,
                             ),
-                            enable_hlfb=False,
+                            enable_hlfb=config.enable_hlfb,
                         ),
                         pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
                         feed_forward_block_config=unet_cfg.FeedForwardBlock2DConfig(
@@ -405,7 +405,7 @@ class Diffusion(nn.Module):
                         dim=mid_block_channels,
                         num_query_groups=config.transformer_num_attention_heads,
                     ),
-                    enable_hlfb=False,
+                    enable_hlfb=config.enable_hlfb,
                 ),
                 cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                     query_dim=mid_block_channels,
@@ -419,7 +419,7 @@ class Diffusion(nn.Module):
                         dim=mid_block_channels,
                         num_query_groups=config.transformer_num_attention_heads,
                     ),
-                    enable_hlfb=False,
+                    enable_hlfb=config.enable_hlfb,
                 ),
                 pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
                 feed_forward_block_config=unet_cfg.FeedForwardBlock2DConfig(
@@ -478,7 +478,7 @@ class Diffusion(nn.Module):
                                 dim=output_channel,
                                 num_query_groups=config.transformer_num_attention_heads,
                             ),
-                            enable_hlfb=False,
+                            enable_hlfb=config.enable_hlfb,
                         ),
                         cross_attention_block_config=unet_cfg.CrossAttentionBlock2DConfig(
                             query_dim=output_channel,
@@ -492,7 +492,7 @@ class Diffusion(nn.Module):
                                 dim=output_channel,
                                 num_query_groups=config.transformer_num_attention_heads,
                             ),
-                            enable_hlfb=False,
+                            enable_hlfb=config.enable_hlfb,
                         ),
                         pre_conv_normalization_config=config.transformer_pre_conv_norm_config,
                         feed_forward_block_config=unet_cfg.FeedForwardBlock2DConfig(
@@ -581,13 +581,16 @@ class Diffusion(nn.Module):
     return x
 
 
-def get_model_config(batch_size: int) -> unet_cfg.DiffusionModelConfig:
-  """Get configs for the Diffusion model of Stable Diffusion v1.5
+def get_model_config(
+    batch_size: int, device_type: str = "cpu"
+) -> unet_cfg.DiffusionModelConfig:
+  """Get configs for the Diffusion model of Stable Diffusion v1.5.
 
   Args:
     batch_size (int): the batch size of input.
+    device_type (str): the device type of the model. Default to "cpu".
 
-  Retruns:
+  Returns:
     The configuration of diffusion model of Stable Diffusion v1.5.
   """
   in_channels = 4
@@ -596,9 +599,15 @@ def get_model_config(batch_size: int) -> unet_cfg.DiffusionModelConfig:
   layers_per_block = 2
   downsample_padding = 1
 
+  # For now, only turns on StableHLO composite ops on GPU backend for better
+  # performance. CPU should also switch to it once the support is done.
+  enable_hlfb = True if device_type == "gpu" else False
+
   # Residual configs.
   residual_norm_config = layers_cfg.NormalizationConfig(
-      layers_cfg.NormalizationType.GROUP_NORM, group_num=32
+      layers_cfg.NormalizationType.GROUP_NORM,
+      group_num=32,
+      enable_hlfb=enable_hlfb,
   )
   residual_activation_type = layers_cfg.ActivationType.SILU
 
@@ -607,10 +616,14 @@ def get_model_config(batch_size: int) -> unet_cfg.DiffusionModelConfig:
   transformer_batch_size = batch_size
   transformer_cross_attention_dim = 768  # Embedding from CLIP model
   transformer_pre_conv_norm_config = layers_cfg.NormalizationConfig(
-      layers_cfg.NormalizationType.GROUP_NORM, epsilon=1e-6, group_num=32
+      layers_cfg.NormalizationType.GROUP_NORM,
+      epsilon=1e-6,
+      group_num=32,
+      enable_hlfb=enable_hlfb,
   )
   transformer_norm_config = layers_cfg.NormalizationConfig(
-      layers_cfg.NormalizationType.LAYER_NORM
+      layers_cfg.NormalizationType.LAYER_NORM,
+      enable_hlfb=enable_hlfb,
   )
   transformer_ff_activation_type = layers_cfg.ActivationType.GE_GLU
 
@@ -623,7 +636,9 @@ def get_model_config(batch_size: int) -> unet_cfg.DiffusionModelConfig:
 
   # Finaly layer configs.
   final_norm_config = layers_cfg.NormalizationConfig(
-      layers_cfg.NormalizationType.GROUP_NORM, group_num=32
+      layers_cfg.NormalizationType.GROUP_NORM,
+      group_num=32,
+      enable_hlfb=enable_hlfb,
   )
   final_activation_type = layers_cfg.ActivationType.SILU
 
@@ -646,16 +661,20 @@ def get_model_config(batch_size: int) -> unet_cfg.DiffusionModelConfig:
       time_embedding_blocks_dim=time_embedding_blocks_dim,
       final_norm_config=final_norm_config,
       final_activation_type=final_activation_type,
+      enable_hlfb=enable_hlfb,
   )
 
 
-def get_fake_model_config(batch_size: int) -> unet_cfg.DiffusionModelConfig:
+def get_fake_model_config(
+    batch_size: int, device_type: str = "cpu"
+) -> unet_cfg.DiffusionModelConfig:
   """Get fake configs for the Diffusion model of Stable Diffusion v1.5 for testing.
 
   Args:
     batch_size (int): the batch size of input.
+    device_type (str): the device type of the model. Default to "cpu".
 
-  Retruns:
+  Returns:
     The configuration of diffusion model of Stable Diffusion v1.5.
   """
   in_channels = 4
@@ -664,9 +683,15 @@ def get_fake_model_config(batch_size: int) -> unet_cfg.DiffusionModelConfig:
   layers_per_block = 1
   downsample_padding = 1
 
+  # For now, only turns on StableHLO composite ops on GPU backend for better
+  # performance. CPU should also switch to it once the support is done.
+  enable_hlfb = True if device_type == "gpu" else False
+
   # Residual configs.
   residual_norm_config = layers_cfg.NormalizationConfig(
-      layers_cfg.NormalizationType.GROUP_NORM, group_num=2
+      layers_cfg.NormalizationType.GROUP_NORM,
+      group_num=2,
+      enable_hlfb=enable_hlfb,
   )
   residual_activation_type = layers_cfg.ActivationType.SILU
 
@@ -675,10 +700,14 @@ def get_fake_model_config(batch_size: int) -> unet_cfg.DiffusionModelConfig:
   transformer_batch_size = batch_size
   transformer_cross_attention_dim = 4  # Embedding from CLIP model
   transformer_pre_conv_norm_config = layers_cfg.NormalizationConfig(
-      layers_cfg.NormalizationType.GROUP_NORM, epsilon=1e-6, group_num=2
+      layers_cfg.NormalizationType.GROUP_NORM,
+      epsilon=1e-6,
+      group_num=2,
+      enable_hlfb=enable_hlfb,
   )
   transformer_norm_config = layers_cfg.NormalizationConfig(
-      layers_cfg.NormalizationType.LAYER_NORM
+      layers_cfg.NormalizationType.LAYER_NORM,
+      enable_hlfb=enable_hlfb,
   )
   transformer_ff_activation_type = layers_cfg.ActivationType.GE_GLU
 
@@ -691,7 +720,9 @@ def get_fake_model_config(batch_size: int) -> unet_cfg.DiffusionModelConfig:
 
   # Finaly layer configs.
   final_norm_config = layers_cfg.NormalizationConfig(
-      layers_cfg.NormalizationType.GROUP_NORM, group_num=2
+      layers_cfg.NormalizationType.GROUP_NORM,
+      group_num=2,
+      enable_hlfb=enable_hlfb,
   )
   final_activation_type = layers_cfg.ActivationType.SILU
 
@@ -714,4 +745,5 @@ def get_fake_model_config(batch_size: int) -> unet_cfg.DiffusionModelConfig:
       time_embedding_blocks_dim=time_embedding_blocks_dim,
       final_norm_config=final_norm_config,
       final_activation_type=final_activation_type,
+      enable_hlfb=enable_hlfb,
   )

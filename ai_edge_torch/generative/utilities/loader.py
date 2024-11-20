@@ -131,6 +131,9 @@ class ModelLoader:
     self._names = names
     self._loader = self._get_loader()
 
+  def get_state(self) -> Dict[str, torch.Tensor]:
+    return self._loader(self._file_name)
+
   def load(
       self, model: torch.nn.Module, strict: bool = True
   ) -> Tuple[List[str], List[str]]:
@@ -150,13 +153,17 @@ class ModelLoader:
         ValueError: If conversion results in unmapped tensors and strict mode is
           enabled.
     """
-    state = self._loader(self._file_name)
+    state = self.get_state()
     state = state["model_state_dict"] if "model_state_dict" in state else state
     converted_state = dict()
     if self._names.embedding is not None:
       converted_state["tok_embedding.weight"] = state.pop(
           f"{self._names.embedding}.weight"
       )
+      if model.config.embedding_use_bias:
+        converted_state["tok_embedding.bias"] = state.pop(
+            f"{self._names.embedding}.bias"
+        )
       if self._names.embedding_position is not None:
         converted_state["tok_embedding_position"] = state.pop(
             f"{self._names.embedding_position}"

@@ -51,13 +51,6 @@ jobs:
             })
         continue-on-error: true
 
-  run-formatting:
-    name: Formatting
-    needs: remove-ci-run-label
-    uses: ./.github/workflows/formatting.yml
-    with:
-      trigger-sha: ${{ github.event.pull_request.head.sha }}
-
   run-generative-api-examples:
     name: Generative API Examples
     needs: remove-ci-run-label

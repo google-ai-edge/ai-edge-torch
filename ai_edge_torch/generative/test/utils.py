@@ -32,18 +32,21 @@ def compare_tflite_torch(
     signature_name: str,
     atol: float = 1e-5,
     rtol: float = 1e-5,
+    **kwargs,
 ):
   """Compares torch models and TFLite models."""
   values, spec = pytree.tree_flatten({"kv_cache": kv_cache})
   flat_names = common_utils.flat_dict_names(spec.children_specs, spec.context)
-  torch_output = torch_model(tokens, input_pos, kv_cache)
+  torch_output = torch_model(tokens, input_pos, kv_cache, **kwargs)
 
-  input_kv_flatten = {k: v.numpy() for k, v in zip(flat_names, values)}
+  if "pixel_values" in kwargs:
+    kwargs["pixel_values"] = kwargs["pixel_values"].numpy()
+  kwargs.update({k: v.numpy() for k, v in zip(flat_names, values)})
   edge_output = edge_model(
       signature_name=signature_name,
       tokens=tokens.numpy(),
       input_pos=input_pos.numpy(),
-      **input_kv_flatten,
+      **kwargs,
   )
 
   return np.allclose(
