@@ -15,13 +15,17 @@
 import math
 from typing import Optional, Union
 
+from ai_edge_torch.odml_torch import export_utils
+from ai_edge_torch.odml_torch.lowerings import context
+from ai_edge_torch.odml_torch.lowerings import registry
 from ai_edge_torch.odml_torch.lowerings import utils
 from jax._src.lib.mlir import ir
 from jax._src.lib.mlir.dialects import hlo as stablehlo
 import numpy as np
 import torch
 
-from .registry import lower
+LoweringContext = context.LoweringContext
+lower = registry.lower
 
 
 # add(Tensor self, Tensor other) -> Tensor
@@ -209,6 +213,31 @@ def _aten_div(mod, x, y, *, rounding_mode=None, out=None) -> ir.Value:
 @lower(torch.ops.aten.floor)
 def _aten_floor(lctx, x: ir.Value, *, out=None) -> ir.Value:
   return stablehlo.floor(x)
+
+
+# Schema:
+#   - aten::cat(Tensor[] tensors, int dim=0) -> Tensor
+# Torch Reference:
+#   - https://pytorch.org/docs/main/generated/torch.cat.html
+@lower(torch.ops.aten.cat.default)
+def _aten_cat(lctx: LoweringContext, tensors, dim=0):
+  assert tensors
+  non_empty_tensors = [t for t in tensors if np.prod(t.type.shape) != 0]
+  out_meta = lctx.node.meta["tensor_meta"]
+  if not non_empty_tensors:
+    return utils.splat(
+        0,
+        export_utils.torch_dtype_to_ir_element_type(
+            lctx.ir_context, out_meta.dtype
+        ),
+        out_meta.shape,
+    )
+
+  if dim < 0:
+    dim = dim + len(out_meta.shape)
+  dim = ir.IntegerAttr.get(ir.IntegerType.get_signless(64), dim)
+
+  return stablehlo.concatenate(non_empty_tensors, dim)
 
 
 # Schema:
