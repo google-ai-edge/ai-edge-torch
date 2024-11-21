@@ -30,6 +30,8 @@ jobs:
         stale-issue-label: "status:stale"
         close-issue-reason: completed
         any-of-labels: "status:awaiting user response,status:more data needed"
+        # List of labels to remove when issues/PRs unstale. 
+        labels-to-remove-when-unstale: 'status:awaiting user response,status:stale'
         stale-issue-message: >
           Marking this issue as stale since it has been open for 7 days with no activity.
           This issue will be closed if no further activity occurs.

@@ -223,18 +223,18 @@ def _aten_floor(lctx, x: ir.Value, *, out=None) -> ir.Value:
 def _aten_cat(lctx: LoweringContext, tensors, dim=0):
   assert tensors
   non_empty_tensors = [t for t in tensors if np.prod(t.type.shape) != 0]
-  out_meta = lctx.node.meta["tensor_meta"]
+  out_aval = lctx.node.meta.get("tensor_meta") or lctx.node.meta.get("val")
   if not non_empty_tensors:
     return utils.splat(
         0,
         export_utils.torch_dtype_to_ir_element_type(
-            lctx.ir_context, out_meta.dtype
+            lctx.ir_context, out_aval.dtype
         ),
-        out_meta.shape,
+        out_aval.shape,
     )
 
   if dim < 0:
-    dim = dim + len(out_meta.shape)
+    dim = dim + len(out_aval.shape)
   dim = ir.IntegerAttr.get(ir.IntegerType.get_signless(64), dim)
 
   return stablehlo.concatenate(non_empty_tensors, dim)

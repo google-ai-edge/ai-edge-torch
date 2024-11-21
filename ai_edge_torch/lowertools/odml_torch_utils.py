@@ -185,6 +185,7 @@ def merged_bundle_to_tfl_model(
     converter = tf.lite.TFLiteConverter.from_saved_model(temp_dir_path)
     converter._set_original_model_type(conversion_metadata_fb.ModelType.PYTORCH)
     converter._experimental_enable_composite_direct_lowering = True
+    converter._experimental_enable_dynamic_update_slice = True
     converter.model_origin_framework = "PYTORCH"
 
     conversion_utils.set_tfl_converter_quant_flags(converter, quant_config)

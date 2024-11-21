@@ -61,6 +61,7 @@ global_registry.decompositions.update(
         torch.ops.aten._adaptive_avg_pool2d,
         torch.ops.aten._adaptive_avg_pool3d,
         torch.ops.aten.grid_sampler_2d,
+        torch.ops.aten.native_group_norm,
         torch.ops.aten.native_dropout,
         torch.ops.aten.reflection_pad1d,
         torch.ops.aten.reflection_pad2d,
