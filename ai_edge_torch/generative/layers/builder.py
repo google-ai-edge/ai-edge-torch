@@ -74,6 +74,7 @@ def build_norm(dim: int, config: cfg.NormalizationConfig):
         dim,
         eps=config.epsilon,
         zero_centered_gamma=config.zero_centered,
+        enable_hlfb=config.enable_hlfb,
     )
   elif config.type == cfg.NormalizationType.LAYER_NORM:
     return normalization.LayerNorm(dim, config.epsilon, config.enable_hlfb)
