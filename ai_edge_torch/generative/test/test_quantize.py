@@ -91,6 +91,11 @@ class TestVerifyRecipes(parameterized.TestCase):
 class TestQuantizeConvert(parameterized.TestCase):
   """Test conversion with quantization."""
 
+  def setUp(self):
+    super().setUp()
+    torch.manual_seed(0)
+    torch._dynamo.reset()
+
   def _attention_int8_dynamic_recipe() -> quant_config.QuantConfig:
     return quant_config.QuantConfig(
         generative_recipe=quant_recipe.GenerativeQuantRecipe(

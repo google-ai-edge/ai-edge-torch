@@ -227,9 +227,7 @@ def _aten_cat(lctx: LoweringContext, tensors, dim=0):
   if not non_empty_tensors:
     return utils.splat(
         0,
-        export_utils.torch_dtype_to_ir_element_type(
-            lctx.ir_context, out_aval.dtype
-        ),
+        export_utils.torch_dtype_to_ir_element_type(out_aval.dtype),
         out_aval.shape,
     )
 

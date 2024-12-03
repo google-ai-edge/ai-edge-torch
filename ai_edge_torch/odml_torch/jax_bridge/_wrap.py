@@ -163,9 +163,7 @@ def wrap(jaxfn: Callable[Any, Any], ir_input_names: list[str] = None):
       if aval is None:
         return result
 
-      target_elty = export_utils.torch_dtype_to_ir_element_type(
-          lctx.ir_context, aval.dtype
-      )
+      target_elty = export_utils.torch_dtype_to_ir_element_type(aval.dtype)
       if result.type.element_type == target_elty:
         return result
       return stablehlo.convert(

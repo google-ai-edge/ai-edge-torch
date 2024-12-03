@@ -35,9 +35,7 @@ from . import lowerings
 LoweringContext = lowerings.context.LoweringContext
 
 
-def _build_flat_inputs(
-    ctx: ir.Context, exported_program: torch.export.ExportedProgram
-):
+def _build_flat_inputs(exported_program: torch.export.ExportedProgram):
   """Build flattened inputs and metadata from exported program's signature."""
   placeholder_nodes = [
       n for n in exported_program.graph.nodes if n.op == "placeholder"
@@ -49,9 +47,11 @@ def _build_flat_inputs(
   ir_inputs = []
   tensor_metas = []
   for node, arg in zip(placeholder_nodes, export_flat_args):
-    tensor_meta = node.meta.get("tensor_meta")
+    tensor_meta = node.meta.get("tensor_meta") or node.meta.get("val")
     if tensor_meta is None:
-      raise RuntimeError(f"{type(arg)} (for {node.name}) is not a tensor")
+      raise RuntimeError(
+          f"{type(arg)} (for {node.name}) does not have tensor meta"
+      )
 
     tensor_metas.append(tensor_meta)
     # Assume all dynamic dimensions are unbounded.
@@ -63,7 +63,7 @@ def _build_flat_inputs(
     ir_inputs.append(
         ir.RankedTensorType.get(
             shape,
-            export_utils.torch_dtype_to_ir_element_type(ctx, tensor_meta.dtype),
+            export_utils.torch_dtype_to_ir_element_type(tensor_meta.dtype),
         )
     )
   return tuple(ir_inputs), tuple(export_flat_args), tuple(tensor_metas)
@@ -277,7 +277,7 @@ def exported_program_to_mlir(
     lctx = LoweringContext(context, module)
     interpreter = LoweringInterpreter(exported_program.graph_module, lctx)
     ir_flat_inputs, export_flat_args, tensor_metas = _build_flat_inputs(
-        context, exported_program
+        exported_program
     )
 
     # HACK: OSS MLIR pybinding could mysteriously transform func.func under

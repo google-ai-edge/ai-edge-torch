@@ -135,7 +135,7 @@ def build_ir_attr(val):
   return ir.StringAttr.get(str(val))
 
 
-def torch_dtype_to_ir_element_type(ctx, dtype):
+def torch_dtype_to_ir_element_type(dtype):
   ty_get = {
       torch.double: ir.F64Type.get,
       torch.float32: ir.F32Type.get,
@@ -144,8 +144,8 @@ def torch_dtype_to_ir_element_type(ctx, dtype):
       torch.int32: functools.partial(ir.IntegerType.get_signless, 32),
       torch.int16: functools.partial(ir.IntegerType.get_signless, 16),
       torch.bool: functools.partial(ir.IntegerType.get_signless, 1),
-  }.get(dtype)
-  return ty_get(ctx)
+  }[dtype]
+  return ty_get()
 
 
 def ir_element_type_to_torch_dtype(ty):

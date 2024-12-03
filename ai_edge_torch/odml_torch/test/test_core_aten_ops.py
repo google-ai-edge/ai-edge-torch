@@ -22,31 +22,28 @@ from absl.testing import parameterized
 
 
 def export_without_scalar_inputs(model, args, kwargs):
-  export_args = []
-  keys = []
 
-  for key, arg in [*enumerate(args), *kwargs.items()]:
+  flatten_args, treespec = pytree.tree_flatten([args, kwargs])
+
+  export_args = []
+  indices = []
+  for i, arg in enumerate(flatten_args):
     if isinstance(arg, torch.Tensor):
       export_args.append(arg)
-      keys.append(key)
+      indices.append(i)
 
   class ModuleWrapper(torch.nn.Module):
 
     def __init__(self, func, original_args, original_kwargs):
       super().__init__()
-      self.original_args = [*original_args]
-      self.original_kwargs = original_kwargs.copy()
+      self.original_args = list(flatten_args)
       self.func = func
 
     def forward(self, *export_args):
-      args = [*self.original_args]
-      kwargs = self.original_kwargs.copy()
-
-      for key, arg in zip(keys, export_args):
-        if isinstance(key, int):
-          args[key] = arg
-        else:
-          kwargs[key] = arg
+      flatten_args = self.original_args.copy()
+      for i, arg in zip(indices, export_args):
+        flatten_args[i] = arg
+      args, kwargs = pytree.tree_unflatten(flatten_args, treespec)
       return self.func(*args, **kwargs)
 
   export_args = tuple(export_args)
