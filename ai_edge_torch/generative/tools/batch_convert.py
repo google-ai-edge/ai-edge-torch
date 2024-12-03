@@ -63,10 +63,10 @@ _MODELS = flags.DEFINE_list(
     "The list of models to convert.",
 )
 
-_PREFILL_SEQ_LEN = flags.DEFINE_integer(
-    "prefill_seq_len",
-    1024,
-    "The maximum size of prefill input tensor.",
+_PREFILL_SEQ_LENS = flags.DEFINE_multi_integer(
+    "prefill_seq_lens",
+    (8, 64, 128, 256, 512, 1024),
+    "List of the maximum sizes of prefill input tensors.",
 )
 
 _KV_CACHE_MAX_LEN = flags.DEFINE_integer(
@@ -97,7 +97,7 @@ class ConversionConfig:
   model_name: str
   input_checkpoint: str
   tflite_output_path: str
-  prefill_seq_len: int
+  prefill_seq_lens: int
   kv_cache_max_len: int
   export_precision: Sequence[ExportPrecision]
   model_builder: Callable[..., torch.nn.Module]
@@ -108,7 +108,7 @@ class ConversionConfig:
     logging.info("Model name: %s", self.model_name)
     logging.info("Input checkpoint: %s", self.input_checkpoint)
     logging.info("TF Lite output path: %s", self.tflite_output_path)
-    logging.info("Prefill seq len: %s", self.prefill_seq_len)
+    logging.info("Prefill seq lens: %s", self.prefill_seq_lens)
     logging.info("KV cache max len: %s", self.kv_cache_max_len)
     logging.info("Export precision: %s", self.export_precision)
     logging.info("Model size: %s", self.model_size)
@@ -134,7 +134,7 @@ def get_conversion_config(
           _CHECKPOINT_ROOT_PATH.value, input_checkpoint_subdir
       ),
       tflite_output_path=os.path.join(_OUTPUT_DIR.value, tflite_output_subdir),
-      prefill_seq_len=_PREFILL_SEQ_LEN.value,
+      prefill_seq_lens=_PREFILL_SEQ_LENS.value,
       kv_cache_max_len=_KV_CACHE_MAX_LEN.value,
       export_precision=export_precision,
       model_builder=model_builder,
@@ -245,7 +245,6 @@ def get_output_filename(
     model_name: str,
     model_size: str,
     precision: ExportPrecision,
-    prefill_seq_len: int,
     kv_cache_max_len: int,
 ) -> str:
   """Returns the output filename for a converted TF Litemodel."""
@@ -255,7 +254,9 @@ def get_output_filename(
     precision_str = "f32"
   else:
     raise ValueError(f"Unsupported precision: {precision}")
-  return f"{model_name}_{model_size}_{precision_str}_seq{prefill_seq_len}_ekv{kv_cache_max_len}.tflite"
+  return (
+      f"{model_name}_{model_size}_{precision_str}_ekv{kv_cache_max_len}.tflite"
+  )
 
 
 def convert_models(conversion_configs: Sequence[ConversionConfig]) -> None:
@@ -273,13 +274,12 @@ def convert_models(conversion_configs: Sequence[ConversionConfig]) -> None:
           config.model_name,
           config.model_size,
           precision,
-          config.prefill_seq_len,
           config.kv_cache_max_len,
       )
       converter.convert_to_tflite(
           pytorch_model,
           tflite_path=os.path.join(config.tflite_output_path, output_filename),
-          prefill_seq_len=config.prefill_seq_len,
+          prefill_seq_len=config.prefill_seq_lens,
           quantize=True if precision == ExportPrecision.INT8 else False,
       )
       logging.info("Successfully converted model: %s", output_filename)

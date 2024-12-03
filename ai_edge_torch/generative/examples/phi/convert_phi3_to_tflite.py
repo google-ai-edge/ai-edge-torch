@@ -33,10 +33,10 @@ _TFLITE_PATH = flags.DEFINE_string(
     '/tmp/',
     'The tflite file path to export.',
 )
-_PREFILL_SEQ_LEN = flags.DEFINE_integer(
-    'prefill_seq_len',
-    1024,
-    'The maximum size of prefill input tensor.',
+_PREFILL_SEQ_LENS = flags.DEFINE_multi_integer(
+    'prefill_seq_lens',
+    (8, 64, 128, 256, 512, 1024),
+    'List of the maximum sizes of prefill input tensors.',
 )
 _KV_CACHE_MAX_LEN = flags.DEFINE_integer(
     'kv_cache_max_len',
@@ -55,11 +55,11 @@ def main(_):
       _CHECKPOINT_PATH.value, kv_cache_max_len=_KV_CACHE_MAX_LEN.value
   )
   quant_suffix = 'q8' if _QUANTIZE.value else 'f32'
-  output_filename = f'phi3_{quant_suffix}_seq{_PREFILL_SEQ_LEN.value}_ekv{_KV_CACHE_MAX_LEN.value}.tflite'
+  output_filename = f'phi3_{quant_suffix}_ekv{_KV_CACHE_MAX_LEN.value}.tflite'
   converter.convert_to_tflite(
       pytorch_model,
       tflite_path=os.path.join(_TFLITE_PATH.value, output_filename),
-      prefill_seq_len=_PREFILL_SEQ_LEN.value,
+      prefill_seq_len=_PREFILL_SEQ_LENS.value,
       quantize=_QUANTIZE.value,
   )
 

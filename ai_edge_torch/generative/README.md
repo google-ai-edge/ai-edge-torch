@@ -68,6 +68,9 @@ Then export the model to TFLite with:
 https://github.com/google-ai-edge/ai-edge-torch/blob/853301630f2b2455bd2e2f73d8a47e1a1534c91c/ai_edge_torch/generative/examples/test_models/toy_model_with_kv_cache.py#L133-L139
 
 Please note that using the `prefill` and `decode` method conventions are required for easy integration into the Mediapipe LLM Inference API.
+
+To further optimize the on-device execution, a model can be exported with more than one prefill signature. As such, we use `prefill_{SEQ-LENS}` to export models with multiple prefill sequence lengths. During inference, the signature closest the input sequence length is used to minimize throwaway results.
+
 <br/>
 
 ### End-to-End Inference Pipeline
