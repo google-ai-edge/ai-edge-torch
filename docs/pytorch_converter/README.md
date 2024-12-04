@@ -211,7 +211,7 @@ edge_model = ai_edge_torch.convert(nhwc_resnet18, (torch.randn(1, 224, 224, 3),)
 edge_model.export("resnet18.tflite")
 ```
 
-More examples of usage can be found [here](https://github.com/google-ai-edge/ai-edge-torch/blob/main/ai_edge_torch/convert/test/test_to_channel_last_io.py).
+More examples of usage can be found [here](https://github.com/google-ai-edge/ai-edge-torch/blob/main/ai_edge_torch/_convert/test/test_to_channel_last_io.py).
 
 # Debugging & Reporting Errors
 
