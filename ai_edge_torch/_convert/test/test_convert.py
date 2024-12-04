@@ -21,10 +21,12 @@ from typing import Tuple
 import ai_edge_torch
 from ai_edge_torch import config
 from ai_edge_torch._convert import conversion_utils
+from ai_edge_torch.quantize import pt2e_quantizer
 from ai_edge_torch.testing import model_coverage
 import numpy as np
 import torch
 from torch import nn
+from torch.ao.quantization import quantize_pt2e
 import torchvision
 
 from absl.testing import absltest as googletest
@@ -505,6 +507,52 @@ class TestConvert(googletest.TestCase):
     self.assertTrue(
         model_coverage.compare_tflite_torch(edge_model, torch_module, args)
     )
+
+  def test_convert_resnet18_pt2e_per_layer(self):
+    # Step 1: export resnet18
+    args = (torch.randn(1, 3, 224, 224),)
+    m = torchvision.models.resnet18().eval()
+    m = torch._export.capture_pre_autograd_graph(m, args)
+
+    # Step 2: Insert observers or fake quantize modules
+    quantizer = pt2e_quantizer.PT2EQuantizer().set_global(
+        pt2e_quantizer.get_symmetric_quantization_config(is_per_channel=False)
+    )
+    m = quantize_pt2e.prepare_pt2e(m, quantizer)
+
+    # Step 3: Quantize the model
+    m = quantize_pt2e.convert_pt2e(m, fold_quantize=False)
+
+    # pylint: disable=broad-except
+    try:
+      ai_edge_torch.convert(m, args)
+    except Exception as err:
+      self.fail(f"PT2E conversion failed: {err}")
+    # pylint: enable=broad-except
+
+  def test_convert_resnet18_pt2e_per_channel(self):
+    # Step 1: export resnet18
+    args = (torch.randn(1, 3, 224, 224),)
+    m = torchvision.models.resnet18().eval()
+    m = torch._export.capture_pre_autograd_graph(m, args)
+
+    # Step 2: Insert observers or fake quantize modules
+    quantizer = pt2e_quantizer.PT2EQuantizer().set_global(
+        pt2e_quantizer.get_symmetric_quantization_config(is_per_channel=True)
+    )
+    m = quantize_pt2e.prepare_pt2e(m, quantizer)
+    # Step 3: Run through example inputs, otherwise per-channel
+    # quant may have scalar scale/zero_point
+    m(*args)
+    # Step 4: Quantize the model
+    m = quantize_pt2e.convert_pt2e(m, fold_quantize=False)
+
+    # pylint: disable=broad-except
+    try:
+      ai_edge_torch.convert(m, args)
+    except Exception as err:
+      self.fail(f"PT2E conversion failed: {err}")
+    # pylint: enable=broad-except
 
 
 if __name__ == "__main__":

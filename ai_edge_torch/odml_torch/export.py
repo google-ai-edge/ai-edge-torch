@@ -258,6 +258,43 @@ def _convert_i64_to_i32(exported_program: torch.export.ExportedProgram):
       rewrite_arange(node)
 
 
+# TODO(b/331481564) Make this a ai_edge_torch FX pass.
+def _convert_q_dq_per_channel_args_to_list(
+    exported_program: torch.export.ExportedProgram,
+):
+  """Resolve tensor inputs to Q/DQ ops as static number list for lowering.
+
+  This pass makes the ExportedProgram in a non-executable state. This pass must
+  be run after all run_decompositions calls.
+  """
+  placeholder_nodes = [
+      n for n in exported_program.graph.nodes if n.op == "placeholder"
+  ]
+  export_flat_args = _torch_future.graph_module_flat_inputs(
+      exported_program, *exported_program.example_inputs
+  )
+
+  placeholder_tensor = {
+      n: tensor for n, tensor in zip(placeholder_nodes, export_flat_args)
+  }
+
+  graph_module = exported_program.graph_module
+  for node in graph_module.graph.nodes:
+    if node.target in (
+        torch.ops.quantized_decomposed.quantize_per_channel.default,
+        torch.ops.quantized_decomposed.quantize_per_tensor.tensor,
+        torch.ops.quantized_decomposed.dequantize_per_channel.default,
+        torch.ops.quantized_decomposed.dequantize_per_tensor.tensor,
+    ):
+      input, scale_node, zero_point_node = node.args[:3]
+      scale = placeholder_tensor[scale_node]
+      zero_point = placeholder_tensor[zero_point_node]
+
+      scale = scale.detach().numpy().tolist()
+      zero_point = zero_point.detach().numpy().tolist()
+      node.args = (input, scale, zero_point, *node.args[3:])
+
+
 def exported_program_to_mlir(
     exported_program: torch.export.ExportedProgram,
 ) -> MlirLowered:
@@ -270,6 +307,7 @@ def exported_program_to_mlir(
   exported_program = _torch_future.safe_run_decompositions(
       exported_program, lowerings.decompositions()
   )
+  _convert_q_dq_per_channel_args_to_list(exported_program)
 
   with export_utils.create_ir_context() as context, ir.Location.unknown():
 

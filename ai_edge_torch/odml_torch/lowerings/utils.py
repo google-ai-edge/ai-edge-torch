@@ -14,6 +14,7 @@
 # ==============================================================================
 """Utilities for building MLIR lowerings."""
 
+import functools
 import numbers
 from typing import Any
 from typing import Optional
@@ -21,6 +22,21 @@ from typing import Optional
 from jax._src.lib.mlir import ir
 from jax._src.lib.mlir.dialects import hlo as stablehlo
 import numpy as np
+import torch
+
+
+def torch_dtype_to_ir_element_type(dtype):
+  ty_get = {
+      torch.double: ir.F64Type.get,
+      torch.float32: ir.F32Type.get,
+      torch.half: ir.F16Type.get,
+      torch.long: functools.partial(ir.IntegerType.get_signless, 64),
+      torch.int32: functools.partial(ir.IntegerType.get_signless, 32),
+      torch.int16: functools.partial(ir.IntegerType.get_signless, 16),
+      torch.int8: functools.partial(ir.IntegerType.get_signless, 8),
+      torch.bool: functools.partial(ir.IntegerType.get_signless, 1),
+  }[dtype]
+  return ty_get()
 
 
 def splat(val, ty, shape=tuple(), *, loc: Optional[Any] = None):

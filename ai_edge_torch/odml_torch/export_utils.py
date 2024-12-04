@@ -14,9 +14,9 @@
 # ==============================================================================
 """Utilities for ODML Torch export."""
 
-import functools
 import re
 from typing import Sequence, cast
+from ai_edge_torch.odml_torch.lowerings import utils as lowering_utils
 import jax._src.interpreters.mlir
 from jax._src.lib.mlir import ir
 from jax._src.lib.mlir.dialects import func
@@ -47,7 +47,6 @@ def create_ir_context():
   # TODO(b/362798610) Build MLIR pybinding in ai-edge-torch release.
   context = jax._src.interpreters.mlir.make_ir_context()
   context.allow_unregistered_dialects = True
-
   return context
 
 
@@ -135,17 +134,7 @@ def build_ir_attr(val):
   return ir.StringAttr.get(str(val))
 
 
-def torch_dtype_to_ir_element_type(dtype):
-  ty_get = {
-      torch.double: ir.F64Type.get,
-      torch.float32: ir.F32Type.get,
-      torch.half: ir.F16Type.get,
-      torch.long: functools.partial(ir.IntegerType.get_signless, 64),
-      torch.int32: functools.partial(ir.IntegerType.get_signless, 32),
-      torch.int16: functools.partial(ir.IntegerType.get_signless, 16),
-      torch.bool: functools.partial(ir.IntegerType.get_signless, 1),
-  }[dtype]
-  return ty_get()
+torch_dtype_to_ir_element_type = lowering_utils.torch_dtype_to_ir_element_type
 
 
 def ir_element_type_to_torch_dtype(ty):
