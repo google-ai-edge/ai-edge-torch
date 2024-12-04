@@ -22,6 +22,14 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
+cc_library(
+    name = "utils",
+    hdrs = ["utils.h"],
+    deps = [
+        "@org_tensorflow//tensorflow/lite:util",
+    ],
+)
+
 cc_binary(
     name = "text_generator_main",
     srcs = [
@@ -35,8 +43,10 @@ cc_binary(
         "//conditions:default": [],
     }),
     deps = [
+        ":utils",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/strings",
         "@com_google_sentencepiece//:sentencepiece_processor",
         "@org_tensorflow//tensorflow/lite:framework",
         "@org_tensorflow//tensorflow/lite:util",
