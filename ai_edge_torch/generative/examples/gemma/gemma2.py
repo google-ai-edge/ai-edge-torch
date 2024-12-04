@@ -23,6 +23,7 @@ from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
+from ai_edge_torch.generative.utilities.model_builder import GenerationConfig
 import torch
 from torch import nn
 
@@ -132,6 +133,7 @@ class Gemma2(nn.Module):
       tokens: torch.Tensor,
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
+      gen_config: Optional[GenerationConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
     _, seq_len = tokens.size()
     assert self.config.max_seq_len >= seq_len, (
@@ -161,6 +163,10 @@ class Gemma2(nn.Module):
       if kv_entry:
         updated_kv_entires.append(kv_entry)
     updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entires))
+
+    if gen_config is not None:
+      if torch.numel(input_pos) > 1 and not gen_config.output_logits_on_prefill:
+        return {"kv_cache": updated_kv_cache}
 
     x = self.final_norm(x)
     res = self.lm_head(x)  # (b, t, vocab_size)
