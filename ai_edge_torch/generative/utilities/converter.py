@@ -15,13 +15,28 @@
 
 """Common utility functions for model conversion."""
 
-from typing import Union
+from functools import partial
+from typing import Any, Union
 
 from ai_edge_torch._convert import converter as converter_utils
 import ai_edge_torch.generative.layers.kv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.quantize import quant_recipes
+from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 import torch
+import torch.nn as nn
+
+
+class ExportableModule(torch.nn.Module):
+
+  def __init__(self, module, **extra_kwargs):
+    super().__init__()
+    self.module = module
+    self.extra_kwargs = extra_kwargs
+
+  def forward(self, *export_args, **export_kwargs):
+    full_kwargs = {**export_kwargs, **self.extra_kwargs}
+    return self.module(*export_args, **full_kwargs)
 
 
 def convert_to_tflite(
@@ -31,6 +46,7 @@ def convert_to_tflite(
     pixel_values_size: torch.Size = None,
     quantize: bool = True,
     config: cfg.ModelConfig = None,
+    export_config: ExportConfig = None,
 ):
   """Converts a nn.Module model to multi-signature tflite model.
 
@@ -97,6 +113,11 @@ def convert_to_tflite(
   )
 
   quant_config = quant_recipes.full_int8_dynamic_recipe() if quantize else None
+
+  # For export, we create a module that captures any non-exportable,
+  # arugments, e.g. the generation config object.
+  mod = ExportableModule(pytorch_model, export_config=export_config)
+
   converter = converter_utils.Converter()
   for i in range(len(prefill_seq_lens)):
     prefill_seq_len = prefill_seq_lens[i]
@@ -108,7 +129,7 @@ def convert_to_tflite(
       prefill_signature_name = f'prefill_{prefill_seq_len}'
     converter.add_signature(
         prefill_signature_name,
-        pytorch_model,
+        mod,
         sample_kwargs={
             'tokens': prefill_tokens,
             'input_pos': prefill_input_pos,
@@ -118,7 +139,7 @@ def convert_to_tflite(
     if prefill_pixel_values is not None:
       converter.add_signature(
           prefill_signature_name + '_pixel',
-          pytorch_model,
+          mod,
           sample_kwargs={
               'tokens': prefill_tokens,
               'input_pos': prefill_input_pos,
@@ -129,7 +150,7 @@ def convert_to_tflite(
 
   converter.add_signature(
       'decode',
-      pytorch_model,
+      mod,
       sample_kwargs={
           'tokens': decode_token,
           'input_pos': decode_input_pos,

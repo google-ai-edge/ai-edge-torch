@@ -29,7 +29,7 @@ class TransformersModelWrapper(verifier.ModelWrapper):
   an object with `logits` field.
 
   Transformers models get `max_new_tokens` settings for generate() via
-  GenerationConfig.
+  ExportConfig.
   """
 
   def forward(self, tokens: torch.Tensor) -> torch.Tensor:
@@ -38,5 +38,5 @@ class TransformersModelWrapper(verifier.ModelWrapper):
   def generate(
       self, inputs: torch.Tensor, max_new_tokens: int
   ) -> torch.IntTensor:
-    gen_config = transformers.GenerationConfig(max_new_tokens=max_new_tokens)
-    return self.model.generate(inputs=inputs, generation_config=gen_config)
+    export_config = transformers.ExportConfig(max_new_tokens=max_new_tokens)
+    return self.model.generate(inputs=inputs, generation_config=export_config)

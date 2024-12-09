@@ -16,7 +16,8 @@
 """Utilities to be used for re-authoring transformer models."""
 
 import copy
-from typing import Tuple
+from dataclasses import dataclass
+from typing import Optional, Tuple
 
 from ai_edge_torch.generative.layers import attention
 from ai_edge_torch.generative.layers import builder
@@ -43,6 +44,15 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
 
 TENSOR_NAMES_WITH_SEPARATE_LM_HEAD = copy.copy(TENSOR_NAMES)
 TENSOR_NAMES_WITH_SEPARATE_LM_HEAD.lm_head = "lm_head"
+
+
+@dataclass
+class ExportConfig:
+  """Model generating configuration settings."""
+
+  # On prefill signatures, should the model produce logit output?
+  # When False, only decode signatures will produce output.
+  output_logits_on_prefill: bool = False
 
 
 class DecoderOnlyModel(nn.Module):
@@ -93,6 +103,7 @@ class DecoderOnlyModel(nn.Module):
       tokens: torch.Tensor,
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
+      export_config: Optional[ExportConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
     _, seq_len = tokens.size()
     assert self.config.max_seq_len >= seq_len, (
@@ -108,7 +119,7 @@ class DecoderOnlyModel(nn.Module):
     mask = mask[:, :, :, : self.config.kv_cache_max]
 
     return self.forward_with_embeds(
-        input_embeds, rope, mask, input_pos, kv_cache
+        input_embeds, rope, mask, input_pos, kv_cache, export_config
     )
 
   def forward_with_embeds(
@@ -118,6 +129,7 @@ class DecoderOnlyModel(nn.Module):
       mask: torch.Tensor,
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
+      export_config: Optional[ExportConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
     """Forwards the model with input embeddings."""
     assert len(self.transformer_blocks) == len(kv_cache.caches), (
@@ -136,6 +148,13 @@ class DecoderOnlyModel(nn.Module):
       if kv_entry:
         updated_kv_entires.append(kv_entry)
     updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entires))
+
+    if export_config is not None:
+      if (
+          torch.numel(input_pos) > 1
+          and not export_config.output_logits_on_prefill
+      ):
+        return {"kv_cache": updated_kv_cache}
 
     x = self.final_norm(x)
     logits = self.lm_head(x)  # (b, t, vocab_size)

@@ -22,6 +22,7 @@ from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
 from ai_edge_torch.generative.utilities import converter
+from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 
 _CHECKPOINT_PATH = flags.DEFINE_string(
     'checkpoint_path',
@@ -63,6 +64,7 @@ def main(_):
       tflite_path=os.path.join(_TFLITE_PATH.value, output_filename),
       prefill_seq_len=_PREFILL_SEQ_LENS.value,
       quantize=_QUANTIZE.value,
+      export_config=ExportConfig(),
   )
 
 

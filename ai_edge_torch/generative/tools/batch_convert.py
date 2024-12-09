@@ -34,6 +34,7 @@ from ai_edge_torch.generative.examples.qwen import qwen
 from ai_edge_torch.generative.examples.smollm import smollm
 from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
 from ai_edge_torch.generative.utilities import converter
+from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 import torch
 
 _CHECKPOINT_ROOT_PATH = flags.DEFINE_string(
@@ -281,6 +282,7 @@ def convert_models(conversion_configs: Sequence[ConversionConfig]) -> None:
           tflite_path=os.path.join(config.tflite_output_path, output_filename),
           prefill_seq_len=config.prefill_seq_lens,
           quantize=True if precision == ExportPrecision.INT8 else False,
+          export_config=ExportConfig(),
       )
       logging.info("Successfully converted model: %s", output_filename)
 

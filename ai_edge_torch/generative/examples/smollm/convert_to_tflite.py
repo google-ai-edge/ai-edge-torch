@@ -22,6 +22,7 @@ from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.smollm import smollm
 from ai_edge_torch.generative.utilities import converter
+from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 
 _CHECKPOINT_PATH = flags.DEFINE_string(
     'checkpoint_path',
@@ -54,6 +55,7 @@ def main(_):
   pytorch_model = smollm.build_model(
       _CHECKPOINT_PATH.value, kv_cache_max_len=_KV_CACHE_MAX_LEN.value
   )
+
   quant_suffix = 'q8' if _QUANTIZE.value else 'f32'
   output_filename = f'smollm_{quant_suffix}_ekv{_KV_CACHE_MAX_LEN.value}.tflite'
   converter.convert_to_tflite(
@@ -61,6 +63,7 @@ def main(_):
       tflite_path=os.path.join(_TFLITE_PATH.value, output_filename),
       prefill_seq_len=_PREFILL_SEQ_LENS.value,
       quantize=_QUANTIZE.value,
+      export_config=ExportConfig(),
   )
 
 

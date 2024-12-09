@@ -26,6 +26,7 @@ from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.paligemma import paligemma
 from ai_edge_torch.generative.utilities import converter
+from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 import torch
 
 _CHECKPOINT_PATH = flags.DEFINE_string(
@@ -73,6 +74,7 @@ def main(_):
       pixel_values_size=torch.Size(_PIXEL_VALUES_SIZE.value),
       quantize=_QUANTIZE.value,
       config=pytorch_model.config.decoder_config,
+      export_config=ExportConfig(),
   )
 
 
