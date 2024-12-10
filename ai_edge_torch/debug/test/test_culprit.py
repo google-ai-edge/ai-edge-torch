@@ -15,13 +15,13 @@
 
 
 import ast
-import io
-import sys
 
-from ai_edge_torch.debug import find_culprits
+import ai_edge_torch.debug
 import torch
 
 from absl.testing import absltest as googletest
+
+find_culprits = ai_edge_torch.debug.find_culprits
 
 _test_culprit_lib = torch.library.Library("test_culprit", "DEF")
 
@@ -51,6 +51,11 @@ class BadModel(torch.nn.Module):
 
 
 class TestCulprit(googletest.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    torch.manual_seed(0)
+    torch._dynamo.reset()
 
   def test_find_culprits(self):
     model = BadModel().eval()
