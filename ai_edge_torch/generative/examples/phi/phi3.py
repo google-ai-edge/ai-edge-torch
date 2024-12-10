@@ -207,13 +207,11 @@ def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
   return config
 
 
-def build_model(
-    checkpoint_path: str, **kwargs
-) -> model_builder.DecoderOnlyModel:
+def build_model(checkpoint_path: str, **kwargs) -> torch.nn.Module:
   """Instantiates the model instance and load checkpoint if provided."""
-  config = get_model_config(**kwargs)
-  model = Phi3_5Mini(config)
-  loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
-  loader.load(model)
-  model.eval()
-  return model
+  return model_builder.build_decoder_only_model(
+      checkpoint_path=checkpoint_path,
+      config=get_model_config(**kwargs),
+      tensor_names=TENSOR_NAMES,
+      model_class=Phi3_5Mini,
+  )

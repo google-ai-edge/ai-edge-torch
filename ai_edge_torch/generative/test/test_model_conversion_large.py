@@ -93,7 +93,7 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_gemma1(self):
     config = gemma1.get_fake_model_config()
-    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
+    pytorch_model = gemma1.Gemma1(config).eval()
     self._test_model(
         config, pytorch_model, "serving_default", atol=1e-2, rtol=1e-5
     )
@@ -122,7 +122,7 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_phi2(self):
     config = phi2.get_fake_model_config()
-    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
+    pytorch_model = phi2.Phi2(config).eval()
     self._test_model(
         config, pytorch_model, "serving_default", atol=1e-3, rtol=1e-3
     )
@@ -142,7 +142,7 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_smollm(self):
     config = smollm.get_fake_model_config()
-    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
+    pytorch_model = smollm.SmolLM(config).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
 
   @googletest.skipIf(
@@ -151,7 +151,7 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_openelm(self):
     config = openelm.get_fake_model_config()
-    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
+    pytorch_model = openelm.OpenElm(config).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
 
   @googletest.skipIf(
@@ -160,7 +160,7 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_qwen(self):
     config = qwen.get_fake_model_config()
-    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
+    pytorch_model = qwen.Qwen(config).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
 
   @googletest.skipIf(
@@ -169,7 +169,7 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_amd_llama_135m(self):
     config = amd_llama_135m.get_fake_model_config()
-    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
+    pytorch_model = amd_llama_135m.AmdLlama(config).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
 
   @googletest.skipIf(

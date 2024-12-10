@@ -18,6 +18,7 @@
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.utilities import model_builder
 import ai_edge_torch.generative.utilities.loader as loading_utils
+from torch import nn
 
 TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="transformer.layers.{}.ffn.proj_1",
@@ -32,6 +33,11 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     final_norm="transformer.norm",
     lm_head=None,
 )
+
+
+class OpenELM(model_builder.DecoderOnlyModel):
+  """An OpenELM model built from the Edge Generative API layers."""
+  pass
 
 
 def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
@@ -112,11 +118,10 @@ def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
   return config
 
 
-def build_model(
-    checkpoint_path: str, **kwargs
-) -> model_builder.DecoderOnlyModel:
+def build_model(checkpoint_path: str, **kwargs) -> nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
       config=get_model_config(**kwargs),
       tensor_names=TENSOR_NAMES,
+      model_class=OpenELM,
   )

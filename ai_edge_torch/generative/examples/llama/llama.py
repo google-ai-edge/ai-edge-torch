@@ -20,7 +20,6 @@ from typing import Tuple
 
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.utilities import model_builder
-import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
 
 TENSOR_NAMES = model_builder.TENSOR_NAMES
@@ -177,23 +176,18 @@ def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
 
 def _build_model(
     checkpoint_path: str, config: cfg.ModelConfig
-) -> model_builder.DecoderOnlyModel:
-  model = Llama(config)
-  loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
-  # Since embedding and lm-head use the same weight, we need to set strict
-  # to False.
-  loader.load(model, strict=False)
-  model.eval()
-  return model
+) -> torch.nn.Module:
+  return model_builder.build_decoder_only_model(
+      checkpoint_path=checkpoint_path,
+      config=config,
+      tensor_names=TENSOR_NAMES,
+      model_class=Llama,
+  )
 
 
-def build_1b_model(
-    checkpoint_path: str, **kwargs
-) -> model_builder.DecoderOnlyModel:
+def build_1b_model(checkpoint_path: str, **kwargs) -> torch.nn.Module:
   return _build_model(checkpoint_path, get_1b_model_config(**kwargs))
 
 
-def build_3b_model(
-    checkpoint_path: str, **kwargs
-) -> model_builder.DecoderOnlyModel:
+def build_3b_model(checkpoint_path: str, **kwargs) -> torch.nn.Module:
   return _build_model(checkpoint_path, get_3b_model_config(**kwargs))

@@ -130,12 +130,10 @@ def get_fake_decoder_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
   return config
 
 
-def build_decoder(
-    checkpoint_path: str, **kwargs
-) -> model_builder.DecoderOnlyModel:
-  decoder = Decoder(get_decoder_config(**kwargs))
-  loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
-  # Loose the strictness because only decoder is being loaded.
-  loader.load(decoder, strict=False)
-  decoder.eval()
-  return decoder
+def build_decoder(checkpoint_path: str, **kwargs) -> torch.nn.Module:
+  return model_builder.build_decoder_only_model(
+      checkpoint_path=checkpoint_path,
+      config=get_decoder_config(**kwargs),
+      tensor_names=TENSOR_NAMES,
+      model_class=Decoder,
+  )

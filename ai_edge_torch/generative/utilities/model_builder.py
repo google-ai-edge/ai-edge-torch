@@ -165,8 +165,9 @@ def build_decoder_only_model(
     checkpoint_path: str,
     config: cfg.ModelConfig,
     tensor_names: loading_utils.ModelLoader.TensorNames,
-) -> DecoderOnlyModel:
-  transformer = DecoderOnlyModel(config)
+    model_class: type[nn.Module] = DecoderOnlyModel,
+) -> nn.Module:
+  transformer = model_class(config)
   loader = loading_utils.ModelLoader(checkpoint_path, tensor_names)
   loader.load(
       transformer, strict=not config.lm_head_share_weight_with_embedding

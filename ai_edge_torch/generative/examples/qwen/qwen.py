@@ -17,8 +17,14 @@
 
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.utilities import model_builder
+from torch import nn
 
 TENSOR_NAMES = model_builder.TENSOR_NAMES
+
+
+class Qwen(model_builder.DecoderOnlyModel):
+  """A Qwen model built from the Edge Generative API layers."""
+  pass
 
 
 def get_3b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
@@ -101,31 +107,28 @@ def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
   return config
 
 
-def build_3b_model(
-    checkpoint_path: str, **kwargs
-) -> model_builder.DecoderOnlyModel:
+def build_3b_model(checkpoint_path: str, **kwargs) -> nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
       config=get_3b_model_config(**kwargs),
       tensor_names=TENSOR_NAMES,
+      model_class=Qwen,
   )
 
 
-def build_1_5b_model(
-    checkpoint_path: str, **kwargs
-) -> model_builder.DecoderOnlyModel:
+def build_1_5b_model(checkpoint_path: str, **kwargs) -> nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
       config=get_1_5b_model_config(**kwargs),
       tensor_names=TENSOR_NAMES,
+      model_class=Qwen,
   )
 
 
-def build_0_5b_model(
-    checkpoint_path: str, **kwargs
-) -> model_builder.DecoderOnlyModel:
+def build_0_5b_model(checkpoint_path: str, **kwargs) -> nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
       config=get_0_5b_model_config(**kwargs),
       tensor_names=TENSOR_NAMES,
+      model_class=Qwen,
   )

@@ -185,7 +185,7 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_tiny_llama_multisig(self):
     config = tiny_llama.get_fake_model_config()
-    pytorch_model = model_builder.DecoderOnlyModel(config).eval()
+    pytorch_model = tiny_llama.TinyLlama(config).eval()
     self._test_multisig_model(config, pytorch_model, atol=1e-5, rtol=1e-5)
 
 

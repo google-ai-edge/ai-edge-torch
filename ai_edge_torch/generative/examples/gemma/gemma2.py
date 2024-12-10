@@ -22,8 +22,8 @@ from ai_edge_torch.generative.layers import builder
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
+from ai_edge_torch.generative.utilities import model_builder
 import ai_edge_torch.generative.utilities.loader as loading_utils
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 import torch
 from torch import nn
 
@@ -133,7 +133,7 @@ class Gemma2(nn.Module):
       tokens: torch.Tensor,
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
-      export_config: Optional[ExportConfig] = None,
+      export_config: Optional[model_builder.ExportConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
     _, seq_len = tokens.size()
     assert self.config.max_seq_len >= seq_len, (
@@ -259,11 +259,9 @@ def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
 
 
 def build_2b_model(checkpoint_path: str, **kwargs) -> nn.Module:
-  config = get_model_config_2b(**kwargs)
-  model = Gemma2(config)
-  loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
-  # Since embedding and lm-head use the same weight, we need to set strict
-  # to False.
-  loader.load(model, strict=False)
-  model.eval()
-  return model
+  return model_builder.build_decoder_only_model(
+      checkpoint_path=checkpoint_path,
+      config=get_model_config_2b(**kwargs),
+      tensor_names=TENSOR_NAMES,
+      model_class=Gemma2,
+  )
