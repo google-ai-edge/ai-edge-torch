@@ -151,7 +151,7 @@ class TestModelConversion(googletest.TestCase):
   )
   def test_openelm(self):
     config = openelm.get_fake_model_config()
-    pytorch_model = openelm.OpenElm(config).eval()
+    pytorch_model = openelm.OpenELM(config).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
 
   @googletest.skipIf(
