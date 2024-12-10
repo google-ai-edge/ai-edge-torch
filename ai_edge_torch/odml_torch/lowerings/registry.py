@@ -26,7 +26,6 @@ class LoweringRegistry:
 
   def __init__(self):
     self.registered_ops = {}
-    self.decompositions = {}
 
   def lookup(self, op_or_name):
     candidate = self._get_lowering(op_or_name)
@@ -52,33 +51,6 @@ class LoweringRegistry:
 
 
 global_registry = LoweringRegistry()
-global_registry.decompositions.update(torch._decomp.core_aten_decompositions())
-global_registry.decompositions.update(
-    torch._decomp.get_decompositions([
-        torch.ops.aten.upsample_nearest2d,
-        torch.ops.aten._native_batch_norm_legit.no_stats,
-        torch.ops.aten._native_batch_norm_legit_functional,
-        torch.ops.aten._adaptive_avg_pool2d,
-        torch.ops.aten._adaptive_avg_pool3d,
-        torch.ops.aten.grid_sampler_2d,
-        torch.ops.aten.native_group_norm,
-        torch.ops.aten.native_dropout,
-        torch.ops.aten.reflection_pad1d,
-        torch.ops.aten.reflection_pad2d,
-        torch.ops.aten.reflection_pad3d,
-        torch.ops.aten.replication_pad1d,
-        torch.ops.aten.replication_pad2d,
-        torch.ops.aten.replication_pad3d,
-        torch.ops.aten.addmm,
-    ])
-)
-
-torch._decomp.remove_decompositions(
-    global_registry.decompositions,
-    [
-        torch.ops.aten.roll,
-    ],
-)
 
 
 def lookup(op):
@@ -91,7 +63,3 @@ def lower(op):
     return lowering
 
   return inner
-
-
-def decompositions():
-  return global_registry.decompositions

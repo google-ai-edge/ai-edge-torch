@@ -21,6 +21,6 @@ from . import _quantized_decomposed
 from . import context
 from . import registry
 from . import utils
-from .registry import decompositions
+from .decomp import decompositions
 from .registry import lookup
 from .registry import lower
