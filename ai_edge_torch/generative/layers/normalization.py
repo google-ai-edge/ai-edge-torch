@@ -190,14 +190,12 @@ def group_norm_with_hlfb(
   """
   x = torch.permute(x, (0, 2, 3, 1))
 
-  # TODO: b/366544750 - Change "reduction_axes" field as an array, rather than
-  # int32 when the bug is fixed.
   builder = StableHLOCompositeBuilder(
       name="odml.group_norm",
       attr={
           "num_groups": num_groups,
           "epsilon": eps,
-          "reduction_axes": 3,
+          "reduction_axes": [3],
           "channel_axis": 3,
       },
   )
