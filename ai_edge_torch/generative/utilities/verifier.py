@@ -115,7 +115,7 @@ class ReauthoredModelWrapper(ModelWrapper):
     # pixel_values only when it is not None. Otherwise, it may raise an error.
     if pixel_values is None:
       output = self.model.forward(
-          tokens, input_pos, kv_cache, self.export_config
+          tokens, input_pos, kv_cache, export_config=self.export_config
       )
     else:
       output = self.model.forward(

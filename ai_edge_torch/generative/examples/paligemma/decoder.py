@@ -15,6 +15,8 @@
 
 """Example of building a decoder of PaliGemma 3B model which is Gemma1."""
 
+from typing import Optional
+
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.utilities import model_builder
@@ -51,6 +53,7 @@ class Decoder(model_builder.DecoderOnlyModel):
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
       input_embeds: torch.Tensor = None,
+      export_config: Optional[model_builder.ExportConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
     if input_embeds is None:
       return super().forward(tokens, input_pos, kv_cache)
