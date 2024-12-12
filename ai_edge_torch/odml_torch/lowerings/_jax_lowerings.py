@@ -16,12 +16,15 @@ import functools
 import logging
 
 from ai_edge_torch.odml_torch import jax_bridge
+from ai_edge_torch.odml_torch.lowerings import context
+from ai_edge_torch.odml_torch.lowerings import registry
+import jax.numpy as jnp
+from jax._src.lib.mlir import ir
 import torch
 import torch_xla2.ops.jaten  # Import to load torch_xla2 ops
 import torch_xla2.ops.ops_registry  # Import to load torch_xla2 ops
 
-from . import registry
-
+LoweringContext = context.LoweringContext
 
 @functools.cache
 def _log_usage(op):
@@ -258,3 +261,26 @@ def _aten_copy(self, *args, **kwargs):
 @lower_by_jax(torch.ops.aten.copy, ir_input_names=["src"])
 def _aten_copy(self, src, **kwargs):
   return _TORCH_XLA2_IMPLS[torch.ops.aten.copy](self, src)
+
+
+# Schema:
+#   - aten::einsum(str equation, Tensor[] tensors, *, int[]? path=None)
+#       -> Tensor
+# Torch Reference:
+#   - https://pytorch.org/docs/stable/generated/torch.einsum.html
+#   - https://github.com/pytorch/pytorch/blob/1b3f8b75896720e88362cbec7db32abc52afa83e/aten/src/ATen/native/Linear.cpp#L255
+@registry.lower(torch.ops.aten.einsum.default)
+def _aten_einsum_default(
+    lctx: LoweringContext,
+    equation: str,
+    tensors: list[ir.Value],
+    path=None,
+):
+  _log_usage(torch.ops.aten.einsum.default)
+
+  @jax_bridge.wrap
+  def jax_lowering(operands):
+    # Ignore the input path and let JAX determine the path.
+    return jnp.einsum(equation, *operands, optimize="optimal")
+
+  return jax_lowering(lctx, tuple(tensors))

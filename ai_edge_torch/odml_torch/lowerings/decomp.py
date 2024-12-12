@@ -46,7 +46,13 @@ def decompositions():
 
   torch._decomp.remove_decompositions(
       decompositions,
-      [torch.ops.aten.roll],
+      [
+          torch.ops.aten.roll,
+          # Torch's default einsum impl/decompositions is less efficient and
+          # optimized through converter than JAX's impl. Disable einsum
+          # decomposition to use JAX bridge for a more efficient lowering.
+          torch.ops.aten.einsum.default,
+      ],
   )
 
   # Override _safe_softmax decompositions with regular softmax.
