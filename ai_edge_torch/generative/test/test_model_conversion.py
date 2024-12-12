@@ -21,7 +21,6 @@ from ai_edge_torch.generative.examples.test_models import toy_model_with_kv_cach
 from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
 from ai_edge_torch.generative.layers import kv_cache
 from ai_edge_torch.generative.test import utils as test_utils
-from ai_edge_torch.generative.utilities import model_builder
 import numpy as np
 import torch
 

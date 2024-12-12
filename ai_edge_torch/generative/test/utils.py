@@ -15,6 +15,8 @@
 
 """Common utils for testing."""
 
+import logging
+
 from ai_edge_torch import model
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.lowertools import common_utils
@@ -33,7 +35,7 @@ def compare_tflite_torch(
     atol: float = 1e-5,
     rtol: float = 1e-5,
     **kwargs,
-):
+) -> bool:
   """Compares torch models and TFLite models."""
   values, spec = pytree.tree_flatten({"kv_cache": kv_cache})
   flat_names = common_utils.flat_dict_names(spec.children_specs, spec.context)
@@ -49,9 +51,32 @@ def compare_tflite_torch(
       **kwargs,
   )
 
-  return np.allclose(
-      edge_output["logits"],
-      torch_output["logits"].detach().numpy(),
-      atol=atol,
-      rtol=rtol,
+  return compare_logits(
+      edge_output["logits"], torch_output["logits"].detach().numpy(), atol, rtol
   )
+
+
+def compare_logits(
+    edge_logits: np.ndarray,
+    torch_logits: dict[str, torch.Tensor],
+    atol: float = 1e-5,
+    rtol: float = 1e-5,
+) -> bool:
+  """Compares logits from edge model and torch model."""
+  if np.allclose(edge_logits, torch_logits, rtol, atol, equal_nan=True):
+    return True
+
+  logging.info("edge_logits: %s", edge_logits)
+  logging.info("torch_logits: %s", torch_logits)
+
+  orig_atol = atol
+  while rtol < 1:
+    atol = orig_atol
+    while atol < 1:
+      if np.allclose(edge_logits, torch_logits, rtol, atol, equal_nan=True):
+        logging.info("Got allclose true with atol=%s, rtol=%s", atol, rtol)
+        return False
+      atol *= 10
+    rtol *= 10
+  logging.info("allclose failed with reasonable atol and rtol.")
+  return False
