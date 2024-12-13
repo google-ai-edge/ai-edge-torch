@@ -71,18 +71,18 @@ class TestKVLayers(googletest.TestCase):
         [0, 0, 5, 5, 0, 0, 0, 0],
     )
     # multi-slice update
-    input_pos = torch.tensor([0, 3])
+    input_pos = torch.tensor([0, 1])
     k_slice = v_slice = torch.full(
         (1, 2, NUM_QG, HEAD_DIM), 7, dtype=torch.float
     )
     updated_entry = kv_utils.update(entry, input_pos, k_slice, v_slice)
     self.assertEqual(
         updated_entry.k_cache.numpy().flatten().tolist(),
-        [7, 7, 0, 0, 0, 0, 7, 7],
+        [7, 7, 7, 7, 0, 0, 0, 0],
     )
     self.assertEqual(
         updated_entry.v_cache.numpy().flatten().tolist(),
-        [7, 7, 0, 0, 0, 0, 7, 7],
+        [7, 7, 7, 7, 0, 0, 0, 0],
     )
 
   def test_serialization(self):

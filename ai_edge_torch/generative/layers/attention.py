@@ -241,9 +241,7 @@ class CausalSelfAttention(nn.Module):
       q, k = _embed_rope(q, k, n_elem, rope)
 
     if kv_cache is not None:
-      kv_cache = kv_utils.update(
-          kv_cache, input_pos, k, v, enable_hlfb=self.enable_hlfb
-      )
+      kv_cache = kv_utils.update(kv_cache, input_pos, k, v)
       k, v = kv_cache.k_cache, kv_cache.v_cache
 
     y = self.sdpa_func(
@@ -379,9 +377,7 @@ class CrossAttention(nn.Module):
       q, k = _embed_rope(q, k, n_elem, rope)
 
     if kv_cache is not None:
-      kv_cache = kv_utils.update(
-          kv_cache, input_pos, k, v, enable_hlfb=self.enable_hlfb
-      )
+      kv_cache = kv_utils.update(kv_cache, input_pos, k, v)
       k, v = kv_cache.k_cache, kv_cache.v_cache
     if mask is None:
       mask = torch.zeros(

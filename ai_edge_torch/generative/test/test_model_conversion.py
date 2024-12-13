@@ -100,8 +100,8 @@ class TestModelConversion(googletest.TestCase):
       ai_edge_config.Config.use_torch_xla,
       reason="tests with custom ops are not supported on oss",
   )
-  def test_toy_model_has_ekv_op(self):
-    """Tests that the model has the external kv cache op."""
+  def test_toy_model_has_dus_op(self):
+    """Tests that the model has the dynamic update slice op."""
     _, edge_model, _ = self._get_params(enable_hlfb=True)
     interpreter_ = interpreter.InterpreterWithCustomOps(
         custom_op_registerers=["GenAIOpsRegisterer"],
@@ -111,7 +111,7 @@ class TestModelConversion(googletest.TestCase):
 
     # pylint: disable=protected-access
     op_names = [op["op_name"] for op in interpreter_._get_ops_details()]
-    self.assertIn("odml.update_external_kv_cache", op_names)
+    self.assertIn("DYNAMIC_UPDATE_SLICE", op_names)
 
   def _test_multisig_model(self, config, pytorch_model, atol, rtol):
     # prefill

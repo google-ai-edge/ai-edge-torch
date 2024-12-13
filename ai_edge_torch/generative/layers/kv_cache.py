@@ -146,7 +146,7 @@ def update(
     input_pos: torch.Tensor,
     k_slice: torch.Tensor,
     v_slice: torch.Tensor,
-    enable_hlfb: bool = True,
+    use_dus: bool = True,
 ) -> KVCacheEntry:
   """Out of place update of Cache buffer.
 
@@ -155,17 +155,14 @@ def update(
       input_pos (torch.Tensor): The update slice positions.
       k_slice (torch.Tensor): The K slice to be updated in the new cache.
       v_slice (torch.Tensor): The V slice to be updated in the new cache.
-      enable_hlfb (bool, optional): Whether the op is annotated for export with
-        High Level Function Boundary. Defaults to True.
 
   Returns:
       KVCacheEntry: The updated KVCache entry based on the passed inputs.
   """
-  # Don't enable HLFB for kv cache op for now, since it won't work with LLM
-  # inference engine. Remove this part once we ship a new LLM inference engine.
-  enable_hlfb=False
-  update_func = _update_kv_hlfb_impl if enable_hlfb else _update_kv_base_impl
-  return update_func(cache, input_pos, k_slice, v_slice)
+  # Turn dynamic_update_slice updates off for now.
+  use_dus=False
+  update_kv_cache = _update_kv_impl if use_dus else _update_kv_base_impl
+  return update_kv_cache(cache, input_pos, k_slice, v_slice)
 
 
 def _update_kv_base_impl(
@@ -181,18 +178,28 @@ def _update_kv_base_impl(
   return updated_cache
 
 
-def _update_kv_hlfb_impl(
+def _get_slice_indices(positions: torch.Tensor) -> torch.Tensor:
+  """Dynamic Update Slice updates are a variadic sequence of 0-rank tensors."""
+
+  zero = torch.zeros([]).int()
+  positions = positions.int()[0].reshape([])
+  return [zero, positions, zero, zero]
+
+
+def _update_kv_impl(
     cache: KVCacheEntry,
     input_pos: torch.Tensor,
     k_slice: torch.Tensor,
     v_slice: torch.Tensor,
 ) -> KVCacheEntry:
-  """Update the cache buffer with High Level Function Boundary annotation."""
-  builder = hlfb.StableHLOCompositeBuilder(name="odml.update_external_kv_cache")
-  k_cache, v_cache, input_pos, k_slice, v_slice = builder.mark_inputs(
-      cache.k_cache, cache.v_cache, input_pos, k_slice, v_slice
-  )
-  k = k_cache.index_copy(1, input_pos.to(torch.long), k_slice)
-  v = v_cache.index_copy(1, input_pos.to(torch.long), v_slice)
-  k, v = builder.mark_outputs(k, v)
-  return KVCacheEntry(k, v)
+  """Update the cache buffer for K and V caches."""
+  # NB: Here assume that input_pos == range(input_pos[0], len(input_pos))
+
+  k_slice_indices = _get_slice_indices(input_pos)
+  v_slice_indices = _get_slice_indices(input_pos)
+
+  k = dynamic_update_slice(cache.k_cache, k_slice, k_slice_indices)
+  v = dynamic_update_slice(cache.v_cache, v_slice, v_slice_indices)
+
+  updated_cache = KVCacheEntry(k, v)
+  return updated_cache
