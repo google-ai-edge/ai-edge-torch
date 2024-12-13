@@ -13,10 +13,10 @@
    * [Error during torch.export.export](#error-during-torchexportexport)
    * [Error during ExportedProgram to edge model lowering](#error-during-exportedprogram-to-edge-model-lowering)
 * [Visualization](#visualization)
-* [Use ODML Torch Conversion Backend (Experimental)](#use-odml-torch-conversion-backend-experimental)
+* [Use Torch XLA Conversion Backend (Legacy)](#use-torch-xla-conversion-backend-legacy)
+   * [Update LD_LIBRARY_PATH if necessary](#update-ld_library_path-if-necessary)
 
 <!-- Created by https://github.com/ekalinin/github-markdown-toc -->
-<!-- Added by: cnchan, at: Wed Jul 24 09:51:17 PM PDT 2024 -->
 
 <!--te-->
 
@@ -327,19 +327,26 @@ pip install ai-edge-model-explorer
 model-explorer 'resnet.tflite'
 ```
 
-# Use ODML Torch Conversion Backend (Experimental)
+# Use Torch XLA Conversion Backend (Legacy)
 
-ODML Torch is an experimental conversion backend for AI Edge Torch, which enables
-conversion on macOS and generates TFLite Flatbuffer with higher quality and better
-performance. To use AI Edge Torch with ODML Torch, setup your environment these
-commands:
+AI Edge Torch has been switched to a modern conversion backend for better
+on-device compatibility and performance. However, if you encounter compatibility
+issues, you can optionally switch to the legacy Torch XLA backend:
 
 ```bash
-# Install ODML Torch backend dependencies
-pip install -r https://raw.githubusercontent.com/google-ai-edge/ai-edge-torch/main/odmltorch-requirements.txt
-# Install ai-edge-torch with no default backend (Torch XLA) dependencies
-pip install ai-edge-torch-nightly --no-deps
+# Install ai-edge-torch with torch-xla dependency
+pip install ai-edge-torch-nightly[torch-xla]
 
-# Disable default AI Edge Torch backend (Torch XLA)
-export USE_TORCH_XLA=0
+# Enable torch-xla as the AI Edge Torch backend
+export USE_TORCH_XLA=1
+```
+
+## Update LD_LIBRARY_PATH if necessary
+
+Torch XLA builds a shared library, `_XLAC.so` that needs to link to the version of Python
+it was built with (currently 3.10 or 3.11). In order to ensure that `import _XLAC` can succeed,
+update the LD_LIBRARY_PATH to the lib directory of your Python environment:
+
+```bash
+export LD_LIBRARY_PATH=<path to Python installation>/lib:$LD_LIBRARY_PATH
 ```
