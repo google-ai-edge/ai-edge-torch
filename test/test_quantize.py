@@ -18,7 +18,6 @@ import os
 import tempfile
 
 import ai_edge_torch
-from ai_edge_torch import config
 from ai_edge_torch.quantize import pt2e_quantizer
 from ai_edge_torch.quantize import quant_config
 import torch
@@ -39,7 +38,7 @@ class TestQuantizerSanityBasic(googletest.TestCase):
     torch.manual_seed(0)
 
   @googletest.skipIf(
-      not config.Config.use_torch_xla,
+      not ai_edge_torch.config.use_torch_xla,
       reason="Only working with torch_xla at the moment.",
   )
   def test_quantizer_arg(self):

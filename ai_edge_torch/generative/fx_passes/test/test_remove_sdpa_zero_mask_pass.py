@@ -15,7 +15,7 @@
 import re
 from typing import Callable, Union
 
-from ai_edge_torch import config
+import ai_edge_torch
 from ai_edge_torch import fx_pass_base
 from ai_edge_torch import lowertools
 from ai_edge_torch.generative.fx_passes import CanonicalizePass
@@ -112,7 +112,7 @@ class TestRemoveSDPAZeroMaskPass(googletest.TestCase):
         (torch.rand(1, 512, 64, 64),),
     )
 
-    if config.Config.use_torch_xla:
+    if ai_edge_torch.config.use_torch_xla:
       self.assertTrue(
           re.search(
               'stablehlo\.composite "odml\.scaled_dot_product_attention" %\d+,'

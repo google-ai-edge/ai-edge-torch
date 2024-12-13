@@ -17,9 +17,10 @@ import os
 import pathlib
 import re
 
-from setuptools import find_packages
-from setuptools import setup
+import setuptools
 
+setup = setuptools.setup
+find_packages = setuptools.find_packages
 here = pathlib.Path(__file__).parent.resolve()
 
 # Get the long description from the README file
@@ -65,7 +66,6 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3 :: Only",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Topic :: Scientific/Engineering",
@@ -79,16 +79,20 @@ setup(
     packages=find_packages(
         include=["ai_edge_torch*"],
     ),
-    python_requires=">=3.9",
+    python_requires=">=3.10",
     install_requires=[
         "numpy",
         "scipy",
         "safetensors",
         "tabulate",
         "torch>=2.4.0",
-        "torch_xla>=2.4.0",
         "tf-nightly>=2.19.0.dev20241201",
         "ai-edge-litert-nightly",
         "ai-edge-quantizer-nightly",
+        "jax",
+        "torch-xla2[odml]>=0.0.1.dev20241201",
     ],
+    extras_require={
+        "torch-xla": ["torch_xla>=2.4.0"],
+    },
 )

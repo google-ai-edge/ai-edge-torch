@@ -20,6 +20,7 @@ from ai_edge_torch.odml_torch.lowerings import registry
 from ai_edge_torch.odml_torch.lowerings import utils
 from jax._src.lib.mlir import ir
 from jax._src.lib.mlir.dialects import hlo as stablehlo
+import numpy as np
 import torch
 
 
@@ -66,12 +67,20 @@ def _aten_native_layer_norm(
   normalized_rank = len(normalized_shape)
   if weight is not None:
     weight = stablehlo.broadcast_in_dim(
-        data_type, weight, list(range(data_rank - normalized_rank, data_rank))
+        data_type,
+        weight,
+        ir.DenseI64ArrayAttr.get(
+            list(range(data_rank - normalized_rank, data_rank))
+        ),
     )
     output = stablehlo.multiply(weight, output)
   if bias is not None:
     bias = stablehlo.broadcast_in_dim(
-        data_type, bias, list(range(data_rank - normalized_rank, data_rank))
+        data_type,
+        bias,
+        ir.DenseI64ArrayAttr.get(
+            list(range(data_rank - normalized_rank, data_rank))
+        ),
     )
     output = stablehlo.add(bias, output)
 

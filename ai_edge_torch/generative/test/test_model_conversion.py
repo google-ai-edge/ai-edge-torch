@@ -16,7 +16,6 @@
 """Testing model conversion for a few gen-ai models."""
 
 import ai_edge_torch
-from ai_edge_torch import config as ai_edge_config
 from ai_edge_torch.generative.examples.test_models import toy_model_with_kv_cache
 from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
 from ai_edge_torch.generative.layers import kv_cache
@@ -83,22 +82,22 @@ class TestModelConversion(googletest.TestCase):
     )
 
   @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
   )
   def test_toy_model_with_kv_cache(self):
     self._test_model_with_kv_cache(enable_hlfb=False)
 
   @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
   )
   def test_toy_model_with_kv_cache_with_hlfb(self):
     self._test_model_with_kv_cache(enable_hlfb=True)
 
   @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
   )
   def test_toy_model_has_dus_op(self):
     """Tests that the model has the dynamic update slice op."""
@@ -179,8 +178,8 @@ class TestModelConversion(googletest.TestCase):
     )
 
   @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
   )
   def test_tiny_llama_multisig(self):
     config = tiny_llama.get_fake_model_config()

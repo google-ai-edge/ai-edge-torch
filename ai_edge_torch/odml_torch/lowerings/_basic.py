@@ -276,11 +276,13 @@ def _aten_slice_scatter(lctx, self, src, dim=0, start=None, end=None, step=1):
           interior_padding if i == dim else 0 for i in range(rank)
       ],
   )
-  pred = np.ones(self.type.shape, dtype=np.bool_)
-  pred[*[
+
+  slices = [
       slice(start, end, step) if i == dim else slice(None, None, None)
       for i in range(rank)
-  ]] = False
+  ]
+  pred = np.ones(self.type.shape, dtype=np.bool_)
+  pred[np.index_exp[tuple(slices)]] = False
   pred = stablehlo.constant(
       ir.DenseElementsAttr.get(
           np.packbits(pred, bitorder="little"),

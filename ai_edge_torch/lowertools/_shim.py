@@ -15,13 +15,15 @@
 
 from typing import Any, Optional
 
-from ai_edge_torch import config
+from ai_edge_torch import _config
 from ai_edge_torch._convert import signature
 from ai_edge_torch.quantize import quant_config as qcfg
 import torch
 
+config = _config.config
+
 # isort: off
-if config.Config.use_torch_xla:
+if config.use_torch_xla:
   from ai_edge_torch.lowertools import torch_xla_utils as utils
   from ai_edge_torch.lowertools.torch_xla_utils import exported_program_to_mlir_text
   from torch_xla.experimental.mark_pattern_utils import StableHLOCompositeBuilder

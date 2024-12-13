@@ -232,7 +232,9 @@ def _aten_convolution(
 
   if bias is not None:
     # broadcast [C] to [NCHW]
-    broadcasted_bias = stablehlo.broadcast_in_dim(output_type, bias, [1])
+    broadcasted_bias = stablehlo.broadcast_in_dim(
+        output_type, bias, ir.DenseI64ArrayAttr.get([1])
+    )
     res = stablehlo.add(
         lhs=res,
         rhs=broadcasted_bias,

@@ -16,7 +16,6 @@
 """Testing model conversion for a few gen-ai models."""
 
 import ai_edge_torch
-from ai_edge_torch import config as ai_edge_config
 from ai_edge_torch.generative.examples.amd_llama_135m import amd_llama_135m
 from ai_edge_torch.generative.examples.gemma import gemma1
 from ai_edge_torch.generative.examples.gemma import gemma2
@@ -91,8 +90,8 @@ class TestModelConversion(googletest.TestCase):
     )
 
   @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
   )
   def test_gemma1(self):
     config = gemma1.get_fake_model_config()
@@ -100,8 +99,8 @@ class TestModelConversion(googletest.TestCase):
     self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
 
   @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
   )
   def test_gemma2(self):
     config = gemma2.get_fake_model_config()
@@ -109,8 +108,8 @@ class TestModelConversion(googletest.TestCase):
     self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
 
   @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
   )
   def test_llama(self):
     config = llama.get_fake_model_config()
@@ -118,8 +117,8 @@ class TestModelConversion(googletest.TestCase):
     self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
 
   @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
   )
   def test_phi2(self):
     config = phi2.get_fake_model_config()
@@ -128,8 +127,8 @@ class TestModelConversion(googletest.TestCase):
     self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
 
   @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
   )
   def test_phi3(self):
     config = phi3.get_fake_model_config()
@@ -137,8 +136,8 @@ class TestModelConversion(googletest.TestCase):
     self._test_model(config, pytorch_model, "prefill", atol=1e-5, rtol=1e-5)
 
   @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
   )
   def test_smollm(self):
     config = smollm.get_fake_model_config()
@@ -146,8 +145,8 @@ class TestModelConversion(googletest.TestCase):
     self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
 
   @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
   )
   def test_openelm(self):
     config = openelm.get_fake_model_config()
@@ -155,8 +154,8 @@ class TestModelConversion(googletest.TestCase):
     self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
 
   @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
   )
   def test_qwen(self):
     config = qwen.get_fake_model_config()
@@ -164,8 +163,8 @@ class TestModelConversion(googletest.TestCase):
     self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
 
   @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
   )
   def test_amd_llama_135m(self):
     config = amd_llama_135m.get_fake_model_config()
@@ -173,8 +172,8 @@ class TestModelConversion(googletest.TestCase):
     self._test_model(config, pytorch_model, "prefill", atol=1e-5, rtol=1e-5)
 
   @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
   )
   def disabled_test_paligemma(self):
     config = paligemma.get_fake_model_config()
@@ -222,8 +221,8 @@ class TestModelConversion(googletest.TestCase):
     )
 
   @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
   )
   def test_stable_diffusion_clip(self):
     config = sd_clip.get_fake_model_config()
@@ -254,8 +253,8 @@ class TestModelConversion(googletest.TestCase):
     )
 
   @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
   )
   def test_stable_diffusion_diffusion(self):
     config = sd_diffusion.get_fake_model_config(2)
@@ -296,8 +295,8 @@ class TestModelConversion(googletest.TestCase):
     )
 
   @googletest.skipIf(
-      ai_edge_config.Config.use_torch_xla,
-      reason="tests with custom ops are not supported on oss",
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
   )
   def test_stable_diffusion_decoder(self):
     config = sd_decoder.get_fake_model_config()

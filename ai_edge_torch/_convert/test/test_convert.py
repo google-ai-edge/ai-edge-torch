@@ -19,7 +19,6 @@ import os
 from typing import Tuple
 
 import ai_edge_torch
-from ai_edge_torch import config
 from ai_edge_torch._convert import conversion_utils
 from ai_edge_torch.quantize import pt2e_quantizer
 from ai_edge_torch.testing import model_coverage
@@ -292,7 +291,7 @@ class TestConvert(googletest.TestCase):
     self.assertTrue(result)
 
   @googletest.skipIf(
-      not config.Config.use_torch_xla,
+      not ai_edge_torch.config.use_torch_xla,
       reason="Shape polymorphism is not yet support with odml_torch.",
   )
   def test_convert_model_with_dynamic_batch(self):

@@ -111,26 +111,28 @@ class TestCoreAtenOps(parameterized.TestCase):
     """Assert func, args, and kwargs can be lowered and pass numerical validation."""
     with self.subTest("torch_eval"):
       res = func(*args, **kwargs)
-      with self.subTest("lower"):
-        ep, args, kwargs = export_without_scalar_inputs(func, args, kwargs)
-        lowered = odml_torch.export.exported_program_to_mlir(ep)
 
-        np_args, np_kwargs = pytree.tree_map_only(
-            torch.is_tensor, lambda x: x.detach().numpy(), [args, kwargs]
-        )
-        res2 = lowered(*np_args, **np_kwargs)
-        with self.subTest("torch_lower_eval_diff:" + str(atol)):
-          if ignore_indices and isinstance(res, tuple) and len(res) == 2:
-            res = res[0]
-            res2 = res2[0]
+    with self.subTest("lower"):
+      ep, args, kwargs = export_without_scalar_inputs(func, args, kwargs)
+      lowered = odml_torch.export.exported_program_to_mlir(ep)
 
-          self._diff_output(
-              res,
-              res2,
-              atol=atol,
-              rtol=rtol,
-              equal_nan=equal_nan,
-          )
+      np_args, np_kwargs = pytree.tree_map_only(
+          torch.is_tensor, lambda x: x.detach().numpy(), [args, kwargs]
+      )
+      res2 = lowered(*np_args, **np_kwargs)
+
+    with self.subTest("torch_lower_eval_diff:" + str(atol)):
+      if ignore_indices and isinstance(res, tuple) and len(res) == 2:
+        res = res[0]
+        res2 = res2[0]
+
+      self._diff_output(
+          res,
+          res2,
+          atol=atol,
+          rtol=rtol,
+          equal_nan=equal_nan,
+      )
 
   @parameterized.named_parameters(
       # fmt: off

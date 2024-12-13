@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Lowerings for PT2E torch.ops.quantized_decomposed ops."""
-from typing import Union, cast
+from typing import Optional, Union, cast
 
 from ai_edge_torch.odml_torch.lowerings import context
 from ai_edge_torch.odml_torch.lowerings import utils
@@ -30,15 +30,15 @@ LoweringContext = context.LoweringContext
 
 
 def _uniform_quantized_type(
-    stored_type: str | ir.Type,
-    expressed_type: str | ir.Type,
+    stored_type: Union[str, ir.Type],
+    expressed_type: Union[str, ir.Type],
     *,
-    scale=float | list[float] | tuple[float],
-    zero_point=float | list[float] | tuple[float],
-    storage_type_min: int | None = None,
-    storage_type_max: int | None = None,
-    channel_axis: int | None = None,
-    channel_axis_size: int | None = None,
+    scale=Union[float, list[float], tuple[float]],
+    zero_point=Union[float, list[float], tuple[float]],
+    storage_type_min: Optional[int] = None,
+    storage_type_max: Optional[int] = None,
+    channel_axis: Optional[int] = None,
+    channel_axis_size: Optional[int] = None,
 ):
   """Polyfill for quant.UniformQuantizedType."""
   if storage_type_min and storage_type_max:

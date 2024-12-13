@@ -4,11 +4,12 @@ torch==2.4.0+cpu
 torchvision==0.19.0+cpu
 -f https://download.pytorch.org/whl/torchaudio/
 torchaudio==2.4.0+cpu
-torch_xla==2.4.0
 --pre
 tf-nightly>=2.19.0.dev20241201
 ai-edge-litert-nightly
 ai-edge-quantizer-nightly
+jax[cpu]
+torch-xla2[odml]>=0.0.1.dev20241201
 scipy
 numpy
 tabulate

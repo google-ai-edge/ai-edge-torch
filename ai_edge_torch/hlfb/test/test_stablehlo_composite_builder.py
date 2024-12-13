@@ -16,7 +16,8 @@
 
 import math
 
-from ai_edge_torch import config
+import ai_edge_torch
+from ai_edge_torch import hlfb
 from ai_edge_torch import lowertools
 from ai_edge_torch.hlfb import StableHLOCompositeBuilder
 import torch
@@ -29,9 +30,11 @@ def _export_stablehlo_mlir(model, args):
   ep = torch.export.export(model, args)
   return lowertools.exported_program_to_mlir_text(ep)
 
+StableHLOCompositeBuilder = hlfb.StableHLOCompositeBuilder
+
 
 @googletest.skipIf(
-    not config.Config.use_torch_xla,
+    not ai_edge_torch.config.use_torch_xla,
     reason="The odml_torch counter part is in odml_torch.",
 )
 class TestStableHLOCompositeBuilder(googletest.TestCase):

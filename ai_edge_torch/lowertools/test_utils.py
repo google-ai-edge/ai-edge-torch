@@ -15,8 +15,10 @@
 
 import re
 from typing import Optional
-from ai_edge_torch import config
+from ai_edge_torch import _config
 from absl.testing import absltest as googletest
+
+config = _config.config
 
 
 def _extract_backend_configs(mlir):
@@ -38,7 +40,7 @@ def assert_string_count(
   if odml_torch_attr_counter is None:
     odml_torch_attr_counter = {}
 
-  if config.Config.use_torch_xla:
+  if config.use_torch_xla:
     for key in torch_xla_pattern_counter:
       test_case.assertEqual(
           mlir.count(key),
