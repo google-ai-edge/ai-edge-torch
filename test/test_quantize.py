@@ -37,10 +37,6 @@ class TestQuantizerSanityBasic(googletest.TestCase):
     super().setUp()
     torch.manual_seed(0)
 
-  @googletest.skipIf(
-      not ai_edge_torch.config.use_torch_xla,
-      reason="Only working with torch_xla at the moment.",
-  )
   def test_quantizer_arg(self):
     """Compare the sizes of models.
 
