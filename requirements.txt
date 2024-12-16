@@ -1,9 +1,6 @@
--f https://download.pytorch.org/whl/torch/
-torch==2.5.1+cpu
--f https://download.pytorch.org/whl/torchvision/
-torchvision==0.20.1+cpu
--f https://download.pytorch.org/whl/torchaudio/
-torchaudio==2.5.1+cpu
+torch==2.5.1
+torchvision==0.20.1
+torchaudio==2.5.1
 --pre
 tf-nightly>=2.19.0.dev20241201
 ai-edge-litert-nightly

@@ -64,6 +64,7 @@ jobs:
     uses: ./.github/workflows/unittests_python.yml
     with:
       trigger-sha: ${{ github.event.pull_request.head.sha }}
+      run-on-macos: false
 
   run-model-coverage:
     name: Model Coverage

@@ -12,16 +12,34 @@ on:
   workflow_call:
     inputs:
       trigger-sha:
-        required: true
         type: string
-
+        required: true
+      run-on-macos:
+        type: boolean
+        default: false
 jobs:
+  prepare-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      os: ${{ steps.set-matrix.outputs.os }}
+    steps:
+      - name: Set matrix
+        id: set-matrix
+        run: |
+          os=("Linux_runner_8_core")
+          if [[ "${{ inputs.run-on-macos }}" == "true" ]]; then
+            os+=("macos-latest")
+          fi
+          os=$(jq -c -n '$ARGS.positional' --args "${os[@]}")
+          echo "os=${os}"
+          echo "os=${os}" >> $GITHUB_OUTPUT
   test:
+    needs: prepare-matrix
     strategy:
       matrix:
         python-version: ["3.10", "3.11"]
-    runs-on:
-      labels: Linux_runner_8_core
+        os: ${{ fromJson(needs.prepare-matrix.outputs.os) }}
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
         with:
