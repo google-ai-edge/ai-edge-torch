@@ -50,6 +50,7 @@ def exported_programs_to_tflite(
     *,
     quant_config: Optional[qcfg.QuantConfig] = None,
     _tfl_converter_flags: Optional[dict[str, Any]] = None,
+    _saved_model_dir: Optional[str] = None
 ):
   """Converts a list of ExportedProgram to a TFLite model.
 
@@ -57,6 +58,8 @@ def exported_programs_to_tflite(
     exported_programs: A list of ExportedProgram.
     signatures: A list of Signature.
     quant_config: A QuantConfig.
+    _saved_model_dir: Directory for the intermediate saved model. If not
+      specified, a random temporary directory would be used.
     _tfl_converter_flags: A dict of flags for TFLiteConverter.
 
   Returns:
@@ -79,4 +82,5 @@ def exported_programs_to_tflite(
       signatures,
       quant_config=quant_config,
       _tfl_converter_flags=_tfl_converter_flags,
+      _saved_model_dir=_saved_model_dir,
   )

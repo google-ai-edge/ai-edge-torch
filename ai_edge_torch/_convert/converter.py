@@ -106,6 +106,7 @@ class Converter:
       quant_config: Optional[qcfg.QuantConfig] = None,
       dynamic_shapes: Optional[Union[dict[str, Any], Tuple[Any, ...]]] = None,
       _ai_edge_converter_flags: Optional[dict[str, Any]] = None,
+      _saved_model_dir: Optional[str] = None,
   ) -> model.TfLiteModel:
     """Finalizes the conversion and produces an edge model.
 
@@ -139,6 +140,8 @@ class Converter:
         of this function and so needs to be treated as such. Please do not rely
         on this parameter except for local debugging as this can be removed in a
         future release.
+      _saved_model_dir: Directory for the intermediate saved model. If not
+        specified, a random temporary directory would be used.
 
     Returns:
       The converted edge model.
@@ -171,6 +174,7 @@ class Converter:
         strict_export=strict_export,
         quant_config=quant_config,
         _tfl_converter_flags=_ai_edge_converter_flags,
+        _saved_model_dir=_saved_model_dir,
     )
 
 
@@ -216,6 +220,7 @@ def convert(
     quant_config: Optional[qcfg.QuantConfig] = None,
     dynamic_shapes: Optional[Union[dict[str, Any], Tuple[Any, ...]]] = None,
     _ai_edge_converter_flags: Optional[dict[str, Any]] = None,
+    _saved_model_dir: Optional[str] = None,
 ) -> model.TfLiteModel:
   """Converts a PyTorch model to an edge model with a default signature.
 
@@ -240,6 +245,8 @@ def convert(
       this function and so needs to be treated as such. Please do not rely on
       this parameter except for local debugging as this can be removed in a
       future release.
+    _saved_model_dir: Directory for the intermediate saved model. If not
+      specified, a random temporary directory would be used.
 
   Returns:
     The converted edge model.
@@ -259,4 +266,5 @@ def convert(
       quant_config=quant_config,
       dynamic_shapes=dynamic_shapes,
       _ai_edge_converter_flags=_ai_edge_converter_flags,
+      _saved_model_dir=_saved_model_dir,
   )

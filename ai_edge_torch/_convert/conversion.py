@@ -78,7 +78,8 @@ def convert_signatures(
     *,
     strict_export: Union[Literal["auto"], bool] = True,
     quant_config: Optional[qcfg.QuantConfig] = None,
-    _tfl_converter_flags: Optional[dict[str, Any]],
+    _tfl_converter_flags: Optional[dict[str, Any]] = None,
+    _saved_model_dir: Optional[str] = None,
 ) -> model.TfLiteModel:
   """Converts a list of `signature.Signature`s and embeds them into one `model.TfLiteModel`.
 
@@ -93,6 +94,8 @@ def convert_signatures(
       quant_config: User-defined quantization method and scheme of the model.
       _tfl_converter_flags: A nested dictionary allowing setting flags for the
         underlying tflite converter.
+      _saved_model_dir: Directory for the intermediate saved model. If not
+        specified, a random temporary directory would be used.
 
   Returns:
     The converted `model.TfLiteModel` object.
@@ -140,6 +143,7 @@ def convert_signatures(
       signatures,
       quant_config=quant_config,
       _tfl_converter_flags=_tfl_converter_flags,
+      _saved_model_dir=_saved_model_dir,
   )
 
   return model.TfLiteModel(tflite_model)

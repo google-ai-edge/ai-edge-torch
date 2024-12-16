@@ -192,6 +192,7 @@ def merged_bundle_to_tfl_model(
     *,
     quant_config: Optional[qcfg.QuantConfig] = None,
     _tfl_converter_flags: dict = {},
+    _saved_model_dir: Optional[str] = None,
 ) -> None:
   """Converts a StableHLOGraphModule to a tflite model.
 
@@ -200,6 +201,8 @@ def merged_bundle_to_tfl_model(
     signatures: List of signatures from which names of the signatures is
     extracted.
     quant_config: User-defined quantization method and scheme of the model.
+    _saved_model_dir: Directory for the intermediate saved model. If not
+      specified, a random temporary directory would be used.
     _tfl_converter_flags: A nested dictionary allowing setting flags for the
     underlying tflite converter.
   """
@@ -246,6 +249,9 @@ def merged_bundle_to_tfl_model(
   # We need to temporarily save since TFLite's from_concrete_functions does not
   # allow providing names for each of the concrete functions.
   with tempfile.TemporaryDirectory() as temp_dir_path:
+    if _saved_model_dir is not None:
+      temp_dir_path = _saved_model_dir
+
     tf.saved_model.save(
         tf_module,
         temp_dir_path,

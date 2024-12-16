@@ -138,6 +138,7 @@ def merged_bundle_to_tfl_model(
     *,
     quant_config: Optional[qcfg.QuantConfig] = None,
     _tfl_converter_flags: dict = {},
+    _saved_model_dir: Optional[str] = None,
 ):
   tf_state_dict = merged_bundle.bundles[0].state_dict
 
@@ -173,6 +174,9 @@ def merged_bundle_to_tfl_model(
   # We need to temporarily save since TFLite's from_concrete_functions does not
   # allow providing names for each of the concrete functions.
   with tempfile.TemporaryDirectory() as temp_dir_path:
+    if _saved_model_dir is not None:
+      temp_dir_path = _saved_model_dir
+
     tf.saved_model.save(
         tf_module,
         temp_dir_path,
