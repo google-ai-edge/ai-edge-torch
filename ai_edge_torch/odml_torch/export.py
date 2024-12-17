@@ -304,9 +304,13 @@ def exported_program_to_mlir(
   )
 
   _convert_i64_to_i32(exported_program)
+
   exported_program = _torch_future.safe_run_decompositions(
       exported_program, lowerings.decompositions()
   )
+
+  # Passes below mutate the exported program to a state not executable by torch.
+  # Do not call run_decompositions after applying the passes.
   _convert_q_dq_per_channel_args_to_list(exported_program)
 
   with export_utils.create_ir_context() as context, ir.Location.unknown():

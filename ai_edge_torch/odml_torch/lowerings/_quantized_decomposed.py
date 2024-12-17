@@ -52,10 +52,13 @@ def _uniform_quantized_type(
     assert isinstance(scale, (list, tuple))
     assert isinstance(zero_point, (list, tuple))
 
+    scale = list(scale)
+    zero_point = list(zero_point)
+
     if len(scale) == 1:
-      scale *= channel_axis_size
+      scale = scale * channel_axis_size
     if len(zero_point) == 1:
-      zero_point *= channel_axis_size
+      zero_point = zero_point * channel_axis_size
 
     assert len(scale) == len(zero_point) == channel_axis_size
     scale_zp_strs = []
