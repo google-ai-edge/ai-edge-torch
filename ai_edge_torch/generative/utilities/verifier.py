@@ -16,7 +16,7 @@
 """Common utility functions to verify the reauthored models."""
 
 import logging
-from typing import List
+from typing import Any,List
 
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.utilities.model_builder import ExportConfig
@@ -87,6 +87,10 @@ class ReauthoredModelWrapper(ModelWrapper):
     """Returns an initialized KV cache."""
     return kv_utils.KVCache.from_model_config(self.model.config)
 
+  def _get_extra_args_for_forward(self) -> dict[str, Any]:
+    """Returns extra arguments for the forward() method."""
+    return {}
+
   def _forward_with_kv_cache(
       self,
       tokens: torch.Tensor,
@@ -105,26 +109,15 @@ class ReauthoredModelWrapper(ModelWrapper):
     Returns:
       The output logits and the updated KV cache.
     """
-    # Verification requires logit outputs on prefill for comparison.
-    if (
-        self.export_config is not None
-        and not self.export_config.output_logits_on_prefill
-    ):
-      raise ValueError("Verifier requires logit output on prefill.")
-    # Since the reauthored model doesn't include keyword arguments, pass
-    # pixel_values only when it is not None. Otherwise, it may raise an error.
-    if pixel_values is None:
-      output = self.model.forward(
-          tokens, input_pos, kv_cache, export_config=self.export_config
-      )
-    else:
-      output = self.model.forward(
-          tokens,
-          input_pos,
-          kv_cache,
-          pixel_values=pixel_values,
-          export_config=self.export_config,
-      )
+    extra_args = self._get_extra_args_for_forward()
+    if self.export_config is not None:
+      # Verification requires logit outputs on prefill for comparison.
+      if not self.export_config.output_logits_on_prefill:
+        raise ValueError("Verifier requires logit output on prefill.")
+      extra_args["export_config"] = self.export_config
+    if pixel_values is not None:
+      extra_args["pixel_values"] = pixel_values
+    output = self.model.forward(tokens, input_pos, kv_cache, **extra_args)
     return output["logits"], output["kv_cache"]
 
   def forward(
@@ -141,6 +134,7 @@ class ReauthoredModelWrapper(ModelWrapper):
       prompts: torch.Tensor,
       max_new_tokens: int,
       pixel_values: torch.Tensor = None,
+      eos_token_id: int = 1,
   ) -> torch.IntTensor:
     input_ids = prompts[0].int().tolist()
     tokens = torch.tensor([input_ids])
@@ -152,6 +146,8 @@ class ReauthoredModelWrapper(ModelWrapper):
       )
       generated_token = logits[0][-1].argmax().item()
       input_ids.append(generated_token)
+      if generated_token == eos_token_id:
+        break
       tokens = torch.tensor([[generated_token]])
       input_pos = torch.tensor([len(input_ids) - 1])
       pixel_values = None  # Pass only for the first time.
@@ -254,7 +250,11 @@ def verify_model_with_prompts(
   logging.info("outputs_from_original_model: [[%s]]", response_original)
 
   logging.info("Generating answer with the reauthored model...")
-  outputs_reauthored = reauthored_model.generate(prompt_tokens, max_new_tokens)
+  outputs_reauthored = reauthored_model.generate(
+      prompt_tokens,
+      max_new_tokens,
+      eos_token_id=tokenizer.tokenizer.eos_token_id,
+  )
   response_reauthored = tokenizer.decode(outputs_reauthored[0])
   logging.info("outputs from reauthored model: [[%s]]", response_reauthored)
 

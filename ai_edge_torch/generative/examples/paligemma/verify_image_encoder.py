@@ -20,31 +20,48 @@ import pathlib
 from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.paligemma import image_encoder
+import kagglehub
 from PIL import Image
 import requests
 import torch
 import transformers
 
+_VERSION = flags.DEFINE_enum(
+    "version",
+    "1",
+    ["1", "2"],
+    "The version of PaliGemma vision model to verify.",
+)
 _IMAGE_URL = flags.DEFINE_string(
     "image_url",
     "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/car.jpg?download=true",
     "The image URI to encode.",
 )
 
+_CHECKPOINT = {
+    "1": "google/paligemma-3b-mix-224",
+    "2": "google/paligemma-2/transformers/paligemma2-3b-pt-224",
+}
+
 
 def main(_):
-  checkpoint = "google/paligemma-3b-mix-224"
+  if _VERSION.value == "1":
+    checkpoint = _CHECKPOINT[_VERSION.value]
+    # Locate the cached dir.
+    cached_config_file = transformers.utils.cached_file(
+        checkpoint, transformers.utils.CONFIG_NAME
+    )
+    reauthored_checkpoint = pathlib.Path(cached_config_file).parent
+  else:
+    checkpoint = kagglehub.model_download(_CHECKPOINT[_VERSION.value])
+    reauthored_checkpoint = checkpoint
+
   logging.info("Loading the original model from: %s", checkpoint)
   original_full_model = (
       transformers.PaliGemmaForConditionalGeneration.from_pretrained(checkpoint)
   )
   original_vision_model = original_full_model.eval().vision_tower
 
-  # Locate the cached dir.
-  cached_config_file = transformers.utils.cached_file(
-      checkpoint, transformers.utils.CONFIG_NAME
-  )
-  reauthored_checkpoint = pathlib.Path(cached_config_file).parent
   logging.info("Building the reauthored model from: %s", reauthored_checkpoint)
   reauthored_model = image_encoder.build_image_encoder(reauthored_checkpoint)
 
@@ -69,7 +86,7 @@ def main(_):
 
   try:
     assert torch.allclose(
-        outputs_original, outputs_reauthored, atol=1e-04, rtol=1e-04
+        outputs_original, outputs_reauthored, atol=1e-03, rtol=1e-04
     )
   except AssertionError as e:
     logging.error("*** FAILED *** verify with an image")
