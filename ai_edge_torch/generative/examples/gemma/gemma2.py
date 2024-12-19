@@ -22,6 +22,7 @@ from ai_edge_torch.generative.layers import builder
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
+import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
 from ai_edge_torch.generative.utilities import model_builder
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
@@ -103,17 +104,12 @@ class Gemma2(nn.Module):
         config.embedding_dim,
         config.final_norm_config,
     )
-    # Gemma2 has same hyper parameters for each layer except for attention
-    # types. Use the first layer.
-    attn_config = config.block_config(0).attn_config
-    self.rope_cache = attn_utils.build_rope_cache(
-        size=config.kv_cache_max,
-        dim=int(attn_config.rotary_percentage * attn_config.head_dim),
-        base=attn_config.rotary_base,
-    )
     self.mask_cache = attn_utils.build_causal_mask_cache(
         size=config.kv_cache_max,
     )
+    # Gemma2 has same hyper parameters for each layer except for attention
+    # types. Use the first layer.
+    attn_config = config.block_config(0).attn_config
     self.sliding_window_mask_cache = attn_utils.build_sliding_window_mask_cache(
         size=config.kv_cache_max,
         window_size=attn_config.sliding_window_size,
@@ -145,24 +141,27 @@ class Gemma2(nn.Module):
         " must be the same."
     )
 
-    cos, sin = self.rope_cache
-    cos = cos.index_select(0, input_pos)
-    sin = sin.index_select(0, input_pos)
+    # RoPE parameters are the same for all blocks. Use the first layer.
+    attn_config = self.config.block_config(0).attn_config
+    n_elem = int(attn_config.rotary_percentage * attn_config.head_dim)
+    rope = rotary_pos_emb.build_rope(
+        input_pos, n_elem, attn_config.head_dim, attn_config.rotary_base
+    )
 
     # token embeddings of shape (b, t, n_embd)
     x = self.tok_embedding(tokens)
     x = x * (self.config.embedding_dim**0.5)
 
-    updated_kv_entires = []
+    updated_kv_entries = []
     for i, block in enumerate(self.transformer_blocks):
       mask = self.get_attention_mask(
           block.config.attn_config.attn_type, input_pos
       )
       kv_entry = kv_cache.caches[i] if kv_cache else None
-      x, kv_entry = block(x, (cos, sin), mask, input_pos, kv_entry)
+      x, kv_entry = block(x, rope, mask, input_pos, kv_entry)
       if kv_entry:
-        updated_kv_entires.append(kv_entry)
-    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entires))
+        updated_kv_entries.append(kv_entry)
+    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entries))
 
     if export_config is not None:
       if (
