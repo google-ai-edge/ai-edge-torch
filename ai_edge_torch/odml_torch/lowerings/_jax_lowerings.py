@@ -26,6 +26,7 @@ import torch_xla2.ops.ops_registry  # Import to load torch_xla2 ops
 
 LoweringContext = context.LoweringContext
 
+
 @functools.cache
 def _log_usage(op):
   logging.warning("Use jax lowering: %s", str(op))
@@ -184,8 +185,6 @@ lower_by_torch_xla2(torch.ops.aten.permute_copy)
 lower_by_torch_xla2(torch.ops.aten.pixel_shuffle)
 lower_by_torch_xla2(torch.ops.aten.pow)
 lower_by_torch_xla2(torch.ops.aten.prod)
-lower_by_torch_xla2(torch.ops.aten.rand)
-lower_by_torch_xla2(torch.ops.aten.randn)
 lower_by_torch_xla2(torch.ops.aten.reciprocal)
 lower_by_torch_xla2(torch.ops.aten.reflection_pad1d)
 lower_by_torch_xla2(torch.ops.aten.relu)

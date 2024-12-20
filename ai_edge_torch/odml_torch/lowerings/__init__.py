@@ -18,6 +18,7 @@ from . import _convolution
 from . import _jax_lowerings
 from . import _layer_norm
 from . import _quantized_decomposed
+from . import _rand
 from . import context
 from . import registry
 from . import utils
