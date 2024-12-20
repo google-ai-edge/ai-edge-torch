@@ -19,6 +19,7 @@ from typing import Optional
 
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
+import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
 from ai_edge_torch.generative.utilities import model_builder
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
@@ -61,8 +62,12 @@ class Decoder(model_builder.DecoderOnlyModel):
     assert input_embeds is not None
 
     repo_pos = input_pos + 1  # PaliGemma position is 1-based.
-    cos, sin = self.rope_cache
-    rope = (cos.index_select(0, repo_pos), sin.index_select(0, repo_pos))
+    # ROPE parameters for all attn_configs are the same. Take the first one.
+    attn_config = self.config.block_config(0).attn_config
+    n_elem = int(attn_config.rotary_percentage * attn_config.head_dim)
+    rope = rotary_pos_emb.build_rope(
+        repo_pos, n_elem, attn_config.head_dim, attn_config.rotary_base
+    )
 
     # The first part of input_embeds are image embeddings. Diagonal causal mask
     # doesn't work here.

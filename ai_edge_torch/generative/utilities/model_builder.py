@@ -107,8 +107,6 @@ class DecoderOnlyModel(nn.Module):
 
     # token embeddings of shape (b, t, n_embd)
     input_embeds = self.tok_embedding(tokens)
-    mask = self.mask_cache.index_select(2, input_pos)
-    mask = mask[:, :, :, : self.config.kv_cache_max]
 
     # ROPE parameters for all attn_configs are the same. Take the first one.
     attn_config = self.config.block_config(0).attn_config
@@ -116,6 +114,9 @@ class DecoderOnlyModel(nn.Module):
     rope = rotary_pos_emb.build_rope(
         input_pos, n_elem, attn_config.head_dim, attn_config.rotary_base
     )
+
+    mask = self.mask_cache.index_select(2, input_pos)
+    mask = mask[:, :, :, : self.config.kv_cache_max]
 
     return self.forward_with_embeds(
         input_embeds, rope, mask, input_pos, kv_cache, export_config
