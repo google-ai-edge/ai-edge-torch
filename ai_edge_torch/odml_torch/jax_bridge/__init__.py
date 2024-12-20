@@ -12,4 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from ai_edge_torch.odml_torch.jax_bridge._wrap import wrap
+from ai_edge_torch.odml_torch.jax_bridge import _wrap
+from ai_edge_torch.odml_torch.jax_bridge import utils
+
+wrap = _wrap.wrap

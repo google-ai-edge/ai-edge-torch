@@ -198,7 +198,12 @@ class MlirLowered:
     # build, which may not have the same StableHLO version as what used in
     # TFLite converter. Therefore we always serialize MLIR module in VHLO.
     # TODO(b/362798610) Build MLIR pybinding in ai-edge-torch release.
-    target_version = stablehlo.get_minimum_version()
+    if stablehlo.get_api_version() < 9:
+      target_version = stablehlo.get_minimum_version()
+    else:
+      target_version = stablehlo.get_version_from_compatibility_requirement(
+          stablehlo.StablehloCompatibilityRequirement.WEEK_4
+      )
     module_bytecode = xla_extension.mlir.serialize_portable_artifact(
         self.module_bytecode, target_version
     )
