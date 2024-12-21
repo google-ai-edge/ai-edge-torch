@@ -118,11 +118,11 @@ class DecoderOnlyModel(nn.Module):
     mask = self.mask_cache.index_select(2, input_pos)
     mask = mask[:, :, :, : self.config.kv_cache_max]
 
-    return self.forward_with_embeds(
+    return self._forward_with_embeds(
         input_embeds, rope, mask, input_pos, kv_cache, export_config
     )
 
-  def forward_with_embeds(
+  def _forward_with_embeds(
       self,
       input_embeds: torch.Tensor,
       rope: Tuple[torch.Tensor, torch.Tensor],

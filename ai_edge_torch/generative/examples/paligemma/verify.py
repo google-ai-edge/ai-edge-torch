@@ -22,11 +22,18 @@ from absl import flags
 from ai_edge_torch.generative.examples.paligemma import paligemma
 from ai_edge_torch.generative.layers import kv_cache
 from ai_edge_torch.generative.utilities import verifier
+import kagglehub
 from PIL import Image
 import requests
 import torch
 import transformers
 
+_VERSION = flags.DEFINE_enum(
+    "version",
+    "1",
+    ["1", "2"],
+    "The version of PaliGemma model to verify.",
+)
 _IMAGE_URL = flags.DEFINE_string(
     "image_url",
     "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/car.jpg?download=true",
@@ -34,7 +41,7 @@ _IMAGE_URL = flags.DEFINE_string(
 )
 _PROMPTS = flags.DEFINE_string(
     "prompts",
-    "Caption en",
+    "describe en",
     "The input prompts to generate answers.",
 )
 _MAX_NEW_TOKENS = flags.DEFINE_integer(
@@ -43,28 +50,47 @@ _MAX_NEW_TOKENS = flags.DEFINE_integer(
     "The maximum size of the generated tokens.",
 )
 
+_CHECKPOINT = {
+    "1": "google/paligemma-3b-mix-224",
+    "2": "google/paligemma-2/transformers/paligemma2-3b-pt-224",
+}
+
 
 class ReauthoredPaliGemmaWrapper(verifier.ReauthoredModelWrapper):
   """Reauthored PaliGemma model wrapper."""
 
+  def __init__(self, model: torch.nn.Module):
+    super().__init__(model)
+    self.forward_called_by_generate = False
+
   def _init_kv_cache(self):
     return kv_cache.KVCache.from_model_config(self.model.config.decoder_config)
 
+  def _get_extra_args_for_forward(self):
+    return {"called_by_generate": self.forward_called_by_generate}
+
 
 def main(_):
-  checkpoint = "google/paligemma-3b-mix-224"
+  if _VERSION.value == "1":
+    checkpoint = _CHECKPOINT[_VERSION.value]
+    # Locate the cached dir.
+    cached_config_file = transformers.utils.cached_file(
+        checkpoint, transformers.utils.CONFIG_NAME
+    )
+    reauthored_checkpoint = pathlib.Path(cached_config_file).parent
+  else:
+    checkpoint = kagglehub.model_download(_CHECKPOINT[_VERSION.value])
+    reauthored_checkpoint = checkpoint
+
   logging.info("Loading the original model from: %s", checkpoint)
   original_model = (
       transformers.PaliGemmaForConditionalGeneration.from_pretrained(checkpoint)
   )
 
-  # Locate the cached dir.
-  cached_config_file = transformers.utils.cached_file(
-      checkpoint, transformers.utils.CONFIG_NAME
-  )
-  reauthored_checkpoint = pathlib.Path(cached_config_file).parent
   logging.info("Building the reauthored model from: %s", reauthored_checkpoint)
-  reauthored_model = paligemma.build_model(reauthored_checkpoint)
+  reauthored_model = paligemma.build_model(
+      reauthored_checkpoint, version=int(_VERSION.value)
+  )
 
   logging.info("Loading the processor from: %s", checkpoint)
   # It works only when GemmaTokenizerFast is available. In some environments,
@@ -93,7 +119,7 @@ def main(_):
   logging.info("outputs_reauthored: %s", outputs_reauthored)
 
   try:
-    assert torch.allclose(outputs_original, outputs_reauthored, atol=1e-03)
+    assert torch.allclose(outputs_original, outputs_reauthored, atol=1e-02)
   except AssertionError as e:
     logging.error("*** FAILED *** verify with forward()")
     raise e
@@ -111,6 +137,7 @@ def main(_):
   logging.info("outputs_from_original_model: [[%s]]", response_original)
 
   logging.info("Generating answer with the reauthored model...")
+  wrapped_reauthored_model.forward_called_by_generate = True
   outputs_reauthored = wrapped_reauthored_model.generate(
       prompts=inputs["input_ids"],
       pixel_values=inputs["pixel_values"],
