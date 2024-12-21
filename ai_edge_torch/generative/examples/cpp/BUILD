@@ -49,7 +49,7 @@ cc_binary(
         "@com_google_absl//absl/strings",
         "@com_google_sentencepiece//:sentencepiece_processor",
         "@org_tensorflow//tensorflow/lite:framework",
-        "@org_tensorflow//tensorflow/lite:util",
+        "@org_tensorflow//tensorflow/lite/c:common",
         "@org_tensorflow//tensorflow/lite/delegates/xnnpack:xnnpack_delegate",
         "@org_tensorflow//tensorflow/lite/experimental/genai:genai_ops",
         "@org_tensorflow//tensorflow/lite/kernels:builtin_ops",
