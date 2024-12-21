@@ -72,12 +72,13 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       pre_attention_norm_config=norm_config,
       post_attention_norm_config=norm_config,
   )
+  embedding_dim = 2048
   config = cfg.ModelConfig(
       vocab_size=256000,
       num_layers=18,
       max_seq_len=8192,
-      embedding_dim=2048,
-      embedding_scale=2048**0.5,
+      embedding_dim=embedding_dim,
+      embedding_scale=embedding_dim**0.5,
       kv_cache_max_len=kv_cache_max_len,
       block_configs=block_config,
       final_norm_config=norm_config,
