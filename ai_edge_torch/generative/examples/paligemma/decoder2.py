@@ -160,6 +160,8 @@ def get_fake_decoder2_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
   config.vocab_size = 128
   config.num_layers = 2
   config.max_seq_len = 2 * kv_cache_max_len
+  config.embedding_dim = 128
+  config.embedding_scale = 128**0.5
   return config
 
 

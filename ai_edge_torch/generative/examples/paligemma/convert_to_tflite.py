@@ -29,9 +29,15 @@ from ai_edge_torch.generative.utilities import converter
 from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 import torch
 
+_VERSION = flags.DEFINE_enum(
+    'version',
+    '2',
+    ['1', '2'],
+    'The version of PaliGemma model to verify.',
+)
 _CHECKPOINT_PATH = flags.DEFINE_string(
     'checkpoint_path',
-    os.path.join(pathlib.Path.home(), 'Downloads/llm_data/paligemma-3b-224'),
+    os.path.join(pathlib.Path.home(), 'Downloads/llm_data/paligemma2-3b-224'),
     'The path to the model checkpoint, or directory holding the checkpoint.',
 )
 _TFLITE_PATH = flags.DEFINE_string(
@@ -63,10 +69,12 @@ _QUANTIZE = flags.DEFINE_bool(
 
 def main(_):
   pytorch_model = paligemma.build_model(
-      _CHECKPOINT_PATH.value, kv_cache_max_len=_KV_CACHE_MAX_LEN.value
+      _CHECKPOINT_PATH.value,
+      version=int(_VERSION.value),
+      kv_cache_max_len=_KV_CACHE_MAX_LEN.value,
   )
   quant_suffix = 'q8' if _QUANTIZE.value else 'f32'
-  output_filename = f'paligemma_{quant_suffix}_seq{_PREFILL_SEQ_LEN.value}_ekv{_KV_CACHE_MAX_LEN.value}.tflite'
+  output_filename = f'paligemma{_VERSION.value}_{quant_suffix}_seq{_PREFILL_SEQ_LEN.value}_ekv{_KV_CACHE_MAX_LEN.value}.tflite'
   converter.convert_to_tflite(
       pytorch_model,
       tflite_path=os.path.join(_TFLITE_PATH.value, output_filename),

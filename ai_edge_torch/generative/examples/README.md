@@ -7,12 +7,14 @@ Gemma is Google's open-source LLM. The model has both a 2B and 7B versions. See 
 ## PaliGemma
 PaliGemma is a multimodal LLM which gets images and text as input, then
 generates text as output. See
-[model's Kaggle page](https://www.kaggle.com/models/google/paligemma).
-The example we provide is PaliGemma 3B with 224 image size. Since Kaggle has
-only Jax-version of PaliGemma, PyTorch model can be download from
-[here](https://huggingface.co/google/paligemma-3b-mix-224/tree/main).
+[model's Kaggle page](https://www.kaggle.com/models/google/paligemma2).
+The examples we provide are PaliGemma2 and 1 of 3B with 224 image size.
+The checkpoint for PaliGemma2 can be downloaded from
+[here](https://www.kaggle.com/models/google/paligemma-2/transformers/paligemma2-3b-pt-224).
+Since Kaggle has only Jax-version of PaliGemma1, PyTorch model of PaliGemma1 can
+be download from [here](https://huggingface.co/google/paligemma-3b-mix-224/tree/main).
 
-Note that PaliGemma can be converted to TfLite only with [ODML Torch conversion
+Note that PaliGemma models can be converted to TfLite only with [ODML Torch conversion
 backend](https://github.com/google-ai-edge/ai-edge-torch/blob/main/docs/pytorch_converter/README.md#use-odml-torch-conversion-backend-experimental)
 
 ## Llama
