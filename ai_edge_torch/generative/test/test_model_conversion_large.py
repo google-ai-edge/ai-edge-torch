@@ -21,6 +21,8 @@ from ai_edge_torch.generative.examples.gemma import gemma1
 from ai_edge_torch.generative.examples.gemma import gemma2
 from ai_edge_torch.generative.examples.llama import llama
 from ai_edge_torch.generative.examples.openelm import openelm
+from ai_edge_torch.generative.examples.paligemma import decoder
+from ai_edge_torch.generative.examples.paligemma import decoder2
 from ai_edge_torch.generative.examples.paligemma import paligemma
 from ai_edge_torch.generative.examples.phi import phi2
 from ai_edge_torch.generative.examples.phi import phi3
@@ -171,13 +173,9 @@ class TestModelConversion(googletest.TestCase):
     pytorch_model = amd_llama_135m.AmdLlama(config).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-5, rtol=1e-5)
 
-  @googletest.skipIf(
-      ai_edge_torch.config.in_oss,
-      reason="tests with custom ops are not supported in oss",
-  )
-  def disabled_test_paligemma(self):
-    config = paligemma.get_fake_model_config()
-    pytorch_model = paligemma.PaliGemma(config).eval()
+  def _test_paligemma_model(self, decoder_class, decoder_config, atol, rtol):
+    config = paligemma.get_fake_model_config(decoder_config)
+    pytorch_model = paligemma.PaliGemma(config, decoder_class).eval()
 
     image_embedding_config = config.image_encoder_config.image_embedding
     num_patches = (
@@ -215,9 +213,30 @@ class TestModelConversion(googletest.TestCase):
             kv,
             pixel_values=pixel_values,
             signature_name="prefill_pixel",
-            atol=1e-3,
-            rtol=1e-5,
+            atol=atol,
+            rtol=rtol,
         )
+    )
+
+  @googletest.skipIf(
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
+  )
+  def disabled_test_paligemma1(self):
+    self._test_paligemma_model(
+        decoder.Decoder, decoder.get_fake_decoder_config, atol=1e-3, rtol=1e-5
+    )
+
+  @googletest.skipIf(
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
+  )
+  def disabled_test_paligemma2(self):
+    self._test_paligemma_model(
+        decoder2.Decoder2,
+        decoder2.get_fake_decoder2_config,
+        atol=1e-3,
+        rtol=1e-5,
     )
 
   @googletest.skipIf(

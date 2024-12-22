@@ -28,7 +28,7 @@ import transformers
 
 _VERSION = flags.DEFINE_enum(
     "version",
-    "1",
+    "2",
     ["1", "2"],
     "The version of PaliGemma vision model to verify.",
 )

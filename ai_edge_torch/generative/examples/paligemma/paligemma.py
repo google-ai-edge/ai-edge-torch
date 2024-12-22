@@ -136,8 +136,8 @@ def get_fake_model_config(get_decoder_config, **kwargs) -> PaliGemmaConfig:
   return PaliGemmaConfig(
       image_encoder_config=image_encoder.get_fake_image_encoder_config(),
       decoder_config=get_decoder_config(**kwargs),
-      image_token_id=257152,
-      image_projection_scale=2048**0.5,
+      image_token_id=127,
+      image_projection_scale=128**0.5,
       image_projection_use_bias=True,
   )
 
