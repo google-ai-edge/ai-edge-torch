@@ -104,20 +104,26 @@ def _extract_call_args(
 def _wrap_as_tf_func(lowered, tf_state_dict):
   """Build tf.function from lowered and tf_state_dict."""
 
-  def inner(*args):
+  version = 6
+  if hasattr(tfxla, "call_module_maximum_supported_version"):
+    version = tfxla.call_module_maximum_supported_version()
+
+  def tf_func(*args):
     t_outs = [torch_dtype_to_tf(sig.dtype) for sig in lowered.output_signature]
     s_outs = [_get_shape_with_dynamic(sig) for sig in lowered.output_signature]
     call_args = _extract_call_args(lowered, args, tf_state_dict)
     return tfxla.call_module(
         tuple(call_args),
-        version=5,
+        version=version,
         Tout=t_outs,  # dtype information
-        Sout=s_outs,  # Shape information
+        Sout=s_outs,  # shape information
         function_list=[],
-        module=lowered.module_bytecode,
+        module=lowered.module_bytecode_vhlo,
+        has_token_input_output=False,
+        platforms=["CPU"],
     )
 
-  return inner
+  return tf_func
 
 
 def _make_input_signatures(

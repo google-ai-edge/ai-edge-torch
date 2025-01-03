@@ -202,7 +202,7 @@ class MlirLowered:
       target_version = stablehlo.get_minimum_version()
     else:
       target_version = stablehlo.get_version_from_compatibility_requirement(
-          stablehlo.StablehloCompatibilityRequirement.WEEK_4
+          stablehlo.StablehloCompatibilityRequirement.WEEK_12
       )
     module_bytecode = xla_extension.mlir.serialize_portable_artifact(
         self.module_bytecode, target_version
