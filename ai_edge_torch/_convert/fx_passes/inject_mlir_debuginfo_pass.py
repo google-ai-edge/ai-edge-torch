@@ -62,6 +62,7 @@ def _wrap_call_function_node_with_debuginfo_writer(node: torch.fx.GraphModule):
 
 
 class InjectMlirDebuginfoPass(fx_pass_base.PassBase):
+  """DEPRECATED: Debuginfo is injected automatically by odml_torch."""
 
   def call(self, graph_module: torch.fx.GraphModule):
     for node in graph_module.graph.nodes:

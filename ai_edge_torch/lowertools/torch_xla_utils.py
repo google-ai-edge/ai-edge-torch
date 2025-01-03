@@ -27,6 +27,9 @@ if "PJRT_DEVICE" not in os.environ:
   # https://github.com/google-ai-edge/ai-edge-torch/issues/326
   os.environ["PJRT_DEVICE"] = "CPU"
 
+os.environ["EXPERIMENTAL_XLA_UNBOUNDED_DYNAMISM"] = "1"
+
+
 from ai_edge_torch import model
 from ai_edge_torch._convert import conversion_utils
 from ai_edge_torch._convert import signature as signature_module
