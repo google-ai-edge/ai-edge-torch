@@ -222,11 +222,6 @@ class MlirLowered:
     # Lazy importing TF when execution is needed.
     return self.tf_function(*args)
 
-  def to_flatbuffer(self):
-    from . import tf_integration
-
-    return tf_integration.mlir_to_flatbuffer(self)
-
 
 # TODO(b/331481564) Make this a ai_edge_torch FX pass.
 def _convert_i64_to_i32(exported_program: torch.export.ExportedProgram):

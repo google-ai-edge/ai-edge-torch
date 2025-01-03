@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""APIs to convert lowered MLIR from PyTorch to TensorFlow and TFLite artifacts."""
+"""APIs to convert lowered MLIR from PyTorch to TensorFlow artifacts."""
 
 import re
-import tempfile
 
 import tensorflow as tf
 import torch
@@ -155,46 +154,3 @@ def mlir_to_tf_function(lowered: export.MlirLowered):
       _wrap_as_tf_func(lowered, tf_state_dict),
       input_signature=_make_input_signatures(lowered),
   )
-
-
-def mlir_to_flatbuffer(lowered: export.MlirLowered):
-  """Convert the MLIR lowered to a TFLite flatbuffer binary."""
-  tf_state_dict = _build_tf_state_dict(lowered)
-  signature_names = [tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
-  tf_signatures = [_make_input_signatures(lowered)]
-  tf_functions = [_wrap_as_tf_func(lowered, tf_state_dict)]
-
-  tf_module = tf.Module()
-  tf_module.f = []
-
-  for tf_sig, func in zip(tf_signatures, tf_functions):
-    tf_module.f.append(
-        tf.function(
-            func,
-            input_signature=tf_sig,
-        )
-    )
-
-    tf_module._variables = list(tf_state_dict.values())
-
-  tf_concrete_funcs = [
-      func.get_concrete_function(*tf_sig)
-      for func, tf_sig in zip(tf_module.f, tf_signatures)
-  ]
-
-  # We need to temporarily save since TFLite's from_concrete_functions does not
-  # allow providing names for each of the concrete functions.
-  with tempfile.TemporaryDirectory() as temp_dir_path:
-    tf.saved_model.save(
-        tf_module,
-        temp_dir_path,
-        signatures={
-            sig_name: tf_concrete_funcs[idx]
-            for idx, sig_name in enumerate(signature_names)
-        },
-    )
-
-    converter = tf.lite.TFLiteConverter.from_saved_model(temp_dir_path)
-    tflite_model = converter.convert()
-
-  return tflite_model

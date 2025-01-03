@@ -44,29 +44,6 @@ class TensorflowIntegrationTest(googletest.TestCase):
 
     self.assertTrue(np.allclose(lowering_output, torch_output))
 
-  @googletest.skip("b/353280409")
-  def test_dynamic_mlir_lowered_call(self):
-    class AddModel(torch.nn.Module):
-
-      def forward(self, x, y):
-        return x + y + x + y
-
-    model = AddModel().eval()
-    batch = torch.export.Dim("batch")
-    ep = torch.export.export(
-        model,
-        (torch.rand((2, 10)), torch.rand((2, 10))),
-        dynamic_shapes={"x": {0: batch}, "y": {0: batch}},
-    )
-
-    lowered = odml_torch.export.exported_program_to_mlir(ep)
-
-    val_args = (torch.rand((10, 10)), torch.rand((10, 10)))
-    torch_output = model(*val_args).detach().numpy()
-    lowering_output = np.array(lowered(*val_args))
-
-    self.assertTrue(np.allclose(lowering_output, torch_output))
-
   def test_resnet18(self):
     model = torchvision.models.resnet18().eval()
     forward_args = lambda: (torch.rand((1, 3, 224, 224)),)
