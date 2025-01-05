@@ -14,9 +14,9 @@
 # ==============================================================================
 
 import logging
-import os
 from typing import Any, Literal, Optional, Union
 
+import ai_edge_torch
 from ai_edge_torch import fx_pass_base
 from ai_edge_torch import lowertools
 from ai_edge_torch import model
@@ -26,8 +26,6 @@ from ai_edge_torch.generative import fx_passes as generative_fx_passes
 from ai_edge_torch.quantize import quant_config as qcfg
 import torch
 
-os.environ["EXPERIMENTAL_XLA_UNBOUNDED_DYNAMISM"] = "1"
-
 
 def _run_convert_passes(
     exported_program: torch.export.ExportedProgram,
@@ -35,21 +33,27 @@ def _run_convert_passes(
   exported_program = generative_fx_passes.run_generative_passes(
       exported_program
   )
-  exported_program = fx_pass_base.run_passes(
-      exported_program,
-      [
-          fx_passes.BuildInterpolateCompositePass(),
-          fx_passes.CanonicalizePass(),
-          fx_passes.OptimizeLayoutTransposesPass(),
-          fx_passes.CanonicalizePass(),
-          fx_passes.BuildAtenCompositePass(),
-          fx_passes.CanonicalizePass(),
-          fx_passes.RemoveNonUserOutputsPass(),
-          fx_passes.CanonicalizePass(),
-          fx_passes.InjectMlirDebuginfoPass(),
-          fx_passes.CanonicalizePass(),
-      ],
-  )
+
+  passes = [
+      fx_passes.BuildInterpolateCompositePass(),
+      fx_passes.CanonicalizePass(),
+      fx_passes.OptimizeLayoutTransposesPass(),
+      fx_passes.CanonicalizePass(),
+      fx_passes.BuildAtenCompositePass(),
+      fx_passes.CanonicalizePass(),
+      fx_passes.RemoveNonUserOutputsPass(),
+      fx_passes.CanonicalizePass(),
+  ]
+
+  # Debuginfo is not injected automatically by odml_torch. Only inject
+  # debuginfo via fx pass when using torch_xla.
+  if ai_edge_torch.config.use_torch_xla:
+    passes += [
+        fx_passes.InjectMlirDebuginfoPass(),
+        fx_passes.CanonicalizePass(),
+    ]
+
+  exported_program = fx_pass_base.run_passes(exported_program, passes)
   return exported_program
 
 

@@ -202,7 +202,7 @@ class MlirLowered:
       target_version = stablehlo.get_minimum_version()
     else:
       target_version = stablehlo.get_version_from_compatibility_requirement(
-          stablehlo.StablehloCompatibilityRequirement.WEEK_4
+          stablehlo.StablehloCompatibilityRequirement.WEEK_12
       )
     module_bytecode = xla_extension.mlir.serialize_portable_artifact(
         self.module_bytecode, target_version
@@ -221,11 +221,6 @@ class MlirLowered:
   def __call__(self, *args):
     # Lazy importing TF when execution is needed.
     return self.tf_function(*args)
-
-  def to_flatbuffer(self):
-    from . import tf_integration
-
-    return tf_integration.mlir_to_flatbuffer(self)
 
 
 # TODO(b/331481564) Make this a ai_edge_torch FX pass.
