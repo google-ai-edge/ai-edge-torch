@@ -16,7 +16,7 @@
 """Common utility functions to verify the reauthored models."""
 
 import logging
-from typing import Any,List
+from typing import Any, List, Optional
 
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.utilities.model_builder import ExportConfig
@@ -134,7 +134,7 @@ class ReauthoredModelWrapper(ModelWrapper):
       prompts: torch.Tensor,
       max_new_tokens: int,
       pixel_values: torch.Tensor = None,
-      eos_token_id: int = 1,
+      eos_token_id: Optional[int] = None,
   ) -> torch.IntTensor:
     input_ids = prompts[0].int().tolist()
     tokens = torch.tensor([input_ids])
@@ -146,7 +146,7 @@ class ReauthoredModelWrapper(ModelWrapper):
       )
       generated_token = logits[0][-1].argmax().item()
       input_ids.append(generated_token)
-      if generated_token == eos_token_id:
+      if eos_token_id is not None and generated_token == eos_token_id:
         break
       tokens = torch.tensor([[generated_token]])
       input_pos = torch.tensor([len(input_ids) - 1])
@@ -253,7 +253,7 @@ def verify_model_with_prompts(
   outputs_reauthored = reauthored_model.generate(
       prompt_tokens,
       max_new_tokens,
-      eos_token_id=tokenizer.tokenizer.eos_token_id,
+      eos_token_id=getattr(tokenizer.tokenizer, "eos_token_id", None),
   )
   response_reauthored = tokenizer.decode(outputs_reauthored[0])
   logging.info("outputs from reauthored model: [[%s]]", response_reauthored)

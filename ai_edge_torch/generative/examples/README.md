@@ -7,7 +7,7 @@ Gemma is Google's open-source LLM. The model has both a 2B and 7B versions. See 
 ## PaliGemma
 PaliGemma is a multimodal LLM which gets images and text as input, then
 generates text as output. See
-[model's Kaggle page](https://www.kaggle.com/models/google/paligemma2).
+[model's Kaggle page](https://www.kaggle.com/models/google/paligemma-2).
 The examples we provide are PaliGemma2 and 1 of 3B with 224 image size.
 The checkpoint for PaliGemma2 can be downloaded from
 [here](https://www.kaggle.com/models/google/paligemma-2/transformers/paligemma2-3b-pt-224).
