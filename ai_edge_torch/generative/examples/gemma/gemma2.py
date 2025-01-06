@@ -15,14 +15,13 @@
 
 """Example of building a Gemma2 model."""
 
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 from ai_edge_torch.generative.layers import attention
 from ai_edge_torch.generative.layers import builder
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
-import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
 from ai_edge_torch.generative.utilities import model_builder
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
@@ -104,12 +103,17 @@ class Gemma2(nn.Module):
         config.embedding_dim,
         config.final_norm_config,
     )
-    self.mask_cache = attn_utils.build_causal_mask_cache(
-        size=config.kv_cache_max,
-    )
     # Gemma2 has same hyper parameters for each layer except for attention
     # types. Use the first layer.
     attn_config = config.block_config(0).attn_config
+    self.rope_cache = attn_utils.build_rope_cache(
+        size=config.kv_cache_max,
+        dim=int(attn_config.rotary_percentage * attn_config.head_dim),
+        base=attn_config.rotary_base,
+    )
+    self.mask_cache = attn_utils.build_causal_mask_cache(
+        size=config.kv_cache_max,
+    )
     self.sliding_window_mask_cache = attn_utils.build_sliding_window_mask_cache(
         size=config.kv_cache_max,
         window_size=attn_config.sliding_window_size,
@@ -136,48 +140,29 @@ class Gemma2(nn.Module):
         f"Cannot forward sequence of length {seq_len}, max seq length is only"
         f" {self.config.max_seq_len}"
     )
-
-    # token embeddings of shape (b, t, n_embd)
-    input_embeds = self.tok_embedding(tokens)
-    # RoPE parameters are the same for all blocks. Use the first layer.
-    attn_config = self.config.block_config(0).attn_config
-    n_elem = int(attn_config.rotary_percentage * attn_config.head_dim)
-    rope = rotary_pos_emb.build_rope(
-        input_pos, n_elem, attn_config.head_dim, attn_config.rotary_base
-    )
-    mask = [self.get_attention_mask(
-        self.config.block_config(i).attn_config.attn_type, input_pos
-    ) for i in range(self.config.num_layers)]
-
-    return self._forward_with_embeds(
-        input_embeds, rope, mask, input_pos, kv_cache, export_config
-    )
-
-  def _forward_with_embeds(
-      self,
-      input_embeds: torch.Tensor,
-      rope: Tuple[torch.Tensor, torch.Tensor],
-      mask: List[torch.Tensor],
-      input_pos: torch.Tensor,
-      kv_cache: kv_utils.KVCache,
-      export_config: Optional[model_builder.ExportConfig] = None,
-  ) -> dict[torch.Tensor, kv_utils.KVCache]:
-    """Forwards the model with input embeddings."""
     assert len(self.transformer_blocks) == len(kv_cache.caches), (
         "The number of transformer blocks and the number of KV cache entries"
         " must be the same."
     )
 
-    if self.config.embedding_scale is not None:
-      input_embeds = input_embeds * self.config.embedding_scale
-    x = input_embeds
-    updated_kv_entries = []
+    cos, sin = self.rope_cache
+    cos = cos.index_select(0, input_pos)
+    sin = sin.index_select(0, input_pos)
+
+    # token embeddings of shape (b, t, n_embd)
+    x = self.tok_embedding(tokens)
+    x = x * (self.config.embedding_dim**0.5)
+
+    updated_kv_entires = []
     for i, block in enumerate(self.transformer_blocks):
+      mask = self.get_attention_mask(
+          block.config.attn_config.attn_type, input_pos
+      )
       kv_entry = kv_cache.caches[i] if kv_cache else None
-      x, kv_entry = block(x, rope, mask[i], input_pos, kv_entry)
+      x, kv_entry = block(x, (cos, sin), mask, input_pos, kv_entry)
       if kv_entry:
-        updated_kv_entries.append(kv_entry)
-    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entries))
+        updated_kv_entires.append(kv_entry)
+    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entires))
 
     if export_config is not None:
       if (
@@ -243,13 +228,11 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
     )
 
   num_layers = 26
-  embedding_dim = 2304
   config = cfg.ModelConfig(
       vocab_size=256000,
       num_layers=num_layers,
       max_seq_len=8192,
-      embedding_dim=embedding_dim,
-      embedding_scale=embedding_dim**0.5,
+      embedding_dim=2304,
       kv_cache_max_len=kv_cache_max_len,
       block_configs=[get_block_config(i) for i in range(num_layers)],
       final_norm_config=norm_config,
@@ -266,7 +249,6 @@ def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
   config.num_layers = 2
   config.max_seq_len = 2 * kv_cache_max_len
   config.embedding_dim = 128
-  config.embedding_scale = config.embedding_dim**0.5
   config.block_configs = config.block_configs[: config.num_layers]
   for block_config in config.block_configs:
     block_config.attn_config.num_heads = 4

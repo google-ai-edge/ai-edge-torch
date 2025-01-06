@@ -72,14 +72,14 @@ class ToyModelWithKVCache(torch.nn.Module):
     mask = self.mask_cache.index_select(2, input_pos)
     mask = mask[:, :, :, : self.config.max_seq_len]
 
-    updated_kv_entries = []
+    updated_kv_entires = []
     for i, block in enumerate(self.transformer_blocks):
       kv_entry = kv_cache.caches[i] if kv_cache else None
       x, kv_entry = block(x, (cos, sin), mask, input_pos, kv_entry)
       if kv_entry:
-        updated_kv_entries.append(kv_entry)
+        updated_kv_entires.append(kv_entry)
 
-    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entries))
+    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entires))
 
     if export_config is not None:
       if (
