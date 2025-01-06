@@ -17,6 +17,7 @@
 import dataclasses
 import operator
 
+import ai_edge_torch
 from ai_edge_torch import lowertools
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import layout_rewrite
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import utils
@@ -194,7 +195,10 @@ def _aten_group_norm_checker(node):
   val = node.meta.get("val")
   if not hasattr(val, "shape"):
     return NHWCable(can_be=False, must_be=False)
-  return NHWCable(can_be=len(val.shape) == 4, must_be=False)
+
+  can_be = len(val.shape) == 4
+  must_be = can_be and ai_edge_torch.config.enable_group_norm_composite
+  return NHWCable(can_be=can_be, must_be=must_be)
 
 
 @nhwcable_node_checkers.register(aten.native_group_norm)

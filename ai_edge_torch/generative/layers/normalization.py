@@ -80,6 +80,7 @@ class RMSNorm(torch.nn.Module):
       output = self._norm(x.float()).type_as(x)
       return output * w
 
+
 class GroupNorm(torch.nn.Module):
 
   def __init__(
@@ -115,16 +116,7 @@ class GroupNorm(torch.nn.Module):
     Returns:
       torch.Tensor: output tensor after applying GroupNorm.
     """
-    if self.enable_hlfb:
-      return group_norm_with_hlfb(
-          x,
-          self.weight,
-          self.bias,
-          self.group_num,
-          self.eps,
-      )
-    else:
-      return F.group_norm(x, self.group_num, self.weight, self.bias, self.eps)
+    return F.group_norm(x, self.group_num, self.weight, self.bias, self.eps)
 
 
 class LayerNorm(torch.nn.Module):
@@ -167,46 +159,6 @@ class LayerNorm(torch.nn.Module):
     return F.layer_norm(
         x, self.normalized_shape, self.weight, self.bias, self.eps
     )
-
-
-def group_norm_with_hlfb(
-    x: torch.Tensor,
-    w: torch.Tensor,
-    b: torch.Tensor,
-    num_groups: int,
-    eps: float,
-):
-  """Group Normalization with high-level function boundary enabled.
-
-  Args:
-    x (torch.Tensor): Input tensor for Group Normalization, with BCHW shape.
-    w (torch.Tensor): The weight tensor for the normalization.
-    b (torch.Tensor): The bias tensor for the normalization.
-    num_groups (int): Number of groups to separate the channels into.
-    eps (float): A small float value to ensure numerical stability.
-
-  Returns:
-    The output tensor of Group Normalization.
-  """
-  x = torch.permute(x, (0, 2, 3, 1))
-
-  builder = StableHLOCompositeBuilder(
-      name="odml.group_norm",
-      attr={
-          "num_groups": num_groups,
-          "epsilon": eps,
-          "reduction_axes": [3],
-          "channel_axis": 3,
-      },
-  )
-  x, w, b = builder.mark_inputs(x, w, b)
-  x = torch.permute(x, (0, 3, 1, 2))
-  y = F.group_norm(x, num_groups, weight=w, bias=b, eps=eps)
-  y = torch.permute(y, (0, 2, 3, 1))
-  y = builder.mark_outputs(y)
-
-  y = torch.permute(y, (0, 3, 1, 2))
-  return y
 
 
 def rms_norm_with_hlfb(

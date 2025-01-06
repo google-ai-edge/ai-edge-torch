@@ -16,6 +16,7 @@
 
 import operator
 
+import ai_edge_torch
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import layout_mark
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import op_func_registry
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import utils
@@ -23,6 +24,7 @@ import torch
 import torch.utils._pytree as pytree
 
 aten = torch.ops.aten
+StableHLOCompositeBuilder = ai_edge_torch.hlfb.StableHLOCompositeBuilder
 
 __all__ = ["rewrite_nhwc_node", "has_nhwc_rewriter"]
 
@@ -345,11 +347,32 @@ def _aten__native_batch_norm_legit_no_training(node):
 @rewriters.register(aten.group_norm.default)
 def _aten_group_norm(node):
   def group_norm(input, num_groups: int, weight=None, bias=None, eps=1e-5):
-    # Disable NHWC rewriter with native decomposied ops due to precision issue.
-    # TODO(b/354780253): Re-enable NHWC rewriter with proper lowering.
+    is_composite_supported = (
+        ai_edge_torch.config.enable_group_norm_composite
+        and weight is not None
+        and bias is not None
+    )
+
+    builder = None
+    if is_composite_supported:
+      builder = StableHLOCompositeBuilder(
+          name="odml.group_norm",
+          attr={
+              "num_groups": num_groups,
+              "epsilon": eps,
+              "reduction_axes": [3],
+              "channel_axis": 3,
+          },
+      )
+      input, weight, bias = builder.mark_inputs(input, weight, bias)
+
     input = utils.tensor_to_nchw(input)
-    res = aten.group_norm.default(input, num_groups, weight, bias, eps=eps)
-    return utils.tensor_to_nhwc(res)
+    output = aten.group_norm.default(input, num_groups, weight, bias, eps=eps)
+    output = utils.tensor_to_nhwc(output)
+
+    if builder is not None:
+      output = builder.mark_outputs(output)
+    return output
 
   node.target = group_norm
 
