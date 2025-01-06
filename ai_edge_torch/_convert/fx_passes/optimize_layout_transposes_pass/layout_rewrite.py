@@ -342,6 +342,18 @@ def _aten__native_batch_norm_legit_no_training(node):
   node.target = batch_norm
 
 
+@rewriters.register(aten.group_norm.default)
+def _aten_group_norm(node):
+  def group_norm(input, num_groups: int, weight=None, bias=None, eps=1e-5):
+    # Disable NHWC rewriter with native decomposied ops due to precision issue.
+    # TODO(b/354780253): Re-enable NHWC rewriter with proper lowering.
+    input = utils.tensor_to_nchw(input)
+    res = aten.group_norm.default(input, num_groups, weight, bias, eps=eps)
+    return utils.tensor_to_nhwc(res)
+
+  node.target = group_norm
+
+
 @rewriters.register(aten.native_group_norm.default)
 def _aten_native_group_norm(node):
 
@@ -354,6 +366,7 @@ def _aten_native_group_norm(node):
       flattened_inner_size: int,
       num_groups: int,
       eps: float,
+      **kwargs,
   ):
     input_reshaped = torch.reshape(
         input,

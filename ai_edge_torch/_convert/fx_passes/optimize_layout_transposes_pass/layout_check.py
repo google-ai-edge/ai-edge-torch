@@ -155,6 +155,7 @@ def _qdq_layout_sensitive_inputs_getter(node: Node):
 @layout_sensitive_inputs_getters.register(
     aten._native_batch_norm_legit_no_training
 )
+@layout_sensitive_inputs_getters.register(aten.group_norm)
 @layout_sensitive_inputs_getters.register(aten.native_group_norm)
 def _first_arg_getter(node):
   return [node.args[0]]
@@ -186,6 +187,14 @@ def _aten_norm_checker(node):
   ):
     return NHWCable(can_be=False, must_be=False)
   return NHWCable(can_be=len(val[0].shape) == 4, must_be=False)
+
+
+@nhwcable_node_checkers.register(aten.group_norm)
+def _aten_group_norm_checker(node):
+  val = node.meta.get("val")
+  if not hasattr(val, "shape"):
+    return NHWCable(can_be=False, must_be=False)
+  return NHWCable(can_be=len(val.shape) == 4, must_be=False)
 
 
 @nhwcable_node_checkers.register(aten.native_group_norm)
