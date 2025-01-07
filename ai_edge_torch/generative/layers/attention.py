@@ -19,6 +19,7 @@ from typing import Optional, Tuple, Union
 
 from ai_edge_torch.generative.layers import builder
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
+from ai_edge_torch.generative.layers import lora as lora_utils
 from ai_edge_torch.generative.layers import scaled_dot_product_attention as sdpa
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
@@ -93,6 +94,7 @@ class TransformerBlock(nn.Module):
       mask: Optional[torch.Tensor] = None,
       input_pos: Optional[torch.Tensor] = None,
       kv_cache: kv_utils.KVCacheEntry = None,
+      lora: Optional[lora_utils.LoRAEntry] = None,
   ) -> Union[torch.Tensor, Tuple[torch.Tensor, kv_utils.KVCacheEntry]]:
     """Forward function of the TransformerBlock.
 
@@ -102,6 +104,7 @@ class TransformerBlock(nn.Module):
       mask (torch.Tensor): the optional mask tensor.
       input_pos (torch.Tensor): the optional input position tensor.
       kv_cache (KVCacheEntry): the optional kv cache entry.
+      lora (LoRAEntry): the optional lora entry.
 
     Returns:
       output activation from this transformer block, and updated kv cache (if
@@ -110,7 +113,9 @@ class TransformerBlock(nn.Module):
     kv = None
     if self.config.parallel_residual:
       x_norm = self.pre_atten_norm(x)
-      atten_func_out = self.atten_func(x_norm, rope, mask, input_pos, kv_cache)
+      atten_func_out = self.atten_func(
+          x_norm, rope, mask, input_pos, kv_cache, lora
+      )
       if kv_cache is None:
         attn_out = atten_func_out
       else:
@@ -119,7 +124,9 @@ class TransformerBlock(nn.Module):
       output = x + attn_out + ff_out
     else:
       x_norm = self.pre_atten_norm(x)
-      atten_func_out = self.atten_func(x_norm, rope, mask, input_pos, kv_cache)
+      atten_func_out = self.atten_func(
+          x_norm, rope, mask, input_pos, kv_cache, lora
+      )
       if kv_cache is None:
         attn_out = atten_func_out
       else:
@@ -179,6 +186,7 @@ class CausalSelfAttention(nn.Module):
       mask: Optional[torch.Tensor] = None,
       input_pos: Optional[torch.Tensor] = None,
       kv_cache: Optional[kv_utils.KVCacheEntry] = None,
+      lora: Optional[lora_utils.LoRAEntry] = None,
   ) -> Union[torch.Tensor, Tuple[torch.Tensor, kv_utils.KVCacheEntry]]:
     """Forward function of the CausalSelfAttention layer, which can support
 
@@ -189,7 +197,8 @@ class CausalSelfAttention(nn.Module):
       rope (Tuple[torch.Tensor, torch.Tensor]): the input rope tensor.
       mask (torch.Tensor): the optional mask tensor.
       input_pos (torch.Tensor): the optional input position tensor.
-      kv_cache (KVCacheEntry): The KV cache entry corresponding to this module.
+      kv_cache (KVCacheEntry): the KV cache entry corresponding to this module.
+      lora (LoRAEntry): the optional lora entry.
 
     Returns:
       output activation from this self attention layer, and the updated
@@ -228,6 +237,11 @@ class CausalSelfAttention(nn.Module):
           dim=-1,
       )
 
+    if lora is not None:
+      q += lora_utils.apply_lora(x, lora.attention.query, shape=q.shape)
+      k += lora_utils.apply_lora(x, lora.attention.key, shape=k.shape)
+      v += lora_utils.apply_lora(x, lora.attention.value, shape=v.shape)
+
     q = self.query_norm(q)
     k = self.key_norm(k)
 
@@ -244,7 +258,7 @@ class CausalSelfAttention(nn.Module):
       kv_cache = kv_utils.update(kv_cache, input_pos, k, v)
       k, v = kv_cache.k_cache, kv_cache.v_cache
 
-    y = self.sdpa_func(
+    sdpa_out = self.sdpa_func(
         q,
         k,
         v,
@@ -252,10 +266,13 @@ class CausalSelfAttention(nn.Module):
         mask=mask,
         softcap=self.config.logit_softcap,
     )
-    y = y.reshape(B, T, -1)
+    sdpa_out = sdpa_out.reshape(B, T, -1)
 
     # Compute the output projection.
-    y = self.output_projection(y)
+    y = self.output_projection(sdpa_out)
+    if lora is not None:
+      y += lora_utils.apply_lora(sdpa_out, lora.attention.output)
+
     return y if kv_cache is None else (y, kv_cache)
 
 
@@ -268,6 +285,7 @@ class SelfAttention(CausalSelfAttention):
       rope: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
       input_pos: Optional[torch.Tensor] = None,
       kv_cache: Optional[kv_utils.KVCacheEntry] = None,
+      lora: Optional[lora_utils.LoRAEntry] = None,
   ) -> Union[torch.Tensor, Tuple[torch.Tensor, kv_utils.KVCacheEntry]]:
     """Forward function of the SelfAttention layer, which can support MQA, GQA and MHA.
 
@@ -275,18 +293,23 @@ class SelfAttention(CausalSelfAttention):
       x (torch.Tensor): the input tensor.
       rope (Tuple[torch.Tensor, torch.Tensor]): the input rope tensor.
       input_pos (torch.Tensor): the optional input position tensor.
-      kv_cache (KVCacheEntry): The KV cache entry corresponding to this module.
+      kv_cache (KVCacheEntry): the KV cache entry corresponding to this module.
+      lora (LoRAEntry): the optional lora entry.
 
     Returns:
       output activation from this self attention layer, and the updated
         KV Cach Entry (if passed in).
     """
     B, T, _ = x.size()
+    assert (
+        kv_cache is None
+    ), "KV cache is not supported in non-causal SelfAttention."
     return super().forward(
         x,
         rope=rope,
         mask=torch.zeros((B, 1, T, T), dtype=torch.float32),
         input_pos=input_pos,
+        lora=lora,
     )
 
 
@@ -343,6 +366,7 @@ class CrossAttention(nn.Module):
       mask: Optional[torch.Tensor] = None,
       input_pos: Optional[torch.Tensor] = None,
       kv_cache: Optional[kv_utils.KVCacheEntry] = None,
+      lora: Optional[lora_utils.LoRAEntry] = None,
   ):
     """Forward function of the CrossAttention layer.
 
@@ -353,7 +377,8 @@ class CrossAttention(nn.Module):
       mask (torch.Tensor): the optional mask tensor can be broadcaseted to shape
         [B, n_heads, target_seq_len, source_seq_len].
       input_pos (torch.Tensor): the optional input position tensor.
-      kv_cache (KVCacheEntry): The KV cache entry corresponding to this module.
+      kv_cache (KVCacheEntry): the KV cache entry corresponding to this module.
+      lora (LoRAEntry): the optional lora entry.
 
     Returns:
       output activation from this cross attention layer.
@@ -365,6 +390,11 @@ class CrossAttention(nn.Module):
     q = self.q_projection(x)
     k = self.k_projection(y)
     v = self.v_projection(y)
+
+    if lora is not None:
+      q += lora_utils.apply_lora(x, lora.attention.query, shape=q.shape)
+      k += lora_utils.apply_lora(x, lora.attention.key, shape=k.shape)
+      v += lora_utils.apply_lora(x, lora.attention.value, shape=v.shape)
 
     interim_shape = (batch_size, -1, self.n_heads, self.config.head_dim)
     q = q.view(interim_shape)
@@ -388,4 +418,7 @@ class CrossAttention(nn.Module):
 
     # Compute the output projection.
     y = self.output_projection(y)
+    if lora is not None:
+      y += lora_utils.apply_lora(y, lora.attention.output)
+
     return y if kv_cache is None else (y, kv_cache)

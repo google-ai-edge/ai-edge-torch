@@ -35,10 +35,15 @@ _CHECKPOINT_PATH = flags.DEFINE_string(
     os.path.join(pathlib.Path.home(), 'Downloads/llm_data/llama'),
     'The path to the model checkpoint, or directory holding the checkpoint.',
 )
-_TFLITE_PATH = flags.DEFINE_string(
-    'tflite_path',
+_OUTPUT_PATH = flags.DEFINE_string(
+    'output_path',
     '/tmp/',
-    'The tflite file path to export.',
+    'The path to export the tflite model.',
+)
+_OUTPUT_NAME_PREFIX = flags.DEFINE_string(
+    'output_name_prefix',
+    'llama',
+    'The prefix of the output tflite model name.',
 )
 _PREFILL_SEQ_LENS = flags.DEFINE_multi_integer(
     'prefill_seq_lens',
@@ -55,6 +60,11 @@ _QUANTIZE = flags.DEFINE_bool(
     True,
     'Whether the model should be quantized.',
 )
+_LORA_RANKS = flags.DEFINE_multi_integer(
+    'lora_ranks',
+    None,
+    'If set, the model will be converted with the provided list of LoRA ranks.',
+)
 
 _BUILDER = {
     '1b': llama.build_1b_model,
@@ -66,13 +76,13 @@ def main(_):
   pytorch_model = _BUILDER[_MODEL_SIZE.value](
       _CHECKPOINT_PATH.value, kv_cache_max_len=_KV_CACHE_MAX_LEN.value
   )
-  quant_suffix = 'q8' if _QUANTIZE.value else 'f32'
-  output_filename = f'llama_{_MODEL_SIZE.value}_{quant_suffix}_ekv{_KV_CACHE_MAX_LEN.value}.tflite'
   converter.convert_to_tflite(
       pytorch_model,
-      tflite_path=os.path.join(_TFLITE_PATH.value, output_filename),
+      output_path=_OUTPUT_PATH.value,
+      output_name_prefix=_OUTPUT_NAME_PREFIX.value,
       prefill_seq_len=_PREFILL_SEQ_LENS.value,
       quantize=_QUANTIZE.value,
+      lora_ranks=_LORA_RANKS.value,
       export_config=ExportConfig(),
   )
 

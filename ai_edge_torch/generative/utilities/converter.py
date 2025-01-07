@@ -15,16 +15,15 @@
 
 """Common utility functions for model conversion."""
 
-from functools import partial
-from typing import Any, Union
-
+import os
+from typing import Optional, Union
 from ai_edge_torch._convert import converter as converter_utils
+from ai_edge_torch.generative.layers import lora as lora_utils
 import ai_edge_torch.generative.layers.kv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.quantize import quant_recipes
 from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 import torch
-import torch.nn as nn
 
 
 class ExportableModule(torch.nn.Module):
@@ -41,11 +40,13 @@ class ExportableModule(torch.nn.Module):
 
 def convert_to_tflite(
     pytorch_model: torch.nn.Module,
-    tflite_path: str,
+    output_path: str,
+    output_name_prefix: str,
     prefill_seq_len: Union[int, list[int]],
     pixel_values_size: torch.Size = None,
     quantize: bool = True,
     config: cfg.ModelConfig = None,
+    lora_ranks: Optional[list[int]] = None,
     export_config: ExportConfig = None,
 ):
   """Converts a nn.Module model to multi-signature tflite model.
@@ -79,21 +80,65 @@ def convert_to_tflite(
 
   Args:
       pytorch_model (torch.nn.Module): PyTorch model to convert to tflite.
-      tflite_path (str): The tflite file path to export.
-      prefill_seq_len (Union[int, list[int]]): A list of prefill lengths to
-        export.
+      output_path (str): The path to export the tflite model.
+      output_name_prefix (str): The prefix of the tflite model name.
+      prefill_seq_len (Union[int, list[int]]): The prefill sequence length to
+        use. If a list, the model will have multiple prefill signatures.
       pixel_values_size (torch.Size, optional): The size of pixel values to pass
         to the model. If None, the model is not expected to take pixel values.
       quantize (bool, optional): Whether the model should be quanized. Defaults
         to True.
       config (cfg.ModelConfig, optional): The model config used to configure KV
         cache. If None, it uses the config of the pytorch_model.
+      lora_ranks (list[int], optional): The ranks of the LORA layers. If None,
+        no LoRA signatures will be added.
   """
+  # pylint: disable=protected-access
+  torch._dynamo.config.cache_size_limit = 64
+
+  config = config if config else pytorch_model.config
   prefill_seq_lens = (
       [prefill_seq_len] if isinstance(prefill_seq_len, int) else prefill_seq_len
   )
+  loras = [None]
+  if lora_ranks is not None:
+    for rank in lora_ranks:
+      lora = lora_utils.LoRA.zeros(rank, config)
+      loras.append(lora)
 
-  # Tensors used to trace the model graph during conversion.
+  quant_suffix = 'q8' if quantize else 'f32'
+  kv_size = config.kv_cache_max_len
+  lora_suffix = (
+      '' if not lora_ranks else f'_lora{",".join(map(str, lora_ranks))}'
+  )
+  output_filename = (
+      f'{output_name_prefix}_{quant_suffix}_ekv{kv_size}{lora_suffix}.tflite'
+  )
+  output_file = os.path.join(output_path, output_filename)
+
+  _export_helper(
+      pytorch_model,
+      output_file,
+      prefill_seq_lens,
+      pixel_values_size,
+      quantize,
+      config,
+      loras,
+      export_config,
+  )
+
+
+def _export_helper(
+    pytorch_model: torch.nn.Module,
+    output_file: str,
+    prefill_seq_lens: list[int],
+    pixel_values_size: torch.Size,
+    quantize: bool,
+    config: cfg.ModelConfig,
+    loras: list[None | lora_utils.LoRA],
+    export_config: ExportConfig,
+):
+  """Helper function to export a model to tflite."""
   prefill_tokens_list = []
   prefill_input_pos_list = []
   for seq_len in prefill_seq_lens:
@@ -108,9 +153,7 @@ def convert_to_tflite(
 
   decode_token = torch.tensor([[0]], dtype=torch.int)
   decode_input_pos = torch.tensor([0], dtype=torch.int)
-  kv = kv_utils.KVCache.from_model_config(
-      config if config else pytorch_model.config
-  )
+  kv = kv_utils.KVCache.from_model_config(config)
 
   quant_config = quant_recipes.full_int8_dynamic_recipe() if quantize else None
 
@@ -119,44 +162,54 @@ def convert_to_tflite(
   mod = ExportableModule(pytorch_model, export_config=export_config)
 
   converter = converter_utils.Converter()
-  for i in range(len(prefill_seq_lens)):
-    prefill_seq_len = prefill_seq_lens[i]
-    prefill_tokens = prefill_tokens_list[i]
-    prefill_input_pos = prefill_input_pos_list[i]
-    if i == 0 and len(prefill_seq_lens) == 1:
-      prefill_signature_name = 'prefill'
-    else:
-      prefill_signature_name = f'prefill_{prefill_seq_len}'
-    converter.add_signature(
-        prefill_signature_name,
-        mod,
-        sample_kwargs={
-            'tokens': prefill_tokens,
-            'input_pos': prefill_input_pos,
-            'kv_cache': kv,
-        },
-    )
-    if prefill_pixel_values is not None:
+  for lora in loras:
+    for i in range(len(prefill_seq_lens)):
+      prefill_seq_len = prefill_seq_lens[i]
+      prefill_tokens = prefill_tokens_list[i]
+      prefill_input_pos = prefill_input_pos_list[i]
+      if i == 0 and len(prefill_seq_lens) == 1:
+        prefill_signature_name = 'prefill'
+      else:
+        prefill_signature_name = f'prefill_{prefill_seq_len}'
+
+      sample_kwargs = {
+          'tokens': prefill_tokens,
+          'input_pos': prefill_input_pos,
+          'kv_cache': kv,
+      }
+      if lora is not None:
+        prefill_signature_name += f'_lora_r{lora.get_rank()}'
+        sample_kwargs['lora'] = lora
+
       converter.add_signature(
-          prefill_signature_name + '_pixel',
+          prefill_signature_name,
           mod,
-          sample_kwargs={
-              'tokens': prefill_tokens,
-              'input_pos': prefill_input_pos,
-              'kv_cache': kv,
-              'pixel_values': prefill_pixel_values,
-          },
+          sample_kwargs=sample_kwargs,
       )
 
-  converter.add_signature(
-      'decode',
-      mod,
-      sample_kwargs={
-          'tokens': decode_token,
-          'input_pos': decode_input_pos,
-          'kv_cache': kv,
-      },
-  )
+      if prefill_pixel_values is not None:
+        converter.add_signature(
+            prefill_signature_name + '_pixel',
+            mod,
+            sample_kwargs={
+                **sample_kwargs,
+                'pixel_values': prefill_pixel_values,
+            },
+        )
+
+    sample_kwargs = {
+        'tokens': decode_token,
+        'input_pos': decode_input_pos,
+        'kv_cache': kv,
+    }
+    if lora is not None:
+      sample_kwargs['lora'] = lora
+
+    converter.add_signature(
+        'decode' if lora is None else f'decode_lora_r{lora.get_rank()}',
+        mod,
+        sample_kwargs=sample_kwargs,
+    )
 
   edge_model = converter.convert(quant_config=quant_config)
-  edge_model.export(tflite_path)
+  edge_model.export(output_file)

@@ -22,11 +22,13 @@ from typing import Optional, Tuple
 from ai_edge_torch.generative.layers import attention
 from ai_edge_torch.generative.layers import builder
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
+from ai_edge_torch.generative.layers import lora as lora_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
 from torch import nn
+
 
 TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.up_proj",
@@ -103,6 +105,7 @@ class DecoderOnlyModel(nn.Module):
       tokens: torch.Tensor,
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
+      lora: Optional[lora_utils.LoRA] = None,
       export_config: Optional[ExportConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
     _, seq_len = tokens.size()
@@ -119,7 +122,7 @@ class DecoderOnlyModel(nn.Module):
     mask = mask[:, :, :, : self.config.kv_cache_max]
 
     return self.forward_with_embeds(
-        input_embeds, rope, mask, input_pos, kv_cache, export_config
+        input_embeds, rope, mask, input_pos, kv_cache, lora, export_config
     )
 
   def forward_with_embeds(
@@ -129,6 +132,7 @@ class DecoderOnlyModel(nn.Module):
       mask: torch.Tensor,
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
+      lora: Optional[lora_utils.LoRA] = None,
       export_config: Optional[ExportConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
     """Forwards the model with input embeddings."""
@@ -144,7 +148,8 @@ class DecoderOnlyModel(nn.Module):
     updated_kv_entires = []
     for i, block in enumerate(self.transformer_blocks):
       kv_entry = kv_cache.caches[i] if kv_cache else None
-      x, kv_entry = block(x, rope, mask, input_pos, kv_entry)
+      lora_adapter = lora.adapters[i] if lora else None
+      x, kv_entry = block(x, rope, mask, input_pos, kv_entry, lora_adapter)
       if kv_entry:
         updated_kv_entires.append(kv_entry)
     updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entires))
