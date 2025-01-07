@@ -71,10 +71,12 @@ ABSL_FLAG(std::string, stop_token, "",
 ABSL_FLAG(int, num_threads, 4, "Number of threads to use. Defaults to 4.");
 ABSL_FLAG(std::string, weight_cache_path, "",
           "XNNPACK weight caching path, e.g. /tmp/model.xnnpack_cache.");
+ABSL_FLAG(std::string, lora_path, "", "Optional path to LoRA artifact.");
 
 namespace {
 
 using ai_edge_torch::examples::AlignedAllocator;
+using ai_edge_torch::examples::LoRA;
 
 std::unique_ptr<tflite::FlatBufferModel> LoadModel() {
   std::unique_ptr<tflite::FlatBufferModel> model =
@@ -172,12 +174,15 @@ void PrepareRunner(
 tflite::SignatureRunner* GetPrefillRunner(
     tflite::Interpreter* interpreter, std::size_t num_input_tokens,
     std::map<std::string, std::vector<float, AlignedAllocator<float>>>&
-        kv_cache) {
-  // Find the prefill signature that best matches the input token size.
+        kv_cache,
+    const LoRA* lora) {
+  // Find the prefill signature length that best matches the input token size.
   tflite::SignatureRunner* runner = nullptr;
+  int best_seq_size = -1;
   int delta = std::numeric_limits<int>::max();
   for (const std::string* key : interpreter->signature_keys()) {
-    if (!absl::StrContains(*key, "prefill")) {
+    if (!absl::StrContains(*key, "prefill") ||
+        absl::StrContains(*key, "lora")) {
       continue;
     }
     TfLiteTensor* input_pos = interpreter->GetSignatureRunner(key->c_str())
@@ -185,9 +190,15 @@ tflite::SignatureRunner* GetPrefillRunner(
     // The expected shape for input position is [Seq].
     int seq_size = input_pos->dims->data[0];
     if (num_input_tokens <= seq_size && seq_size - num_input_tokens < delta) {
-      runner = interpreter->GetSignatureRunner(key->c_str());
+      if (lora == nullptr) {
+        runner = interpreter->GetSignatureRunner(key->c_str());
+      }
+      best_seq_size = seq_size;
       delta = seq_size - num_input_tokens;
     }
+  }
+  if (lora != nullptr) {
+    runner = lora->GetPrefillRunner(interpreter, best_seq_size);
   }
   MINIMAL_CHECK(runner != nullptr);
   PrepareRunner(runner, kv_cache);
@@ -197,8 +208,11 @@ tflite::SignatureRunner* GetPrefillRunner(
 tflite::SignatureRunner* GetDecodeRunner(
     tflite::Interpreter* interpreter,
     std::map<std::string, std::vector<float, AlignedAllocator<float>>>&
-        kv_cache) {
-  tflite::SignatureRunner* runner = interpreter->GetSignatureRunner("decode");
+        kv_cache,
+    LoRA* lora) {
+  tflite::SignatureRunner* runner =
+      lora == nullptr ? interpreter->GetSignatureRunner("decode")
+                      : lora->GetDecodeRunner(interpreter);
   MINIMAL_CHECK(runner != nullptr);
   PrepareRunner(runner, kv_cache);
   return runner;
@@ -242,7 +256,13 @@ int main(int argc, char* argv[]) {
       LoadSentencePieceProcessor();
   std::map<std::string, std::vector<float, AlignedAllocator<float>>> kv_cache =
       BuildKVCache(interpreter.get());
-  MINIMAL_CHECK(!kv_cache.empty())
+  MINIMAL_CHECK(!kv_cache.empty());
+
+  std::unique_ptr<LoRA> lora = nullptr;
+  if (!absl::GetFlag(FLAGS_lora_path).empty()) {
+    lora = LoRA::FromFile(absl::GetFlag(FLAGS_lora_path));
+    MINIMAL_CHECK(lora != nullptr);
+  }
 
   // Tokenize the input prompt.
   std::string prompt = absl::GetFlag(FLAGS_prompt);
@@ -263,10 +283,10 @@ int main(int argc, char* argv[]) {
   // Get prefill and decode signature runners.
   std::size_t effective_prefill_token_size = prompt_tokens.size() - 1;
   tflite::SignatureRunner* prefill_runner = GetPrefillRunner(
-      interpreter.get(), effective_prefill_token_size, kv_cache);
+      interpreter.get(), effective_prefill_token_size, kv_cache, lora.get());
   MINIMAL_CHECK(prefill_runner != nullptr);
   tflite::SignatureRunner* decode_runner =
-      GetDecodeRunner(interpreter.get(), kv_cache);
+      GetDecodeRunner(interpreter.get(), kv_cache, lora.get());
   MINIMAL_CHECK(decode_runner != nullptr);
 
   // Get Input Tensors for each of the runners.
