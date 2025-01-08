@@ -25,6 +25,7 @@ from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.layers import lora as lora_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
+import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
 from torch import nn
@@ -87,13 +88,6 @@ class DecoderOnlyModel(nn.Module):
         config.embedding_dim,
         config.final_norm_config,
     )
-    # ROPE parameters for all attn_configs are the same. Take the first one.
-    attn_config = config.block_config(0).attn_config
-    self.rope_cache = attn_utils.build_rope_cache(
-        size=config.kv_cache_max,
-        dim=int(attn_config.rotary_percentage * attn_config.head_dim),
-        base=attn_config.rotary_base,
-    )
     self.mask_cache = attn_utils.build_causal_mask_cache(
         size=config.kv_cache_max,
     )
@@ -116,8 +110,18 @@ class DecoderOnlyModel(nn.Module):
 
     # token embeddings of shape (b, t, n_embd)
     input_embeds = self.tok_embedding(tokens)
-    cos, sin = self.rope_cache
-    rope = (cos.index_select(0, input_pos), sin.index_select(0, input_pos))
+
+    # ROPE parameters for all attn_configs are the same. Take the first one.
+    attn_config = self.config.block_config(0).attn_config
+    n_elem = int(attn_config.rotary_percentage * attn_config.head_dim)
+    rope = self.config.build_rope(
+        input_pos=input_pos,
+        n_elem=n_elem,
+        base=attn_config.rotary_base,
+        head_dim=attn_config.head_dim,
+        # input_pos=input_pos, n_elem=n_elem, base=attn_config.rotary_base
+    )
+
     mask = self.mask_cache.index_select(2, input_pos)
     mask = mask[:, :, :, : self.config.kv_cache_max]
 
@@ -145,14 +149,14 @@ class DecoderOnlyModel(nn.Module):
     if self.config.embedding_scale is not None:
       x = x * self.config.embedding_scale
 
-    updated_kv_entires = []
+    updated_kv_entries = []
     for i, block in enumerate(self.transformer_blocks):
       kv_entry = kv_cache.caches[i] if kv_cache else None
       lora_adapter = lora.adapters[i] if lora else None
       x, kv_entry = block(x, rope, mask, input_pos, kv_entry, lora_adapter)
       if kv_entry:
-        updated_kv_entires.append(kv_entry)
-    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entires))
+        updated_kv_entries.append(kv_entry)
+    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entries))
 
     if export_config is not None:
       if (

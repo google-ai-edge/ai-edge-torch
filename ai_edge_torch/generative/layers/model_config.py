@@ -17,8 +17,8 @@
 
 import dataclasses
 import enum
-from typing import Optional, Sequence, Union
-
+from typing import Callable, Optional, Sequence, Union
+from ai_edge_torch.generative.layers import rotary_position_embedding
 
 @enum.unique
 class ActivationType(enum.Enum):
@@ -217,6 +217,10 @@ class ModelConfig:
 
   # Softcap on the model output logits.
   final_logit_softcap: Optional[float] = None
+
+  # The function to call to create the RoPE sin and cos vectors during the
+  # forward pass. Defaults to a standard implementation.
+  build_rope: Callable = rotary_position_embedding.build_rope
 
   @property
   def kv_cache_max(self) -> int:

@@ -15,6 +15,7 @@
 
 """Example of building Llama 3.2 models."""
 
+from functools import partial
 import math
 from typing import Tuple
 
@@ -26,8 +27,8 @@ TENSOR_NAMES = model_builder.TENSOR_NAMES
 
 
 def _build_llama3_rope_cache(
-    size: int,
-    dim: int,
+    input_pos: torch.Tensor,
+    n_elem: int,
     base: int,
     condense_ratio: int,
     dtype: torch.dtype,
@@ -36,8 +37,9 @@ def _build_llama3_rope_cache(
     low_freq_factor: float,
     high_freq_factor: float,
     max_seq_len: int,
+    **kwargs,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-  """Precomputes Rotary Positional Embeddings for Llama 3.2 model.
+  """Computes Rotary Positional Embeddings for Llama 3.2 model.
 
   It's a modified version of attn_utils.build_rope_cache with additional
   arguments for Llama 3.2 model. It precomputes Rotary Positional Embedding Sin
@@ -47,13 +49,12 @@ def _build_llama3_rope_cache(
   https://github.com/huggingface/transformers/blob/main/src/transformers/modeling_rope_utils.py#L307
 
   Args:
-      size (int): The size of the built cache.
-      dim (int): Each sequence's dimmension.
-      base (int, optional): Rope base value.
-      condense_ratio (int, optional): The ratio by which sequence indicies are
-        condensed.
-      dtype (torch.dtype, optional): Output tensor's data type.
-      device (torch.device, optional): Output tensor's data type.
+      input_pos (torch.Tensor): the given input sequence positions
+      n_elem (int): Each sequence's dimmension.
+      base (int): Rope base value.
+      condense_ratio (int): The ratio by which sequence indicies are condensed.
+      dtype (torch.dtype): Output tensor's data type.
+      device (torch.device): Output tensor's data type.
       factor (float): Factor to scale theta down for tokens in long range in the
         sequence.
       low_freq_factor (float): Factor to determine if tokens are in long range
@@ -66,7 +67,7 @@ def _build_llama3_rope_cache(
   Returns:
       Tuple[torch.Tensor, torch.Tensor]: Rope's Cosine and Sine waves.
   """
-  theta = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))
+  theta = 1.0 / (base ** (torch.arange(0, n_elem, 2).float() / n_elem))
   low_freq_wavelen = max_seq_len / low_freq_factor
   high_freq_wavelen = max_seq_len / high_freq_factor
   wavelen = 2 * math.pi / theta
@@ -81,7 +82,7 @@ def _build_llama3_rope_cache(
   is_medium = ~(wavelen < high_freq_wavelen) * ~(wavelen > low_freq_wavelen)
   theta = torch.where(is_medium, smoothed_theta, theta)
 
-  seq_idx = torch.arange(size) / condense_ratio
+  seq_idx = input_pos / condense_ratio
   idx_theta = torch.outer(seq_idx, theta)
   cos = torch.cos(idx_theta).to(dtype=dtype, device=device)
   sin = torch.sin(idx_theta).to(dtype=dtype, device=device)
@@ -97,18 +98,6 @@ class Llama(model_builder.DecoderOnlyModel):
   def __init__(self, config: cfg.ModelConfig):
     super().__init__(config)
     attn_config = self.config.block_config(0).attn_config
-    self.rope_cache = _build_llama3_rope_cache(
-        size=self.config.kv_cache_max,
-        dim=int(attn_config.rotary_percentage * attn_config.head_dim),
-        base=attn_config.rotary_base,
-        condense_ratio=1,
-        dtype=torch.float32,
-        device=torch.device("cpu"),
-        factor=32.0,
-        low_freq_factor=1.0,
-        high_freq_factor=4.0,
-        max_seq_len=self.config.max_seq_len,
-    )
 
 
 def get_1b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
@@ -140,15 +129,30 @@ def get_1b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       pre_attention_norm_config=norm_config,
       post_attention_norm_config=norm_config,
   )
+
+  max_seq_len = 8192
+  # Create the RoPE callable
+  build_rope = partial(
+      _build_llama3_rope_cache,
+      condense_ratio=1,
+      dtype=torch.float32,
+      device=torch.device("cpu"),
+      factor=32.0,
+      low_freq_factor=1.0,
+      high_freq_factor=4.0,
+      max_seq_len=max_seq_len,
+  )
+
   config = cfg.ModelConfig(
       vocab_size=128256,
       num_layers=16,
-      max_seq_len=8192,
+      max_seq_len=max_seq_len,
       embedding_dim=2048,
       kv_cache_max_len=kv_cache_max_len,
       block_configs=block_config,
       final_norm_config=norm_config,
       enable_hlfb=True,
+      build_rope=build_rope,
   )
   return config
 

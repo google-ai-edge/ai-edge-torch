@@ -32,57 +32,63 @@ def apply_rope(
   """
   x = x.transpose(1, 2)
   head_size = x.size(-1)
-  x1 = x[..., : head_size // 2]  # (B, nh, T, hs/2)
-  x2 = x[..., head_size // 2 :]  # (B, nh, T, hs/2)
-  rotated = torch.cat((-x2, x1), dim=-1)  # (B, nh, T, hs)
-  roped = (x * cos) + (rotated * sin)
+  x1, x2 = torch.split(x, head_size // 2, dim=-1)
+  left = x1 * cos - x2 * sin
+  right = x2 * cos + x1 * sin
+  roped = torch.cat([left, right], dim=-1)
   return roped.transpose(1, 2).type_as(x)
+
+
+def build_rope(
+    input_pos: torch.Tensor,
+    n_elem: int,
+    head_dim: int,
+    base: int = 10_000,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+  """Computes rotary positional embedding cosine and sine tensors.
+
+  Args:
+    input_pos: the sequence indices for the query and key
+    n_elem: number of elements of the head dimension for RoPE computation
+    base: the base of the exponentiated value for RoPE.
+
+  Returns:
+    cos, sin tensors
+  """
+
+  if n_elem <= 0:
+    return None, None
+
+  freq_exponents = (2.0 / n_elem) * torch.arange(
+      head_dim // 2, dtype=torch.float32
+  )
+  timescale = float(base) ** freq_exponents
+  radians = input_pos.clone().unsqueeze(0).unsqueeze(-1) / timescale.unsqueeze(
+      0
+  ).unsqueeze(0)
+  cos = torch.cos(radians)
+  sin = torch.sin(radians)
+  return cos, sin
 
 
 def apply_rope_inline(
     q: torch.Tensor,
     k: torch.Tensor,
-    input_pos: torch.Tensor,
-    n_elem: int,
-    base: int = 10_000,
+    cos: torch.Tensor,
+    sin: torch.Tensor,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
   """Computes rotary positional embedding inline for a query and key.
 
   Args:
     q: the query tensor.
     k: the key tensor.
-    input_pos: the sequence indices for the query and key
-    n_elem: number of elements of the head dimension for RoPE computation
+    cos: the cosine tensor.
+    sin: the sine tensor.
 
   Returns:
     output the RoPE'd query and key.
   """
 
-  if n_elem <= 0:
-    return q, k
-
-  theta = 1.0 / (base ** (torch.arange(0, n_elem, 2).float() / n_elem))
-  freq_exponents = (2.0 / n_elem) * torch.arange(
-      q.shape[-1] // 2, dtype=torch.float32
-  )
-  timescale = float(base) ** freq_exponents
-  radians = input_pos.clone().unsqueeze(0).unsqueeze(-1) / timescale.unsqueeze(
-      0
-  ).unsqueeze(0)
-  cos = torch.cos(radians).type_as(q)
-  sin = torch.sin(radians).type_as(q)
-
-  def apply(x, sin, cos):
-    x = x.transpose(1, 2)
-    b, h, s, d = x.shape
-    ans = torch.split(x, d // 2, dim=-1)
-    x1, x2 = ans
-    left = x1 * cos - x2 * sin
-    right = x2 * cos + x1 * sin
-    res = torch.cat([left, right], dim=-1)
-    res = res.transpose(1, 2)
-    return res
-
-  q_roped = apply(q, sin, cos)
-  k_roped = apply(k, sin, cos)
+  q_roped = apply_rope(q, cos, sin)
+  k_roped = apply_rope(k, cos, sin)
   return q_roped, k_roped

@@ -27,33 +27,6 @@ import torch
 from torch import nn
 
 
-def _embed_rope(
-    q: torch.Tensor,
-    k: torch.Tensor,
-    n_elem: int,
-    rope: Tuple[torch.Tensor, torch.Tensor],
-) -> Tuple[torch.Tensor, torch.Tensor]:
-  """Embed rotary positional embedding for query and key.
-
-  Args:
-    q (torch.Tensor): query tensor.
-    k (torch.Tensor): key tensor.
-    n_elem (int): number of elements to embed rotarty positional embedding.
-    rope (Tuple[torch.Tensor, torch.Tensor]): the input rope tensor.
-  """
-  if n_elem > 0:
-    cos, sin = rope
-    q_roped = rotary_pos_emb.apply_rope(
-        q[..., :n_elem], cos.repeat(1, 2), sin.repeat(1, 2)
-    )
-    k_roped = rotary_pos_emb.apply_rope(
-        k[..., :n_elem], cos.repeat(1, 2), sin.repeat(1, 2)
-    )
-    q = torch.cat((q_roped, q[..., n_elem:]), dim=-1)
-    k = torch.cat((k_roped, k[..., n_elem:]), dim=-1)
-  return q, k
-
-
 class TransformerBlock(nn.Module):
 
   def __init__(
@@ -252,7 +225,8 @@ class CausalSelfAttention(nn.Module):
     if rope is not None:
       # Compute rotary positional embedding for query and key.
       n_elem = int(self.config.rotary_percentage * self.config.head_dim)
-      q, k = _embed_rope(q, k, n_elem, rope)
+      cos, sin = rope
+      q, k = rotary_pos_emb.apply_rope_inline(q, k, cos, sin)
 
     if kv_cache is not None:
       kv_cache = kv_utils.update(kv_cache, input_pos, k, v)
@@ -404,7 +378,8 @@ class CrossAttention(nn.Module):
     if rope is not None:
       # Compute rotary positional embedding for query and key.
       n_elem = int(self.config.rotary_percentage * self.config.head_dim)
-      q, k = _embed_rope(q, k, n_elem, rope)
+      cos, sin = rope
+      q, k = rotary_pos_emb.apply_rope_inline(q, k, cos, sin)
 
     if kv_cache is not None:
       kv_cache = kv_utils.update(kv_cache, input_pos, k, v)
