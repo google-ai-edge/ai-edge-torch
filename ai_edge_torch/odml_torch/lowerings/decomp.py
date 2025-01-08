@@ -55,6 +55,10 @@ def decompositions():
       ],
   )
 
+  # Override noop aten op decompositions for faster run_decompositions.
+  decompositions[torch.ops.aten.alias.default] = lambda x: x
+  decompositions[torch.ops.aten.detach.default] = lambda x: x
+
   # Override _safe_softmax decompositions with regular softmax.
   # _safe_softmax introduces additional check-select ops to guard extreme
   # input values to softmax, which could make the converted model inefficient

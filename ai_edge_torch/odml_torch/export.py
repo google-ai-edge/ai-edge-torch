@@ -238,6 +238,9 @@ def _convert_i64_to_i32(exported_program: torch.export.ExportedProgram):
   def in_i32(x: int):
     return -2147483648 <= x <= 2147483647
 
+  def to_int32(x: torch.Tensor):
+    return torch.ops.aten._to_copy.default(x, dtype=torch.int32)
+
   def rewrite_arange(node: torch.fx.Node):
     tensor_meta = node.meta.get("tensor_meta", None)
     if not tensor_meta:
@@ -249,7 +252,7 @@ def _convert_i64_to_i32(exported_program: torch.export.ExportedProgram):
     if not (in_i32(start) and in_i32(end)):
       return
     op = node.target
-    node.target = lambda *args, **kwargs: op(*args, **kwargs).type(torch.int32)
+    node.target = lambda *args, **kwargs: to_int32(op(*args, **kwargs))
 
   graph_module = exported_program.graph_module
   for node in graph_module.graph.nodes:
@@ -305,8 +308,9 @@ def exported_program_to_mlir(
 
   _convert_i64_to_i32(exported_program)
 
+  # No decompositions but just retracing/cananicalization.
   exported_program = _torch_future.safe_run_decompositions(
-      exported_program, lowerings.decompositions()
+      exported_program, _torch_future.dummy_decomp_table()
   )
 
   # Passes below mutate the exported program to a state not executable by torch.

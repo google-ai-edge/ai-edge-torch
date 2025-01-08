@@ -73,3 +73,16 @@ def safe_run_decompositions(exported_program, decomp_table=None):
       node.target = lambda self, size: torch.reshape(self.contiguous(), size)
 
   return exported_program.run_decompositions(decomp_table)
+
+
+def dummy_decomp_table():
+  """Build dummy decomp table for run_decompositions without any decompositions.
+
+  Compatible for torch<=2.5.
+
+  Returns:
+    Decomp table for ExportedProgram.run_decompositions.
+  """
+  return {
+      torch._ops.OperatorBase(): lambda: None,
+  }
