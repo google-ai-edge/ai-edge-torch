@@ -18,13 +18,14 @@ import dataclasses
 from typing import Any, Callable, Optional, Union
 
 from ai_edge_torch import fx_pass_base
-from ai_edge_torch.hlfb.mark_pattern import passes
+from ai_edge_torch.hlfb.mark_pattern import fx_utils
 import torch
-from torch.export.graph_signature import TensorArgument
-from torch.fx import Graph
-from torch.fx import GraphModule
-from torch.fx.passes.utils.matcher_utils import InternalMatch
-from torch.fx.passes.utils.matcher_utils import SubgraphMatcher
+
+Graph = torch.fx.Graph
+GraphModule = torch.fx.GraphModule
+TensorArgument = torch.export.graph_signature.TensorArgument
+InternalMatch = torch.fx.passes.utils.matcher_utils.InternalMatch
+SubgraphMatcher = torch.fx.passes.utils.matcher_utils.SubgraphMatcher
 
 
 def _are_equal(x: Any, y: Any) -> bool:
@@ -219,8 +220,8 @@ class Pattern:
     # Sanitize graph_module for more precise pattern matching.
     # The graph_module to match against this pattern should apply equivalent
     # sanitization.
-    self.graph_module = passes.remove_clone_ops(self.graph_module)
-    self.graph_module = passes.remove_dangling_args(self.graph_module)
+    self.graph_module = fx_utils.remove_clone_ops(self.graph_module)
+    self.graph_module = fx_utils.remove_dangling_args(self.graph_module)
 
     # Builds list of ordered input and output nodes.
     self.graph_nodes_map = {}

@@ -58,6 +58,32 @@ class TestMarkPattern(googletest.TestCase):
         {"stablehlo.custom_call @mark_tensor": 6},
     )
 
+  def test_mark_pattern_with_clone_inputs(self):
+
+    class TestModel(torch.nn.Module):
+
+      def forward(self, x):
+        return torch.ops.aten.clone.default(x * x) + x
+
+    pattern = pattern_module.Pattern(
+        "test.add",
+        lambda a, b: a + b,
+        export_args=(torch.rand(2, 2), torch.rand(2, 2)),
+    )
+
+    model = TestModel().eval()
+    args = (torch.rand(20, 20),)
+    exported_program = torch.export.export(model, args)
+    mark_pattern.mark_pattern(exported_program.graph_module, pattern)
+    mlir = _export_stablehlo_mlir(exported_program)
+
+    lowertools.assert_string_count(
+        self,
+        mlir,
+        {'stablehlo.composite "test.add"': 1},
+        {"stablehlo.custom_call @mark_tensor": 3},
+    )
+
   def test_mark_pattern_with_attr_builder(self):
     class TestModel(torch.nn.Module):
 

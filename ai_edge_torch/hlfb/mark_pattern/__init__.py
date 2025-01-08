@@ -17,7 +17,7 @@ from typing import Any
 import uuid
 
 from ai_edge_torch import lowertools
-from ai_edge_torch.hlfb.mark_pattern import passes
+from ai_edge_torch.hlfb.mark_pattern import fx_utils
 from ai_edge_torch.hlfb.mark_pattern import pattern as pattern_module
 import torch
 
@@ -87,7 +87,7 @@ def mark_pattern(
     m.meta["ORIGINAL_NODE"] = n
 
   # Sanitize graph_module to match in the same way as pattern's graph_module.
-  graph_module_to_match = passes.remove_clone_ops(graph_module_to_match)
+  graph_module_to_match = fx_utils.remove_clone_ops(graph_module_to_match)
 
   match_with_attrs = pattern.match(graph_module_to_match)
 
@@ -111,13 +111,25 @@ def mark_pattern(
           is_input=True,
       )
 
-      # Only replace input by the marker node for those nodes used in the pattern.
+      # Only replace input by the marker node for those nodes used in the
+      # pattern.
       in_pattern_nodes = set(match.nodes_map.values())
       for user in input_node.users.keys():
-        if user in in_pattern_nodes:
-          user.meta["ORIGINAL_NODE"].replace_input_with(
-              input_node.meta["ORIGINAL_NODE"], new_input_node
-          )
+        if user not in in_pattern_nodes:
+          continue
+
+        user.meta["ORIGINAL_NODE"].replace_input_with(
+            input_node.meta["ORIGINAL_NODE"], new_input_node
+        )
+        # Pattern matching graph sanitization may remove clone ops, which means
+        # the user's input in the original graph may be a clone op. When
+        # replacing the input with the marker node, we need to further try
+        # replacing the input of the clone op that connects to the user.
+        for original_user_input in user.meta["ORIGINAL_NODE"].all_input_nodes:
+          if fx_utils.is_clone_op(original_user_input):
+            original_user_input.replace_input_with(
+                input_node.meta["ORIGINAL_NODE"], new_input_node
+            )
 
     for i, pattern_output_node in enumerate(pattern.output_nodes):
       output_node = match.nodes_map[pattern_output_node]

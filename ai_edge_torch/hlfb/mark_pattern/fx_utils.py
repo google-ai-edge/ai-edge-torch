@@ -12,9 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Passes to clean up the model graph for pattern matching."""
+"""FX graph utilities for pattern matching clean ups."""
 
 import torch
+
+
+def is_clone_op(node: torch.fx.Node) -> bool:
+  """Checks if the node is a clone op."""
+  return (
+      node.op == "call_function" and node.target == torch.ops.aten.clone.default
+  )
 
 
 def remove_clone_ops(gm: torch.fx.GraphModule):
@@ -32,7 +39,7 @@ def remove_clone_ops(gm: torch.fx.GraphModule):
     The graph module with clone ops removed.
   """
   for node in gm.graph.nodes:
-    if node.op == "call_function" and node.name.startswith("clone"):
+    if is_clone_op(node):
       node.replace_all_uses_with(node.args[0])
       gm.graph.erase_node(node)
 
