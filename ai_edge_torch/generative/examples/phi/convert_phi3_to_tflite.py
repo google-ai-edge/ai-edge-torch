@@ -26,7 +26,7 @@ from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 
 _CHECKPOINT_PATH = flags.DEFINE_string(
     'checkpoint_path',
-    os.path.join(pathlib.Path.home(), 'Downloads/llm_data/gemma-2b'),
+    os.path.join(pathlib.Path.home(), 'Downloads/llm_data/phi3'),
     'The path to the model checkpoint, or directory holding the checkpoint.',
 )
 _OUTPUT_PATH = flags.DEFINE_string(
