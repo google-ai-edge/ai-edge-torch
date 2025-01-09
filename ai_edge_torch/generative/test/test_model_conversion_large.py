@@ -150,6 +150,16 @@ class TestModelConversion(googletest.TestCase):
       ai_edge_torch.config.in_oss,
       reason="tests with custom ops are not supported in oss",
   )
+
+  def test_smollm2(self):
+    config = smollm.get_fake_model_config_v2()
+    pytorch_model = smollm.SmolLM2(config).eval()
+    self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
+  @googletest.skipIf(
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
+  )
+
   def test_openelm(self):
     config = openelm.get_fake_model_config()
     pytorch_model = openelm.OpenELM(config).eval()

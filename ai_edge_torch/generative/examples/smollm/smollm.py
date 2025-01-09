@@ -85,3 +85,41 @@ def build_model(checkpoint_path: str, **kwargs) -> nn.Module:
       tensor_names=TENSOR_NAMES,
       model_class=SmolLM,
   )
+
+
+class SmolLM2(model_builder.DecoderOnlyModel):
+  """A SmolLM2 model built from the Edge Generative API layers."""
+  pass
+
+
+def get_model_config_v2(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+  """Returns the model config for a SmolLM2 135M model.
+
+  Args:
+    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
+      is 1024.
+
+  Returns:
+    The model config for a SmolLM2 model.
+  """
+  config = get_model_config(kv_cache_max_len)
+  config.block_config(0).attn_config.rotary_base = 100000
+  return config
+
+
+def get_fake_model_config_v2(**kwargs) -> cfg.ModelConfig:
+  config = get_model_config_v2(**kwargs)
+  config.vocab_size = 128
+  config.num_layers = 2
+  # SmolLM2 has only one block config.
+  config.block_config(0).ff_config.intermediate_size = 64
+  return config
+
+
+def build_model_v2(checkpoint_path: str, **kwargs) -> nn.Module:
+  return model_builder.build_decoder_only_model(
+      checkpoint_path=checkpoint_path,
+      config=get_model_config_v2(**kwargs),
+      tensor_names=TENSOR_NAMES,
+      model_class=SmolLM2,
+  )

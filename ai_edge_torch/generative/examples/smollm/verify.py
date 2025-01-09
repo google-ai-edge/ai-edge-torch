@@ -36,10 +36,26 @@ _MAX_NEW_TOKENS = flags.DEFINE_integer(
     30,
     "The maximum size of the generated tokens.",
 )
+_MODEL_VERSION = flags.DEFINE_enum(
+    "model_version",
+    "v1",
+    ["v1", "v2"],
+    "The version of SmolLm to verify.",
+)
+_CHECKPOINT = {
+    "v1": "HuggingFaceTB/SmolLM-135M",
+    "v2": "HuggingFaceTB/SmolLM2-135M",
+}
+
+_BUILDER = {
+    "v1": smollm.build_model,
+    "v2": smollm.build_model_v2,
+}
 
 
 def main(_):
-  checkpoint = "HuggingFaceTB/SmolLM-135M"
+  checkpoint = _CHECKPOINT[_MODEL_VERSION.value]
+  builder = _BUILDER[_MODEL_VERSION.value]
   logging.info("Loading the original model from: %s", checkpoint)
   original_model = transformers.AutoModelForCausalLM.from_pretrained(checkpoint)
 
@@ -49,7 +65,7 @@ def main(_):
   )
   reauthored_checkpoint = pathlib.Path(cached_config_file).parent
   logging.info("Building the reauthored model from: %s", reauthored_checkpoint)
-  reauthored_model = smollm.build_model(reauthored_checkpoint)
+  reauthored_model = builder(reauthored_checkpoint)
 
   logging.info("Loading the tokenizer from: %s", checkpoint)
   tokenizer = transformers.AutoTokenizer.from_pretrained(checkpoint)

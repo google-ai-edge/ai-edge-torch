@@ -40,11 +40,13 @@ with 270M, 450M, 1.1B, and 3B parameters.  The example we provide is OpenELM 3B,
 and the checkpoint for the model can be found
 [here](https://huggingface.co/apple/OpenELM-3B/tree/main).
 
-## HuggingFace SmolLM
+## HuggingFace SmolLM and SmolLM2
 [HuggingFace SmolLM](https://huggingface.co/blog/smollm) is also a decoder-only
 LLM with 135M, 360M, 1.7B parameters. The example we provide is SmolLM 135M, and
 the checkpoint for the model can be found
 [here](https://huggingface.co/HuggingFaceTB/SmolLM-135M).
+Similarly [SmolLM2](https://huggingface.co/HuggingFaceTB/SmolLM2-135M) has the 
+same architecture as SmolLM but it has been trained on improved training data.
 
 ## Qwen
 Alibaba's [Qwen 2.5](https://huggingface.co/collections/Qwen/qwen25-66e81a666513e518adb90d9e)
