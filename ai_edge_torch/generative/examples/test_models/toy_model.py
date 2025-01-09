@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 # A toy example which has a single-layer transformer block.
-from typing import Tuple
+from typing import Optional, Tuple
 
 from ai_edge_torch.generative.layers import builder
 from ai_edge_torch.generative.layers.attention import TransformerBlock
@@ -52,14 +52,20 @@ class ToySingleLayerModel(torch.nn.Module):
     self.config = config
 
   @torch.inference_mode
-  def forward(self, idx: torch.Tensor, input_pos: torch.Tensor) -> torch.Tensor:
+  def forward(
+      self,
+      idx: torch.Tensor,
+      input_pos: torch.Tensor,
+      mask: Optional[torch.Tensor] = None,
+  ) -> torch.Tensor:
     x = self.tok_embedding(idx)
     cos, sin = self.rope_cache
 
     cos = cos.index_select(0, input_pos)
     sin = sin.index_select(0, input_pos)
-    mask = self.mask_cache.index_select(2, input_pos)
-    mask = mask[:, :, :, : self.config.max_seq_len]
+    if mask is None:
+      mask = self.mask_cache.index_select(2, input_pos)
+      mask = mask[:, :, :, : self.config.max_seq_len]
 
     x = self.transformer_block(x, (cos, sin), mask, input_pos)
     x = self.final_norm(x)
@@ -98,7 +104,12 @@ class ToySingleLayerModelWeightSharing(torch.nn.Module):
     self.config = config
 
   @torch.inference_mode
-  def forward(self, idx: torch.Tensor, input_pos: torch.Tensor) -> torch.Tensor:
+  def forward(
+      self,
+      idx: torch.Tensor,
+      input_pos: torch.Tensor,
+      mask: Optional[torch.Tensor] = None,
+  ) -> torch.Tensor:
     x = self.tok_embedding(idx)
     cos, sin = self.rope_cache
 

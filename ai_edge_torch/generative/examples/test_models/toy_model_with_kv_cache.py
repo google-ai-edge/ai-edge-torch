@@ -63,14 +63,16 @@ class ToyModelWithKVCache(torch.nn.Module):
       tokens: torch.Tensor,
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
+      mask: Optional[torch.Tensor] = None,
       export_config: Optional[ExportConfig] = None,
   ) -> Tuple[torch.Tensor, kv_utils.KVCache]:
     x = self.tok_embedding(tokens)
     cos, sin = self.rope_cache
     cos = cos.index_select(0, input_pos)
     sin = sin.index_select(0, input_pos)
-    mask = self.mask_cache.index_select(2, input_pos)
-    mask = mask[:, :, :, : self.config.max_seq_len]
+    if mask is None:
+      mask = self.mask_cache.index_select(2, input_pos)
+      mask = mask[:, :, :, : self.config.max_seq_len]
 
     updated_kv_entries = []
     for i, block in enumerate(self.transformer_blocks):

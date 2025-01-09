@@ -99,6 +99,7 @@ class DecoderOnlyModel(nn.Module):
       tokens: torch.Tensor,
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
+      mask: Optional[torch.Tensor] = None,
       lora: Optional[lora_utils.LoRA] = None,
       export_config: Optional[ExportConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
@@ -122,8 +123,9 @@ class DecoderOnlyModel(nn.Module):
         # input_pos=input_pos, n_elem=n_elem, base=attn_config.rotary_base
     )
 
-    mask = self.mask_cache.index_select(2, input_pos)
-    mask = mask[:, :, :, : self.config.kv_cache_max]
+    if mask is None:
+      mask = self.mask_cache.index_select(2, input_pos)
+      mask = mask[:, :, :, : self.config.kv_cache_max]
 
     return self.forward_with_embeds(
         input_embeds, rope, mask, input_pos, kv_cache, lora, export_config

@@ -54,6 +54,7 @@ class Decoder(model_builder.DecoderOnlyModel):
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
       input_embeds: torch.Tensor = None,
+      mask: Optional[torch.Tensor] = None,
       export_config: Optional[model_builder.ExportConfig] = None,
       called_by_generate: bool = True,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
@@ -73,8 +74,9 @@ class Decoder(model_builder.DecoderOnlyModel):
     # The first part of input_embeds are image embeddings. Diagonal causal mask
     # doesn't work here.
     embeds_len = input_embeds.shape[1]
-    mask = torch.zeros(embeds_len, self.config.kv_cache_max)
-    mask[:, embeds_len:] = float("-inf")
+    if mask is None:
+      mask = torch.zeros(embeds_len, self.config.kv_cache_max)
+      mask[:, embeds_len:] = float("-inf")
 
     return self._forward_with_embeds(
         input_embeds, rope, mask, input_pos, kv_cache

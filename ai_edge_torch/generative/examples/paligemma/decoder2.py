@@ -57,6 +57,7 @@ class Decoder2(gemma2.Gemma2):
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
       input_embeds: torch.Tensor = None,
+      mask: Optional[torch.Tensor] = None,
       export_config: Optional[model_builder.ExportConfig] = None,
       called_by_generate: bool = True,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
@@ -73,17 +74,21 @@ class Decoder2(gemma2.Gemma2):
         repo_pos, n_elem, attn_config.head_dim, attn_config.rotary_base
     )
 
-    if called_by_generate:
-      # PaliGemma2 generate() use a diagonal causal mask even with image embeds.
-      mask = [self.get_attention_mask(
-          self.config.block_config(i).attn_config.attn_type, input_pos
-      ) for i in range(self.config.num_layers)]
-    else:
-      # By default, don't mask image embeds with a diagonal causal mask.
-      embeds_len = input_embeds.shape[1]
-      mask = torch.zeros(embeds_len, self.config.kv_cache_max)
-      mask[:, embeds_len:] = float("-inf")
-      mask = [mask] * self.config.num_layers
+    if mask is None:
+      if called_by_generate:
+        # PaliGemma2 generate() use a diagonal causal mask even with image embeds.
+        mask = [
+            self.get_attention_mask(
+                self.config.block_config(i).attn_config.attn_type, input_pos
+            )
+            for i in range(self.config.num_layers)
+        ]
+      else:
+        # By default, don't mask image embeds with a diagonal causal mask.
+        embeds_len = input_embeds.shape[1]
+        mask = torch.zeros(embeds_len, self.config.kv_cache_max)
+        mask[:, embeds_len:] = float("-inf")
+        mask = [mask] * self.config.num_layers
 
     return self._forward_with_embeds(
         input_embeds, rope, mask, input_pos, kv_cache, export_config
