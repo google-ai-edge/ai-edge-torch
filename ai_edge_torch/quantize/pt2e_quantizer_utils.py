@@ -21,8 +21,6 @@ from typing import Callable, Dict, List, NamedTuple, Optional
 import torch
 from torch.ao.quantization.fx.utils import get_new_attr_name_with_prefix
 from torch.ao.quantization.pt2e.graph_utils import find_sequential_partitions
-from torch.ao.quantization.pt2e.utils import _conv1d_bn_example_inputs
-from torch.ao.quantization.pt2e.utils import _conv2d_bn_example_inputs
 from torch.ao.quantization.pt2e.utils import _get_aten_graph_module_for_pattern
 from torch.ao.quantization.quantizer import QuantizationAnnotation
 from torch.ao.quantization.quantizer import QuantizationSpec
@@ -46,6 +44,28 @@ __all__ = [
     "OP_TO_ANNOTATOR",
     "propagate_annotation",
 ]
+
+# Example inputs for conv-bn1d patterns
+_conv1d_bn_example_inputs = (
+    torch.randn(1, 1, 3),  # x
+    torch.randn(1, 1, 1),  # conv_weight
+    torch.randn(1),  # conv_bias
+    torch.randn(1),  # bn_weight
+    torch.randn(1),  # bn_bias
+    torch.randn(1),  # bn_running_mean
+    torch.randn(1),  # bn_running_var
+)
+
+# Example inputs for conv-bn2d patterns
+_conv2d_bn_example_inputs = (
+    torch.randn(1, 1, 3, 3),  # x
+    torch.randn(1, 1, 1, 1),  # conv_weight
+    torch.randn(1),  # conv_bias
+    torch.randn(1),  # bn_weight
+    torch.randn(1),  # bn_bias
+    torch.randn(1),  # bn_running_mean
+    torch.randn(1),  # bn_running_var
+)
 
 
 @dataclass(eq=True, frozen=True)
