@@ -143,9 +143,7 @@ class Gemma2(nn.Module):
     # RoPE parameters are the same for all blocks. Use the first layer.
     attn_config = self.config.block_config(0).attn_config
     n_elem = int(attn_config.rotary_percentage * attn_config.head_dim)
-    rope = rotary_pos_emb.build_rope(
-        input_pos, n_elem, attn_config.head_dim, attn_config.rotary_base
-    )
+    rope = rotary_pos_emb.build_rope(input_pos, n_elem, attn_config.rotary_base)
     mask = [
         self.get_attention_mask(
             self.config.block_config(i).attn_config.attn_type, input_pos

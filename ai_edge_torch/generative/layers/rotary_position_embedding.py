@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 # Implementation for Rotary Position embedding. https://arxiv.org/pdf/2104.09864.pdf
+
 from typing import Tuple
 import torch
 
@@ -31,18 +32,17 @@ def apply_rope(
     output tensor of RoPE.
   """
   x = x.transpose(1, 2)
-  head_size = x.size(-1)
-  x1, x2 = torch.split(x, head_size // 2, dim=-1)
-  left = x1 * cos - x2 * sin
-  right = x2 * cos + x1 * sin
-  roped = torch.cat([left, right], dim=-1)
+  rope_size = cos.size(-1)
+  x_splited = torch.split(x, rope_size, dim=-1)
+  left = x_splited[0] * cos - x_splited[1] * sin
+  right = x_splited[1] * cos + x_splited[0] * sin
+  roped = torch.cat((left, right) + x_splited[2:], dim=-1)
   return roped.transpose(1, 2).type_as(x)
 
 
 def build_rope(
     input_pos: torch.Tensor,
     n_elem: int,
-    head_dim: int,
     base: int = 10_000,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
   """Computes rotary positional embedding cosine and sine tensors.
@@ -60,7 +60,7 @@ def build_rope(
     return None, None
 
   freq_exponents = (2.0 / n_elem) * torch.arange(
-      head_dim // 2, dtype=torch.float32
+      n_elem // 2, dtype=torch.float32
   )
   timescale = float(base) ** freq_exponents
   radians = input_pos.clone().unsqueeze(0).unsqueeze(-1) / timescale.unsqueeze(

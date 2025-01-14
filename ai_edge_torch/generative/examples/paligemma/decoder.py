@@ -67,9 +67,7 @@ class Decoder(model_builder.DecoderOnlyModel):
     # ROPE parameters for all attn_configs are the same. Take the first one.
     attn_config = self.config.block_config(0).attn_config
     n_elem = int(attn_config.rotary_percentage * attn_config.head_dim)
-    rope = rotary_pos_emb.build_rope(
-        repo_pos, n_elem, attn_config.head_dim, attn_config.rotary_base
-    )
+    rope = rotary_pos_emb.build_rope(repo_pos, n_elem, attn_config.rotary_base)
 
     # The first part of input_embeds are image embeddings. Diagonal causal mask
     # doesn't work here.

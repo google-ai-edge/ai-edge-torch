@@ -103,7 +103,6 @@ def _build_phi3_rope(
     device: torch.device,
     theta_factors: torch.Tensor,
     scale: float,
-    **kwargs,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
   """Computes Rotary Positional Embeddings for Phi-3.5 model.
 
@@ -173,6 +172,7 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       pre_attention_norm_config=norm_config,
       post_attention_norm_config=norm_config,
   )
+
   max_seq_len = 4096
   # Create the RoPE callable
   build_rope = partial(
@@ -182,7 +182,6 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       device=torch.device("cpu"),
       theta_factors=torch.tensor(ROPE_SHORT_FACTOR),
       scale=math.sqrt(1 + math.log(ROPE_SCALE_FACTOR) / math.log(max_seq_len)),
-      max_seq_len=max_seq_len,
   )
 
   config = cfg.ModelConfig(

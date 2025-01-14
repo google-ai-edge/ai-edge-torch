@@ -25,7 +25,6 @@ from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.layers import lora as lora_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
-import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
 from torch import nn
@@ -115,23 +114,17 @@ class DecoderOnlyModel(nn.Module):
     # ROPE parameters for all attn_configs are the same. Take the first one.
     attn_config = self.config.block_config(0).attn_config
     n_elem = int(attn_config.rotary_percentage * attn_config.head_dim)
-    rope = self.config.build_rope(
-        input_pos=input_pos,
-        n_elem=n_elem,
-        base=attn_config.rotary_base,
-        head_dim=attn_config.head_dim,
-        # input_pos=input_pos, n_elem=n_elem, base=attn_config.rotary_base
-    )
+    rope = self.config.build_rope(input_pos, n_elem, attn_config.rotary_base)
 
     if mask is None:
       mask = self.mask_cache.index_select(2, input_pos)
       mask = mask[:, :, :, : self.config.kv_cache_max]
 
-    return self.forward_with_embeds(
+    return self._forward_with_embeds(
         input_embeds, rope, mask, input_pos, kv_cache, lora, export_config
     )
 
-  def forward_with_embeds(
+  def _forward_with_embeds(
       self,
       input_embeds: torch.Tensor,
       rope: Tuple[torch.Tensor, torch.Tensor],

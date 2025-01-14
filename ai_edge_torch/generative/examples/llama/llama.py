@@ -37,7 +37,6 @@ def _build_llama3_rope_cache(
     low_freq_factor: float,
     high_freq_factor: float,
     max_seq_len: int,
-    **kwargs,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
   """Computes Rotary Positional Embeddings for Llama 3.2 model.
 
