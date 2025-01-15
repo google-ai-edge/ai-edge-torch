@@ -65,7 +65,7 @@ def scaled_dot_product_attention(
         scale=scale,
     )
   else:
-    q.mul_(scale)
+    q = q * scale
     scores = q @ k.transpose(-1, -2)
     scores = scores / softcap
     scores = torch.tanh(scores)
@@ -130,7 +130,7 @@ def scaled_dot_product_attention_with_hlfb(
         scale=scale,
     )
   else:
-    q.mul_(scale)
+    q = q * scale
     scores = q @ k.transpose(-1, -2)
     scores = scores / softcap
     scores = torch.tanh(scores)
