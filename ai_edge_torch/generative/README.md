@@ -18,7 +18,7 @@ The system is designed to help ML practitioners deploy their trained Large Langu
 * [Convert](#convert-pytorch-llm-to-a-tflite-model) the model, and get a TFLite Flatbuffer representing the mobile model.
 * Choose either approach below to deploy the end to end [LLM Inference Pipeline](#end-to-end-inference-pipeline).
 
-For a more detailed explaination of how the system works, please refer to the [System Overview](doc/system_overview.md).
+For a more detailed explanation of how the system works, please refer to the [System Overview](doc/system_overview.md).
 
 ### Model Authoring using Edge Generative API
 
@@ -67,7 +67,7 @@ https://github.com/google-ai-edge/ai-edge-torch/blob/853301630f2b2455bd2e2f73d8a
 Then export the model to TFLite with:
 https://github.com/google-ai-edge/ai-edge-torch/blob/853301630f2b2455bd2e2f73d8a47e1a1534c91c/ai_edge_torch/generative/examples/test_models/toy_model_with_kv_cache.py#L133-L139
 
-Please note that using the `prefill` and `decode` method conventions are required for easy integration into the Mediapipe LLM Inference API.
+Please note that using the `prefill_{SEQ-LEN}` and `decode` method conventions are required for easy integration into the Mediapipe LLM Inference API.
 
 To further optimize the on-device execution, a model can be exported with more than one prefill signature. As such, we use `prefill_{SEQ-LENS}` to export models with multiple prefill sequence lengths. During inference, the signature closest the input sequence length is used to minimize throwaway results.
 
@@ -137,7 +137,7 @@ For an end-to-end example showing how to author, convert, quantize and execute, 
 ## What to expect
 
 ### Future Roadmap
-* Expanded accleration support on mobile, and web GPUs, and mobile NPUs.
+* Expanded acceleration support on mobile, and web GPUs, and mobile NPUs.
 * Advanced quantization approaches suitable for LLMs.
 * Expanded support of models, including Diffusion models.
 * LoRA support.

@@ -167,10 +167,7 @@ def _export_helper(
       prefill_seq_len = prefill_seq_lens[i]
       prefill_tokens = prefill_tokens_list[i]
       prefill_input_pos = prefill_input_pos_list[i]
-      if i == 0 and len(prefill_seq_lens) == 1:
-        prefill_signature_name = 'prefill'
-      else:
-        prefill_signature_name = f'prefill_{prefill_seq_len}'
+      prefill_signature_name = f'prefill_{prefill_seq_len}'
 
       sample_kwargs = {
           'tokens': prefill_tokens,
