@@ -144,12 +144,13 @@ class Gemma2(nn.Module):
     attn_config = self.config.block_config(0).attn_config
     n_elem = int(attn_config.rotary_percentage * attn_config.head_dim)
     rope = rotary_pos_emb.build_rope(input_pos, n_elem, attn_config.rotary_base)
-    mask = [
-        self.get_attention_mask(
-            self.config.block_config(i).attn_config.attn_type, input_pos
-        )
-        for i in range(self.config.num_layers)
-    ]
+    if mask is None:
+      mask = [
+          self.get_attention_mask(
+              self.config.block_config(i).attn_config.attn_type, input_pos
+          )
+          for i in range(self.config.num_layers)
+      ]
 
     return self._forward_with_embeds(
         input_embeds, rope, mask, input_pos, kv_cache, export_config
@@ -159,7 +160,7 @@ class Gemma2(nn.Module):
       self,
       input_embeds: torch.Tensor,
       rope: Tuple[torch.Tensor, torch.Tensor],
-      mask: List[torch.Tensor],
+      mask: torch.Tensor | List[torch.Tensor],
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
       export_config: Optional[model_builder.ExportConfig] = None,
@@ -174,17 +175,10 @@ class Gemma2(nn.Module):
       input_embeds = input_embeds * self.config.embedding_scale
     x = input_embeds
     updated_kv_entries = []
-    mask_input = mask is not None
     for i, block in enumerate(self.transformer_blocks):
-      mask = (
-          mask
-          if mask_input
-          else self.get_attention_mask(
-              block.config.attn_config.attn_type, input_pos
-          )
-      )
+      mask_entry = mask[i] if isinstance(mask, list) else mask
       kv_entry = kv_cache.caches[i] if kv_cache else None
-      x, kv_entry = block(x, rope, mask[i], input_pos, kv_entry)
+      x, kv_entry = block(x, rope, mask_entry, input_pos, kv_entry)
       if kv_entry:
         updated_kv_entries.append(kv_entry)
     updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entries))
