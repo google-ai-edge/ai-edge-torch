@@ -109,21 +109,21 @@ def convert_signatures(
 
   _warn_training_modules(signatures)
 
-  def export(*args, **kwargs):
+  def export(**kwargs):
     nonlocal strict_export
     if strict_export == "auto":
       try:
-        exported_program = torch.export.export(*args, **kwargs, strict=True)
+        exported_program = torch.export.export(**kwargs, strict=True)
       except Exception:
         logging.warning(
             "torch.export.export(..., strict=True) failed. Retrying with"
             " strict=False"
         )
-        exported_program = torch.export.export(*args, **kwargs, strict=False)
+        exported_program = torch.export.export(**kwargs, strict=False)
     elif not strict_export:
-      exported_program = torch.export.export(*args, **kwargs, strict=False)
+      exported_program = torch.export.export(**kwargs, strict=False)
     else:
-      exported_program = torch.export.export(*args, **kwargs, strict=True)
+      exported_program = torch.export.export(**kwargs, strict=True)
 
     if hasattr(torch._decomp, "_decomp_table_to_post_autograd_aten"):
       # Available after torch 2.5.0: `_decomp_table_to_post_autograd_aten` is a
@@ -136,7 +136,12 @@ def convert_signatures(
     return exported_program
 
   exported_programs: torch.export.ExportedProgram = [
-      export(sig.module, sig.flat_args, dynamic_shapes=sig.dynamic_shapes)
+      export(
+          mod=sig.module,
+          args=sig.args,
+          kwargs=sig.kwargs,
+          dynamic_shapes=sig.dynamic_shapes,
+      )
       for sig in signatures
   ]
 

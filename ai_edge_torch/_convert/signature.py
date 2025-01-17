@@ -25,9 +25,9 @@ import torch.utils._pytree as pytree
 class Signature:
   name: str
   module: torch.nn.Module
-  sample_args: tuple[torch.Tensor]
+  sample_args: tuple[torch.Tensor, ...]
   sample_kwargs: dict[str, torch.Tensor]
-  dynamic_shapes: Optional[Union[Dict[str, Any], Tuple[Any]]] = None
+  dynamic_shapes: Optional[Union[Dict[str, Any], Tuple[Any, ...]]] = None
 
   @property
   def _normalized_sample_args_kwargs(self):
@@ -61,6 +61,16 @@ class Signature:
     return names
 
   @property
-  def flat_args(self) -> tuple[Any]:
+  def flat_args(self) -> tuple[Any, ...]:
     args, kwargs = self._normalized_sample_args_kwargs
     return tuple([*args, *kwargs.values()])
+
+  @property
+  def args(self) -> tuple[Any, ...]:
+    args, _ = self._normalized_sample_args_kwargs
+    return args
+
+  @property
+  def kwargs(self) -> dict[str, Any]:
+    _, kwargs = self._normalized_sample_args_kwargs
+    return kwargs

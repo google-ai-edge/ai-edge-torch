@@ -95,9 +95,9 @@ def _get_states(
     signatures: list[signature_module.Signature],
 ):
   for exported_program, signature in zip(exported_programs, signatures):
-    args, _ = exported_program.example_inputs
+    args, kwargs = exported_program.example_inputs
     # Calling this to get **all** the state including model buffers.
-    _flat_input_args = exported_program._graph_module_flat_inputs(args, {})
+    _flat_input_args = exported_program._graph_module_flat_inputs(args, kwargs)
     for tensor, input_spec in zip(
         _flat_input_args, exported_program.graph_signature.input_specs
     ):
