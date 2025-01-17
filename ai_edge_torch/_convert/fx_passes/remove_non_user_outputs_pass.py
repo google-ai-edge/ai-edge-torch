@@ -15,11 +15,11 @@
 """Pass to remove all non user outputs from exported program."""
 
 
-from ai_edge_torch import fx_pass_base
+from ai_edge_torch import fx_infra
 import torch
 
 
-class RemoveNonUserOutputsPass(fx_pass_base.ExportedProgramPassBase):
+class RemoveNonUserOutputsPass(fx_infra.ExportedProgramPassBase):
   """This pass removes all non user outputs from the exported program's output.
 
   The FX graph may output more tensors/data than what user's original model
@@ -47,6 +47,6 @@ class RemoveNonUserOutputsPass(fx_pass_base.ExportedProgramPassBase):
       node.args = (tuple(new_outputs),)
       exported_program.graph_signature.output_specs = new_output_specs
 
-    exported_program.graph_module.graph.lint()
+    exported_program.graph.eliminate_dead_code()
     exported_program.graph_module.recompile()
-    return fx_pass_base.ExportedProgramPassResult(exported_program, True)
+    return fx_infra.ExportedProgramPassResult(exported_program, True)

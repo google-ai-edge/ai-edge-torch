@@ -14,6 +14,7 @@
 # ==============================================================================
 """Tests for mark_pattern."""
 
+from ai_edge_torch import fx_infra
 from ai_edge_torch import lowertools
 from ai_edge_torch.hlfb import mark_pattern
 from ai_edge_torch.hlfb.mark_pattern import pattern as pattern_module
@@ -22,11 +23,13 @@ import torch
 from absl.testing import absltest as googletest
 
 
-def _export_stablehlo_mlir(model, args=None):
-  if not isinstance(model, torch.export.ExportedProgram):
-    ep = torch.export.export(model, args)
-  else:
-    ep = model
+def _export_and_decomp(mod, args):
+  ep = torch.export.export(mod, args)
+  ep = fx_infra.safe_run_decompositions(ep, fx_infra.decomp.pre_lower_decomp())
+  return ep
+
+
+def _to_mlir(ep: torch.export.ExportedProgram):
   return lowertools.exported_program_to_mlir_text(ep)
 
 
@@ -47,9 +50,9 @@ class TestMarkPattern(googletest.TestCase):
 
     model = TestModel().eval()
     args = (torch.rand(20, 20),)
-    exported_program = torch.export.export(model, args)
+    exported_program = _export_and_decomp(model, args)
     mark_pattern.mark_pattern(exported_program.graph_module, pattern)
-    mlir = _export_stablehlo_mlir(exported_program)
+    mlir = _to_mlir(exported_program)
 
     lowertools.assert_string_count(
         self,
@@ -73,9 +76,9 @@ class TestMarkPattern(googletest.TestCase):
 
     model = TestModel().eval()
     args = (torch.rand(20, 20),)
-    exported_program = torch.export.export(model, args)
+    exported_program = _export_and_decomp(model, args)
     mark_pattern.mark_pattern(exported_program.graph_module, pattern)
-    mlir = _export_stablehlo_mlir(exported_program)
+    mlir = _to_mlir(exported_program)
 
     lowertools.assert_string_count(
         self,
@@ -99,9 +102,9 @@ class TestMarkPattern(googletest.TestCase):
 
     model = TestModel().eval()
     args = (torch.rand(20, 20),)
-    exported_program = torch.export.export(model, args)
+    exported_program = _export_and_decomp(model, args)
     mark_pattern.mark_pattern(exported_program.graph_module, pattern)
-    mlir = _export_stablehlo_mlir(exported_program)
+    mlir = _to_mlir(exported_program)
 
     lowertools.assert_string_count(
         self,
@@ -137,9 +140,9 @@ class TestMarkPattern(googletest.TestCase):
 
     model = TestModel().eval()
     args = (torch.rand(10, 10),)
-    exported_program = torch.export.export(model, args)
+    exported_program = _export_and_decomp(model, args)
     mark_pattern.mark_pattern(exported_program.graph_module, pattern)
-    mlir = _export_stablehlo_mlir(exported_program)
+    mlir = _to_mlir(exported_program)
 
     lowertools.assert_string_count(
         self,
@@ -169,9 +172,9 @@ class TestMarkPattern(googletest.TestCase):
 
     model = TestModel().eval()
     args = (torch.rand(20, 20), torch.rand(20, 20))
-    exported_program = torch.export.export(model, args)
+    exported_program = _export_and_decomp(model, args)
     mark_pattern.mark_pattern(exported_program.graph_module, pattern)
-    mlir = _export_stablehlo_mlir(exported_program)
+    mlir = _to_mlir(exported_program)
 
     lowertools.assert_string_count(
         self,

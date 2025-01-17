@@ -17,7 +17,7 @@
 import dataclasses
 from typing import Any, Callable, Optional, Union
 
-from ai_edge_torch import fx_pass_base
+from ai_edge_torch import fx_infra
 from ai_edge_torch.hlfb.mark_pattern import fx_utils
 import torch
 
@@ -118,7 +118,7 @@ def _find_scalar_attr(
     track_args[tracker.pattern_arg_pos] = source
     ep = torch.export.export(pattern_module, tuple(track_args))
     if decomp_table is not None:
-      ep = fx_pass_base.run_passes(ep, [fx_pass_base.CanonicalizePass()])
+      ep = fx_infra.run_passes(ep, [fx_infra.CanonicalizePass()])
       ep = ep.run_decompositions(decomp_table)
 
     scalar_locs = set()
@@ -152,13 +152,15 @@ class Pattern:
       self,
       name: str,
       module: Union[Callable, torch.nn.Module],
-      export_args: tuple[Any],
+      export_args: tuple[Any, ...],
       *,
       attr_builder: Callable[
           ["Pattern", GraphModule, InternalMatch], Optional[dict[str, Any]]
       ] = None,
       scalar_attr_trackers: list[ScalarAttrTracker] = None,
-      decomp_table: Optional[dict[torch._ops.OperatorBase, Callable]] = None,
+      extra_decomp_table: Optional[
+          dict[torch._ops.OperatorBase, Callable]
+      ] = None,
   ):
     """The PyTorch computation pattern to match against a model.
 
@@ -177,8 +179,9 @@ class Pattern:
       scalar_attr_trackers (list[ScalarAttrTracker]): the trackers for scalar
         args in `export_args`, which are used to track the attr occurrence(s)
         and retrieve their values from the matched subgraph.
-      decomp_table (Optional[dict[torch._ops.OperatorBase, Callable]]): The
-        decomposition table to be run on the pattern's exported program.
+      extra_decomp_table (Optional[dict[torch._ops.OperatorBase, Callable]]):
+        Extra decomposition to be run on the pattern's exported program (in
+        addition to the default pre_convert_decomp in fx_infra.decomp).
     """
     if not isinstance(module, torch.nn.Module):
 
@@ -200,11 +203,14 @@ class Pattern:
     )
 
     exported_program = torch.export.export(module, export_args)
-    if decomp_table is not None:
-      exported_program = fx_pass_base.run_passes(
-          exported_program, [fx_pass_base.CanonicalizePass()]
-      )
-      exported_program = exported_program.run_decompositions(decomp_table)
+
+    decomp_table = fx_infra.decomp.pre_convert_decomp()
+    if extra_decomp_table is not None:
+      decomp_table.update(extra_decomp_table)
+
+    exported_program = fx_infra.safe_run_decompositions(
+        exported_program, decomp_table
+    )
 
     self.exported_program = exported_program
     self.graph_module = self.exported_program.graph_module
@@ -222,6 +228,9 @@ class Pattern:
     # sanitization.
     self.graph_module = fx_utils.remove_clone_ops(self.graph_module)
     self.graph_module = fx_utils.remove_dangling_args(self.graph_module)
+    self.graph_module = fx_utils.remove_assert_tensor_metadata_nodes(
+        self.graph_module
+    )
 
     # Builds list of ordered input and output nodes.
     self.graph_nodes_map = {}
