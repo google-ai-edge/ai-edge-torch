@@ -232,7 +232,7 @@ class TestModelConversion(googletest.TestCase):
       ai_edge_torch.config.in_oss,
       reason="tests with custom ops are not supported in oss",
   )
-  def disabled_test_paligemma1(self):
+  def test_paligemma1(self):
     self._test_paligemma_model(
         decoder.Decoder, decoder.get_fake_decoder_config, atol=1e-3, rtol=1e-5
     )
@@ -241,7 +241,7 @@ class TestModelConversion(googletest.TestCase):
       ai_edge_torch.config.in_oss,
       reason="tests with custom ops are not supported in oss",
   )
-  def disabled_test_paligemma2(self):
+  def test_paligemma2(self):
     self._test_paligemma_model(
         decoder2.Decoder2,
         decoder2.get_fake_decoder2_config,
