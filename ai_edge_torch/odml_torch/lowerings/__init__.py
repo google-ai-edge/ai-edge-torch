@@ -15,6 +15,7 @@
 from . import _basic
 from . import _batch_norm
 from . import _convolution
+from . import _decomp_registry
 from . import _jax_lowerings
 from . import _layer_norm
 from . import _quantized_decomposed
@@ -22,6 +23,5 @@ from . import _rand
 from . import context
 from . import registry
 from . import utils
-from .decomp import decompositions
 from .registry import lookup
 from .registry import lower

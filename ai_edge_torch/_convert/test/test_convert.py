@@ -511,7 +511,7 @@ class TestConvert(googletest.TestCase):
     # Step 1: export resnet18
     args = (torch.randn(1, 3, 224, 224),)
     m = torchvision.models.resnet18().eval()
-    m = torch._export.capture_pre_autograd_graph(m, args)
+    m = torch.export.export_for_training(m, args).module()
 
     # Step 2: Insert observers or fake quantize modules
     quantizer = pt2e_quantizer.PT2EQuantizer().set_global(
@@ -533,7 +533,7 @@ class TestConvert(googletest.TestCase):
     # Step 1: export resnet18
     args = (torch.randn(1, 3, 224, 224),)
     m = torchvision.models.resnet18().eval()
-    m = torch._export.capture_pre_autograd_graph(m, args)
+    m = torch.export.export_for_training(m, args).module()
 
     # Step 2: Insert observers or fake quantize modules
     quantizer = pt2e_quantizer.PT2EQuantizer().set_global(

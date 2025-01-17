@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 from ai_edge_torch._config import config
 from ai_edge_torch._convert.converter import convert
 from ai_edge_torch._convert.converter import signature
 from ai_edge_torch._convert.to_channel_last_io import to_channel_last_io
 from ai_edge_torch.model import Model
 from ai_edge_torch.version import __version__
+
 
 def load(path: str) -> Model:
   """Imports an ai_edge_torch model from disk.
