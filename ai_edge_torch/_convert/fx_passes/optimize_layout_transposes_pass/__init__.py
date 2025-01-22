@@ -13,4 +13,5 @@
 # limitations under the License.
 # ==============================================================================
 
+from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import _decomp_registry
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass.pass_body import OptimizeLayoutTransposesPass  # NOQA

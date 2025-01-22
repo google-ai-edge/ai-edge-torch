@@ -90,7 +90,6 @@ def mark_pattern(
   graph_module_to_match = fx_utils.remove_clone_ops(graph_module_to_match)
 
   match_with_attrs = pattern.match(graph_module_to_match)
-
   for match, attr in match_with_attrs:
     match_id = _get_uuid()
 

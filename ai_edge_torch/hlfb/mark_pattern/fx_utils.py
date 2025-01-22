@@ -14,8 +14,13 @@
 # ==============================================================================
 """FX graph utilities for pattern matching clean ups."""
 
+from ai_edge_torch import fx_infra
 import torch
 
+remove_dangling_args = fx_infra.graph_utils.remove_dangling_args
+remove_assert_tensor_metadata_nodes = (
+    fx_infra.graph_utils.remove_assert_tensor_metadata_nodes
+)
 
 def is_clone_op(node: torch.fx.Node) -> bool:
   """Checks if the node is a clone op."""
@@ -42,27 +47,6 @@ def remove_clone_ops(gm: torch.fx.GraphModule):
     if is_clone_op(node):
       node.replace_all_uses_with(node.args[0])
       gm.graph.erase_node(node)
-
-  gm.graph.lint()
-  gm.recompile()
-  return gm
-
-
-def remove_dangling_args(gm: torch.fx.GraphModule):
-  """Removes dangling args from the graph.
-
-  Args:
-    gm: The graph module to remove dangling args from.
-
-  Returns:
-    The graph module with dangling args removed.
-  """
-  nodes_to_erase = []
-  for node in gm.graph.nodes:
-    if node.op == "placeholder" and len(node.users) == 0:
-      nodes_to_erase.append(node)
-  for node in nodes_to_erase:
-    gm.graph.erase_node(node)
 
   gm.graph.lint()
   gm.recompile()

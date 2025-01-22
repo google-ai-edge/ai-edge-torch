@@ -14,7 +14,7 @@
 # ==============================================================================
 
 from typing import Any, Callable
-from ai_edge_torch import fx_pass_base
+from ai_edge_torch import fx_infra
 from ai_edge_torch import lowertools
 import torch
 import torch.utils._pytree as pytree
@@ -25,6 +25,9 @@ _composite_builders: dict[
 
 
 def _register_composite_builder(op):
+  # Remove op from pre_convert_decomp to keep this in the decomposed graph.
+  fx_infra.decomp.remove_pre_convert_decomp(op)
+
   def inner(func):
     if isinstance(op, torch._ops.OpOverloadPacket):
       for overload in op.overloads():
@@ -276,7 +279,7 @@ def _aten_embedding(gm: torch.fx.GraphModule, node: torch.fx.Node):
   node.target = embedding
 
 
-class BuildAtenCompositePass(fx_pass_base.PassBase):
+class BuildAtenCompositePass(fx_infra.PassBase):
 
   def call(self, graph_module: torch.fx.GraphModule):
     for node in graph_module.graph.nodes:
@@ -285,4 +288,4 @@ class BuildAtenCompositePass(fx_pass_base.PassBase):
 
     graph_module.graph.lint()
     graph_module.recompile()
-    return fx_pass_base.PassResult(graph_module, True)
+    return fx_infra.PassResult(graph_module, True)

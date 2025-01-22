@@ -16,7 +16,7 @@
 
 import functools
 
-from ai_edge_torch import fx_pass_base
+from ai_edge_torch import fx_infra
 from ai_edge_torch.hlfb import mark_pattern
 from ai_edge_torch.hlfb.mark_pattern import pattern as pattern_module
 import torch
@@ -41,7 +41,7 @@ def _get_upsample_bilinear2d_pattern():
           x, scale_factor=2, mode="bilinear", align_corners=False
       ),
       export_args=(torch.rand(1, 3, 100, 100),),
-      decomp_table=_INTERPOLATE_DECOMPOSITIONS,
+      extra_decomp_table=_INTERPOLATE_DECOMPOSITIONS,
   )
 
   @pattern.register_attr_builder
@@ -65,7 +65,7 @@ def _get_upsample_bilinear2d_align_corners_pattern():
           x, scale_factor=2, mode="bilinear", align_corners=True
       ),
       export_args=(torch.rand(1, 3, 100, 100),),
-      decomp_table=_INTERPOLATE_DECOMPOSITIONS,
+      extra_decomp_table=_INTERPOLATE_DECOMPOSITIONS,
   )
 
   @pattern.register_attr_builder
@@ -89,7 +89,7 @@ def _get_interpolate_nearest2d_pattern():
           x, scale_factor=2, mode="nearest"
       ),
       export_args=(torch.rand(1, 3, 100, 100),),
-      decomp_table=_INTERPOLATE_DECOMPOSITIONS,
+      extra_decomp_table=_INTERPOLATE_DECOMPOSITIONS,
   )
 
   @pattern.register_attr_builder
@@ -104,7 +104,7 @@ def _get_interpolate_nearest2d_pattern():
   return pattern
 
 
-class BuildInterpolateCompositePass(fx_pass_base.ExportedProgramPassBase):
+class BuildInterpolateCompositePass(fx_infra.ExportedProgramPassBase):
 
   def __init__(self):
     super().__init__()
@@ -115,11 +115,9 @@ class BuildInterpolateCompositePass(fx_pass_base.ExportedProgramPassBase):
     ]
 
   def call(self, exported_program: torch.export.ExportedProgram):
-    exported_program = fx_pass_base.run_passes(
-        exported_program, [fx_pass_base.CanonicalizePass()]
-    )
-    exported_program = exported_program.run_decompositions(
-        _INTERPOLATE_DECOMPOSITIONS
+    exported_program = fx_infra.safe_run_decompositions(
+        exported_program,
+        _INTERPOLATE_DECOMPOSITIONS,
     )
 
     graph_module = exported_program.graph_module
@@ -128,4 +126,4 @@ class BuildInterpolateCompositePass(fx_pass_base.ExportedProgramPassBase):
 
     graph_module.graph.lint()
     graph_module.recompile()
-    return fx_pass_base.ExportedProgramPassResult(exported_program, True)
+    return fx_infra.ExportedProgramPassResult(exported_program, True)

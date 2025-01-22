@@ -18,7 +18,7 @@ import operator
 import os
 from typing import Union
 
-from ai_edge_torch import fx_pass_base
+from ai_edge_torch import fx_infra
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import layout_check  # NOQA
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import layout_mark  # NOQA
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import layout_partitioners  # NOQA
@@ -30,7 +30,7 @@ import torch.ao.quantization.quantize_pt2e
 TransposeFunc = Union[utils.tensor_to_nchw, utils.tensor_to_nhwc]
 
 
-class OptimizeLayoutTransposesPass(fx_pass_base.ExportedProgramPassBase):
+class OptimizeLayoutTransposesPass(fx_infra.ExportedProgramPassBase):
 
   def get_source_meta(self, node: torch.fx.Node):
     keys = ["stack_trace", "nn_module_stack", "source_fn_stack", "from_node"]
@@ -300,4 +300,4 @@ class OptimizeLayoutTransposesPass(fx_pass_base.ExportedProgramPassBase):
     # Mark const node again for debugging
     self.mark_const_nodes(exported_program)
 
-    return fx_pass_base.ExportedProgramPassResult(exported_program, True)
+    return fx_infra.ExportedProgramPassResult(exported_program, True)

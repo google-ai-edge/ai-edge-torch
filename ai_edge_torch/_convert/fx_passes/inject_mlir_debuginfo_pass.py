@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from ai_edge_torch import fx_pass_base
+from ai_edge_torch import fx_infra
 from ai_edge_torch import lowertools
 import torch
 import torch.utils._pytree as pytree
@@ -61,7 +61,7 @@ def _wrap_call_function_node_with_debuginfo_writer(node: torch.fx.GraphModule):
   node.target = debuginfo_writer
 
 
-class InjectMlirDebuginfoPass(fx_pass_base.PassBase):
+class InjectMlirDebuginfoPass(fx_infra.PassBase):
   """DEPRECATED: Debuginfo is injected automatically by odml_torch."""
 
   def call(self, graph_module: torch.fx.GraphModule):
@@ -70,4 +70,4 @@ class InjectMlirDebuginfoPass(fx_pass_base.PassBase):
 
     graph_module.graph.lint()
     graph_module.recompile()
-    return fx_pass_base.PassResult(graph_module, True)
+    return fx_infra.PassResult(graph_module, True)

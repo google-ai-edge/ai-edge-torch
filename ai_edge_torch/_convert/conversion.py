@@ -17,7 +17,7 @@ import logging
 from typing import Any, Literal, Optional, Union
 
 import ai_edge_torch
-from ai_edge_torch import fx_pass_base
+from ai_edge_torch import fx_infra
 from ai_edge_torch import lowertools
 from ai_edge_torch import model
 from ai_edge_torch._convert import fx_passes
@@ -53,7 +53,7 @@ def _run_convert_passes(
         fx_passes.CanonicalizePass(),
     ]
 
-  exported_program = fx_pass_base.run_passes(exported_program, passes)
+  exported_program = fx_infra.run_passes(exported_program, passes)
   return exported_program
 
 
@@ -125,14 +125,10 @@ def convert_signatures(
     else:
       exported_program = torch.export.export(**kwargs, strict=True)
 
-    if hasattr(torch._decomp, "_decomp_table_to_post_autograd_aten"):
-      # Available after torch 2.5.0: `_decomp_table_to_post_autograd_aten` is a
-      # stop-gap table which replicates the old behaviour of post-dispatch IR.
-      # This could help ensure the collection of aten ops remaining still as the
-      # implementation of torch.export changes.
-      exported_program = exported_program.run_decompositions(
-          torch._decomp._decomp_table_to_post_autograd_aten()
-      )
+    exported_program = fx_infra.safe_run_decompositions(
+        exported_program,
+        fx_infra.decomp.pre_convert_decomp(),
+    )
     return exported_program
 
   exported_programs: torch.export.ExportedProgram = [

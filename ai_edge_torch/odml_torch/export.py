@@ -20,6 +20,7 @@ import io
 import operator
 from typing import Any, Callable, Optional
 
+from ai_edge_torch import fx_infra
 from jax.lib import xla_extension
 from jax._src.lib.mlir import ir
 from jax._src.lib.mlir.dialects import func
@@ -302,16 +303,13 @@ def exported_program_to_mlir(
     exported_program: torch.export.ExportedProgram,
 ) -> MlirLowered:
   """Lower the exported program to MLIR."""
-  exported_program = _torch_future.safe_run_decompositions(
-      exported_program, lowerings.decompositions()
+  exported_program = fx_infra.safe_run_decompositions(
+      exported_program,
+      fx_infra.decomp.pre_lower_decomp(),
   )
-
   _convert_i64_to_i32(exported_program)
-
-  # No decompositions but just retracing/cananicalization.
-  exported_program = _torch_future.safe_run_decompositions(
-      exported_program, _torch_future.dummy_decomp_table()
-  )
+  # Run decompositions for retracing and cananicalization.
+  exported_program = fx_infra.safe_run_decompositions(exported_program, {})
 
   # Passes below mutate the exported program to a state not executable by torch.
   # Do not call run_decompositions after applying the passes.

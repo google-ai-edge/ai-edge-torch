@@ -1,4 +1,4 @@
-# Copyright 2024 The AI Edge Torch Authors.
+# Copyright 2025 The AI Edge Torch Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,20 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Op function registry for the optimized layout transposes pass."""
+from ai_edge_torch.fx_infra import _safe_run_decompositions
+from ai_edge_torch.fx_infra import pass_base
+import torch
 
-from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import utils
 
+class CanonicalizePass(pass_base.ExportedProgramPassBase):
 
-class OpFuncRegistry(dict):
+  def call(self, exported_program: torch.export.ExportedProgram):
+    exported_program = _safe_run_decompositions.safe_run_decompositions(
+        exported_program, {}
+    )
 
-  def register(self, op):
-
-    ops = utils.flatten_torch_op_overloads(op)
-
-    def inner(func):
-      for op in ops:
-        self[op] = func
-      return func
-
-    return inner
+    return pass_base.ExportedProgramPassResult(exported_program, True)
