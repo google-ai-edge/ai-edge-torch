@@ -55,6 +55,9 @@ class ExportConfig:
   # On prefill signatures, should the model produce logit output?
   # When False, only decode signatures will produce output.
   output_logits_on_prefill: bool = False
+  # Attention masks given as inputs to the model.
+  prefill_mask: Optional[torch.Tensor] = None
+  decode_mask: Optional[torch.Tensor] = None
 
 
 class DecoderOnlyModel(nn.Module):

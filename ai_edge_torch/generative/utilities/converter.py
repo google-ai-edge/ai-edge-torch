@@ -174,6 +174,9 @@ def _export_helper(
           'input_pos': prefill_input_pos,
           'kv_cache': kv,
       }
+      if export_config.prefill_mask is not None:
+        sample_kwargs['mask'] = export_config.prefill_mask
+
       if lora is not None:
         prefill_signature_name += f'_lora_r{lora.get_rank()}'
         sample_kwargs['lora'] = lora
@@ -199,6 +202,8 @@ def _export_helper(
         'input_pos': decode_input_pos,
         'kv_cache': kv,
     }
+    if export_config.decode_mask is not None:
+      sample_kwargs['mask'] = export_config.decode_mask
     if lora is not None:
       sample_kwargs['lora'] = lora
 
