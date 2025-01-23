@@ -29,7 +29,7 @@ LoweringContext = context.LoweringContext
 
 @functools.cache
 def _log_usage(op):
-  logging.warning("Use jax lowering: %s", str(op))
+  logging.info("Use JAX lowering: %s", str(op))
 
 
 def lower_by_jax(op, ir_input_names=None):
