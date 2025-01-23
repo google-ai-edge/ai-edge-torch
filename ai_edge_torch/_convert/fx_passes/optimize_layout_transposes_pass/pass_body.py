@@ -18,6 +18,7 @@ import operator
 import os
 from typing import Union
 
+import ai_edge_torch
 from ai_edge_torch import fx_infra
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import layout_check  # NOQA
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import layout_mark  # NOQA
@@ -261,10 +262,8 @@ class OptimizeLayoutTransposesPass(fx_infra.ExportedProgramPassBase):
     self.mark_const_nodes(exported_program)
 
     graph_module = exported_program.graph_module
-    partitioner = os.environ.get(
-        "AIEDGETORCH_LAYOUT_OPTIMIZE_PARTITIONER", None
-    )
-    if partitioner == "MINCUT":
+    partitioner = ai_edge_torch.config.layout_optimize_partitioner
+    if partitioner in ("MINCUT", "OPTIMAL"):
       graph_module = layout_partitioners.min_cut.partition(graph_module)
     elif partitioner == "GREEDY":
       graph_module = layout_partitioners.greedy.partition(graph_module)

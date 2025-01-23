@@ -65,5 +65,14 @@ class _Config:
   def enable_group_norm_composite(self, value: bool):
     os.environ["ENABLE_GROUP_NORM_COMPOSITE"] = "y" if value else "n"
 
+  @property
+  def layout_optimize_partitioner(self) -> str:
+    """The algorithm to use for layout optimization."""
+    return os.environ.get("AIEDGETORCH_LAYOUT_OPTIMIZE_PARTITIONER", "DEFAULT")
+
+  @layout_optimize_partitioner.setter
+  def layout_optimize_partitioner(self, value: str):
+    os.environ["AIEDGETORCH_LAYOUT_OPTIMIZE_PARTITIONER"] = str(value).upper()
+
 
 config = _Config()
