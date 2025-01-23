@@ -391,34 +391,32 @@ def _aten_native_group_norm(node):
       eps: float,
       **kwargs,
   ):
-    input_reshaped = torch.reshape(
-        input,
-        [
-            batch_size,
-            flattened_inner_size,
-            num_groups,
-            num_channels // num_groups,
-        ],
+    is_composite_supported = (
+        ai_edge_torch.config.enable_group_norm_composite
+        and weight is not None
+        and bias is not None
     )
-    reduction_dims = [1, 3]
 
-    biased_var, mean = torch.var_mean(
-        input_reshaped, dim=reduction_dims, unbiased=False, keepdim=True
-    )
-    rstd = torch.rsqrt(biased_var + eps)
+    builder = None
+    if is_composite_supported:
+      builder = StableHLOCompositeBuilder(
+          name="odml.group_norm",
+          attr={
+              "num_groups": num_groups,
+              "epsilon": eps,
+              "reduction_axes": [3],
+              "channel_axis": 3,
+          },
+      )
+      input, weight, bias = builder.mark_inputs(input, weight, bias)
 
-    out = (input_reshaped - mean) * rstd
-    out = torch.reshape(out, input.shape)
+    input = utils.tensor_to_nchw(input)
+    output = aten.group_norm.default(input, num_groups, weight, bias, eps=eps)
+    output = utils.tensor_to_nhwc(output)
 
-    if weight is not None:
-      out = out * weight
-    if bias is not None:
-      out = out + bias
-
-    mean = torch.squeeze(mean, reduction_dims)
-    rstd = torch.squeeze(rstd, reduction_dims)
-
-    return out, mean, rstd
+    if builder is not None:
+      output = builder.mark_outputs(output)
+    return (output, None, None)
 
   node.target = native_group_norm
 

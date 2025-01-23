@@ -16,7 +16,9 @@
 
 from typing import Callable, Union
 
+import ai_edge_torch
 from ai_edge_torch import fx_infra
+from ai_edge_torch import lowertools
 from ai_edge_torch._convert import fx_passes
 import torch
 import torch.utils._pytree as pytree
@@ -48,10 +50,7 @@ def export_with_pass(
   )
   exported_program = fx_infra.run_passes(
       exported_program,
-      [
-          fx_passes.OptimizeLayoutTransposesPass(),
-          fx_passes.CanonicalizePass(),
-      ],
+      [fx_passes.OptimizeLayoutTransposesPass()],
   )
   return exported_program
 
@@ -90,27 +89,19 @@ class TestOptimizeLayoutTransposesPass(googletest.TestCase):
         model, exported_program.module(), forward_args()
     )
 
-  def test_native_group_norm_no_weight_bias(self):
-    batch_size = 16
-    num_channels = 640
-    flattened_inner_size = 256
-    num_groups = 32
-    eps = 1e-6
+  def test_group_norm_affine_false(self):
 
     class SampleModel(torch.nn.Module):
 
+      def __init__(self):
+        super().__init__()
+        self.group_norm = torch.nn.GroupNorm(
+            num_groups=32, num_channels=640, affine=False, eps=1e-6
+        )
+
       def forward(self, x):
         x = torch.nn.AvgPool2d(2)(x)
-        x = torch.ops.aten.native_group_norm(
-            x,
-            None,
-            None,
-            batch_size,
-            num_channels,
-            flattened_inner_size,
-            num_groups,
-            eps,
-        )[0]
+        x = self.group_norm(x)
         x = torch.nn.AvgPool2d(2)(x)
         return x
 
@@ -121,41 +112,56 @@ class TestOptimizeLayoutTransposesPass(googletest.TestCase):
         model, exported_program.module(), forward_args()
     )
 
-  def test_native_group_norm_large_weight_bias(self):
-    batch_size = 16
-    num_channels = 640
-    flattened_inner_size = 256
-    num_groups = 32
-    eps = 1e-6
+  def test_group_norm_large_affine_true(self):
 
     class SampleModel(torch.nn.Module):
 
-      def forward(self, x, weight, bias):
+      def __init__(self):
+        super().__init__()
+        self.group_norm = torch.nn.GroupNorm(
+            num_groups=32, num_channels=640, affine=True, eps=1e-6
+        )
+
+      def forward(self, x):
         x = torch.nn.AvgPool2d(2)(x)
-        x = torch.ops.aten.native_group_norm(
-            x,
-            weight,
-            bias,
-            batch_size,
-            num_channels,
-            flattened_inner_size,
-            num_groups,
-            eps,
-        )[0]
+        x = self.group_norm(x)
         x = torch.nn.AvgPool2d(2)(x)
         return x
 
     model = SampleModel().eval()
-    forward_args = lambda: (
-        torch.rand(16, 640, 32, 32) * 1000,
-        torch.rand([640]) * 1000,
-        torch.rand([640]) * 1000,
-    )
+    forward_args = lambda: (torch.rand(16, 640, 32, 32) * 1000,)
     exported_program = export_with_pass(model, forward_args())
     self.assert_outputs_allclose(
         model, exported_program.module(), forward_args()
     )
 
+  def test_group_norm_with_composite_enabled(self):
+    ai_edge_torch.config.enable_group_norm_composite = True
 
-if __name__ == '__main__':
+    class SampleModel(torch.nn.Module):
+
+      def __init__(self):
+        super().__init__()
+        self.group_norm = torch.nn.GroupNorm(
+            num_groups=2, num_channels=10, affine=True
+        )
+
+      def forward(self, x):
+        x = torch.nn.AvgPool2d(2)(x)
+        x = self.group_norm(x)
+        x = torch.nn.AvgPool2d(2)(x)
+        return x
+
+    model = SampleModel().eval()
+    forward_args = lambda: (torch.rand(1, 10, 32, 32),)
+    exported_program = export_with_pass(model, forward_args())
+    self.assert_outputs_allclose(
+        model, exported_program.module(), forward_args()
+    )
+
+    ir_text = lowertools.exported_program_to_mlir_text(exported_program)
+    self.assertEqual(ir_text.count("stablehlo.custom_call @mark_tensor"), 4)
+
+
+if __name__ == "__main__":
   googletest.main()

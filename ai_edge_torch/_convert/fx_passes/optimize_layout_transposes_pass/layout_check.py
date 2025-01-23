@@ -201,8 +201,14 @@ def _aten_group_norm_checker(node):
   return NHWCable(can_be=can_be, must_be=must_be)
 
 
-@nhwcable_node_checkers.register(aten.native_group_norm)
+@nhwcable_node_checkers.register(aten.native_group_norm.default)
 def _aten_native_group_norm_checker(node):
+  # aten.group_norm is removed from the decomp table, so aten.native_group_norm
+  # should never exist in the graph. However, torch 2.5.1 could ignore the
+  # decomp table updates, so still add this native_group_norm checker and
+  # rewriter to be safe.
+  # The checker and rewriter are the same as the ones for aten.group_norm.
+
   val = node.meta.get("val")
   if (
       not isinstance(val, (list, tuple))
@@ -210,13 +216,10 @@ def _aten_native_group_norm_checker(node):
       or not hasattr(val[0], "shape")
   ):
     return NHWCable(can_be=False, must_be=False)
-  if len(node.args) >= 3 and (
-      node.args[1] is not None or node.args[2] is not None
-  ):
-    # Disable NHWC rewriter due to precision issue with weight and bias.
-    # TODO(b/354780253): Re-enable NHWC rewriter with proper lowering.
-    return NHWCable(can_be=False, must_be=False)
-  return NHWCable(can_be=len(val[0].shape) == 4, must_be=False)
+
+  can_be = len(val[0].shape) == 4
+  must_be = can_be and ai_edge_torch.config.enable_group_norm_composite
+  return NHWCable(can_be=can_be, must_be=must_be)
 
 
 # ==== Ops must be NCHW
