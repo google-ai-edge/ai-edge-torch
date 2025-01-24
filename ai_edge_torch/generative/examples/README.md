@@ -52,6 +52,10 @@ same architecture as SmolLM but it has been trained on improved training data.
 Alibaba's [Qwen 2.5](https://huggingface.co/collections/Qwen/qwen25-66e81a666513e518adb90d9e)
 0.5B, 1B, 3B modes are also provided as examples.
 
+## DeepSeek
+[DeepSeek-R1 distilled](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B)
+model based on Qwen is also provided as an example.
+
 ## AMD-Llama-135m
 
 [AMD-Llama-135m](https://huggingface.co/amd/AMD-Llama-135m) is a 135M parameter model based on the Llama2 architecture and uses the same tokenizer as Llama2. It was trained on AMD Instinct MI250 accelerators. 
