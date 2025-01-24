@@ -85,6 +85,7 @@ def convert_stable_diffusion_to_tflite(
       clip.TENSOR_NAMES,
   )
   loader.load(clip_model, strict=False)
+  clip_model.eval()
 
   diffusion_model = diffusion.Diffusion(
       diffusion.get_model_config(batch_size=2, device_type=_DEVICE_TYPE.value)
@@ -93,6 +94,7 @@ def convert_stable_diffusion_to_tflite(
       diffusion_ckpt_path, diffusion.TENSOR_NAMES
   )
   diffusion_loader.load(diffusion_model, strict=False)
+  diffusion_model.eval()
 
   decoder_model = decoder.Decoder(
       decoder.get_model_config(device_type=_DEVICE_TYPE.value)
@@ -101,6 +103,7 @@ def convert_stable_diffusion_to_tflite(
       decoder_ckpt_path, decoder.TENSOR_NAMES
   )
   decoder_loader.load(decoder_model, strict=False)
+  decoder_model.eval()
 
   # TODO(yichunk): enable image encoder conversion
   # if encoder_ckpt_path is not None:
