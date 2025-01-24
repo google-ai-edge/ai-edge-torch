@@ -164,6 +164,9 @@ class TransformerBlockConfig:
   parallel_residual: bool = False
   # The Attention computation will include relative positional bias.
   relative_attention: bool = False
+  # KV Cache length for this block. Only used when attention types are different
+  # across blocks
+  kv_cache_max_len: Optional[int] = None
 
 
 @dataclasses.dataclass
@@ -200,7 +203,8 @@ class ModelConfig:
   embedding_use_bias: bool = False
   # Image embedding parameters.
   image_embedding: Optional[ImageEmbeddingConfig] = None
-
+  # Number of image tokens 
+  num_mm_tokens_per_image: Optional[int] = None
   # Use bias term within LLM's HEAD.
   lm_head_use_bias: bool = False
   # Whether LLM's HEAD shares the weight of the embedding.

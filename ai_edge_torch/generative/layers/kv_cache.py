@@ -81,7 +81,8 @@ class KVCache:
     """
     caches = [
         KVCacheEntry.from_model_config(
-            config.kv_cache_max,
+            config.kv_cache_max if not config.block_config(idx).kv_cache_max_len 
+            else config.block_config(idx).kv_cache_max_len,
             config.block_config(idx).attn_config,
             dtype,
             device,
