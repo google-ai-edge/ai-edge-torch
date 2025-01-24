@@ -17,7 +17,7 @@
 
 import copy
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from ai_edge_torch.generative.layers import attention
 from ai_edge_torch.generative.layers import builder
@@ -56,8 +56,10 @@ class ExportConfig:
   # When False, only decode signatures will produce output.
   output_logits_on_prefill: bool = False
   # Attention masks given as inputs to the model.
-  prefill_mask: Optional[torch.Tensor] = None
-  decode_mask: Optional[torch.Tensor] = None
+  prefill_mask: Optional[torch.Tensor | List[torch.Tensor]] = None
+  decode_mask: Optional[torch.Tensor | List[torch.Tensor]] = None
+  # The KV Cache class for K and V buffers in attention.
+  kvcache_cls: type = kv_utils.KVCache
 
 
 class DecoderOnlyModel(nn.Module):

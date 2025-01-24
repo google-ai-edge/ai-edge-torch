@@ -19,7 +19,6 @@ import os
 from typing import Optional, Union
 from ai_edge_torch._convert import converter as converter_utils
 from ai_edge_torch.generative.layers import lora as lora_utils
-import ai_edge_torch.generative.layers.kv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.quantize import quant_recipes
 from ai_edge_torch.generative.utilities.model_builder import ExportConfig
@@ -151,9 +150,21 @@ def _export_helper(
       else None
   )
 
+  if export_config.prefill_mask is None:
+    prefill_masks = None
+  elif isinstance(export_config.prefill_mask, torch.Tensor):
+    prefill_masks = [export_config.prefill_mask]
+  elif isinstance(export_config.prefill_mask, list):
+    prefill_masks = export_config.prefill_mask
+  else:
+    raise ValueError('Prefill masks unrecognized.')
+
+  if prefill_masks:
+    assert len(prefill_masks) == len(prefill_seq_lens)
+
   decode_token = torch.tensor([[0]], dtype=torch.int)
   decode_input_pos = torch.tensor([0], dtype=torch.int)
-  kv = kv_utils.KVCache.from_model_config(config)
+  kv = export_config.kvcache_cls.from_model_config(config)
 
   quant_config = quant_recipes.full_int8_dynamic_recipe() if quantize else None
 
@@ -174,8 +185,8 @@ def _export_helper(
           'input_pos': prefill_input_pos,
           'kv_cache': kv,
       }
-      if export_config.prefill_mask is not None:
-        sample_kwargs['mask'] = export_config.prefill_mask
+      if prefill_masks is not None:
+        sample_kwargs['mask'] = prefill_masks[i]
 
       if lora is not None:
         prefill_signature_name += f'_lora_r{lora.get_rank()}'
