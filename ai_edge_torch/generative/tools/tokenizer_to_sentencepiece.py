@@ -215,6 +215,17 @@ def _log_not_matched(
   )
 
 
+def _encode_by_spm(
+    spm_tokenizer: spm.SentencePieceProcessor, string: str
+) -> List[int]:
+  """Encodes a string by the SentencePiece tokenizer."""
+  ids = spm_tokenizer.Encode(string)
+  if isinstance(ids, list):
+    return ids
+  # SentencePieceText
+  return [p.id for p in ids.pieces]
+
+
 def _verify_spm_tokenizer(
     tokenizer: transformers.PreTrainedTokenizer,
     spm_tokenizer: spm.SentencePieceProcessor,
@@ -224,7 +235,7 @@ def _verify_spm_tokenizer(
   # as the token IDs encoded by the SentencePiece tokenizer.
   for string in _STRINGS_TO_VERIFY.value:
     ids_by_tokenizer = tokenizer.encode(string)
-    ids_by_spm = spm_tokenizer.Encode(string)
+    ids_by_spm = _encode_by_spm(spm_tokenizer, string)
     logging.info("String to verify: %s", string)
     logging.info("Token IDs by the oringal tokenizer: %s", ids_by_tokenizer)
     logging.info("Token IDs by the SentencePiece tokenizer: %s", ids_by_spm)
@@ -243,7 +254,7 @@ def _verify_spm_tokenizer(
     id_pair = random.sample(list(range(len(tokenizer.vocab))), 2)
     string = tokenizer.decode(id_pair)
     ids_by_tokenizer = tokenizer.encode(string)
-    ids_by_spm = spm_tokenizer.Encode(string)
+    ids_by_spm = _encode_by_spm(spm_tokenizer, string)
     if not _is_same_ids(ids_by_tokenizer, ids_by_spm):
       num_not_matched_strict += 1
       if _is_same_ids(ids_by_tokenizer, id_pair):
@@ -262,7 +273,7 @@ def _verify_spm_tokenizer(
 
 def main(_):
   tokenizer = transformers.AutoTokenizer.from_pretrained(_CHECKPOINT.value)
-  if hasattr(tokenizer, "vocab_file"):
+  if hasattr(tokenizer, "vocab_file") and tokenizer.vocab_file:
     logging.info("vocab_file exists: %s", tokenizer.vocab_file)
     with open(tokenizer.vocab_file, "rb") as f:
       sp_model = spm_model.ModelProto.FromString(f.read())
