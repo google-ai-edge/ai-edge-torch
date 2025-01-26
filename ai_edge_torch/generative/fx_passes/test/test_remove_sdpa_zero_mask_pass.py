@@ -41,6 +41,9 @@ def _export_to_stablehlo(func: Union[torch.nn.Module, Callable], export_args):
     module = func
 
   exported_program = torch.export.export(module, export_args)
+  exported_program = fx_infra.safe_run_decompositions(
+      exported_program, fx_infra.decomp.pre_convert_decomp()
+  )
   exported_program = fx_infra.run_passes(
       exported_program,
       [

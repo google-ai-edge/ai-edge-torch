@@ -16,11 +16,17 @@ from ai_edge_torch import fx_infra
 from ai_edge_torch import lowertools
 import torch
 
+fx_infra.decomp.remove_pre_convert_decomp(torch.ops.aten.zeros.default)
+fx_infra.decomp.remove_pre_convert_decomp(torch.ops.aten.zeros_like.default)
+
 
 class RemoveSDPACompositeZeroMaskPass(fx_infra.ExportedProgramPassBase):
 
   def is_zero_tensor_node(self, node: torch.fx.Node):
-    return node.target == torch.ops.aten.zeros.default
+    return node.target in (
+        torch.ops.aten.zeros.default,
+        torch.ops.aten.zeros_like.default,
+    )
 
   def call(self, exported_program: torch.export.ExportedProgram):
     graph = exported_program.graph_module.graph
