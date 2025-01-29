@@ -86,7 +86,7 @@ setup(
         "safetensors",
         "tabulate",
         "torch>=2.4.0",
-        "tf-nightly>=2.19.0.dev20241201",
+        "tf-nightly>=2.19.0.dev20250101",
         "ai-edge-litert-nightly",
         "ai-edge-quantizer-nightly",
         "jax",

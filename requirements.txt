@@ -1,8 +1,8 @@
-torch==2.5.1
-torchvision==0.20.1
-torchaudio==2.5.1
+torch==2.6.0
+torchvision==0.21.0
+torchaudio==2.6.0
 --pre
-tf-nightly>=2.19.0.dev20241201
+tf-nightly>=2.19.0.dev20250101
 ai-edge-litert-nightly
 ai-edge-quantizer-nightly
 jax[cpu]
