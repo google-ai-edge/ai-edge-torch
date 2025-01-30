@@ -38,7 +38,7 @@ _OUTPUT_PATH = flags.DEFINE_string(
 )
 _OUTPUT_NAME_PREFIX = flags.DEFINE_string(
     'output_name_prefix',
-    'gemma2',
+    'gemma2_gpu',
     'The prefix of the output tflite model name.',
 )
 _PREFILL_SEQ_LENS = flags.DEFINE_multi_integer(
