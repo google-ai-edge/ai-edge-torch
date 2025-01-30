@@ -43,7 +43,7 @@ _OUTPUT_NAME_PREFIX = flags.DEFINE_string(
 )
 _PREFILL_SEQ_LENS = flags.DEFINE_multi_integer(
     'prefill_seq_lens',
-    (8, 64, 128, 256, 512, 1024),
+    (32, 64, 128, 256, 512, 1024),
     'List of the maximum sizes of prefill input tensors.',
 )
 _KV_CACHE_MAX_LEN = flags.DEFINE_integer(
