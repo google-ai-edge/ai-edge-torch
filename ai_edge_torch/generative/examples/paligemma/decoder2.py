@@ -20,7 +20,6 @@ from typing import Optional
 from ai_edge_torch.generative.examples.gemma import gemma2
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
-import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
 from ai_edge_torch.generative.utilities import model_builder
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
@@ -62,7 +61,7 @@ class Decoder2(gemma2.Gemma2):
       called_by_generate: bool = True,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
     if input_embeds is None:
-      return super().forward(tokens, input_pos, kv_cache)
+      return super().forward(tokens, input_pos, kv_cache, mask, export_config)
 
     assert input_embeds is not None
 
@@ -70,11 +69,12 @@ class Decoder2(gemma2.Gemma2):
     # ROPE parameters for all attn_configs are the same. Take the first one.
     attn_config = self.config.block_config(0).attn_config
     n_elem = int(attn_config.rotary_percentage * attn_config.head_dim)
-    rope = rotary_pos_emb.build_rope(repo_pos, n_elem, attn_config.rotary_base)
+    rope = self.config.build_rope(repo_pos, n_elem, attn_config.rotary_base)
 
     if mask is None:
       if called_by_generate:
-        # PaliGemma2 generate() use a diagonal causal mask even with image embeds.
+        # PaliGemma2 generate() uses a diagonal causal mask even with image
+        # embeds.
         mask = [
             self.get_attention_mask(
                 self.config.block_config(i).attn_config.attn_type, input_pos
