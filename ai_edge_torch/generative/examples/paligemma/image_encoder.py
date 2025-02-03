@@ -60,6 +60,7 @@ class SiglipVisionEncoder(nn.Module):
         kernel_size=config.image_embedding.patch_size,
         stride=config.image_embedding.patch_size,
         padding=0,
+        use_bias=config.embedding_use_bias,
     )
     num_patches = (
         config.image_embedding.image_size // config.image_embedding.patch_size

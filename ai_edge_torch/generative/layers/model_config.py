@@ -177,6 +177,8 @@ class ImageEmbeddingConfig:
   # All images should be normalized to the size of [image_size * image_size].
   image_size: int
   patch_size: int
+  # Meaningful only when image embedding is Conv3d.
+  temporal_patch_size: Optional[int] = None
 
 
 @dataclasses.dataclass
