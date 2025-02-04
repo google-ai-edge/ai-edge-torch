@@ -13,11 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-"""Example of converting a PaliGemma model to multi-signature tflite model.
-
-DISCLAIMER: It works only with ODML Torch conversion backend. Refer to
-https://github.com/google-ai-edge/ai-edge-torch/blob/main/docs/pytorch_converter/README.md#use-odml-torch-conversion-backend-experimental.
-"""
+"""Example of converting a PaliGemma model to multi-signature tflite model."""
 
 import os
 import pathlib

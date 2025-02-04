@@ -58,34 +58,23 @@ class Decoder2(gemma2.Gemma2):
       input_embeds: torch.Tensor = None,
       mask: Optional[torch.Tensor] = None,
       export_config: Optional[model_builder.ExportConfig] = None,
-      called_by_generate: bool = True,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
     if input_embeds is None:
       return super().forward(tokens, input_pos, kv_cache, mask, export_config)
 
     assert input_embeds is not None
 
-    repo_pos = input_pos + 1  # PaliGemma2 position is 1-based.
+    rope_pos = input_pos + 1  # PaliGemma2 position is 1-based.
     # ROPE parameters for all attn_configs are the same. Take the first one.
     attn_config = self.config.block_config(0).attn_config
     n_elem = int(attn_config.rotary_percentage * attn_config.head_dim)
-    rope = self.config.build_rope(repo_pos, n_elem, attn_config.rotary_base)
+    rope = self.config.build_rope(rope_pos, n_elem, attn_config.rotary_base)
 
     if mask is None:
-      if called_by_generate:
-        # PaliGemma2 generate() uses a diagonal causal mask even with image
-        # embeds.
-        mask = [
-            self.get_attention_mask(
-                self.config.block_config(i).attn_config.attn_type, input_pos
-            )
-            for i in range(self.config.num_layers)
-        ]
-      else:
-        # By default, don't mask image embeds with a diagonal causal mask.
-        embeds_len = input_embeds.shape[1]
-        mask = torch.zeros(embeds_len, self.config.kv_cache_max)
-        mask[:, embeds_len:] = float("-inf")
+      # By default, don't mask image embeds with a diagonal causal mask.
+      embeds_len = input_embeds.shape[1]
+      mask = torch.zeros(embeds_len, self.config.kv_cache_max)
+      mask[:, embeds_len:] = float("-inf")
 
     return self._forward_with_embeds(
         input_embeds, rope, mask, input_pos, kv_cache, export_config

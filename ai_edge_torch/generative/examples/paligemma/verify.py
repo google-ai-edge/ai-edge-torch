@@ -41,7 +41,7 @@ _IMAGE_URL = flags.DEFINE_string(
 )
 _PROMPTS = flags.DEFINE_string(
     "prompts",
-    "describe en",
+    "<image><bos>describe en",
     "The input prompts to generate answers.",
 )
 _MAX_NEW_TOKENS = flags.DEFINE_integer(
@@ -59,15 +59,8 @@ _CHECKPOINT = {
 class ReauthoredPaliGemmaWrapper(verifier.ReauthoredModelWrapper):
   """Reauthored PaliGemma model wrapper."""
 
-  def __init__(self, model: torch.nn.Module):
-    super().__init__(model)
-    self.forward_called_by_generate = False
-
   def _init_kv_cache(self):
     return kv_cache.KVCache.from_model_config(self.model.config.decoder_config)
-
-  def _get_extra_args_for_forward(self):
-    return {"called_by_generate": self.forward_called_by_generate}
 
 
 def main(_):
@@ -137,7 +130,6 @@ def main(_):
   logging.info("outputs_from_original_model: [[%s]]", response_original)
 
   logging.info("Generating answer with the reauthored model...")
-  wrapped_reauthored_model.forward_called_by_generate = True
   outputs_reauthored = wrapped_reauthored_model.generate(
       prompts=inputs["input_ids"],
       pixel_values=inputs["pixel_values"],

@@ -15,7 +15,7 @@
 
 """Example of building a full-stack of PaliGemma model."""
 
-from dataclasses import dataclass
+import dataclasses
 from typing import Optional
 
 from ai_edge_torch.generative.examples.paligemma import decoder
@@ -31,7 +31,7 @@ from torch import nn
 PROJECTION_TENSOR_NAME = "multi_modal_projector.linear"
 
 
-@dataclass
+@dataclasses.dataclass
 class PaliGemmaConfig:
   """PaliGemma model configurations."""
 
@@ -39,7 +39,6 @@ class PaliGemmaConfig:
   decoder_config: cfg.ModelConfig
 
   image_token_id: int
-  image_projection_scale: float
   image_projection_use_bias: bool = False
 
 
@@ -73,7 +72,6 @@ class PaliGemma(nn.Module):
       mask: Optional[torch.Tensor] = None,
       pixel_values: torch.Tensor = None,
       export_config: Optional[model_builder.ExportConfig] = None,
-      called_by_generate: bool = True,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
     if pixel_values is None:
       return self.decoder(
@@ -83,14 +81,13 @@ class PaliGemma(nn.Module):
           mask=mask,
           input_embeds=None,
           export_config=export_config,
-          called_by_generate=called_by_generate,
       )
 
     input_embeds = self.decoder.tok_embedding(tokens)
 
     image_encoded = self.image_encoder(pixel_values=pixel_values)
     image_embeds = self.image_projection(image_encoded)
-    image_embeds = image_embeds / self.config.image_projection_scale
+    image_embeds = image_embeds / self.config.decoder_config.embedding_scale
 
     # Merging image_embeds into text_embeds as PaliGemmaForConditionalGeneration
     # can be done like:
@@ -116,7 +113,6 @@ class PaliGemma(nn.Module):
         mask=mask,
         input_embeds=input_embeds,
         export_config=export_config,
-        called_by_generate=called_by_generate,
     )
 
 
@@ -130,7 +126,6 @@ def get_model_config(get_decoder_config, **kwargs) -> PaliGemmaConfig:
       image_encoder_config=image_encoder.get_image_encoder_config(),
       decoder_config=get_decoder_config(**kwargs),
       image_token_id=257152,
-      image_projection_scale=2048**0.5,
       image_projection_use_bias=True,
   )
 
@@ -140,7 +135,6 @@ def get_fake_model_config(get_decoder_config, **kwargs) -> PaliGemmaConfig:
       image_encoder_config=image_encoder.get_fake_image_encoder_config(),
       decoder_config=get_decoder_config(**kwargs),
       image_token_id=127,
-      image_projection_scale=128**0.5,
       image_projection_use_bias=True,
   )
 
