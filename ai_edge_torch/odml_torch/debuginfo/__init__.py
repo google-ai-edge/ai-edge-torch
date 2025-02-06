@@ -12,5 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from ._build import build_mlir_debuginfo
+from ._build import build_mlir_debuginfo, build_mlir_file_debuginfo
 from ._op_polyfill import write_mlir_debuginfo_op

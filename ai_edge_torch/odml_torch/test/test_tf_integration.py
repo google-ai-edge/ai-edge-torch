@@ -56,7 +56,11 @@ class TensorflowIntegrationTest(googletest.TestCase):
     torch_output = model(*args).detach().numpy()
     lowering_output = np.array(lowered(*args))
 
+    # Check value and debug info.
     self.assertTrue(np.allclose(lowering_output, torch_output, atol=1e-5))
+    self.assertIn(
+        "torchvision/models/resnet.py", lowered.get_text(enable_debug_info=True)
+    )
 
 
 if __name__ == "__main__":

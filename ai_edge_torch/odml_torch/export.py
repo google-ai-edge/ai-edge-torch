@@ -93,7 +93,12 @@ class LoweringInterpreter(torch.fx.Interpreter):
     if info is None:
       return ir.Location.unknown()
 
-    return ir.Location.name(name=info)
+    (file, line) = debuginfo.build_mlir_file_debuginfo(node)
+    fileinfo = None
+    if file is not None:
+      fileinfo = ir.Location.file(filename=file, line=line, col=0)
+
+    return ir.Location.name(name=info, childLoc=fileinfo)
 
   def run_node(self, node: torch.fx.Node):
     loc = self._build_loc(node)

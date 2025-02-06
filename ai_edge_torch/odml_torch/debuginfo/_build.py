@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 import torch
+import re
 
 
 def _class_fullname(cls):
@@ -32,6 +33,29 @@ def _get_hierarchy(node: torch.fx.Node):
 
   hierachy_str = "/".join(layers) + ";"
   return hierachy_str
+
+
+def _get_canonical_filename(filename):
+  """Remove unnecessary path prefix to make the filename more readable.
+
+  This should be factored out so that pattern is a global option that a user
+  can override.
+  """
+
+  # TODO: We should add a config option to provide a regex to strip from the
+  # debug info. Currently absolute path is used.
+  return filename
+
+
+def build_mlir_file_debuginfo(node: torch.fx.Node):
+  """Build the file and line info for the given node's lowerings in MLIR."""
+
+  if not node.stack_trace:
+    return None, None
+
+  # Note: This uses internal APIs and may break in the future.
+  pt_trace = torch.fx.graph._parse_stack_trace(node.stack_trace)
+  return _get_canonical_filename(pt_trace.file), int(pt_trace.lineno)
 
 
 def build_mlir_debuginfo(node: torch.fx.Node):
