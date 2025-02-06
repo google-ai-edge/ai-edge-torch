@@ -15,16 +15,61 @@
 
 """Example of building decoder for Qwen 2.5 VL models."""
 
+from typing import Optional, Tuple
+
+from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.utilities import model_builder
-from torch import nn
+import torch
 
 TENSOR_NAMES = model_builder.TENSOR_NAMES
 
 
 class Decoder(model_builder.DecoderOnlyModel):
-  """A decoder for Qwen-VL model built from the Edge Generative API layers."""
-  pass
+  """A decoder for Qwen-VL model built from the Edge Generative API layers.
+
+  Besides a tensor of text token IDs, forward() can also take a tensor of
+  embeddings which may include text or image or both.
+  """
+
+  @torch.inference_mode
+  def forward(
+      self,
+      tokens: torch.Tensor,
+      input_pos: torch.Tensor,
+      kv_cache: kv_utils.KVCache,
+      input_embeds: torch.Tensor = None,
+      rope: Tuple[torch.Tensor, torch.Tensor] = None,
+      mask: Optional[torch.Tensor] = None,
+      export_config: Optional[model_builder.ExportConfig] = None,
+  ) -> dict[torch.Tensor, kv_utils.KVCache]:
+    if input_embeds is None:
+      _, seq_len = tokens.size()
+      assert self.config.max_seq_len >= seq_len, (
+          f"Cannot forward sequence of length {seq_len}, max seq length is only"
+          f" {self.config.max_seq_len}"
+      )
+      # token embeddings of shape (b, t, n_embd)
+      input_embeds = self.tok_embedding(tokens)
+
+    if rope is None:
+      # ROPE parameters for all attn_configs are the same. Take the first one.
+      attn_config = self.config.block_config(0).attn_config
+      n_elem = int(attn_config.rotary_percentage * attn_config.head_dim)
+      rope = self.config.build_rope(input_pos, n_elem, attn_config.rotary_base)
+
+    if mask is None:
+      mask = self.mask_cache.index_select(2, input_pos)
+      mask = mask[:, :, :, : self.config.kv_cache_max]
+
+    return self._forward_with_embeds(
+        input_embeds,
+        rope,
+        mask,
+        input_pos,
+        kv_cache,
+        export_config=export_config,
+    )
 
 
 def get_decoder_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
@@ -82,7 +127,7 @@ def get_fake_decoder_config(**kwargs) -> cfg.ModelConfig:
   return config
 
 
-def build_decoder(checkpoint_path: str, **kwargs) -> nn.Module:
+def build_decoder(checkpoint_path: str, **kwargs) -> torch.nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
       config=get_decoder_config(**kwargs),

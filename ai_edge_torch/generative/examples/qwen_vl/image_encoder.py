@@ -356,6 +356,12 @@ def get_fake_image_encoder_config() -> QwenVLImageConfig:
 def build_image_encoder(checkpoint_path: str) -> QwenVLImageEncoder:
   config = get_image_encoder_config()
   encoder = QwenVLImageEncoder(config)
+  load_image_encoder(checkpoint_path, encoder)
+  encoder.eval()
+  return encoder
+
+
+def load_image_encoder(checkpoint_path: str, encoder: QwenVLImageEncoder):
   loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
   # Loose the strictness because only image encoder is being loaded.
   loader.load(encoder, strict=False)
@@ -365,15 +371,12 @@ def build_image_encoder(checkpoint_path: str) -> QwenVLImageEncoder:
   state = merger_loader.get_state()
   w1_state = dict()
   w1_state["weight"] = state.pop(f"{MERGER_TENSOR_NAMES.ff_up_proj}.weight")
-  if config.merger_config.use_bias:
+  if encoder.config.merger_config.use_bias:
     w1_state["bias"] = state.pop(f"{MERGER_TENSOR_NAMES.ff_up_proj}.bias")
   encoder.merger.w1.load_state_dict(w1_state)
 
   w2_state = dict()
   w2_state["weight"] = state.pop(f"{MERGER_TENSOR_NAMES.ff_down_proj}.weight")
-  if config.merger_config.use_bias:
+  if encoder.config.merger_config.use_bias:
     w2_state["bias"] = state.pop(f"{MERGER_TENSOR_NAMES.ff_down_proj}.bias")
   encoder.merger.w2.load_state_dict(w2_state)
-
-  encoder.eval()
-  return encoder
