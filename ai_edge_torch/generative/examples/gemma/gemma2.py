@@ -22,7 +22,7 @@ from ai_edge_torch.generative.layers import builder
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
-import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
+import ai_edge_torch.generative.layers.rotary_position_embedding as rope_utils
 from ai_edge_torch.generative.utilities import model_builder
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
@@ -86,7 +86,6 @@ class Gemma2Block(attention.TransformerBlock):
       output activation from this transformer block, and updated kv cache (if
       passed in).
     """
-
     x_norm = self.pre_atten_norm(x)
     attn_out, kv = self.atten_func(x_norm, rope, mask, input_pos, kv_cache)
     attn_out_norm = self.post_atten_norm(attn_out)
@@ -145,21 +144,29 @@ class Gemma2(nn.Module):
       tokens: torch.Tensor,
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
+      input_embeds: Optional[torch.Tensor] = None,
+      rope: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
       mask: Optional[torch.Tensor] = None,
-      export_config: Optional[model_builder.ExportConfig] = None,
+      skip_logits: Optional[bool] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
-    _, seq_len = tokens.size()
-    assert self.config.max_seq_len >= seq_len, (
-        f"Cannot forward sequence of length {seq_len}, max seq length is only"
-        f" {self.config.max_seq_len}"
-    )
+    if input_embeds is None:
+      _, seq_len = tokens.size()
+      assert self.config.max_seq_len >= seq_len, (
+          f"Cannot forward sequence of length {seq_len}, max seq length is only"
+          f" {self.config.max_seq_len}"
+      )
+      # token embeddings of shape (b, t, n_embd)
+      input_embeds = self.tok_embedding(tokens)
 
-    # token embeddings of shape (b, t, n_embd)
-    input_embeds = self.tok_embedding(tokens)
-    # RoPE parameters are the same for all blocks. Use the first layer.
-    attn_config = self.config.block_config(0).attn_config
-    n_elem = int(attn_config.rotary_percentage * attn_config.head_dim)
-    rope = rotary_pos_emb.build_rope(input_pos, n_elem, attn_config.rotary_base)
+    if self.config.embedding_scale is not None:
+      input_embeds = input_embeds * self.config.embedding_scale
+
+    if rope is None:
+      # RoPE parameters are the same for all blocks. Use the first layer.
+      attn_config = self.config.block_config(0).attn_config
+      n_elem = int(attn_config.rotary_percentage * attn_config.head_dim)
+      rope = rope_utils.build_rope(input_pos, n_elem, attn_config.rotary_base)
+
     if mask is None:
       mask = [
           self.get_attention_mask(
@@ -168,27 +175,11 @@ class Gemma2(nn.Module):
           for i in range(self.config.num_layers)
       ]
 
-    return self._forward_with_embeds(
-        input_embeds, rope, mask, input_pos, kv_cache, export_config
-    )
-
-  def _forward_with_embeds(
-      self,
-      input_embeds: torch.Tensor,
-      rope: Tuple[torch.Tensor, torch.Tensor],
-      mask: torch.Tensor | List[torch.Tensor],
-      input_pos: torch.Tensor,
-      kv_cache: kv_utils.KVCache,
-      export_config: Optional[model_builder.ExportConfig] = None,
-  ) -> dict[torch.Tensor, kv_utils.KVCache]:
-    """Forwards the model with input embeddings."""
     assert len(self.transformer_blocks) == len(kv_cache.caches), (
         "The number of transformer blocks and the number of KV cache entries"
         " must be the same."
     )
 
-    if self.config.embedding_scale is not None:
-      input_embeds = input_embeds * self.config.embedding_scale
     x = input_embeds
     updated_kv_entries = []
     for i, block in enumerate(self.transformer_blocks):
@@ -199,12 +190,8 @@ class Gemma2(nn.Module):
         updated_kv_entries.append(kv_entry)
     updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entries))
 
-    if export_config is not None:
-      if (
-          torch.numel(input_pos) > 1
-          and not export_config.output_logits_on_prefill
-      ):
-        return {"kv_cache": updated_kv_cache}
+    if skip_logits:
+      return {"kv_cache": updated_kv_cache}
 
     x = self.final_norm(x)
     res = self.lm_head(x)  # (b, t, vocab_size)

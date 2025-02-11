@@ -16,16 +16,18 @@
 """Common utility functions for model conversion."""
 
 import os
-from typing import Optional, Union
-from ai_edge_torch._convert import converter as converter_utils
-from ai_edge_torch.generative.layers import lora as lora_utils
+from typing import Any, Optional, Union
+
+import ai_edge_torch._convert.converter as converter_utils
+import ai_edge_torch.generative.layers.kv_cache as kv_utils
+import ai_edge_torch.generative.layers.lora as lora_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.quantize import quant_recipes
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 import torch
 
 
 class ExportableModule(torch.nn.Module):
+  """A wrapper for a model to convert to tflite with non-exportable args."""
 
   def __init__(self, module, **extra_kwargs):
     super().__init__()
@@ -46,7 +48,15 @@ def convert_to_tflite(
     quantize: bool = True,
     config: cfg.ModelConfig = None,
     lora_ranks: Optional[list[int]] = None,
-    export_config: ExportConfig = None,
+    kv_cache_cls: type[kv_utils.KVCache] = kv_utils.KVCache,
+    extra_exportable_prefill_kwargs: Union[
+        dict[str, Any] | list[dict[str, Any]]
+    ] = {},
+    extra_exportable_decode_kwargs: dict[str, Any] = {},
+    extra_unexportable_prefill_kwargs: Union[
+        dict[str, Any] | list[dict[str, Any]]
+    ] = {'skip_logits': True},
+    extra_unexportable_decode_kwargs: dict[str, Any] = {},
 ):
   """Converts a nn.Module model to multi-signature tflite model.
 
@@ -91,6 +101,23 @@ def convert_to_tflite(
         cache. If None, it uses the config of the pytorch_model.
       lora_ranks (list[int], optional): The ranks of the LORA layers. If None,
         no LoRA signatures will be added.
+      kv_cache_cls (type[kv_utils.KVCache], optional): The KV cache class to
+        use. Defaults to kv_utils.KVCache.
+      extra_exportable_prefill_kwargs
+        (dict[str, Any] | list[dict[str, Any]], optional): Extra arguments to
+        pass to the prefill signatures. If a list, it should have the same
+        length as prefill_seq_lens.
+      extra_exportable_decode_kwargs (dict[str, Any], optional): Extra arguments
+        to pass to the decode signature.
+      extra_unexportable_prefill_kwargs
+        (dict[str, Any] | list[dict[str, Any]], optional): Extra arguments to
+        pass to the prefill model instead of the prefill signatures because they
+        are not tensor-like arguments and not exportable. If a list, it should
+        have the same length as prefill_seq_lens. Defaults to {'skip_logits':
+        True}.
+      extra_unexportable_decode_kwargs (dict[str, Any], optional): Extra
+        arguments to pass to the decode model instead of the decode signature
+        because they are not tensor-like arguments and not exportable.
   """
   # pylint: disable=protected-access
   torch._dynamo.config.cache_size_limit = 64
@@ -123,7 +150,11 @@ def convert_to_tflite(
       quantize,
       config,
       loras,
-      export_config,
+      kv_cache_cls,
+      extra_exportable_prefill_kwargs,
+      extra_exportable_decode_kwargs,
+      extra_unexportable_prefill_kwargs,
+      extra_unexportable_decode_kwargs,
   )
 
 
@@ -135,42 +166,50 @@ def _export_helper(
     quantize: bool,
     config: cfg.ModelConfig,
     loras: list[None | lora_utils.LoRA],
-    export_config: ExportConfig,
+    kv_cache_cls: type[kv_utils.KVCache],
+    extra_exportable_prefill_kwargs: Union[
+        dict[str, Any] | list[dict[str, Any]]
+    ],
+    extra_exportable_decode_kwargs: dict[str, Any],
+    extra_unexportable_prefill_kwargs: Union[
+        dict[str, Any] | list[dict[str, Any]]
+    ],
+    extra_unexportable_decode_kwargs: dict[str, Any],
 ):
   """Helper function to export a model to tflite."""
+  prefill_model_list = []
   prefill_tokens_list = []
   prefill_input_pos_list = []
   for seq_len in prefill_seq_lens:
+    unexportable_kwargs = (
+        extra_unexportable_prefill_kwargs[i]
+        if isinstance(extra_unexportable_prefill_kwargs, list)
+        else extra_unexportable_prefill_kwargs
+    )
+    prefill_model_list.append(
+        pytorch_model
+        if unexportable_kwargs
+        else ExportableModule(pytorch_model, **unexportable_kwargs)
+    )
     prefill_tokens_list.append(torch.full((1, seq_len), 0, dtype=torch.int))
     prefill_input_pos_list.append(torch.arange(0, seq_len, dtype=torch.int))
 
   prefill_pixel_values = (
-      torch.full((1,) + pixel_values_size, 0, dtype=torch.float32)
+      torch.full(pixel_values_size, 0, dtype=torch.float32)
       if pixel_values_size
       else None
   )
 
-  if export_config.prefill_mask is None:
-    prefill_masks = None
-  elif isinstance(export_config.prefill_mask, torch.Tensor):
-    prefill_masks = [export_config.prefill_mask]
-  elif isinstance(export_config.prefill_mask, list):
-    prefill_masks = export_config.prefill_mask
-  else:
-    raise ValueError('Prefill masks unrecognized.')
-
-  if prefill_masks:
-    assert len(prefill_masks) == len(prefill_seq_lens)
-
+  decode_model = (
+      pytorch_model
+      if not extra_unexportable_decode_kwargs
+      else ExportableModule(pytorch_model, **extra_unexportable_decode_kwargs)
+  )
   decode_token = torch.tensor([[0]], dtype=torch.int)
   decode_input_pos = torch.tensor([0], dtype=torch.int)
-  kv = export_config.kvcache_cls.from_model_config(config)
+  kv = kv_cache_cls.from_model_config(config)
 
   quant_config = quant_recipes.full_int8_dynamic_recipe() if quantize else None
-
-  # For export, we create a module that captures any non-exportable,
-  # arugments, e.g. the generation config object.
-  mod = ExportableModule(pytorch_model, export_config=export_config)
 
   converter = converter_utils.Converter()
   for lora in loras:
@@ -184,9 +223,12 @@ def _export_helper(
           'tokens': prefill_tokens,
           'input_pos': prefill_input_pos,
           'kv_cache': kv,
+          **(
+              extra_exportable_prefill_kwargs[i]
+              if isinstance(extra_exportable_prefill_kwargs, list)
+              else extra_exportable_prefill_kwargs
+          ),
       }
-      if prefill_masks is not None:
-        sample_kwargs['mask'] = prefill_masks[i]
 
       if lora is not None:
         prefill_signature_name += f'_lora_r{lora.get_rank()}'
@@ -194,14 +236,14 @@ def _export_helper(
 
       converter.add_signature(
           prefill_signature_name,
-          mod,
+          prefill_model_list[i],
           sample_kwargs=sample_kwargs,
       )
 
       if prefill_pixel_values is not None:
         converter.add_signature(
             prefill_signature_name + '_pixel',
-            mod,
+            prefill_model_list[i],
             sample_kwargs={
                 **sample_kwargs,
                 'pixel_values': prefill_pixel_values,
@@ -212,15 +254,14 @@ def _export_helper(
         'tokens': decode_token,
         'input_pos': decode_input_pos,
         'kv_cache': kv,
+        **extra_exportable_decode_kwargs,
     }
-    if export_config.decode_mask is not None:
-      sample_kwargs['mask'] = export_config.decode_mask
     if lora is not None:
       sample_kwargs['lora'] = lora
 
     converter.add_signature(
         'decode' if lora is None else f'decode_lora_r{lora.get_rank()}',
-        mod,
+        decode_model,
         sample_kwargs=sample_kwargs,
     )
 

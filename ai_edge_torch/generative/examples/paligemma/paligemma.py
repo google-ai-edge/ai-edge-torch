@@ -16,7 +16,7 @@
 """Example of building a full-stack of PaliGemma model."""
 
 import dataclasses
-from typing import Optional
+from typing import Optional, Tuple
 
 from ai_edge_torch.generative.examples.paligemma import decoder
 from ai_edge_torch.generative.examples.paligemma import decoder2
@@ -69,18 +69,20 @@ class PaliGemma(nn.Module):
       tokens: torch.Tensor,
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
+      rope: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
       mask: Optional[torch.Tensor] = None,
-      pixel_values: torch.Tensor = None,
-      export_config: Optional[model_builder.ExportConfig] = None,
+      pixel_values: Optional[torch.Tensor] = None,
+      skip_logits: Optional[bool] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
     if pixel_values is None:
       return self.decoder(
           tokens=tokens,
           input_pos=input_pos,
           kv_cache=kv_cache,
-          mask=mask,
           input_embeds=None,
-          export_config=export_config,
+          rope=rope,
+          mask=mask,
+          skip_logits=skip_logits,
       )
 
     input_embeds = self.decoder.tok_embedding(tokens)
@@ -110,9 +112,10 @@ class PaliGemma(nn.Module):
         tokens=None,
         input_pos=input_pos,
         kv_cache=kv_cache,
-        mask=mask,
         input_embeds=input_embeds,
-        export_config=export_config,
+        rope=rope,
+        mask=mask,
+        skip_logits=skip_logits,
     )
 
 

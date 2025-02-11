@@ -16,8 +16,7 @@
 """Utilities to be used for re-authoring transformer models."""
 
 import copy
-from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 from ai_edge_torch.generative.layers import attention
 from ai_edge_torch.generative.layers import builder
@@ -25,6 +24,7 @@ from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.layers import lora as lora_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
+import ai_edge_torch.generative.layers.rotary_position_embedding as rope_utils
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
 from torch import nn
@@ -46,20 +46,6 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
 
 TENSOR_NAMES_WITH_SEPARATE_LM_HEAD = copy.copy(TENSOR_NAMES)
 TENSOR_NAMES_WITH_SEPARATE_LM_HEAD.lm_head = "lm_head"
-
-
-@dataclass
-class ExportConfig:
-  """Model generating configuration settings."""
-
-  # On prefill signatures, should the model produce logit output?
-  # When False, only decode signatures will produce output.
-  output_logits_on_prefill: bool = False
-  # Attention masks given as inputs to the model.
-  prefill_mask: Optional[torch.Tensor | List[torch.Tensor]] = None
-  decode_mask: Optional[torch.Tensor | List[torch.Tensor]] = None
-  # The KV Cache class for K and V buffers in attention.
-  kvcache_cls: type = kv_utils.KVCache
 
 
 class DecoderOnlyModel(nn.Module):
@@ -103,43 +89,31 @@ class DecoderOnlyModel(nn.Module):
       tokens: torch.Tensor,
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
+      input_embeds: Optional[torch.Tensor] = None,
+      rope: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
       mask: Optional[torch.Tensor] = None,
       lora: Optional[lora_utils.LoRA] = None,
-      export_config: Optional[ExportConfig] = None,
+      skip_logits: Optional[bool] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
-    _, seq_len = tokens.size()
-    assert self.config.max_seq_len >= seq_len, (
-        f"Cannot forward sequence of length {seq_len}, max seq length is only"
-        f" {self.config.max_seq_len}"
-    )
+    if input_embeds is None:
+      _, seq_len = tokens.size()
+      assert self.config.max_seq_len >= seq_len, (
+          f"Cannot forward sequence of length {seq_len}, max seq length is only"
+          f" {self.config.max_seq_len}"
+      )
+      # token embeddings of shape (b, t, n_embd)
+      input_embeds = self.tok_embedding(tokens)
 
-    # token embeddings of shape (b, t, n_embd)
-    input_embeds = self.tok_embedding(tokens)
-
-    # ROPE parameters for all attn_configs are the same. Take the first one.
-    attn_config = self.config.block_config(0).attn_config
-    n_elem = int(attn_config.rotary_percentage * attn_config.head_dim)
-    rope = self.config.build_rope(input_pos, n_elem, attn_config.rotary_base)
+    if rope is None:
+      # ROPE parameters for all attn_configs are the same. Take the first one.
+      attn_config = self.config.block_config(0).attn_config
+      n_elem = int(attn_config.rotary_percentage * attn_config.head_dim)
+      rope = rope_utils.build_rope(input_pos, n_elem, attn_config.rotary_base)
 
     if mask is None:
       mask = self.mask_cache.index_select(2, input_pos)
       mask = mask[:, :, :, : self.config.kv_cache_max]
 
-    return self._forward_with_embeds(
-        input_embeds, rope, mask, input_pos, kv_cache, lora, export_config
-    )
-
-  def _forward_with_embeds(
-      self,
-      input_embeds: torch.Tensor,
-      rope: Tuple[torch.Tensor, torch.Tensor],
-      mask: torch.Tensor,
-      input_pos: torch.Tensor,
-      kv_cache: kv_utils.KVCache,
-      lora: Optional[lora_utils.LoRA] = None,
-      export_config: Optional[ExportConfig] = None,
-  ) -> dict[torch.Tensor, kv_utils.KVCache]:
-    """Forwards the model with input embeddings."""
     assert len(self.transformer_blocks) == len(kv_cache.caches), (
         "The number of transformer blocks and the number of KV cache entries"
         " must be the same."
@@ -158,12 +132,8 @@ class DecoderOnlyModel(nn.Module):
         updated_kv_entries.append(kv_entry)
     updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entries))
 
-    if export_config is not None:
-      if (
-          torch.numel(input_pos) > 1
-          and not export_config.output_logits_on_prefill
-      ):
-        return {"kv_cache": updated_kv_cache}
+    if skip_logits:
+      return {"kv_cache": updated_kv_cache}
 
     x = self.final_norm(x)
     logits = self.lm_head(x)  # (b, t, vocab_size)

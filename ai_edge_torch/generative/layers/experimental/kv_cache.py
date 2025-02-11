@@ -21,12 +21,10 @@ This is an experimental implementation and is subject to change at any time.
 import dataclasses
 from typing import List, Tuple
 
-from ai_edge_torch import hlfb
 from ai_edge_torch.generative.layers import model_config
-from ai_edge_torch.generative.layers.experimental import types as types
+from ai_edge_torch.generative.layers.experimental import types
 from ai_edge_torch.generative.utilities.dynamic_update_slice import dynamic_update_slice
 import torch
-import torch.nn as nn
 import torch.utils._pytree as pytree
 
 BATCH_SIZE = 1
