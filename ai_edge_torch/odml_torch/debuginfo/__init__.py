@@ -12,5 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from ._build import build_mlir_debuginfo, build_mlir_file_debuginfo
+"""Debug info generation for ODML Torch."""
+
+from . import _build
 from ._op_polyfill import write_mlir_debuginfo_op
+
+build_nodename_debuginfo = _build.build_nodename_debuginfo
+build_mlir_file_debuginfo = _build.build_mlir_file_debuginfo
+build_mlir_debuginfo = _build.build_mlir_debuginfo

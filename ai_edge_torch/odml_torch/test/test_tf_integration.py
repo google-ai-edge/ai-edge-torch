@@ -58,9 +58,11 @@ class TensorflowIntegrationTest(googletest.TestCase):
 
     # Check value and debug info.
     self.assertTrue(np.allclose(lowering_output, torch_output, atol=1e-5))
-    self.assertIn(
-        "torchvision/models/resnet.py", lowered.get_text(enable_debug_info=True)
-    )
+    lowered_text = lowered.get_text(enable_debug_info=True)
+    # Check the file info.
+    self.assertIn("torchvision/models/resnet.py", lowered_text)
+    # Check the fx node name.
+    self.assertIn("relu_1", lowered_text)
 
 
 if __name__ == "__main__":

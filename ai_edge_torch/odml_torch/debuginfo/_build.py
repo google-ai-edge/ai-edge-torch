@@ -40,10 +40,16 @@ def _get_canonical_filename(filename):
 
   This should be factored out so that pattern is a global option that a user
   can override.
+
+  Args:
+    filename: The filename to canonicalize.
+
+  Returns:
+    The canonicalized filename.
   """
 
-  # TODO: We should add a config option to provide a regex to strip from the
-  # debug info. Currently absolute path is used.
+  # TODO(yijieyang): We should add a config option to provide a regex to strip
+  # from the debug info. Currently absolute path is used.
   return filename
 
 
@@ -55,7 +61,21 @@ def build_mlir_file_debuginfo(node: torch.fx.Node):
 
   # Note: This uses internal APIs and may break in the future.
   pt_trace = torch.fx.graph._parse_stack_trace(node.stack_trace)
+  if pt_trace is None:
+    return None, None
   return _get_canonical_filename(pt_trace.file), int(pt_trace.lineno)
+
+
+def build_nodename_debuginfo(node: torch.fx.Node):
+  """Build the fx node name for the given node's lowerings in MLIR."""
+  history = node.meta.get("from_node", [])
+  if not history:
+    return None
+  if len(history) > 1:
+    return history[1][0]
+  if hasattr(history[0], "name"):  # torch 2.6.0+
+    return history[0].name
+  return None
 
 
 def build_mlir_debuginfo(node: torch.fx.Node):

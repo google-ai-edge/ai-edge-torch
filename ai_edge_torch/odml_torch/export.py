@@ -88,6 +88,21 @@ class LoweringInterpreter(torch.fx.Interpreter):
     self.outputs = None
 
   def _build_loc(self, node: torch.fx.Node):
+    """Build MLIR location for the given node.
+
+    The location contains:
+    - layer info
+    - fx node name
+    - file and line info
+
+    Currently it's still under development and format is subject to change.
+
+    Args:
+      node: The torch.fx.Node to build the location for.
+
+    Returns:
+      The MLIR location for the given node.
+    """
 
     info = debuginfo.build_mlir_debuginfo(node)
     if info is None:
@@ -98,7 +113,12 @@ class LoweringInterpreter(torch.fx.Interpreter):
     if file is not None:
       fileinfo = ir.Location.file(filename=file, line=line, col=0)
 
-    return ir.Location.name(name=info, childLoc=fileinfo)
+    node_name = debuginfo.build_nodename_debuginfo(node)
+    nodeinfo = None
+    if node_name is not None:
+      nodeinfo = ir.Location.name(name=node_name, childLoc=fileinfo)
+
+    return ir.Location.name(name=info, childLoc=nodeinfo)
 
   def run_node(self, node: torch.fx.Node):
     loc = self._build_loc(node)
