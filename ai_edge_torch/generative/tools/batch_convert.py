@@ -34,7 +34,6 @@ from ai_edge_torch.generative.examples.qwen import qwen
 from ai_edge_torch.generative.examples.smollm import smollm
 from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 import torch
 
 _CHECKPOINT_ROOT_PATH = flags.DEFINE_string(
@@ -242,24 +241,6 @@ def prepare_conversion_configs() -> Sequence[ConversionConfig]:
   return conversion_configs
 
 
-def get_output_filename(
-    model_name: str,
-    model_size: str,
-    precision: ExportPrecision,
-    kv_cache_max_len: int,
-) -> str:
-  """Returns the output filename for a converted TF Litemodel."""
-  if precision == ExportPrecision.INT8:
-    precision_str = "q8"
-  elif precision == ExportPrecision.FP32:
-    precision_str = "f32"
-  else:
-    raise ValueError(f"Unsupported precision: {precision}")
-  return (
-      f"{model_name}_{model_size}_{precision_str}_ekv{kv_cache_max_len}.tflite"
-  )
-
-
 def convert_models(conversion_configs: Sequence[ConversionConfig]) -> None:
   """Executes the conversion for a batch of models specified by the `conversion_configs`."""
   for config in conversion_configs:
@@ -271,20 +252,15 @@ def convert_models(conversion_configs: Sequence[ConversionConfig]) -> None:
         config.input_checkpoint, kv_cache_max_len=config.kv_cache_max_len
     )
     for precision in config.export_precision:
-      output_filename = get_output_filename(
-          config.model_name,
-          config.model_size,
-          precision,
-          config.kv_cache_max_len,
-      )
+      output_name_prefix = f"{config.model_name}_{config.model_size}"
       converter.convert_to_tflite(
           pytorch_model,
-          tflite_path=os.path.join(config.tflite_output_path, output_filename),
+          output_path=config.tflite_output_path,
+          output_name_prefix=output_name_prefix,
           prefill_seq_len=config.prefill_seq_lens,
           quantize=True if precision == ExportPrecision.INT8 else False,
-          export_config=ExportConfig(),
       )
-      logging.info("Successfully converted model: %s", output_filename)
+      logging.info("Successfully converted model: %s", output_name_prefix)
 
 
 def main(_):

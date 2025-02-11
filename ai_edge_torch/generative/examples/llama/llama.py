@@ -30,9 +30,6 @@ def _build_llama3_rope_cache(
     input_pos: torch.Tensor,
     n_elem: int,
     base: int,
-    condense_ratio: int,
-    dtype: torch.dtype,
-    device: torch.device,
     factor: float,
     low_freq_factor: float,
     high_freq_factor: float,
@@ -51,9 +48,6 @@ def _build_llama3_rope_cache(
       input_pos (torch.Tensor): the given input sequence positions
       n_elem (int): Each sequence's dimmension.
       base (int): Rope base value.
-      condense_ratio (int): The ratio by which sequence indicies are condensed.
-      dtype (torch.dtype): Output tensor's data type.
-      device (torch.device): Output tensor's data type.
       factor (float): Factor to scale theta down for tokens in long range in the
         sequence.
       low_freq_factor (float): Factor to determine if tokens are in long range
@@ -81,10 +75,9 @@ def _build_llama3_rope_cache(
   is_medium = ~(wavelen < high_freq_wavelen) * ~(wavelen > low_freq_wavelen)
   theta = torch.where(is_medium, smoothed_theta, theta)
 
-  seq_idx = input_pos / condense_ratio
-  idx_theta = torch.outer(seq_idx, theta)
-  cos = torch.cos(idx_theta).to(dtype=dtype, device=device)
-  sin = torch.sin(idx_theta).to(dtype=dtype, device=device)
+  idx_theta = torch.outer(input_pos, theta)
+  cos = torch.cos(idx_theta).to(dtype=torch.float32, device=torch.device("cpu"))
+  sin = torch.sin(idx_theta).to(dtype=torch.float32, device=torch.device("cpu"))
   return cos, sin
 
 
@@ -94,9 +87,20 @@ class Llama(model_builder.DecoderOnlyModel):
   Llama 3.2 shares the same architecture as TinyLlama except ROPE calculation.
   """
 
-  def __init__(self, config: cfg.ModelConfig):
-    super().__init__(config)
-    attn_config = self.config.block_config(0).attn_config
+  def forward(self, tokens, input_pos, kv_cache, **kwargs):
+    if kwargs.get("rope") is None:
+      # ROPE parameters for all attn_configs are the same. Take the first one.
+      attn_config = self.config.block_config(0).attn_config
+      kwargs["rope"] = _build_llama3_rope_cache(
+          input_pos=input_pos,
+          n_elem=int(attn_config.rotary_percentage * attn_config.head_dim),
+          base=attn_config.rotary_base,
+          factor=32.0,
+          low_freq_factor=1.0,
+          high_freq_factor=4.0,
+          max_seq_len=self.config.max_seq_len,
+      )
+    return super().forward(tokens, input_pos, kv_cache, **kwargs)
 
 
 def get_1b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
@@ -128,30 +132,15 @@ def get_1b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       pre_attention_norm_config=norm_config,
       post_attention_norm_config=norm_config,
   )
-
-  max_seq_len = 8192
-  # Create the RoPE callable
-  build_rope = partial(
-      _build_llama3_rope_cache,
-      condense_ratio=1,
-      dtype=torch.float32,
-      device=torch.device("cpu"),
-      factor=32.0,
-      low_freq_factor=1.0,
-      high_freq_factor=4.0,
-      max_seq_len=max_seq_len,
-  )
-
   config = cfg.ModelConfig(
       vocab_size=128256,
       num_layers=16,
-      max_seq_len=max_seq_len,
+      max_seq_len=8192,
       embedding_dim=2048,
       kv_cache_max_len=kv_cache_max_len,
       block_configs=block_config,
       final_norm_config=norm_config,
       enable_hlfb=True,
-      build_rope=build_rope,
   )
   return config
 

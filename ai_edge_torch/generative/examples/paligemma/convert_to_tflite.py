@@ -22,7 +22,6 @@ from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.paligemma import paligemma
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 import torch
 
 _VERSION = flags.DEFINE_enum(
@@ -80,10 +79,9 @@ def main(_):
       output_path=_OUTPUT_PATH.value,
       output_name_prefix=f'{_OUTPUT_NAME_PREFIX.value}_{_VERSION.value}',
       prefill_seq_len=_PREFILL_SEQ_LEN.value,
-      pixel_values_size=torch.Size(_PIXEL_VALUES_SIZE.value),
+      pixel_values_size=torch.Size([1] + _PIXEL_VALUES_SIZE.value),
       quantize=_QUANTIZE.value,
       config=pytorch_model.config.decoder_config,
-      export_config=ExportConfig(),
   )
 
 

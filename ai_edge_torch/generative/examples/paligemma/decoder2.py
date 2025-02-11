@@ -18,8 +18,8 @@
 from typing import Optional
 
 from ai_edge_torch.generative.examples.gemma import gemma2
-from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
+import ai_edge_torch.generative.layers.rotary_position_embedding as rope_utils
 from ai_edge_torch.generative.utilities import model_builder
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
@@ -50,35 +50,27 @@ class Decoder2(gemma2.Gemma2):
   """
 
   @torch.inference_mode
-  def forward(
-      self,
-      tokens: torch.Tensor,
-      input_pos: torch.Tensor,
-      kv_cache: kv_utils.KVCache,
-      input_embeds: torch.Tensor = None,
-      mask: Optional[torch.Tensor] = None,
-      export_config: Optional[model_builder.ExportConfig] = None,
-  ) -> dict[torch.Tensor, kv_utils.KVCache]:
-    if input_embeds is None:
-      return super().forward(tokens, input_pos, kv_cache, mask, export_config)
+  def forward(self, tokens, input_pos, kv_cache, **kwargs):
+    if kwargs.get("input_embeds") is not None:
+      # Set RoPE and mask when input_embeds has been passed with image embeds.
+      if kwargs.get("rope") is None:
+        rope_pos = input_pos + 1  # PaliGemma2 position is 1-based.
+        # ROPE parameters for all attn_configs are the same. Take the first one.
+        attn_config = self.config.block_config(0).attn_config
+        n_elem = int(attn_config.rotary_percentage * attn_config.head_dim)
+        kwargs["rope"] = rope_utils.build_rope(
+            rope_pos, n_elem, attn_config.rotary_base
+        )
 
-    assert input_embeds is not None
+      # The first part of input_embeds are image embeddings. Diagonal causal
+      # mask doesn't work here.
+      if kwargs.get("mask") is None:
+        embeds_len = kwargs["input_embeds"].size(1)
+        mask = torch.zeros(embeds_len, self.config.kv_cache_max)
+        mask[:, embeds_len:] = float("-inf")
+        kwargs["mask"] = mask
 
-    rope_pos = input_pos + 1  # PaliGemma2 position is 1-based.
-    # ROPE parameters for all attn_configs are the same. Take the first one.
-    attn_config = self.config.block_config(0).attn_config
-    n_elem = int(attn_config.rotary_percentage * attn_config.head_dim)
-    rope = self.config.build_rope(rope_pos, n_elem, attn_config.rotary_base)
-
-    if mask is None:
-      # By default, don't mask image embeds with a diagonal causal mask.
-      embeds_len = input_embeds.shape[1]
-      mask = torch.zeros(embeds_len, self.config.kv_cache_max)
-      mask[:, embeds_len:] = float("-inf")
-
-    return self._forward_with_embeds(
-        input_embeds, rope, mask, input_pos, kv_cache, export_config
-    )
+    return super().forward(tokens, input_pos, kv_cache, **kwargs)
 
 
 def get_decoder2_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:

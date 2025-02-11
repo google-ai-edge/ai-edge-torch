@@ -23,7 +23,6 @@ from absl import flags
 from ai_edge_torch.generative.examples.experimental.gemma import gemma2_gpu
 from ai_edge_torch.generative.layers.experimental import kv_cache
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 import torch
 
 _CHECKPOINT_PATH = flags.DEFINE_string(
@@ -71,31 +70,20 @@ def _create_mask(mask_len, kv_cache_max_len):
   return mask
 
 
-def _create_export_config(
-    prefill_seq_lens: list[int], kv_cache_max_len: int
-) -> ExportConfig:
-  """Creates the export config for the model."""
-  export_config = ExportConfig()
-  if isinstance(prefill_seq_lens, list):
-    prefill_mask = [_create_mask(i, kv_cache_max_len) for i in prefill_seq_lens]
-  else:
-    prefill_mask = _create_mask(prefill_seq_lens, kv_cach_max_len)
+def main(_):
+  pytorch_model = gemma2_gpu.build_2b_model(
+      _CHECKPOINT_PATH.value, kv_cache_max_len=_KV_CACHE_MAX_LEN.value
+  )
 
-  export_config.prefill_mask = prefill_mask
+  prefill_seq_lens = _PREFILL_SEQ_LENS.value
+  kv_cache_max_len = _KV_CACHE_MAX_LEN.value
+
+  prefill_mask = [_create_mask(i, kv_cache_max_len) for i in prefill_seq_lens]
 
   decode_mask = torch.full(
       (1, kv_cache_max_len), float('-inf'), dtype=torch.float32
   )
   decode_mask = torch.triu(decode_mask, diagonal=1).unsqueeze(0).unsqueeze(0)
-  export_config.decode_mask = decode_mask
-  export_config.kvcache_cls = kv_cache.KVCacheTransposed
-  return export_config
-
-
-def main(_):
-  pytorch_model = gemma2_gpu.build_2b_model(
-      _CHECKPOINT_PATH.value, kv_cache_max_len=_KV_CACHE_MAX_LEN.value
-  )
 
   converter.convert_to_tflite(
       pytorch_model,
@@ -104,9 +92,9 @@ def main(_):
       prefill_seq_len=_PREFILL_SEQ_LENS.value,
       quantize=_QUANTIZE.value,
       lora_ranks=_LORA_RANKS.value,
-      export_config=_create_export_config(
-          _PREFILL_SEQ_LENS.value, _KV_CACHE_MAX_LEN.value
-      ),
+      kv_cache_cls=kv_cache.KVCacheTransposed,
+      extra_exportable_prefill_kwargs=[{'mask': m} for m in prefill_mask],
+      extra_exportable_decode_kwargs={'mask': decode_mask},
   )
 
 

@@ -18,8 +18,7 @@
 import logging
 from typing import Any, List, Optional
 
-from ai_edge_torch.generative.layers import kv_cache as kv_utils
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
+import ai_edge_torch.generative.layers.kv_cache as kv_utils
 import torch
 
 
@@ -41,7 +40,6 @@ class ModelWrapper(torch.nn.Module):
     """
     super().__init__()
     self.model = model
-    self.export_config = ExportConfig(output_logits_on_prefill=True)
 
   def forward(
       self, tokens: torch.Tensor, pixel_values: torch.Tensor = None
@@ -110,11 +108,6 @@ class ReauthoredModelWrapper(ModelWrapper):
       The output logits and the updated KV cache.
     """
     extra_args = self._get_extra_args_for_forward()
-    if self.export_config is not None:
-      # Verification requires logit outputs on prefill for comparison.
-      if not self.export_config.output_logits_on_prefill:
-        raise ValueError("Verifier requires logit output on prefill.")
-      extra_args["export_config"] = self.export_config
     if pixel_values is not None:
       extra_args["pixel_values"] = pixel_values
     output = self.model.forward(tokens, input_pos, kv_cache, **extra_args)

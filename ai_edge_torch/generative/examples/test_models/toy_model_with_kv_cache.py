@@ -22,7 +22,6 @@ from ai_edge_torch.generative.layers import builder
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 import torch
 from torch import nn
 
@@ -64,7 +63,7 @@ class ToyModelWithKVCache(torch.nn.Module):
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
       mask: Optional[torch.Tensor] = None,
-      export_config: Optional[ExportConfig] = None,
+      skip_logits: Optional[bool] = None,
   ) -> Tuple[torch.Tensor, kv_utils.KVCache]:
     x = self.tok_embedding(tokens)
     cos, sin = self.rope_cache
@@ -83,12 +82,8 @@ class ToyModelWithKVCache(torch.nn.Module):
 
     updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entries))
 
-    if export_config is not None:
-      if (
-          torch.numel(input_pos) > 1
-          and not export_config.output_logits_on_prefill
-      ):
-        return {'kv_cache': updated_kv_cache}
+    if skip_logits:
+      return {'kv_cache': updated_kv_cache}
 
     x = self.final_norm(x)
     return {'logits': self.lm_head(x), 'kv_cache': updated_kv_cache}

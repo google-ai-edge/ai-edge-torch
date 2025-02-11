@@ -22,7 +22,6 @@ from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.qwen import qwen
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 
 _MODEL_SIZE = flags.DEFINE_enum(
     'model_size',
@@ -85,7 +84,6 @@ def main(_):
       prefill_seq_len=_PREFILL_SEQ_LENS.value,
       quantize=_QUANTIZE.value,
       lora_ranks=_LORA_RANKS.value,
-      export_config=ExportConfig(),
   )
 
 

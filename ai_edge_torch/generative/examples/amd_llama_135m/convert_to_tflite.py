@@ -22,17 +22,21 @@ from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.amd_llama_135m import amd_llama_135m
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 
 _CHECKPOINT_PATH = flags.DEFINE_string(
     'checkpoint_path',
     os.path.join(pathlib.Path.home(), 'Downloads/llm_data/amd-llama-135m'),
     'The path to the model checkpoint, or directory holding the checkpoint.',
 )
-_TFLITE_PATH = flags.DEFINE_string(
-    'tflite_path',
+_OUTPUT_PATH = flags.DEFINE_string(
+    'output_path',
     '/tmp/',
-    'The tflite file path to export.',
+    'The path to export the tflite model.',
+)
+_OUTPUT_NAME_PREFIX = flags.DEFINE_string(
+    'output_name_prefix',
+    'amd-llama-135m',
+    'The prefix of the output tflite model name.',
 )
 _PREFILL_SEQ_LEN = flags.DEFINE_integer(
     'prefill_seq_len',
@@ -55,14 +59,12 @@ def main(_):
   pytorch_model = amd_llama_135m.build_model(
       _CHECKPOINT_PATH.value, kv_cache_max_len=_KV_CACHE_MAX_LEN.value
   )
-  quant_suffix = 'q8' if _QUANTIZE.value else 'f32'
-  output_filename = f'amd-llama-135m_{quant_suffix}_seq{_PREFILL_SEQ_LEN.value}_ekv{_KV_CACHE_MAX_LEN.value}.tflite'
   converter.convert_to_tflite(
       pytorch_model,
-      tflite_path=os.path.join(_TFLITE_PATH.value, output_filename),
+      output_path=_OUTPUT_PATH.value,
+      output_name_prefix=_OUTPUT_NAME_PREFIX.value,
       prefill_seq_len=_PREFILL_SEQ_LEN.value,
       quantize=_QUANTIZE.value,
-      export_config=ExportConfig(),
   )
 
 

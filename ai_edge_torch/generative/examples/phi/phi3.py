@@ -98,9 +98,6 @@ def _build_phi3_rope(
     input_pos: int,
     n_elem: int,
     base: int,
-    condense_ratio: int,
-    dtype: torch.dtype,
-    device: torch.device,
     theta_factors: torch.Tensor,
     scale: float,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -114,10 +111,6 @@ def _build_phi3_rope(
       input_pos (torch.Tensor): the given input sequence positions
       n_elem (int): Each sequence's dimmension.
       base (int, optional): Rope base value.
-      condense_ratio (int, optional): The ratio by which sequence indicies are
-        condensed.
-      dtype (torch.dtype, optional): Output tensor's data type.
-      device (torch.device, optional): Output tensor's data type.
       theta_factors (torch.Tensor, optional): A tensor of shape (n_elem,) used
         to scale the theta values.
       scale (float, optional): A float used to scale the rope values.
@@ -127,19 +120,30 @@ def _build_phi3_rope(
   """
   theta = 1.0 / (base ** (torch.arange(0, n_elem, 2).float() / n_elem))
   theta = theta / theta_factors
-  seq_idx = input_pos / condense_ratio
-  idx_theta = torch.outer(seq_idx, theta)
-  cos = torch.cos(idx_theta).to(dtype=dtype, device=device) * scale
-  sin = torch.sin(idx_theta).to(dtype=dtype, device=device) * scale
-  return cos, sin
+  idx_theta = torch.outer(input_pos, theta)
+  cos = torch.cos(idx_theta).to(dtype=torch.float32, device=torch.device("cpu"))
+  sin = torch.sin(idx_theta).to(dtype=torch.float32, device=torch.device("cpu"))
+  return cos * scale, sin * scale
 
 
 class Phi3_5Mini(model_builder.DecoderOnlyModel):
   """A Phi-3.5 model built from the Edge Generative API layers."""
 
-  def __init__(self, config: cfg.ModelConfig):
-    super().__init__(config)
-    attn_config = self.config.block_config(0).attn_config
+  def forward(self, tokens, input_pos, kv_cache, **kwargs):
+    if kwargs.get("rope") is None:
+      # ROPE parameters for all attn_configs are the same. Take the first one.
+      attn_config = self.config.block_config(0).attn_config
+      scale = math.sqrt(
+          1 + math.log(ROPE_SCALE_FACTOR) / math.log(self.config.max_seq_len)
+      )
+      kwargs["rope"] = _build_phi3_rope(
+          input_pos=input_pos,
+          n_elem=int(attn_config.rotary_percentage * attn_config.head_dim),
+          base=attn_config.rotary_base,
+          theta_factors=torch.tensor(ROPE_SHORT_FACTOR),
+          scale=scale,
+      )
+    return super().forward(tokens, input_pos, kv_cache, **kwargs)
 
 
 def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
@@ -172,29 +176,16 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       pre_attention_norm_config=norm_config,
       post_attention_norm_config=norm_config,
   )
-
-  max_seq_len = 4096
-  # Create the RoPE callable
-  build_rope = partial(
-      _build_phi3_rope,
-      condense_ratio=1,
-      dtype=torch.float32,
-      device=torch.device("cpu"),
-      theta_factors=torch.tensor(ROPE_SHORT_FACTOR),
-      scale=math.sqrt(1 + math.log(ROPE_SCALE_FACTOR) / math.log(max_seq_len)),
-  )
-
   config = cfg.ModelConfig(
       vocab_size=32064,
       num_layers=32,
-      max_seq_len=max_seq_len,
+      max_seq_len=4096,
       kv_cache_max_len=kv_cache_max_len,
       embedding_dim=3072,
       block_configs=block_config,
       final_norm_config=norm_config,
       lm_head_share_weight_with_embedding=False,
       enable_hlfb=True,
-      build_rope=build_rope,
   )
   return config
 
