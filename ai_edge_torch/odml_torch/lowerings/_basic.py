@@ -28,6 +28,13 @@ LoweringContext = context.LoweringContext
 lower = registry.lower
 
 
+# https://pytorch.org/docs/stable/generated/torch.abs.html
+# https://openxla.org/stablehlo/spec#abs
+@lower(torch.ops.aten.abs)
+def _aten_abs(lctx, x: ir.Value, *, out=None) -> ir.Value:
+  return stablehlo.abs(x)
+
+
 # add(Tensor self, Tensor other) -> Tensor
 # @lower(torch.ops.aten.add)
 def _aten_add(lctx, x: ir.Value, y: ir.Value, alpha=1):
