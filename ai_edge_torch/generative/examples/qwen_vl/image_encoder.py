@@ -16,7 +16,7 @@
 """Example of building an image encoder of Qwen 2.5 VL model."""
 
 import dataclasses
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from ai_edge_torch.generative.layers import attention
 from ai_edge_torch.generative.layers import attention_utils
@@ -93,7 +93,7 @@ class QwenVLImageEncoder(nn.Module):
 
     # Tensor shape used to reshape pixel_values in forward() and various places.
     self.kernel_size = (
-        -1,  # batch size
+        -1,  # pixel_values.size(0)
         config.image_embedding.channels,
         config.image_embedding.temporal_patch_size,
         config.image_embedding.patch_size,
@@ -118,28 +118,22 @@ class QwenVLImageEncoder(nn.Module):
     )
     self.merger = QwenVLMerger(config)
     self.config = config
+    self.set_image_size(config.image_embedding.image_size)
 
   @torch.inference_mode
-  def forward(
-      self, pixel_values: torch.Tensor, grid_thw: torch.Tensor
-  ) -> torch.Tensor:
-    # Get window index and sequence lengths to rearrange the input tensor.
-    window_index, cu_seqlens = self._get_window_index(grid_thw)
+  def forward(self, pixel_values: torch.Tensor) -> torch.Tensor:
+    # Check if the pixel value size matches with grid size and image config.
+    assert pixel_values.size() == self.get_pixel_values_size(self.grid_thw)
 
     # Embed the image and rearrange the embedding tensor.
-    pixel_reshaped = pixel_values.view(self.kernel_size)
+    pixel_reshaped = pixel_values.reshape(self.kernel_size)
     x = self.tok_embedding(pixel_reshaped)
     x = x.view(-1, self.config.embedding_dim)
-    x = self._rearrange(x, window_index).unsqueeze(0)
+    x = self._rearrange(x, self.window_index).unsqueeze(0)
 
-    # Get RoPE and attention mask arranged according to the window index.
-    cos, sin = self._get_rope(grid_thw)
-    rope = (
-        self._rearrange(cos, window_index),
-        self._rearrange(sin, window_index),
-    )
+    rope = self._get_rope(self.grid_thw, self.window_index)
 
-    mask = self._get_mask(x.shape[1], cu_seqlens)
+    mask = self._get_mask(self.grid_thw, self.cu_seqlens)
     full_mask = torch.zeros(x.shape[:2])
     for i, block in enumerate(self.transformer_blocks):
       x = block(
@@ -150,10 +144,42 @@ class QwenVLImageEncoder(nn.Module):
 
     y = self.merger.forward(self.final_norm(x))
     # Arrange the output back to the original order.
-    reverse_index = torch.argsort(window_index)
-    return y[reverse_index, ...]
+    return y[self.reverse_index, ...]
 
-  def _get_rope(self, grid_thw: torch.Tensor) -> torch.Tensor:
+  def set_image_size(self, image_size: Tuple[int, int]):
+    """Set the image size and pre-calculate some values including mask."""
+    self.config.image_embedding.image_size = image_size
+    self.grid_thw = self.get_grid_thw()
+
+    # Precalculate the window index which can't be lowered to HLO because of
+    # inconcrete index in:
+    #     index_new = index_padded[index_padded != -100]
+    self.window_index, self.cu_seqlens = self._get_window_index(self.grid_thw)
+
+    # Precalculate the reverse index of window_index until "vhlo.sort_v1" op is
+    # supported.
+    self.reverse_index = torch.argsort(self.window_index)
+
+  def get_grid_thw(self, num_images: int = 1) -> List[Tuple[int, int, int]]:
+    """Calculate the grid size of the input images based on the image config."""
+    height, width = self.config.image_embedding.image_size
+    patch_height = height // self.config.image_embedding.patch_size
+    patch_width = width // self.config.image_embedding.patch_size
+    # Support only image, i.e. temporal step size is always 1.
+    return [(1, patch_height, patch_width)] * num_images
+
+  def get_pixel_values_size(
+      self, grid_thw: List[Tuple[int, int, int]]
+  ) -> torch.Size:
+    """Calculate the size of pixel values tensor."""
+    dim_0 = sum(t * h * w for t, h, w in grid_thw)
+    config = self.config.image_embedding
+    dim_1 = config.channels * config.temporal_patch_size * config.patch_size**2
+    return torch.Size((dim_0, dim_1))
+
+  def _get_rope(
+      self, grid_thw: List[Tuple[int, int, int]], window_index: torch.Tensor
+  ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Get RoPE for Qwen VL model based on image grid information.
 
     It's copied from Qwen2_5_VisionTransformerPretrainedModel.rot_pos_emb() and
@@ -182,16 +208,20 @@ class QwenVLImageEncoder(nn.Module):
       wpos_ids = wpos_ids.flatten()
       pos_ids.append(torch.stack([hpos_ids, wpos_ids], dim=-1).repeat(t, 1))
     pos_ids = torch.cat(pos_ids, dim=0)
-    max_grid_size = grid_thw[:, 1:].max()
+    # Assume all the heights and widths are the same for all images.
+    max_grid_size = max(grid_thw[0][1], grid_thw[0][2])
 
     cos, sin = attention_utils.build_rope_cache(
         max_grid_size,
         # ROPE parameters for all attn_configs are the same. Take the first one.
         self.config.block_config(0).attn_config.head_dim // 2,
     )
-    return cos[pos_ids].flatten(1), sin[pos_ids].flatten(1)
+    return (
+        self._rearrange(cos[pos_ids].flatten(1), window_index),
+        self._rearrange(sin[pos_ids].flatten(1), window_index),
+    )
 
-  def _get_window_index(self, grid_thw: torch.Tensor):
+  def _get_window_index(self, grid_thw: List[Tuple[int, int, int]]):
     """Get window index for Qwen VL model to rearrange the input tensor.
 
     It's copied from Qwen2_5_VisionTransformerPretrainedModel.get_window_index()
@@ -207,13 +237,10 @@ class QwenVLImageEncoder(nn.Module):
     )
 
     for grid_t, grid_h, grid_w in grid_thw:
-      llm_grid_h, llm_grid_w = (
-          grid_h // self.config.spatial_merge_size,
-          grid_w // self.config.spatial_merge_size,
-      )
-      index = torch.arange(grid_t * llm_grid_h * llm_grid_w).reshape(
-          grid_t, llm_grid_h, llm_grid_w
-      )
+      llm_grid_h = grid_h // self.config.spatial_merge_size
+      llm_grid_w = grid_w // self.config.spatial_merge_size
+      index = torch.arange(grid_t * llm_grid_h * llm_grid_w)
+      index = index.reshape((grid_t, llm_grid_h, llm_grid_w))
       pad_h = vit_merger_window_size - llm_grid_h % vit_merger_window_size
       pad_w = vit_merger_window_size - llm_grid_w % vit_merger_window_size
       num_windows_h = (llm_grid_h + pad_h) // vit_merger_window_size
@@ -236,18 +263,14 @@ class QwenVLImageEncoder(nn.Module):
       index_padded = index_padded.reshape(-1)
       index_new = index_padded[index_padded != -100]
       window_index.append(index_new + window_index_id)
-      spatial_merge_unit = (
-          self.config.spatial_merge_size * self.config.spatial_merge_size
-      )
+      spatial_merge_unit = self.config.spatial_merge_size**2
       cu_seqlens_tmp = (
           seqlens.cumsum(0) * spatial_merge_unit + cu_window_seqlens[-1]
       )
       cu_window_seqlens.extend(cu_seqlens_tmp.tolist())
-      window_index_id += (grid_t * llm_grid_h * llm_grid_w).item()
+      window_index_id += grid_t * llm_grid_h * llm_grid_w
 
     window_index = torch.cat(window_index, dim=0)
-    cu_window_seqlens = torch.tensor(cu_window_seqlens)
-    cu_window_seqlens = torch.unique_consecutive(cu_window_seqlens)
     return window_index, cu_window_seqlens
 
   def _rearrange(
@@ -258,20 +281,20 @@ class QwenVLImageEncoder(nn.Module):
     It's copied from Qwen2_5_VisionTransformerPretrainedModel.forward() and
     modified accordingly.
     """
-    size = x.shape[0]
-    spatial_merge_unit = (
-        self.config.spatial_merge_size * self.config.spatial_merge_size
-    )
-    x_reshaped = x.view(size // spatial_merge_unit, spatial_merge_unit, -1)
+    spatial_merge_unit = self.config.spatial_merge_size**2
+    x_reshaped = x.view(x.size(0) // spatial_merge_unit, spatial_merge_unit, -1)
     x_rearranged = x_reshaped[window_index, ...]
-    return x_rearranged.view(size, -1)
+    return x_rearranged.view(x.shape)
 
-  def _get_mask(self, seqlen: int, cu_seqlens: torch.Tensor) -> torch.Tensor:
+  def _get_mask(
+      self, grid_thw: List[Tuple[int, int, int]], cu_seqlens: List[int]
+  ) -> torch.Tensor:
     """Get attention mask for Qwen VL model.
 
     It's copied from Qwen2_5_VLVisionAttention.forward() and modified
     accordingly.
     """
+    seqlen = self.get_pixel_values_size(grid_thw)[0]
     mask = torch.full([1, 1, seqlen, seqlen], float("-inf"))
     for i in range(1, len(cu_seqlens)):
       mask[
@@ -282,7 +305,7 @@ class QwenVLImageEncoder(nn.Module):
     return mask
 
 
-def get_image_encoder_config() -> QwenVLImageConfig:
+def get_image_encoder_config(image_size: Tuple[int, int]) -> QwenVLImageConfig:
   """Returns the model config for the image encoder of a Qwen 2.5 VL model.
 
   Returns:
@@ -290,7 +313,7 @@ def get_image_encoder_config() -> QwenVLImageConfig:
   """
   image_embedding_config = cfg.ImageEmbeddingConfig(
       channels=3,
-      image_size=0,  # Not used in image encoder.
+      image_size=image_size,
       patch_size=14,
       temporal_patch_size=2,
   )
@@ -336,15 +359,13 @@ def get_image_encoder_config() -> QwenVLImageConfig:
       window_size=112,
       spatial_merge_size=2,
       full_atten_block_indexes=[7, 15, 23, 31],
-      # TODO: b/377051577 - Once RemoveSDPACompositeZeroMaskPass is removed,
-      # enable_hlfb can be set to True. See b/383865404#comment3 for details.
-      # enable_hlfb=True,
+      enable_hlfb=True,
   )
   return config
 
 
 def get_fake_image_encoder_config() -> QwenVLImageConfig:
-  config = get_image_encoder_config()
+  config = get_image_encoder_config((8, 12))
   # PaliGemma image encoder has only one block config.
   config.block_config(0).ff_config.intermediate_size = 128
   config.image_embedding.patch_size = 2
@@ -353,8 +374,11 @@ def get_fake_image_encoder_config() -> QwenVLImageConfig:
   return config
 
 
-def build_image_encoder(checkpoint_path: str) -> QwenVLImageEncoder:
-  config = get_image_encoder_config()
+def build_image_encoder(
+    checkpoint_path: str,
+    image_size: Tuple[int, int] = (34 * 14, 46 * 14),
+) -> QwenVLImageEncoder:
+  config = get_image_encoder_config(image_size)
   encoder = QwenVLImageEncoder(config)
   load_image_encoder(checkpoint_path, encoder)
   encoder.eval()

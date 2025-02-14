@@ -17,6 +17,7 @@
 
 import logging
 import pathlib
+
 from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.qwen_vl import qwen_vl
@@ -47,15 +48,8 @@ _MAX_NEW_TOKENS = flags.DEFINE_integer(
 class ReauthoredQwenVLWrapper(verifier.ReauthoredModelWrapper):
   """Reauthored Qwen VL model wrapper."""
 
-  def __init__(self, model: torch.nn.Module):
-    super().__init__(model)
-    self.grid_thw = None
-
   def _init_kv_cache(self):
     return kv_cache.KVCache.from_model_config(self.model.config.decoder_config)
-
-  def _get_extra_args_for_forward(self):
-    return {"grid_thw": self.grid_thw}
 
 
 def main(_):
@@ -94,7 +88,11 @@ def main(_):
 
   logging.info("Forwarding the reauthored model...")
   wrapped_reauthored_model = ReauthoredQwenVLWrapper(reauthored_model)
-  wrapped_reauthored_model.grid_thw = inputs["image_grid_thw"]
+  grid_thw = inputs["image_grid_thw"].tolist()
+  config = reauthored_model.config.image_encoder_config.image_embedding
+  reauthored_model.image_encoder.set_image_size(
+      (grid_thw[0][1] * config.patch_size, grid_thw[0][2] * config.patch_size)
+  )
   outputs_reauthored = wrapped_reauthored_model.forward(
       tokens=inputs["input_ids"],
       pixel_values=inputs["pixel_values"],

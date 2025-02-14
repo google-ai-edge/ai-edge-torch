@@ -64,9 +64,12 @@ def main(_):
   logging.info("outputs_original: %s", outputs_original)
 
   logging.info("Forwarding the reauthored model...")
-  outputs_reauthored = reauthored_model.forward(
-      image_input["pixel_values"], image_input["image_grid_thw"]
+  grid_thw = image_input["image_grid_thw"].tolist()
+  config = reauthored_model.config.image_embedding
+  reauthored_model.set_image_size(
+      (grid_thw[0][1] * config.patch_size, grid_thw[0][2] * config.patch_size)
   )
+  outputs_reauthored = reauthored_model.forward(image_input["pixel_values"])
   logging.info("outputs_reauthored: %s", outputs_reauthored)
 
   try:

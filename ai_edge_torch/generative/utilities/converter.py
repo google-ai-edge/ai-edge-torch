@@ -170,7 +170,7 @@ def _export_helper(
 
   # For export, we create a module that captures any non-exportable,
   # arugments, e.g. the generation config object.
-  mod = ExportableModule(pytorch_model, export_config=export_config)
+  mod = ExportableModule(pytorch_model, export_config=export_config).eval()
 
   converter = converter_utils.Converter()
   for lora in loras:

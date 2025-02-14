@@ -28,6 +28,7 @@ from ai_edge_torch.generative.examples.paligemma import paligemma
 from ai_edge_torch.generative.examples.phi import phi2
 from ai_edge_torch.generative.examples.phi import phi3
 from ai_edge_torch.generative.examples.qwen import qwen
+from ai_edge_torch.generative.examples.qwen_vl import qwen_vl
 from ai_edge_torch.generative.examples.smollm import smollm
 from ai_edge_torch.generative.examples.stable_diffusion import clip as sd_clip
 from ai_edge_torch.generative.examples.stable_diffusion import decoder as sd_decoder
@@ -196,17 +197,15 @@ class TestModelConversion(googletest.TestCase):
     config = paligemma.get_fake_model_config(decoder_config)
     pytorch_model = paligemma.PaliGemma(config, decoder_class).eval()
 
-    image_embedding_config = config.image_encoder_config.image_embedding
-    num_patches = (
-        image_embedding_config.image_size // image_embedding_config.patch_size
-    ) ** 2
+    image_config = config.image_encoder_config.image_embedding
+    num_patches = (image_config.image_size // image_config.patch_size) ** 2
 
     # Make sure the token size is longer than the number of image patches.
     seq_len = num_patches + 10
-    tokens = torch.zeros((1, seq_len), dtype=torch.int, device="cpu")
+    tokens = torch.zeros((1, seq_len), dtype=torch.int)
     input_pos = torch.arange(0, seq_len, dtype=torch.int)
     kv = kv_cache.KVCache.from_model_config(config.decoder_config)
-    pixel_values = torch.zeros((1, 3, 8, 8), dtype=torch.float32, device="cpu")
+    pixel_values = torch.zeros((1, 3, 8, 8), dtype=torch.float32)
 
     edge_model = ai_edge_torch.signature(
         "prefill_pixel",
@@ -256,6 +255,55 @@ class TestModelConversion(googletest.TestCase):
         decoder2.get_fake_decoder2_config,
         atol=1e-3,
         rtol=1e-5,
+    )
+
+  @googletest.skipIf(
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
+  )
+  def test_qwen_vl_model(self):
+    config = qwen_vl.get_fake_model_config()
+    pytorch_model = qwen_vl.QwenVL(config).eval()
+
+    grid_thw = pytorch_model.image_encoder.get_grid_thw()
+    pixel_values_size = pytorch_model.image_encoder.get_pixel_values_size(
+        grid_thw
+    )
+
+    # Make sure the token size is longer than the number of pixel values.
+    seq_len = pixel_values_size[0] + 10
+    tokens = torch.zeros((1, seq_len), dtype=torch.int)
+    input_pos = torch.arange(0, seq_len, dtype=torch.int)
+    kv = kv_cache.KVCache.from_model_config(config.decoder_config)
+    pixel_values = torch.zeros(pixel_values_size, dtype=torch.float32)
+
+    edge_model = ai_edge_torch.signature(
+        "prefill_pixel",
+        pytorch_model,
+        sample_kwargs={
+            "tokens": tokens,
+            "input_pos": input_pos,
+            "kv_cache": kv,
+            "pixel_values": pixel_values,
+        },
+    ).convert()
+    edge_model.set_interpreter_builder(
+        self._interpreter_builder(edge_model.tflite_model())
+    )
+
+    tokens = torch.arange(1, seq_len + 1, dtype=torch.int).unsqueeze(0)
+    self.assertTrue(
+        test_utils.compare_tflite_torch(
+            edge_model,
+            pytorch_model,
+            tokens,
+            input_pos,
+            kv,
+            pixel_values=pixel_values,
+            signature_name="prefill_pixel",
+            atol=1e-3,
+            rtol=1e-5,
+        )
     )
 
   @googletest.skipIf(

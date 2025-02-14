@@ -61,7 +61,6 @@ class QwenVL(nn.Module):
       kv_cache: kv_utils.KVCache,
       mask: Optional[torch.Tensor] = None,
       pixel_values: torch.Tensor = None,
-      grid_thw: torch.Tensor = None,
       export_config: Optional[model_builder.ExportConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
     if pixel_values is None:
@@ -69,14 +68,14 @@ class QwenVL(nn.Module):
           tokens=tokens,
           input_pos=input_pos,
           kv_cache=kv_cache,
-          mask=mask,
-          rope=self._build_text_rope(input_pos),
           input_embeds=None,
+          rope=self._build_text_rope(input_pos),
+          mask=mask,
           export_config=export_config,
       )
 
     input_embeds = self.decoder.tok_embedding(tokens)
-    image_embeds = self.image_encoder(pixel_values, grid_thw).unsqueeze(0)
+    image_embeds = self.image_encoder(pixel_values).unsqueeze(0)
 
     # Merging image_embeds into text_embeds as PaliGemmaForConditionalGeneration
     # can be done like:
@@ -92,18 +91,19 @@ class QwenVL(nn.Module):
         (
             input_embeds[:, :1, :],
             image_embeds,
-            input_embeds[:, image_embeds.shape[1] + 1 :, :],
+            input_embeds[:, image_embeds.size(1) + 1 :, :],
         ),
         dim=1,
     )
 
+    grid_thw = self.image_encoder.get_grid_thw()
     return self.decoder(
         tokens=None,
         input_pos=input_pos,
         kv_cache=kv_cache,
-        mask=mask,
         input_embeds=input_embeds,
         rope=self._build_multimodal_rope(input_pos, grid_thw),
+        mask=mask,
         export_config=export_config,
     )
 
@@ -120,9 +120,9 @@ class QwenVL(nn.Module):
   def _build_text_rope(
       self, input_pos: torch.Tensor
   ) -> Tuple[torch.Tensor, torch.Tensor]:
-    # Reset rope_pos_adjust to 0 when input sequence starts from scratch, i.e.
-    # input_pos[0] = 0.
-    if input_pos[0] == 0:
+    # Reset rope_pos_adjust to 0 when it's prefill, i.e. input has 2 or more
+    # tokens.
+    if input_pos.numel() > 1:
       self.rope_pos_adjust = 0
     return self._build_rope(input_pos + self.rope_pos_adjust)
 
@@ -178,15 +178,18 @@ class QwenVL(nn.Module):
     return torch.cat([m[i % 3] for i, m in enumerate(split)], dim=-1)
 
 
-def get_model_config(**kwargs) -> QwenVLConfig:
+def get_model_config(
+    kv_cache_max_len: int = 1024,
+    image_size: Tuple[int, int] = (34 * 14, 46 * 14),
+) -> QwenVLConfig:
   """Returns the model config for a PaliGemma 3B-224 model.
 
   Returns:
     The model config for a PaliGemma 3B model.
   """
   return QwenVLConfig(
-      image_encoder_config=image_encoder.get_image_encoder_config(),
-      decoder_config=decoder.get_decoder_config(**kwargs),
+      image_encoder_config=image_encoder.get_image_encoder_config(image_size),
+      decoder_config=decoder.get_decoder_config(kv_cache_max_len),
       image_token_id=151655,
       mrope_section=[16, 24, 24],
   )
@@ -197,6 +200,7 @@ def get_fake_model_config(**kwargs) -> QwenVLConfig:
       image_encoder_config=image_encoder.get_fake_image_encoder_config(),
       decoder_config=decoder.get_fake_decoder_config(**kwargs),
       image_token_id=127,
+      mrope_section=[16, 24, 24],
   )
 
 

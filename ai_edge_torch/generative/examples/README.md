@@ -50,7 +50,11 @@ same architecture as SmolLM but it has been trained on improved training data.
 
 ## Qwen
 Alibaba's [Qwen 2.5](https://huggingface.co/collections/Qwen/qwen25-66e81a666513e518adb90d9e)
-0.5B, 1B, 3B modes are also provided as examples.
+0.5B, 1B, 3B models are also provided as examples.
+
+## Qwen VL
+Alibaba's [Qwen 2.5 VL](https://huggingface.co/Qwen/Qwen2.5-VL-3B-Instruct)
+3B Instruct model is also provided as an multimodal model example.
 
 ## DeepSeek
 [DeepSeek-R1 distilled](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B)
