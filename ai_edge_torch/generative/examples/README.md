@@ -61,8 +61,16 @@ Alibaba's [Qwen 2.5 VL](https://huggingface.co/Qwen/Qwen2.5-VL-3B-Instruct)
 model based on Qwen is also provided as an example.
 
 ## AMD-Llama-135m
-
 [AMD-Llama-135m](https://huggingface.co/amd/AMD-Llama-135m) is a 135M parameter model based on the Llama2 architecture and uses the same tokenizer as Llama2. It was trained on AMD Instinct MI250 accelerators. 
+
+## Moonshine
+[Moonshine](https://huggingface.co/UsefulSensors/moonshine) is a sequence-to-sequence ASR model trained by
+Useful Sensors, capable of transcribing English speech audio into English text. The model has two variants:
+tiny(27M) and base(61M).
+
+## T5
+[T5](https://huggingface.co/docs/transformers/en/model_doc/t5) is an encoder-decoder model pre-trained on a multi-task mixture of unsupervised and supervised tasks and for which each task is converted into a text-to-text format. t5-small
+has 60M parameters.
 
 ## Overall workflow
 To support a new LLM with the Edge Generative API, we need to go through the process of model (re)authoring, checkpoint mapping/loading, model quantization (via PT2E), model conversion to flatbuffer schema, model quality evaluation, benchmarking and on-device inference pipeline authoring.
