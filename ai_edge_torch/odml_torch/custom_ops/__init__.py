@@ -1,4 +1,4 @@
-# Copyright 2024 The AI Edge Torch Authors.
+# Copyright 2025 The AI Edge Torch Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,9 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Torch library for registering ODML Torch custom ops."""
-
-import torch
-
-ODML_TORCH_LIB = torch.library.Library("odml_torch", "DEF")
-
+from . import annotate_tensor
