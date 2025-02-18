@@ -29,39 +29,48 @@ _CHECKPOINT_PATH = flags.DEFINE_string(
     os.path.join(pathlib.Path.home(), 'Downloads/llm_data/amd-llama-135m'),
     'The path to the model checkpoint, or directory holding the checkpoint.',
 )
-_TFLITE_PATH = flags.DEFINE_string(
-    'tflite_path',
-    '/tmp/',
-    'The tflite file path to export.',
-)
-_PREFILL_SEQ_LEN = flags.DEFINE_integer(
-    'prefill_seq_len',
-    1024,
-    'The maximum size of prefill input tensor.',
-)
 _KV_CACHE_MAX_LEN = flags.DEFINE_integer(
     'kv_cache_max_len',
     1280,
     'The maximum size of KV cache buffer, including both prefill and decode.',
+)
+_OUTPUT_PATH = flags.DEFINE_string(
+    'output_path',
+    '/tmp/',
+    'The path to export the tflite model.',
+)
+_OUTPUT_NAME_PREFIX = flags.DEFINE_string(
+    'output_name_prefix',
+    'deepseek',
+    'The prefix of the output tflite model name.',
+)
+_PREFILL_SEQ_LENS = flags.DEFINE_multi_integer(
+    'prefill_seq_lens',
+    (8, 64, 128, 256, 512, 1024),
+    'List of the maximum sizes of prefill input tensors.',
 )
 _QUANTIZE = flags.DEFINE_bool(
     'quantize',
     True,
     'Whether the model should be quantized.',
 )
-
+_LORA_RANKS = flags.DEFINE_multi_integer(
+    'lora_ranks',
+    None,
+    'If set, the model will be converted with the provided list of LoRA ranks.',
+)
 
 def main(_):
   pytorch_model = amd_llama_135m.build_model(
       _CHECKPOINT_PATH.value, kv_cache_max_len=_KV_CACHE_MAX_LEN.value
   )
-  quant_suffix = 'q8' if _QUANTIZE.value else 'f32'
-  output_filename = f'amd-llama-135m_{quant_suffix}_seq{_PREFILL_SEQ_LEN.value}_ekv{_KV_CACHE_MAX_LEN.value}.tflite'
   converter.convert_to_tflite(
       pytorch_model,
-      tflite_path=os.path.join(_TFLITE_PATH.value, output_filename),
-      prefill_seq_len=_PREFILL_SEQ_LEN.value,
+      output_path=_OUTPUT_PATH.value,
+      output_name_prefix=_OUTPUT_NAME_PREFIX.value,
+      prefill_seq_len=_PREFILL_SEQ_LENS.value,
       quantize=_QUANTIZE.value,
+      lora_ranks=_LORA_RANKS.value,
       export_config=ExportConfig(),
   )
 
