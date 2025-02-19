@@ -136,8 +136,11 @@ class TestCoreAtenOps(parameterized.TestCase):
 
   @parameterized.named_parameters(
       # fmt: off
-      # pyformat: disabledef 
+      # pyformat: disabledef
       ("aten_abs_0", torch.ops.aten.abs, (rnd(torch.float32, (10, 10)),), dict()),
+      ("aten_abs_1", torch.ops.aten.abs, (rnd(torch.float32, (10, 10), -10, 0),), dict()),
+      ("aten_abs_2", torch.ops.aten.abs, (rnd(torch.float32, (10, 10), 0, 10),), dict()),
+      ("aten_abs_3", torch.ops.aten.abs, (rnd(torch.int64, (10, 10), -100, 100),), dict()),
       ("aten_acos_0", torch.ops.aten.acos, (rnd(torch.float32, (10, 10)),), dict()),
       ("aten_acosh_0", torch.ops.aten.acosh, (rnd(torch.float32, (10, 10)),), dict()),
       ("aten_unsqueeze_0", torch.ops.aten.unsqueeze, (rnd(torch.float32, (1, 3, 10)), -2,), dict()),
