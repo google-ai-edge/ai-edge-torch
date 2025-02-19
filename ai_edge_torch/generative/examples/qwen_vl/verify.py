@@ -67,7 +67,7 @@ def main(_):
   )
   reauthored_checkpoint = pathlib.Path(cached_config_file).parent
   logging.info("Building the reauthored model from: %s", reauthored_checkpoint)
-  reauthored_model = qwen_vl.build_model(reauthored_checkpoint)
+  reauthored_model = qwen_vl.build_model(str(reauthored_checkpoint))
 
   logging.info("Loading the processor from: %s", checkpoint)
   processor = transformers.AutoProcessor.from_pretrained(checkpoint)

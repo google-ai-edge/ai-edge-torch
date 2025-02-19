@@ -50,7 +50,7 @@ def main(_):
   )
   reauthored_checkpoint = pathlib.Path(cached_config_file).parent
   logging.info("Building the reauthored model from: %s", reauthored_checkpoint)
-  reauthored_model = openelm.build_model(reauthored_checkpoint)
+  reauthored_model = openelm.build_model(str(reauthored_checkpoint))
 
   tokenizer_checkpoint = "meta-llama/Llama-2-7b-hf"
   logging.info("Loading the tokenizer from: %s", tokenizer_checkpoint)

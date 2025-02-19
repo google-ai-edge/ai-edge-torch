@@ -49,7 +49,7 @@ def main(_):
   )
   reauthored_checkpoint = pathlib.Path(cached_config_file).parent
   logging.info("Building the reauthored model from: %s", reauthored_checkpoint)
-  reauthored_model = deepseek.build_model(reauthored_checkpoint)
+  reauthored_model = deepseek.build_model(str(reauthored_checkpoint))
 
   logging.info("Loading the tokenizer from: %s", checkpoint)
   tokenizer = transformers.AutoTokenizer.from_pretrained(checkpoint)

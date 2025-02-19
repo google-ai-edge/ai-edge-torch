@@ -70,7 +70,7 @@ def main(_):
     cached_config_file = transformers.utils.cached_file(
         checkpoint, transformers.utils.CONFIG_NAME
     )
-    reauthored_checkpoint = pathlib.Path(cached_config_file).parent
+    reauthored_checkpoint = str(pathlib.Path(cached_config_file).parent)
   else:
     checkpoint = kagglehub.model_download(_CHECKPOINT[_VERSION.value])
     reauthored_checkpoint = checkpoint
