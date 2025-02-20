@@ -216,6 +216,15 @@ def _aten_floor(lctx, x: ir.Value, *, out=None) -> ir.Value:
 
 
 # Schema:
+#   - aten::abs(Tensor input) -> Tensor
+# Torch Reference:
+#   - https://pytorch.org/docs/main/generated/torch.abs.html
+@lower(torch.ops.aten.abs.default)
+def _aten_abs(lctx, input: ir.Value, *, out=None) -> ir.Value:
+  return stablehlo.abs(input)
+
+
+# Schema:
 #   - aten::cat(Tensor[] tensors, int dim=0) -> Tensor
 # Torch Reference:
 #   - https://pytorch.org/docs/main/generated/torch.cat.html
