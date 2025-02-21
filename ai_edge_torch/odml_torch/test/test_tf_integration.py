@@ -27,6 +27,8 @@ class TensorflowIntegrationTest(googletest.TestCase):
     torch.manual_seed(0)
 
   def test_mlir_lowered_call(self):
+    """Test a simple model with MLIR lowered call."""
+
     class AddModel(torch.nn.Module):
 
       def forward(self, x, y):
@@ -45,6 +47,8 @@ class TensorflowIntegrationTest(googletest.TestCase):
     self.assertTrue(np.allclose(lowering_output, torch_output))
 
   def test_resnet18(self):
+    """Test Resnet18 model with MLIR lowered call."""
+
     model = torchvision.models.resnet18().eval()
     forward_args = lambda: (torch.rand((1, 3, 224, 224)),)
 
@@ -58,11 +62,26 @@ class TensorflowIntegrationTest(googletest.TestCase):
 
     # Check value and debug info.
     self.assertTrue(np.allclose(lowering_output, torch_output, atol=1e-5))
+
+  def test_debuginfo_from_export_lower(self):
+    """Test the debuginfo with export lower."""
+
+    model = torchvision.models.resnet18().eval()
+    forward_args = lambda: (torch.rand((1, 3, 224, 224)),)
+
+    ep = torch.export.export(model, forward_args())
+    lowered = odml_torch.export.exported_program_to_mlir(ep)
+
     lowered_text = lowered.get_text(enable_debug_info=True)
     # Check the file info.
     self.assertIn("torchvision/models/resnet.py", lowered_text)
-    # Check the fx node name.
-    self.assertIn("relu_1", lowered_text)
+    # Check the fx node names.
+    for n in ep.graph.nodes:
+      # Record all aten op nodes from the original graph and check if they
+      # are lowered to the same name in the lowered graph.
+      if n.op == "call_function" and not n.name.startswith("getitem"):
+        # Ensure strings like `loc("relu__1"` are present in the lowered text.
+        self.assertIn(f'loc("{n.name}"', lowered_text)
 
 
 if __name__ == "__main__":
