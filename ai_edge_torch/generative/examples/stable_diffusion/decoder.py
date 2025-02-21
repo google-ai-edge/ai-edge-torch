@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+import ai_edge_torch
 import ai_edge_torch.generative.layers.builder as layers_builder
 import ai_edge_torch.generative.layers.model_config as layers_cfg
 from ai_edge_torch.generative.layers.unet import blocks_2d
@@ -281,7 +282,10 @@ def get_model_config(device_type: str = "cpu") -> unet_cfg.AutoEncoderConfig:
 
   # For now, only turns on StableHLO composite ops on GPU backend for better
   # performance. CPU should also switch to it once the support is done.
-  enable_hlfb = True if device_type == "gpu" else False
+  enable_hlfb = False
+  if device_type == "gpu":
+    ai_edge_torch.config.enable_group_norm_composite = True
+    enable_hlfb = True
 
   norm_config = layers_cfg.NormalizationConfig(
       layers_cfg.NormalizationType.GROUP_NORM,
