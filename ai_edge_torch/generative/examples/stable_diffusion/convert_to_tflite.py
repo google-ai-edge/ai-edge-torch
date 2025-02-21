@@ -29,41 +29,46 @@ import torch
 
 _CLIP_CKPT = flags.DEFINE_string(
     'clip_ckpt',
-    None,
+    os.path.join(
+        pathlib.Path.home(),
+        'Downloads/stable-diffusion-v1-5/v1-5-pruned-emaonly.safetensors',
+    ),
     help='Path to source CLIP model checkpoint',
-    required=True,
 )
 
 _DIFFUSION_CKPT = flags.DEFINE_string(
     'diffusion_ckpt',
-    None,
+    os.path.join(
+        pathlib.Path.home(),
+        'Downloads/stable-diffusion-v1-5/v1-5-pruned-emaonly.safetensors',
+    ),
     help='Path to source diffusion model checkpoint',
-    required=True,
 )
 
 _DECODER_CKPT = flags.DEFINE_string(
     'decoder_ckpt',
-    None,
+    os.path.join(
+        pathlib.Path.home(),
+        'Downloads/stable-diffusion-v1-5/v1-5-pruned-emaonly.safetensors',
+    ),
     help='Path to source image decoder model checkpoint',
-    required=True,
 )
 
 _OUTPUT_DIR = flags.DEFINE_string(
     'output_dir',
-    None,
+    '/tmp/sd_tflite',
     help='Path to the converted TF Lite directory.',
-    required=True,
 )
 
 _QUANTIZE = flags.DEFINE_bool(
     'quantize',
     help='Whether to quantize the model during conversion.',
-    default=True,
+    default=False,
 )
 
 _DEVICE_TYPE = flags.DEFINE_string(
     'device_type',
-    'cpu',
+    'gpu',
     help='The device type of the model. Currently supported: cpu, gpu.',
 )
 
