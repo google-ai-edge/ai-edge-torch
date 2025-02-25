@@ -125,6 +125,10 @@ def convert_signatures(
     else:
       exported_program = torch.export.export(**kwargs, strict=True)
 
+    exported_program = fx_infra.graph_utils.reset_from_node_meta(
+        exported_program
+    )
+
     exported_program = fx_infra.safe_run_decompositions(
         exported_program,
         fx_infra.decomp.pre_convert_decomp(),
