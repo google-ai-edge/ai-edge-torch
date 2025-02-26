@@ -365,7 +365,6 @@ class CrossAttention(nn.Module):
 
     if rope is not None:
       # Compute rotary positional embedding for query and key.
-      n_elem = int(self.config.rotary_percentage * self.config.head_dim)
       cos, sin = rope
       q, k = rotary_pos_emb.apply_rope_inline(q, k, cos, sin)
 
