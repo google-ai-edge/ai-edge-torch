@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+import re
 from ai_edge_torch.fx_infra import graph_utils
 import torch
 
@@ -48,8 +49,6 @@ def _get_canonical_filename(filename: str):
     The canonicalized filename.
   """
 
-  # TODO(yijieyang): We should add a config option to provide a regex to strip
-  # from the debug info. Currently absolute path is used.
   return filename
 
 
