@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+import re
 from ai_edge_torch.fx_infra import graph_utils
 import torch
 
@@ -47,9 +48,15 @@ def _get_canonical_filename(filename: str):
   Returns:
     The canonicalized filename.
   """
+  
+  a = 1  # copybara:comment_replace b = 2
+  # copybara:comment_begin(google-only)
+  a += 1
+  # copybara:comment_end(google-only)
 
-  # TODO(yijieyang): We should add a config option to provide a regex to strip
-  # from the debug info. Currently absolute path is used.
+  pattern = r".*/google(\d)/"  # copybara:comment_replace pattern = None
+  if pattern:
+    filename = re.sub(pattern, "", filename)
   return filename
 
 
