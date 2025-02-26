@@ -22,7 +22,7 @@ from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.smollm import smollm
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
+from ai_edge_torch.generative.utilities import model_builder
 
 _CHECKPOINT_PATH = flags.DEFINE_string(
     'checkpoint_path',
@@ -59,6 +59,11 @@ _LORA_RANKS = flags.DEFINE_multi_integer(
     None,
     'If set, the model will be converted with the provided list of LoRA ranks.',
 )
+_DECODE_BATCH_SIZE = flags.DEFINE_integer(
+    'decode_batch_size',
+    1,
+    'The batch size for the decode signature.',
+)
 
 
 def main(_):
@@ -72,7 +77,9 @@ def main(_):
       prefill_seq_len=_PREFILL_SEQ_LENS.value,
       quantize=_QUANTIZE.value,
       lora_ranks=_LORA_RANKS.value,
-      export_config=ExportConfig(),
+      export_config=model_builder.ExportConfig(
+          decode_batch_size=_DECODE_BATCH_SIZE.value
+      ),
   )
 
 

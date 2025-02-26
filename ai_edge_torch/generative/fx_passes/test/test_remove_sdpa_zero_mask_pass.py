@@ -65,7 +65,6 @@ class TestRemoveSDPAZeroMaskPass(googletest.TestCase):
         super().__init__()
         self.config = config
         self.attention = SelfAttention(
-            config.attention_batch_size,
             config.dim,
             config.attention_config,
             enable_hlfb=config.enable_hlfb,

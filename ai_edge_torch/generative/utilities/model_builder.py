@@ -60,6 +60,8 @@ class ExportConfig:
   decode_mask: Optional[torch.Tensor | List[torch.Tensor]] = None
   # The KV Cache class for K and V buffers in attention.
   kvcache_cls: type = kv_utils.KVCache
+  # The batch size of the decode signature.
+  decode_batch_size: int = 1
 
 
 class DecoderOnlyModel(nn.Module):

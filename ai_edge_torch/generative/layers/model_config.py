@@ -220,9 +220,6 @@ class ModelConfig:
   # The maximum sequence length of the KV cache. Should not exceed max_seq_len.
   kv_cache_max_len: int = 0
 
-  # Default batch size of the exported model. Default value is 1.
-  batch_size: int = 1
-
   # Softcap on the model output logits.
   final_logit_softcap: Optional[float] = None
 

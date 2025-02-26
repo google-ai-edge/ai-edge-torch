@@ -110,6 +110,11 @@ def convert_to_tflite(
   lora_suffix = (
       '' if not lora_ranks else f'_lora{",".join(map(str, lora_ranks))}'
   )
+
+  if export_config is not None:
+    if export_config.decode_batch_size > 1:
+      output_name_prefix += f'_dbs{export_config.decode_batch_size}'
+
   output_filename = (
       f'{output_name_prefix}_{quant_suffix}_ekv{kv_size}{lora_suffix}.tflite'
   )
@@ -162,9 +167,14 @@ def _export_helper(
   if prefill_masks:
     assert len(prefill_masks) == len(prefill_seq_lens)
 
-  decode_token = torch.tensor([[0]], dtype=torch.int)
+  decode_token = torch.tensor(
+      [[0] for _ in range(export_config.decode_batch_size)], dtype=torch.int
+  )
   decode_input_pos = torch.tensor([0], dtype=torch.int)
-  kv = export_config.kvcache_cls.from_model_config(config)
+  prefill_kv = export_config.kvcache_cls.from_model_config(config)
+  decode_kv = export_config.kvcache_cls.from_model_config(
+      config, batch_size=export_config.decode_batch_size
+  )
 
   quant_config = quant_recipes.full_int8_dynamic_recipe() if quantize else None
 
@@ -183,7 +193,7 @@ def _export_helper(
       sample_kwargs = {
           'tokens': prefill_tokens,
           'input_pos': prefill_input_pos,
-          'kv_cache': kv,
+          'kv_cache': prefill_kv,
       }
       if prefill_masks is not None:
         sample_kwargs['mask'] = prefill_masks[i]
@@ -211,7 +221,7 @@ def _export_helper(
     sample_kwargs = {
         'tokens': decode_token,
         'input_pos': decode_input_pos,
-        'kv_cache': kv,
+        'kv_cache': decode_kv,
     }
     if export_config.decode_mask is not None:
       sample_kwargs['mask'] = export_config.decode_mask

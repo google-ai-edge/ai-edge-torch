@@ -18,13 +18,10 @@
 import dataclasses
 from typing import List, Tuple
 
-from ai_edge_torch import hlfb
 from ai_edge_torch.generative.layers import model_config
 from ai_edge_torch.generative.utilities.dynamic_update_slice import dynamic_update_slice
 import torch
 import torch.utils._pytree as pytree
-
-BATCH_SIZE = 1
 
 
 @dataclasses.dataclass
@@ -45,9 +42,10 @@ class KVCacheEntry:
       config: model_config.AttentionConfig,
       dtype: torch.dtype = torch.float32,
       device: torch.device = None,
+      batch_size: int = 1,
   ) -> "KVCacheEntry":
     """Build an instance of the class based on model config."""
-    shape = (BATCH_SIZE, kv_cache_max, config.num_query_groups, config.head_dim)
+    shape = (batch_size, kv_cache_max, config.num_query_groups, config.head_dim)
     k = torch.zeros(shape, dtype=dtype, device=device)
     v = torch.zeros(shape, dtype=dtype, device=device)
     obj = cls(k_cache=k, v_cache=v)
@@ -66,6 +64,7 @@ class KVCache:
       config: model_config.ModelConfig,
       dtype: torch.dtype = torch.float32,
       device: torch.device = None,
+      batch_size: int = 1,
   ) -> "KVCache":
     """Build an instance of the class based on model config.
 
@@ -75,17 +74,21 @@ class KVCache:
           Defaults to torch.float32.
         device (torch.device, optional): The device placement of the cache
           tensors. Defaults to None.
+        batch_size (int, optional): The batch size of the cache tensors.
+          Defaults to 1.
 
     Returns:
         KVCache: The created cache object.
     """
     caches = [
         KVCacheEntry.from_model_config(
-            config.kv_cache_max if not config.block_config(idx).kv_cache_max_len 
+            config.kv_cache_max
+            if not config.block_config(idx).kv_cache_max_len
             else config.block_config(idx).kv_cache_max_len,
             config.block_config(idx).attn_config,
             dtype,
             device,
+            batch_size,
         )
         for idx in range(config.num_layers)
     ]
