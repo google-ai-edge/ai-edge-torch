@@ -52,7 +52,6 @@ class TransformerBlock(nn.Module):
         config.pre_attention_norm_config,
     )
     self.atten_func = CausalSelfAttention(
-        model_config.batch_size,
         model_config.embedding_dim,
         config.attn_config,
         model_config.enable_hlfb,
@@ -119,7 +118,6 @@ class CausalSelfAttention(nn.Module):
 
   def __init__(
       self,
-      batch_size: int,
       dim: int,
       config: cfg.AttentionConfig,
       enable_hlfb: bool,
@@ -127,14 +125,12 @@ class CausalSelfAttention(nn.Module):
     """Initialize an instance of CausalSelfAttention.
 
     Args:
-      batch_size (int): batch size of the input tensor.
       dim (int): causal attention's input/output dimmension.
       config (cfg.AttentionConfig): attention specific configurations.
       enable_hlfb (bool): whether hlfb is enabled or not.
     """
     super().__init__()
     self.kv_cache = None
-    self.batch_size = batch_size
     qkv_shape = (
         config.num_heads + 2 * config.num_query_groups
     ) * config.head_dim
@@ -180,10 +176,6 @@ class CausalSelfAttention(nn.Module):
     """
     # Batch size, sequence length, embedding dimensionality.
     B, T, E = x.size()
-    assert B == self.batch_size, (
-        "batch size of input tensor must match with the batch size specified in"
-        " the model configuration."
-    )
 
     qkv = self.qkv_projection(x)
 
