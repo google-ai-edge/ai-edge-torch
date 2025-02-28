@@ -26,13 +26,14 @@ found [here](https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct/tree/main).
 ## TinyLlama
 [TinyLlama](https://github.com/jzhang38/TinyLlama) is a popular OSS smaller version of Meta's Llama2 model, with only 1.1B parameters. [HuggingFace checkpoint](https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0).
 
-## Microsoft Phi-2 and 3.5-mini
-Microsoft Phi-2 and Phi-3.5-mini are also decoder-only LLMs with 2.7B and 3.82B
-parameters each. See details on
-[Kaggle](https://www.kaggle.com/models/Microsoft/phi/transformers/2) for Phi-2
-and [HuggingFace](https://huggingface.co/microsoft/Phi-3.5-mini-instruct) for
-Phi-3.5-mini. Note that the example of Phi-3.5-mini supports up to 4K tokens,
-not to 128K tokens which the original Phi-3.5 supports.
+## Microsoft Phi-2, 3.5-mini, and 4-mini
+Microsoft Phi-2, Phi-3.5-mini and Phi-4-mini are also decoder-only LLMs with
+2.7B, 3.82B and 3.84B parameters each. See details on
+[Kaggle](https://www.kaggle.com/models/Microsoft/phi/transformers/2) for Phi-2,
+[HuggingFace](https://huggingface.co/microsoft/Phi-3.5-mini-instruct) for Phi-3.5-mini,
+and [HuggingFace](https://huggingface.co/microsoft/Phi-4-mini-instruct) for Phi-4-mini.
+Note that the example of Phi-3.5-mini and Phi-4-mini supports up to 4K tokens,
+not to 128K tokens which the original models support.
 
 ## Apple OpenELM
 [Apple OpenELM](https://huggingface.co/apple/OpenELM) is also a decoder-only LLM
