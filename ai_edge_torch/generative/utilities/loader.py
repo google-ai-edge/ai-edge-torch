@@ -193,7 +193,8 @@ class ModelLoader:
 
     if strict and state:
       raise ValueError(
-          f"Failed to map all tensor. Remaing tensor are: {list(state.keys())}"
+          "Failed to map all tensor. Remaining tensor are:"
+          f" {list(state.keys())}"
       )
     return model.load_state_dict(converted_state, strict=strict)
 
