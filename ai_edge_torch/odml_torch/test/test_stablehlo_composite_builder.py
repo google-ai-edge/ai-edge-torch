@@ -290,6 +290,33 @@ class TestStableHLOCompositeBuilder(googletest.TestCase):
 
     self.assertEqual(mlir.count("stablehlo.custom_call @mark_tensor"), 18)
 
+  def test_build_nested_composites(self):
+    class SampleModel(torch.nn.Module):
+
+      def inner(self, x: torch.Tensor):
+        builder = composite.StableHLOCompositeBuilder("test.inner")
+        x = builder.mark_inputs(x)
+        y = x + 1
+        y = builder.mark_outputs(y)
+        return y
+
+      def outer(self, x: torch.Tensor):
+        builder = composite.StableHLOCompositeBuilder("test.outer")
+        x = builder.mark_inputs(x)
+        y = x + 2
+        y = self.inner(y)
+        y = builder.mark_outputs(y)
+        return y
+
+      def forward(self, x):
+        x = self.outer(x)
+        return x
+
+    ir_text = _export_stablehlo_mlir(
+        SampleModel().eval(), (torch.rand((2, 2)),)
+    )
+    self.assertEqual(ir_text.count("stablehlo.custom_call @mark_tensor"), 4)
+
 
 if __name__ == "__main__":
   googletest.main()
