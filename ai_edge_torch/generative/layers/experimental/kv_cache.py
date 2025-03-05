@@ -19,8 +19,8 @@ This is an experimental implementation and is subject to change at any time.
 """
 
 import dataclasses
-from typing import List, Tuple
-
+import functools
+from typing import Any, List, Tuple, Type
 from ai_edge_torch.generative.layers import model_config
 from ai_edge_torch.generative.layers.experimental import types
 from ai_edge_torch.generative.utilities import dynamic_update_slice as dus_utils
@@ -46,7 +46,7 @@ class KVCacheEntryBase:
       v_shape: Tuple[int, ...],
       dtype: torch.dtype = torch.float32,
       device: torch.device = None,
-  ) -> "KVCacheEntryBase":
+  ):
     """Build an instance of the class based on model config."""
     k = torch.zeros(k_shape, dtype=dtype, device=device)
     v = torch.zeros(v_shape, dtype=dtype, device=device)
@@ -61,7 +61,7 @@ class KVCacheEntryBase:
       dtype: torch.dtype = torch.float32,
       device: torch.device = None,
       batch_size: int = 1,
-  ) -> "KVCacheEntryBase":
+  ):
     """Build an instance of the class based on model config."""
     shape = (batch_size, kv_cache_max, config.num_query_groups, config.head_dim)
     return cls._from_model_config(shape, shape, dtype, device)
@@ -87,7 +87,7 @@ class KVCacheEntryTransposed(KVCacheEntryBase):
       dtype: torch.dtype = torch.float32,
       device: torch.device = None,
       batch_size: int = 1,
-  ) -> "KVCacheEntryBase":
+  ):
     """Build an instance of the class based on model config."""
     k_shape = (
         batch_size,
@@ -104,6 +104,35 @@ class KVCacheEntryTransposed(KVCacheEntryBase):
     return cls._from_model_config(k_shape, v_shape, dtype, device)
 
 
+def _flatten_kv_entry(
+    kv_e: KVCacheEntryBase,
+) -> Tuple[List[torch.Tensor], Any]:
+  return ([kv_e.k_cache, kv_e.v_cache], None)
+
+
+def _unflatten_kv_entry(
+    kv_entry_ty: Type[KVCacheEntryBase],
+    values: List[torch.Tensor],
+    unused_context: Any,
+) -> KVCacheEntryBase:
+  return kv_entry_ty(*values)
+
+
+pytree.register_pytree_node(
+    KVCacheEntryTransposed,
+    _flatten_kv_entry,
+    functools.partial(_unflatten_kv_entry, KVCacheEntryTransposed),
+    serialized_type_name="",
+)
+
+pytree.register_pytree_node(
+    KVCacheEntryBase,
+    _flatten_kv_entry,
+    functools.partial(_unflatten_kv_entry, KVCacheEntryBase),
+    serialized_type_name="",
+)
+
+
 @dataclasses.dataclass
 class KVCacheBase:
   """A utility class for holding KV cache entries per layer."""
@@ -118,7 +147,7 @@ class KVCacheBase:
       dtype: torch.dtype = torch.float32,
       device: torch.device = None,
       batch_size: int = 1,
-  ) -> "KVCacheBase":
+  ):
     caches = [
         kv_entry_cls.from_model_config(
             config.kv_cache_max,
@@ -139,7 +168,7 @@ class KVCacheBase:
       dtype: torch.dtype = torch.float32,
       device: torch.device = None,
       batch_size: int = 1,
-  ) -> "KVCacheBase":
+  ):
     """Build an instance of the class based on model config.
 
     Args:
@@ -179,7 +208,7 @@ class KVCacheBTNH(KVCacheBase):
       dtype: torch.dtype = torch.float32,
       device: torch.device = None,
       batch_size: int = 1,
-  ) -> "KVCacheBTNH":
+  ):
     return cls._from_model_config(
         KVCacheEntryBTNH,
         config=config,
@@ -199,7 +228,7 @@ class KVCacheTransposed(KVCacheBase):
       dtype: torch.dtype = torch.float32,
       device: torch.device = None,
       batch_size: int = 1,
-  ) -> "KVCacheBTNH":
+  ):
     return cls._from_model_config(
         KVCacheEntryTransposed,
         config=config,
@@ -229,7 +258,10 @@ def _flatten_kvc_with_keys(kvc: KVCacheBase) -> Tuple[List, List]:
 
 
 def _unflatten_kvc(
-    values: List[torch.Tensor], context: Tuple[List, List]
+    kv_ty: Type[KVCacheBase],
+    kv_entry_type: Type[KVCacheEntryBase],
+    values: List[torch.Tensor],
+    context: Tuple[List, List],
 ) -> KVCacheBase:
   assert len(values) % 2 == 0, "Found odd number of K and V entries."
   num_layers = len(values) // 2
@@ -239,18 +271,18 @@ def _unflatten_kvc(
     k_cache_idx = flat_names.index(f"k_{i}")
     v_cache_idx = flat_names.index(f"v_{i}")
     kv_entries.append(
-        KVCacheEntryBase(
-            k_cache=values[k_cache_idx], v_cache=values[v_cache_idx]
-        )
+        kv_entry_type(k_cache=values[k_cache_idx], v_cache=values[v_cache_idx])
     )
-  obj = KVCacheBase(tuple(kv_entries))
+  obj = kv_ty(tuple(kv_entries))
   return obj
 
 
 pytree.register_pytree_node(
     KVCacheTransposed,
     _flatten_kvc,
-    _unflatten_kvc,
+    functools.partial(
+        _unflatten_kvc, KVCacheTransposed, KVCacheEntryTransposed
+    ),
     flatten_with_keys_fn=_flatten_kvc_with_keys,
     serialized_type_name="",
 )
@@ -258,7 +290,7 @@ pytree.register_pytree_node(
 pytree.register_pytree_node(
     KVCacheBase,
     _flatten_kvc,
-    _unflatten_kvc,
+    functools.partial(_unflatten_kvc, KVCacheBase, KVCacheEntryBase),
     flatten_with_keys_fn=_flatten_kvc_with_keys,
     serialized_type_name="",
 )
