@@ -251,7 +251,7 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
         sliding_window_size=4096,
         attn_type=(
             cfg.AttentionType.GLOBAL
-            if idx % 2 == 0
+            if (idx + 1) % 2 == 0
             else cfg.AttentionType.LOCAL_SLIDING
         ),
     )
