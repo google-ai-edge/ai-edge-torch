@@ -41,8 +41,8 @@ class StableHLOCompositeBuilder:
     self.attr = attr
     self.name = name
     self.id = _get_uuid()
-    self._inputs = []
-    self._outputs = []
+    self._input_cnt = 0
+    self._output_cnt = 0
 
   def _mark_tensor(self, *tensors: torch.Tensor, is_input: bool):
     """Mark the input/output tensors of the StableHLO Composite."""
@@ -53,9 +53,20 @@ class StableHLOCompositeBuilder:
         else None
     )
 
-    for pos, tensor in enumerate(tensors):
+    def _pos() -> int:
+      if is_input:
+        self._input_cnt += 1
+        return self._input_cnt - 1
+      else:
+        self._output_cnt += 1
+        return self._output_cnt - 1
+
+    for tensor in tensors:
       if not isinstance(tensor, torch.Tensor):
         raise ValueError(f"input must be a torch tensor. Got {type(tensor)}.")
+
+      pos = _pos()
+
       marked_tensors.append(
           mark_tensor.mark_tensor_op(
               tensor,
