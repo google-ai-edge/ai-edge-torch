@@ -82,9 +82,6 @@ _torch_library.ODML_TORCH_LIB.define(
 
 mark_tensor_op = torch.ops.odml_torch.mark_tensor.default
 
-# Prevent composite inputs and outputs from being DCE'd during torch.export.
-torch.fx.node.has_side_effect(mark_tensor_op)
-
 
 @torch.library.impl(
     _torch_library.ODML_TORCH_LIB, "mark_tensor", "CompositeExplicitAutograd"
