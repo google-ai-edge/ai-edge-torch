@@ -247,6 +247,9 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
         rotary_base=10000,
         rotary_percentage=1.0,
         qkv_transpose_before_split=True,
+        # The safetensors from HF is not using the interleaved qkv format, so
+        # we need to disable interleaving here in the model config.
+        qkv_fused_interleaved=False,
         logit_softcap=50.0,
         sliding_window_size=4096,
         attn_type=(
