@@ -13,6 +13,52 @@
 # limitations under the License.
 # ==============================================================================
 """Torch-TFL op to MLIR lowerings."""
+from typing import Sequence
+from ai_edge_torch import odml_torch
+from ai_edge_torch.odml_torch.experimental.torch_tfl import _ops
 from ai_edge_torch.odml_torch.lowerings import registry
+from ai_edge_torch.odml_torch.lowerings import utils as lowering_utils
+from jax._src.lib.mlir import ir
+from jax._src.lib.mlir.dialects import hlo as stablehlo
+import torch
 
 lower = registry.lower
+LoweringContext = odml_torch.lowerings.context.LoweringContext
+
+
+def _ir_operation(
+    name: str,
+    results: Sequence[ir.Type],
+    operands: Sequence[ir.Value] | None = None,
+    attributes: dict[str, ir.Attribute] | None = None,
+):
+  """Helper function to create an IR operation in StableHLO CustomCall carrier."""
+  attributes = ir.DictAttr.get(attributes)
+  return stablehlo.custom_call(
+      result=results,
+      inputs=operands,
+      call_target_name=ir.StringAttr.get(name),
+      has_side_effect=ir.BoolAttr.get(False),
+      backend_config=attributes,
+      api_version=ir.IntegerAttr.get(ir.IntegerType.get_signless(32), 4),
+  )
+
+
+@lower(torch.ops.tfl.batch_matmul.default)
+def _tfl_batch_matmul_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    y: ir.Value,
+    adj_x: bool = False,
+    adj_y: bool = False,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.batch_matmul",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x, y],
+      attributes={
+          "adj_x": ir.BoolAttr.get(adj_x),
+          "adj_y": ir.BoolAttr.get(adj_y),
+          "asymmetric_quantize_inputs": ir.BoolAttr.get(False),
+      },
+  )

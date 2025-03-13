@@ -18,14 +18,16 @@ import functools
 import numbers
 from typing import Any
 from typing import Optional
-
+from ai_edge_torch.odml_torch import export_utils
 from jax._src.lib.mlir import ir
 from jax._src.lib.mlir.dialects import hlo as stablehlo
 import numpy as np
 import torch
+import torch.utils._pytree as pytree
 
 
-def torch_dtype_to_ir_element_type(dtype):
+def torch_dtype_to_ir_element_type(dtype) -> ir.Type:
+  """Builds ir.Type from torch dtype."""
   ty_get = {
       torch.double: ir.F64Type.get,
       torch.float32: ir.F32Type.get,
@@ -37,6 +39,27 @@ def torch_dtype_to_ir_element_type(dtype):
       torch.bool: functools.partial(ir.IntegerType.get_signless, 1),
   }[dtype]
   return ty_get()
+
+
+def node_meta_to_ir_types(node: torch.fx.Node) -> list[ir.Type]:
+  """Builds IR result types from torch FX node meta."""
+  tensor_meta = node.meta.get("tensor_meta") or node.meta.get("val")
+  if not tensor_meta:
+    raise RuntimeError(f"{node.name} does not have tensor meta")
+
+  tensor_meta_list, _ = pytree.tree_flatten(
+      [tensor_meta],
+      is_leaf=lambda x: hasattr(x, "dtype") and hasattr(x, "shape"),
+  )
+  results = []
+  for meta in tensor_meta_list:
+    shape = [
+        export_utils.IR_DYNAMIC if export_utils.is_torch_dynamic(dim) else dim
+        for dim in meta.shape
+    ]
+    elty = torch_dtype_to_ir_element_type(meta.dtype)
+    results.append(ir.RankedTensorType.get(shape, elty))
+  return results
 
 
 def splat(val, ty, shape=tuple(), *, loc: Optional[Any] = None):

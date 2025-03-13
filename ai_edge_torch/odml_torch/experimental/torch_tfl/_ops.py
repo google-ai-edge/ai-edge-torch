@@ -21,16 +21,8 @@ custom_op_with_fake = torch_library_utils.custom_op_with_fake
 
 @custom_op_with_fake("tfl::batch_matmul")
 def tfl_batch_matmul(
-    x: torch.Tensor,
-    y: torch.Tensor,
-    adj_x: bool = False,
-    adj_y: bool = False,
-    asymmetric_quantize_inputs: bool = False,
+    x: torch.Tensor, y: torch.Tensor, adj_x: bool = False, adj_y: bool = False
 ) -> torch.Tensor:
-  if asymmetric_quantize_inputs:
-    raise NotImplementedError(
-        "asymmetric_quantize_inputs=True is not implemented"
-    )
   if x.ndim < 2 or y.ndim < 2:
     raise ValueError("Input tensors must have at least 2 dimensions.")
   if adj_x:
