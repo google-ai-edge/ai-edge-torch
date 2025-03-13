@@ -1,4 +1,4 @@
-# Copyright 2024 The AI Edge Torch Authors.
+# Copyright 2025 The AI Edge Torch Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from ai_edge_torch.testing import export
-from ai_edge_torch.testing import model_coverage
+"""Torch-TFL op to MLIR lowerings."""
+from ai_edge_torch.odml_torch.lowerings import registry
 
-export_with_tensor_inputs_only = export.export_with_tensor_inputs_only
+lower = registry.lower
