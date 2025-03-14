@@ -34,6 +34,13 @@ def tfl_batch_matmul(
   return torch.matmul(x, y)
 
 
+@custom_op_with_fake("tfl::add")
+def tfl_add(
+    x: torch.Tensor, y: torch.Tensor, alpha: torch.types.Number = 1
+) -> torch.Tensor:
+  return torch.add(x, y, alpha=alpha)
+
+
 @custom_op_with_fake("tfl::slice")
 def tfl_slice(
     input: torch.Tensor, begin: Sequence[int], size: Sequence[int]

@@ -80,6 +80,8 @@ class TestTorchTFLImpls(parameterized.TestCase):
       # pyformat: disabledef
       ("aten_mm_0", torch.ops.aten.mm.default, (rnd(torch.float32, (10, 10)), rnd(torch.float32, (10, 10)),), dict()),
       ("aten_mm_1", torch.ops.aten.mm.default, (rnd(torch.float32, (2, 10)), rnd(torch.float32, (10, 5)),), dict()),
+      ("aten_add_Tensor_0", torch.ops.aten.add.Tensor, (rnd(torch.float32, (10, 10)), rnd(torch.float32, (10, 10)),), dict()),
+      ("aten_add_Tensor_1", torch.ops.aten.add.Tensor, (rnd(torch.float32, (1, 10)), rnd(torch.float32, (10, 1)),), dict(alpha=10)),
       # fmt: on
       # pyformat: enable
   )
