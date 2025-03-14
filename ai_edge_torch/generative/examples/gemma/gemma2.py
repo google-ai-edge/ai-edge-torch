@@ -28,7 +28,7 @@ import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
 from torch import nn
 
-TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
+TENSOR_NAMES_FUSED_QKV = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.up_proj",
     ff_down_proj="model.layers.{}.mlp.down_proj",
     ff_gate_proj="model.layers.{}.mlp.gate_proj",
@@ -43,7 +43,7 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     lm_head=None,
 )
 
-ALT_TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
+TENSOR_NAMES_SEP_QKV = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.up_proj",
     ff_down_proj="model.layers.{}.mlp.down_proj",
     ff_gate_proj="model.layers.{}.mlp.gate_proj",
@@ -58,6 +58,11 @@ ALT_TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     embedding="model.embed_tokens",
     final_norm="model.norm",
 )
+
+TENSOR_NAMES_DICT = {
+    "safetensors": TENSOR_NAMES_SEP_QKV,
+    "kaggle": TENSOR_NAMES_FUSED_QKV,
+}
 
 
 class Gemma2Block(attention.TransformerBlock):
@@ -300,18 +305,13 @@ def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
 
 
 def build_2b_model(checkpoint_path: str, **kwargs) -> nn.Module:
-  try:
-    return model_builder.build_decoder_only_model(
-        checkpoint_path=checkpoint_path,
-        config=get_model_config_2b(**kwargs),
-        tensor_names=TENSOR_NAMES,
-        model_class=Gemma2,
-    )
-  except KeyError as ke:
-    # Also attempt to load with an alternative naming scheme.
-    return model_builder.build_decoder_only_model(
-        checkpoint_path=checkpoint_path,
-        config=get_model_config_2b(**kwargs),
-        tensor_names=ALT_TENSOR_NAMES,
-        model_class=Gemma2,
-    )
+  for tensor_names in TENSOR_NAMES_DICT.values():
+    try:
+      return model_builder.build_decoder_only_model(
+          checkpoint_path=checkpoint_path,
+          config=get_model_config_2b(**kwargs),
+          tensor_names=tensor_names,
+          model_class=Gemma2,
+      )
+    except KeyError as ke:
+      continue

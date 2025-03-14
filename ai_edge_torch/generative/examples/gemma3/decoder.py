@@ -29,7 +29,7 @@ import torch
 from torch import nn
 
 
-TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
+TENSOR_NAMES_SEP_QKV = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.up_proj",
     ff_down_proj="model.layers.{}.mlp.down_proj",
     ff_gate_proj="model.layers.{}.mlp.gate_proj",
@@ -48,9 +48,8 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     lm_head=None,
 )
 
-# Please don't use tensor mapping for converting checkpoints hosted on Kaggle
-# or HuggingFace. Will be removed in the future.
-TENSOR_NAMES_TO_BE_REMOVED = loading_utils.ModelLoader.TensorNames(
+
+TENSOR_NAMES_FUSED_QKV = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.up_proj",
     ff_down_proj="model.layers.{}.mlp.down_proj",
     ff_gate_proj="model.layers.{}.mlp.gate_proj",
@@ -66,6 +65,11 @@ TENSOR_NAMES_TO_BE_REMOVED = loading_utils.ModelLoader.TensorNames(
     final_norm="model.norm",
     lm_head=None,
 )
+
+TENSOR_NAMES_DICT = {
+    "safetensors": TENSOR_NAMES_SEP_QKV,
+    "kaggle": TENSOR_NAMES_FUSED_QKV,
+}
 
 
 class DecoderBlock(attention.TransformerBlock):
@@ -428,9 +432,15 @@ def get_fake_decoder_config_1b(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
 
 
 def build_model_1b(checkpoint_path: str, **kwargs) -> nn.Module:
-  return model_builder.build_decoder_only_model(
-      checkpoint_path=checkpoint_path,
-      config=get_decoder_config_1b(**kwargs),
-      tensor_names=TENSOR_NAMES,
-      model_class=Decoder,
-  )
+  # TODO(b/403644647): Better error handling for loading checkpoints with
+  # different tensor names.
+  for tensor_names in TENSOR_NAMES_DICT.values():
+    try:
+      return model_builder.build_decoder_only_model(
+          checkpoint_path=checkpoint_path,
+          config=get_decoder_config_1b(**kwargs),
+          tensor_names=tensor_names,
+          model_class=Decoder,
+      )
+    except KeyError as ke:
+      continue
