@@ -20,7 +20,7 @@ from typing import List, Optional, Tuple
 import xmlrpc
 
 from ai_edge_torch.generative.examples.gemma3 import decoder
-from ai_edge_torch.generative.examples.gemma3.cpu_only import image_encoder
+from ai_edge_torch.generative.examples.gemma3 import image_encoder
 from ai_edge_torch.generative.layers import builder
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
