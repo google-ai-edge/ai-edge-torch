@@ -99,7 +99,7 @@ def mark_tensor_meta(
   return torch.empty_like(x)
 
 
-@lowerings.lower(torch.ops.odml_torch.mark_tensor)
+@lowerings.lower(torch.ops.odml_torch.mark_tensor.default)
 def mark_tensor_lowering(
     lctx, x: ir.Value, name: str, pos: int, id: str, is_input: bool, attr=None
 ):
@@ -118,3 +118,62 @@ def mark_tensor_lowering(
           })
       ),
   )
+
+
+_torch_library.ODML_TORCH_LIB.define(
+    "mark_tensor.combined(Tensor[] xs, str name, str id, bool is_input, Any?"
+    " attr=None) -> Tensor[]"
+)
+
+mark_tensor_combined_op = torch.ops.odml_torch.mark_tensor.combined
+
+
+@torch.library.impl(
+    _torch_library.ODML_TORCH_LIB,
+    "mark_tensor.combined",
+    "CompositeExplicitAutograd",
+)
+def mark_tensor_combined(
+    xs: tuple[torch.Tensor, ...], name: str, id: str, is_input: bool, attr=None
+):
+  return xs
+
+
+@torch.library.impl(
+    _torch_library.ODML_TORCH_LIB, "mark_tensor.combined", "Meta"
+)
+def mark_tensor_combined_meta(
+    xs: tuple[torch.Tensor, ...], name: str, id: str, is_input: bool, attr=None
+):
+  return tuple([torch.empty_like(x) for x in xs])
+
+
+@lowerings.lower(torch.ops.odml_torch.mark_tensor.combined)
+def mark_tensor_combined_lowering(
+    lctx,
+    xs: tuple[ir.Value, ...],
+    name: str,
+    id: str,
+    is_input: bool,
+    attr=None,
+):
+  attr = deserialize_composite_attr(attr)
+  marked = []
+  for pos, x in enumerate(xs):
+    marked.append(
+        stablehlo.custom_call(
+            [x.type],
+            inputs=[x],
+            call_target_name="mark_tensor",
+            backend_config=ir.StringAttr.get(
+                json.dumps({
+                    "name": name,
+                    "pos": pos,
+                    "id": id,
+                    "is_input": is_input,
+                    "attr": attr,
+                })
+            ),
+        )
+    )
+  return tuple(marked)
