@@ -39,6 +39,11 @@ def tfl_add(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
   return torch.add(x, y)
 
 
+@custom_op_with_fake("tfl::sub")
+def tfl_sub(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+  return torch.sub(x, y)
+
+
 @custom_op_with_fake("tfl::mul")
 def tfl_mul(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
   return torch.mul(x, y)

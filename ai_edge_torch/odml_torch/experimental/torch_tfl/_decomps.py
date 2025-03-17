@@ -40,12 +40,21 @@ def _aten_mm_decomp(x, y):
 
 @register_decomp(torch.ops.aten.add.Tensor)
 def _aten_add_tensor_decomp(x, y, alpha=1):
-  if alpha == 1:
-    return torch.ops.tfl.add(x, y)
+  out = torch.ops.tfl.add(x, y)
 
-  return torch.ops.tfl.add(
-      x,
-      torch.ops.tfl.mul(
-          y, torch.scalar_tensor(alpha, dtype=x.dtype, device=x.device)
-      ),
-  )
+  if alpha != 1:
+    alpha = torch.scalar_tensor(alpha, dtype=out.dtype)
+    out = torch.ops.tfl.add(x, torch.ops.tfl.mul(y, alpha))
+
+  return out
+
+
+@register_decomp(torch.ops.aten.sub.Tensor)
+def _aten_sub_tensor_decomp(x, y, alpha=1):
+  out = torch.ops.tfl.sub(x, y)
+
+  if alpha != 1:
+    alpha = torch.scalar_tensor(alpha, dtype=out.dtype)
+    out = torch.ops.tfl.sub(x, torch.ops.tfl.mul(y, alpha))
+
+  return out
