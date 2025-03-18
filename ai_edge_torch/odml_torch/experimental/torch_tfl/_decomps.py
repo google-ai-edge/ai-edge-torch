@@ -73,3 +73,8 @@ def _aten_div_tensor_decomp(x, y):
 @register_decomp(torch.ops.aten.gt.Tensor)
 def _aten_gt_tensor_decomp(x, y):
   return torch.ops.tfl.greater(x, y)
+
+
+@register_decomp(torch.ops.aten.lt.Tensor)
+def _aten_lt_tensor_decomp(x, y):
+  return torch.ops.tfl.less(x, y)
