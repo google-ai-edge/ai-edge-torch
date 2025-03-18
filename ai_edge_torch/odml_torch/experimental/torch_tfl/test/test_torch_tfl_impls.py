@@ -86,6 +86,8 @@ class TestTorchTFLImpls(parameterized.TestCase):
       ("aten_sub_Tensor_1", torch.ops.aten.sub.Tensor, (rnd(torch.float32, (1, 10)), rnd(torch.float32, (10, 1)),), dict(alpha=10)),
       ("aten_mul_Tensor_0", torch.ops.aten.mul.Tensor, (rnd(torch.float32, (10, 10)), rnd(torch.float32, (10, 10)),), dict()),
       ("aten_mul_Tensor_1", torch.ops.aten.mul.Tensor, (rnd(torch.float32, (1, 10)), rnd(torch.float32, (10, 1)),), dict()),
+      ("aten_div_Tensor_0", torch.ops.aten.div.Tensor, (rnd(torch.float32, (10, 10)), rnd(torch.float32, (10, 10)),), dict()),
+      ("aten_div_Tensor_1", torch.ops.aten.div.Tensor, (rnd(torch.float32, (1, 10)), rnd(torch.float32, (10, 1)),), dict()),
       # fmt: on
       # pyformat: enable
   )

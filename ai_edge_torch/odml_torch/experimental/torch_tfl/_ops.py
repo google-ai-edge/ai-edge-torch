@@ -49,6 +49,11 @@ def tfl_mul(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
   return torch.mul(x, y)
 
 
+@custom_op_with_fake("tfl::div")
+def tfl_div(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+  return torch.div(x, y)
+
+
 @custom_op_with_fake("tfl::slice")
 def tfl_slice(
     input: torch.Tensor, begin: Sequence[int], size: Sequence[int]
