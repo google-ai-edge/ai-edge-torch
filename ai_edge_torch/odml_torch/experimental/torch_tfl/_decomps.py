@@ -58,3 +58,8 @@ def _aten_sub_tensor_decomp(x, y, alpha=1):
     out = torch.ops.tfl.sub(x, torch.ops.tfl.mul(y, alpha))
 
   return out
+
+
+@register_decomp(torch.ops.aten.mul.Tensor)
+def _aten_mul_tensor_decomp(x, y):
+  return torch.ops.tfl.mul(x, y)
