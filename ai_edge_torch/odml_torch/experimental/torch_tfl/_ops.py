@@ -69,6 +69,11 @@ def tfl_maximum(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
   return torch.maximum(x, y)
 
 
+@custom_op_with_fake("tfl::minimum")
+def tfl_minimum(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+  return torch.minimum(x, y)
+
+
 @custom_op_with_fake("tfl::slice")
 def tfl_slice(
     input: torch.Tensor, begin: Sequence[int], size: Sequence[int]

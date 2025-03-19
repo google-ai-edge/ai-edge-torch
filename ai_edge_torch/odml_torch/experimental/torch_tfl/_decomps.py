@@ -83,3 +83,8 @@ def _aten_lt_tensor_decomp(x, y):
 @register_decomp(torch.ops.aten.maximum.default)
 def _aten_maximum_tensor_decomp(x, y):
   return torch.ops.tfl.maximum(x, y)
+
+
+@register_decomp(torch.ops.aten.minimum.default)
+def _aten_minimum_tensor_decomp(x, y):
+  return torch.ops.tfl.minimum(x, y)
