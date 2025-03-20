@@ -33,14 +33,15 @@ def _ir_operation(
     attributes: dict[str, ir.Attribute] | None = None,
 ):
   """Helper function to create an IR operation in StableHLO CustomCall carrier."""
-  attributes = ir.DictAttr.get(attributes)
+  if not operands:
+    operands = []
+  attributes = ir.DictAttr.get(attributes if attributes else {})
   return stablehlo.custom_call(
       result=results,
       inputs=operands,
       call_target_name=ir.StringAttr.get(name),
       has_side_effect=ir.BoolAttr.get(False),
-      backend_config=attributes,
-      api_version=ir.IntegerAttr.get(ir.IntegerType.get_signless(32), 4),
+      backend_config=ir.StringAttr.get(str(attributes)),
   )
 
 
