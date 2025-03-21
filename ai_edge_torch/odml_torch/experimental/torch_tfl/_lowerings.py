@@ -63,3 +63,131 @@ def _tfl_batch_matmul_lowering(
           "asymmetric_quantize_inputs": ir.BoolAttr.get(False),
       },
   )
+
+
+@lower(torch.ops.tfl.add.default)
+def _tfl_add_lowering(
+    lctx: LoweringContext,
+    lhs: ir.Value,
+    rhs: ir.Value,
+    fused_activation_function: str = "NONE",
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.add",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[lhs, rhs],
+      attributes={
+          "fused_activation_function": ir.StringAttr.get(
+              fused_activation_function
+          ),
+      },
+  )
+
+
+@lower(torch.ops.tfl.sub.default)
+def _tfl_sub_lowering(
+    lctx: LoweringContext,
+    lhs: ir.Value,
+    rhs: ir.Value,
+    fused_activation_function: str = "NONE",
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.sub",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[lhs, rhs],
+      attributes={
+          "fused_activation_function": ir.StringAttr.get(
+              fused_activation_function
+          ),
+      },
+  )
+
+
+@lower(torch.ops.tfl.mul.default)
+def _tfl_mul_lowering(
+    lctx: LoweringContext,
+    lhs: ir.Value,
+    rhs: ir.Value,
+    fused_activation_function: str = "NONE",
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.mul",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[lhs, rhs],
+      attributes={
+          "fused_activation_function": ir.StringAttr.get(
+              fused_activation_function
+          ),
+      },
+  )
+
+
+@lower(torch.ops.tfl.div.default)
+def _tfl_div_lowering(
+    lctx: LoweringContext,
+    lhs: ir.Value,
+    rhs: ir.Value,
+    fused_activation_function: str = "NONE",
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.div",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[lhs, rhs],
+      attributes={
+          "fused_activation_function": ir.StringAttr.get(
+              fused_activation_function
+          ),
+      },
+  )
+
+
+@lower(torch.ops.tfl.greater.default)
+def _tfl_greater_lowering(
+    lctx: LoweringContext,
+    lhs: ir.Value,
+    rhs: ir.Value,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.greater",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[lhs, rhs],
+  )
+
+
+@lower(torch.ops.tfl.less.default)
+def _tfl_less_lowering(
+    lctx: LoweringContext,
+    lhs: ir.Value,
+    rhs: ir.Value,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.less",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[lhs, rhs],
+  )
+
+
+@lower(torch.ops.tfl.maximum.default)
+def _tfl_maximum_lowering(
+    lctx: LoweringContext,
+    lhs: ir.Value,
+    rhs: ir.Value,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.maximum",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[lhs, rhs],
+  )
+
+
+@lower(torch.ops.tfl.minimum.default)
+def _tfl_minimum_lowering(
+    lctx: LoweringContext,
+    lhs: ir.Value,
+    rhs: ir.Value,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.minimum",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[lhs, rhs],
+  )

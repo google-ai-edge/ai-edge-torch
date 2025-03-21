@@ -13,13 +13,17 @@
 # limitations under the License.
 # ==============================================================================
 """Numerical validation tests for torch ops and Torch-TFL ops."""
+
+import ai_edge_torch
 from ai_edge_torch import testing
 from ai_edge_torch.odml_torch.experimental import torch_tfl
+import numpy as np
 import torch
 from torch.utils import _pytree as pytree
 
 from absl.testing import absltest as googletest
 from absl.testing import parameterized
+
 
 export_with_tensor_inputs_only = testing.export_with_tensor_inputs_only
 
@@ -71,6 +75,24 @@ class TestTorchTFLImpls(parameterized.TestCase):
 
             self.assertEqual(expected_spec, actual_spec)
             for v1, v2 in zip(expected_flat, actual_flat):
+              torch.testing.assert_close(
+                  v1, v2, atol=atol, rtol=rtol, equal_nan=equal_nan
+              )
+
+        with self.subTest("convert_eval"):
+          args, kwargs = exported_program.example_inputs
+          edge_model = ai_edge_torch.convert(exported_program.module(), args)
+          actual = edge_model(*args, **kwargs)
+
+          with self.subTest("torch_convert_eval_diff:" + str(atol)):
+            expected_flat, expected_spec = pytree.tree_flatten(expected)
+            actual_flat, actual_spec = pytree.tree_flatten(actual)
+
+            self.assertEqual(expected_spec, actual_spec)
+            for v1, v2 in zip(expected_flat, actual_flat):
+              # Convert NumPy arrays to PyTorch tensors if necessary
+              if isinstance(v1, torch.Tensor) and isinstance(v2, np.ndarray):
+                v2 = torch.from_numpy(v2)
               torch.testing.assert_close(
                   v1, v2, atol=atol, rtol=rtol, equal_nan=equal_nan
               )
