@@ -18,6 +18,7 @@
 import logging
 from typing import Any, List, Optional
 
+import ai_edge_torch.generative.layers.attention_utils as attn_utils
 from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils
 from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 import torch
@@ -96,6 +97,7 @@ class ReauthoredModelWrapper(ModelWrapper):
       tokens: torch.Tensor,
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCacheBase,
+      mask: torch.Tensor,
       pixel_values: torch.Tensor,
   ) -> tuple[torch.Tensor, kv_utils.KVCacheBase]:
     """Forwards the model and updates an external KV cache.
@@ -104,6 +106,7 @@ class ReauthoredModelWrapper(ModelWrapper):
       tokens (torch.Tensor): The input tokens to forward.
       input_pos (torch.Tensor): The input positions to forward.
       kv_cache (KVCacheBase): The KV cache to forward.
+      mask (torch.Tensor): The mask to apply.
       pixel_values (torch.Tensor): The input pixel values to forward.
 
     Returns:
@@ -115,17 +118,22 @@ class ReauthoredModelWrapper(ModelWrapper):
       if not self.export_config.output_logits_on_prefill:
         raise ValueError("Verifier requires logit output on prefill.")
       extra_args["export_config"] = self.export_config
+    if mask is not None:
+      extra_args["mask"] = mask
     if pixel_values is not None:
       extra_args["pixel_values"] = pixel_values
     output = self.model.forward(tokens, input_pos, kv_cache, **extra_args)
     return output["logits"], output["kv_cache"]
 
   def forward(
-      self, tokens: torch.Tensor, pixel_values: torch.Tensor = None
+      self,
+      tokens: torch.Tensor,
+      mask: torch.Tensor = None,
+      pixel_values: torch.Tensor = None,
   ) -> torch.Tensor:
     input_pos = torch.arange(0, tokens.shape[1], dtype=torch.int)
     logits, _ = self._forward_with_kv_cache(
-        tokens, input_pos, self._init_kv_cache(), pixel_values
+        tokens, input_pos, self._init_kv_cache(), mask, pixel_values
     )
     return logits
 
@@ -133,6 +141,7 @@ class ReauthoredModelWrapper(ModelWrapper):
       self,
       prompts: torch.Tensor,
       max_new_tokens: int,
+      mask: torch.Tensor = None,
       pixel_values: torch.Tensor = None,
       eos_token_id: Optional[int] = None,
   ) -> torch.IntTensor:
@@ -141,8 +150,11 @@ class ReauthoredModelWrapper(ModelWrapper):
     input_pos = torch.arange(0, tokens.shape[1], dtype=torch.int)
     kv_cache = self._init_kv_cache()
     for _ in range(max_new_tokens):
+      sliced_mask = mask
+      if mask is not None:
+        sliced_mask = mask.index_select(2, input_pos)
       logits, kv_cache = self._forward_with_kv_cache(
-          tokens, input_pos, kv_cache, pixel_values
+          tokens, input_pos, kv_cache, sliced_mask, pixel_values
       )
       generated_token = logits[0][-1].argmax().item()
       input_ids.append(generated_token)
@@ -208,8 +220,9 @@ def verify_with_input_ids(
   logits_original = outputs_original[0, len(input_ids) - 1, :]
   logging.info("logits_original: %s", logits_original)
 
-  logging.info("Forwarding the reauthored model...")
-  outputs_reauthored = reauthored_model.forward(tokens)
+  logging.info("Forwarding the reauthored model with input mask...")
+  mask = attn_utils.build_causal_mask_cache(kv_cache_max_len)
+  outputs_reauthored = reauthored_model.forward(tokens, mask=mask)
   logits_reauthored = outputs_reauthored[0, len(input_ids) - 1, :]
   logging.info("logits_reauthored: %s", logits_reauthored)
 
@@ -244,15 +257,19 @@ def verify_model_with_prompts(
   """
   prompt_tokens = tokenizer.encode(prompts)
 
-  logging.info("Generating answer with the original model...")
+  logging.info("Generating answer with the original model with input mask...")
   outputs_original = original_model.generate(prompt_tokens, max_new_tokens)
   response_original = tokenizer.decode(outputs_original[0])
   logging.info("outputs_from_original_model: [[%s]]", response_original)
 
-  logging.info("Generating answer with the reauthored model...")
+  logging.info("Generating answer with the reauthored model... (mask)")
+  mask = attn_utils.build_causal_mask_cache(
+      reauthored_model.model.config.kv_cache_max_len
+  )
   outputs_reauthored = reauthored_model.generate(
       prompt_tokens,
       max_new_tokens,
+      mask=mask,
       eos_token_id=getattr(tokenizer.tokenizer, "eos_token_id", None),
   )
   response_reauthored = tokenizer.decode(outputs_reauthored[0])
@@ -296,6 +313,9 @@ def verify_reauthored_model(
     atol (float): The absolute tolerance for the comparison.
     continue_on_failure (bool): If True, it continues to verify the next prompt
       or input IDs even if a previous one fails.
+
+  Returns:
+    True if all verification passes, False otherwise.
   """
   failure_count = 0
 
@@ -303,7 +323,12 @@ def verify_reauthored_model(
     logging.info("Verifying the reauthored model with input IDs: %s", input_ids)
     try:
       verify_with_input_ids(
-          original_model, reauthored_model, input_ids, rtol=rtol, atol=atol
+          original_model,
+          reauthored_model,
+          input_ids,
+          kv_cache_max_len=reauthored_model.model.config.kv_cache_max_len,
+          rtol=rtol,
+          atol=atol,
       )
     except AssertionError as e:
       logging.error("*** FAILED *** verify with input IDs: %s", input_ids)
