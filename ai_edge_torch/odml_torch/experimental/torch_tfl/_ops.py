@@ -74,6 +74,11 @@ def tfl_minimum(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
   return torch.minimum(x, y)
 
 
+@custom_op_with_fake("tfl::sin")
+def tfl_sin(x: torch.Tensor) -> torch.Tensor:
+  return torch.sin(x)
+
+
 @custom_op_with_fake("tfl::slice")
 def tfl_slice(
     input: torch.Tensor, begin: Sequence[int], size: Sequence[int]

@@ -118,6 +118,8 @@ class TestTorchTFLImpls(parameterized.TestCase):
       ("aten_maximum_Tensor_1", torch.ops.aten.maximum.default, (rnd(torch.float32, (1, 10)), rnd(torch.float32, (10, 1)),), dict()),
       ("aten_minimum_Tensor_0", torch.ops.aten.minimum.default, (rnd(torch.float32, (10, 10)), rnd(torch.float32, (10, 10)),), dict()),
       ("aten_minimum_Tensor_1", torch.ops.aten.minimum.default, (rnd(torch.float32, (1, 10)), rnd(torch.float32, (10, 1)),), dict()),
+      ("aten_sin_Tensor_0", torch.ops.aten.sin.default, (rnd(torch.float32, (10, 10)),), dict()),
+      ("aten_sin_Tensor_1", torch.ops.aten.sin.default, (rnd(torch.float32, (1, 10)),), dict()),
       # fmt: on
       # pyformat: enable
   )

@@ -191,3 +191,15 @@ def _tfl_minimum_lowering(
       results=lowering_utils.node_meta_to_ir_types(lctx.node),
       operands=[lhs, rhs],
   )
+
+
+@lower(torch.ops.tfl.sin.default)
+def _tfl_sin_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.sin",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x],
+  )
