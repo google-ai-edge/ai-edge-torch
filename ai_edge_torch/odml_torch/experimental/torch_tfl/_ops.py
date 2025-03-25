@@ -79,6 +79,27 @@ def tfl_sin(x: torch.Tensor) -> torch.Tensor:
   return torch.sin(x)
 
 
+@custom_op_with_fake("tfl::cos")
+def tfl_cos(x: torch.Tensor) -> torch.Tensor:
+  return torch.cos(x)
+
+
+@custom_op_with_fake("tfl::rsqrt")
+def tfl_rsqrt(x: torch.Tensor) -> torch.Tensor:
+  return torch.rsqrt(x)
+
+
+@custom_op_with_fake("tfl::gelu")
+def tfl_gelu(x: torch.Tensor, approximate: bool = False) -> torch.Tensor:
+  gelu = torch.nn.GELU("tanh" if approximate else "none")
+  return gelu(x)
+
+
+@custom_op_with_fake("tfl::softmax")
+def tfl_softmax(x: torch.Tensor) -> torch.Tensor:
+  return torch.nn.functional.softmax(x)
+
+
 @custom_op_with_fake("tfl::slice")
 def tfl_slice(
     input: torch.Tensor, begin: Sequence[int], size: Sequence[int]

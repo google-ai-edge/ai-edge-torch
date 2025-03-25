@@ -93,3 +93,29 @@ def _aten_minimum_tensor_decomp(x, y):
 @register_decomp(torch.ops.aten.sin.default)
 def _aten_sin_decomp(x):
   return torch.ops.tfl.sin(x)
+
+
+@register_decomp(torch.ops.aten.cos.default)
+def _aten_cos_decomp(x):
+  return torch.ops.tfl.cos(x)
+
+
+@register_decomp(torch.ops.aten.rsqrt.default)
+def _aten_rsqrt_decomp(x):
+  return torch.ops.tfl.rsqrt(x)
+
+
+@register_decomp(torch.ops.aten.gelu.default)
+def _aten_gelu_decomp(x, approximate="none"):
+  return torch.ops.tfl.gelu(x, approximate != "none")
+
+
+@register_decomp(torch.ops.aten._softmax.default)
+def _aten__softmax_decomp(
+    x, dim: int, half_to_float: bool  # pylint: disable=unused-argument
+):
+  if dim == -1 or dim == x.dim() - 1:
+    return torch.ops.tfl.softmax(x)
+  else:
+    x_permuted = x.transpose(dim, x.dim() - 1)
+    return torch.ops.tfl.softmax(x_permuted).transpose(dim, x.dim() - 1)

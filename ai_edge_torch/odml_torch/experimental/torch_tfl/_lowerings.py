@@ -203,3 +203,59 @@ def _tfl_sin_lowering(
       results=lowering_utils.node_meta_to_ir_types(lctx.node),
       operands=[x],
   )
+
+
+@lower(torch.ops.tfl.cos.default)
+def _tfl_cos_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.cos",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x],
+  )
+
+
+@lower(torch.ops.tfl.rsqrt.default)
+def _tfl_rsqrt_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.rsqrt",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x],
+  )
+
+
+@lower(torch.ops.tfl.gelu.default)
+def _tfl_gelu_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    approximate: bool = False,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.gelu",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x],
+      attributes={
+          "approximate": ir.BoolAttr.get(approximate),
+      },
+  )
+
+
+@lower(torch.ops.tfl.softmax.default)
+def _tfl_softmax_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    beta: float = 1.0,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.softmax",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x],
+      attributes={
+          "beta": ir.FloatAttr.get(ir.F32Type.get(), beta),
+      },
+  )
