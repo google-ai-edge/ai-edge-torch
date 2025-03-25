@@ -128,6 +128,8 @@ class TestTorchTFLImpls(parameterized.TestCase):
       ("aten_gelu_1", torch.ops.aten.gelu.default, (rnd(torch.float32, (10, 10)),), dict(approximate="tanh")),
       ("aten_gelu_2", torch.ops.aten.gelu.default, (rnd(torch.float32, (1, 10)),), dict()),
       ("aten_gelu_3", torch.ops.aten.gelu.default, (rnd(torch.float32, (1, 10)),), dict(approximate="tanh")),
+      ("aten_permute_0", torch.ops.aten.permute.default, (rnd(torch.float32, (10, 10)), [0, 1],), dict()),
+      ("aten_permute_1", torch.ops.aten.permute.default, (rnd(torch.float32, (1, 10)), [0, 1],), dict()),
       # fmt: on
       # pyformat: enable
   )
