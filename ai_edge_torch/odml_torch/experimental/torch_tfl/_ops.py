@@ -89,6 +89,12 @@ def tfl_rsqrt(x: torch.Tensor) -> torch.Tensor:
   return torch.rsqrt(x)
 
 
+@custom_op_with_fake("tfl::gelu")
+def tfl_gelu(x: torch.Tensor, approximate: bool = False) -> torch.Tensor:
+  gelu_approximate = "tanh" if approximate else "none"
+  return torch.nn.functional.gelu(x, approximate=gelu_approximate)
+
+
 @custom_op_with_fake("tfl::slice")
 def tfl_slice(
     input: torch.Tensor, begin: Sequence[int], size: Sequence[int]

@@ -227,3 +227,19 @@ def _tfl_rsqrt_lowering(
       results=lowering_utils.node_meta_to_ir_types(lctx.node),
       operands=[x],
   )
+
+
+@lower(torch.ops.tfl.gelu.default)
+def _tfl_gelu_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    approximate: bool = False,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.gelu",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x],
+      attributes={
+          "approximate": ir.BoolAttr.get(approximate),
+      },
+  )

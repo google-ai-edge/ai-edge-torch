@@ -103,3 +103,8 @@ def _aten_cos_decomp(x):
 @register_decomp(torch.ops.aten.rsqrt.default)
 def _aten_rsqrt_decomp(x):
   return torch.ops.tfl.rsqrt(x)
+
+
+@register_decomp(torch.ops.aten.gelu.default)
+def _aten_gelu_decomp(x, approximate="none"):
+  return torch.ops.tfl.gelu(x, approximate != "none")
