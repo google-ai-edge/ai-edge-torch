@@ -84,6 +84,11 @@ def tfl_cos(x: torch.Tensor) -> torch.Tensor:
   return torch.cos(x)
 
 
+@custom_op_with_fake("tfl::rsqrt")
+def tfl_rsqrt(x: torch.Tensor) -> torch.Tensor:
+  return torch.rsqrt(x)
+
+
 @custom_op_with_fake("tfl::slice")
 def tfl_slice(
     input: torch.Tensor, begin: Sequence[int], size: Sequence[int]

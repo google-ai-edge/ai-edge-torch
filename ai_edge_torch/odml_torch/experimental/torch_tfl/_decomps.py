@@ -98,3 +98,8 @@ def _aten_sin_decomp(x):
 @register_decomp(torch.ops.aten.cos.default)
 def _aten_cos_decomp(x):
   return torch.ops.tfl.cos(x)
+
+
+@register_decomp(torch.ops.aten.rsqrt.default)
+def _aten_rsqrt_decomp(x):
+  return torch.ops.tfl.rsqrt(x)

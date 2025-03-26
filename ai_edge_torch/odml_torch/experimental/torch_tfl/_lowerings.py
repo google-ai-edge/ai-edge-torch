@@ -215,3 +215,15 @@ def _tfl_cos_lowering(
       results=lowering_utils.node_meta_to_ir_types(lctx.node),
       operands=[x],
   )
+
+
+@lower(torch.ops.tfl.rsqrt.default)
+def _tfl_rsqrt_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.rsqrt",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x],
+  )
