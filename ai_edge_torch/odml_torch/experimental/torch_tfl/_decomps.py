@@ -93,3 +93,8 @@ def _aten_minimum_tensor_decomp(x, y):
 @register_decomp(torch.ops.aten.sin.default)
 def _aten_sin_decomp(x):
   return torch.ops.tfl.sin(x)
+
+
+@register_decomp(torch.ops.aten.cos.default)
+def _aten_cos_decomp(x):
+  return torch.ops.tfl.cos(x)

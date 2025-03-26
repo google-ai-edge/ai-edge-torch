@@ -203,3 +203,15 @@ def _tfl_sin_lowering(
       results=lowering_utils.node_meta_to_ir_types(lctx.node),
       operands=[x],
   )
+
+
+@lower(torch.ops.tfl.cos.default)
+def _tfl_cos_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.cos",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x],
+  )
