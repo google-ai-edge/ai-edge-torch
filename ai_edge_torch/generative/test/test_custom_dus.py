@@ -15,6 +15,7 @@
 
 """A suite of tests to validate the Dynamic Update Slice Custom Op."""
 
+from ai_edge_torch.generative.custom_ops.dynamic_update_slice import dynamic_update_slice
 import torch
 from torch import nn
 
