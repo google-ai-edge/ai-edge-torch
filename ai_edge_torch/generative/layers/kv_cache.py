@@ -18,8 +18,8 @@
 import dataclasses
 from typing import List, Tuple
 
+from ai_edge_torch.generative.custom_ops.dynamic_update_slice import dynamic_update_slice
 from ai_edge_torch.generative.layers import model_config
-from ai_edge_torch.generative.utilities.dynamic_update_slice import dynamic_update_slice
 import torch
 import torch.utils._pytree as pytree
 

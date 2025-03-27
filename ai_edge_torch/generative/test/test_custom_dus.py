@@ -15,8 +15,6 @@
 
 """A suite of tests to validate the Dynamic Update Slice Custom Op."""
 
-from ai_edge_torch.generative.layers import kv_cache as kv_utils
-import ai_edge_torch.generative.layers.model_config as cfg
 import torch
 from torch import nn
 

@@ -14,9 +14,6 @@
 # ==============================================================================
 # Common utility functions for data loading etc.
 from dataclasses import dataclass
-import glob
-import os
-from typing import Sequence
 from ai_edge_torch.odml_torch import lowerings
 from jax._src.lib.mlir import ir
 from jax._src.lib.mlir.dialects import hlo as stablehlo
@@ -31,8 +28,12 @@ def bmm_4d(
 ) -> torch.Tensor:
   if not (lhs.ndim == 4 and rhs.ndim == 4):
     raise ValueError("bmm_4d requires LHS and RHS have rank 4.")
-  d0_can_bcast = lhs.shape[0] == rhs.shape[0] or lhs.shape[0] == 1 or rhs.shape[0] == 1
-  d1_can_bcast = lhs.shape[1] == rhs.shape[1] or lhs.shape[1] == 1 or rhs.shape[1] == 1
+  d0_can_bcast = (
+      lhs.shape[0] == rhs.shape[0] or lhs.shape[0] == 1 or rhs.shape[0] == 1
+  )
+  d1_can_bcast = (
+      lhs.shape[1] == rhs.shape[1] or lhs.shape[1] == 1 or rhs.shape[1] == 1
+  )
   if not (d0_can_bcast and d1_can_bcast):
     raise ValueError("bmm_4d requires that dimensions 0 and 1 can broadcast.")
 

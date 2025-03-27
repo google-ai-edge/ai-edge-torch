@@ -23,7 +23,7 @@ import functools
 from typing import Any, List, Tuple, Type
 from ai_edge_torch.generative.layers import model_config
 from ai_edge_torch.generative.layers.experimental import types
-from ai_edge_torch.generative.utilities import dynamic_update_slice as dus_utils
+from ai_edge_torch.generative.custom_ops import dynamic_update_slice as dus_utils
 import torch
 import torch.utils._pytree as pytree
 

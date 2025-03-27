@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# Common utility functions for data loading etc.
+# Dynamic update slice op for KV cache update.
 from dataclasses import dataclass
-import glob
-import os
 from typing import Sequence
 from ai_edge_torch.odml_torch import lowerings
 from jax._src.lib.mlir import ir
