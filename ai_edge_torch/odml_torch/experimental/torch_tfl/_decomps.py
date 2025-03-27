@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Torch ops to Torch-TFL decompositions."""
+from typing import Sequence
 from ai_edge_torch.odml_torch.experimental.torch_tfl import _ops
 import torch
 
@@ -108,3 +109,8 @@ def _aten_rsqrt_decomp(x):
 @register_decomp(torch.ops.aten.gelu.default)
 def _aten_gelu_decomp(x, approximate="none"):
   return torch.ops.tfl.gelu(x, approximate != "none")
+
+
+@register_decomp(torch.ops.aten.permute.default)
+def _aten_permute_decomp(x, dims: Sequence[int]):
+  return torch.ops.tfl.transpose(x, dims)
