@@ -16,62 +16,25 @@
 """Example of converting a Gemma2 model to multi-signature tflite model."""
 
 import os
-import pathlib
-
 from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.gemma import gemma2
 from ai_edge_torch.generative.utilities import converter
 from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 
-_CHECKPOINT_PATH = flags.DEFINE_string(
-    'checkpoint_path',
-    os.path.join(pathlib.Path.home(), 'Downloads/llm_data/gemma2-2b'),
-    'The path to the model checkpoint, or directory holding the checkpoint.',
-)
-_OUTPUT_PATH = flags.DEFINE_string(
-    'output_path',
-    '/tmp/',
-    'The path to export the tflite model.',
-)
-_OUTPUT_NAME_PREFIX = flags.DEFINE_string(
-    'output_name_prefix',
-    'gemma2',
-    'The prefix of the output tflite model name.',
-)
-_PREFILL_SEQ_LENS = flags.DEFINE_multi_integer(
-    'prefill_seq_lens',
-    (8, 64, 128, 256, 512, 1024),
-    'List of the maximum sizes of prefill input tensors.',
-)
-_KV_CACHE_MAX_LEN = flags.DEFINE_integer(
-    'kv_cache_max_len',
-    1280,
-    'The maximum size of KV cache buffer, including both prefill and decode.',
-)
-_QUANTIZE = flags.DEFINE_bool(
-    'quantize',
-    True,
-    'Whether the model should be quantized.',
-)
-_LORA_RANKS = flags.DEFINE_multi_integer(
-    'lora_ranks',
-    None,
-    'If set, the model will be converted with the provided list of LoRA ranks.',
-)
-
+flags = converter.define_conversion_flags("gemma2-2b")
 
 def main(_):
   pytorch_model = gemma2.build_2b_model(
-      _CHECKPOINT_PATH.value, kv_cache_max_len=_KV_CACHE_MAX_LEN.value
+      flags.FLAGS.checkpoint_path, kv_cache_max_len=flags.FLAGS.kv_cache_max_len
   )
   converter.convert_to_tflite(
       pytorch_model,
-      output_path=_OUTPUT_PATH.value,
-      output_name_prefix=_OUTPUT_NAME_PREFIX.value,
-      prefill_seq_len=_PREFILL_SEQ_LENS.value,
-      quantize=_QUANTIZE.value,
-      lora_ranks=_LORA_RANKS.value,
+      output_path=flags.FLAGS.output_path,
+      output_name_prefix=flags.FLAGS.output_name_prefix,
+      prefill_seq_len=flags.FLAGS.prefill_seq_lens,
+      quantize=flags.FLAGS.quantize,
+      lora_ranks=flags.FLAGS.lora_ranks,
       export_config=ExportConfig(),
   )
 
