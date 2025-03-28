@@ -16,7 +16,9 @@
 """Common utility functions for model conversion."""
 
 import os
+import pathlib
 from typing import Optional, Union
+from absl import flags
 from ai_edge_torch._convert import converter as converter_utils
 from ai_edge_torch.generative.layers import lora as lora_utils
 import ai_edge_torch.generative.layers.model_config as cfg
@@ -35,6 +37,49 @@ class ExportableModule(torch.nn.Module):
   def forward(self, *export_args, **export_kwargs):
     full_kwargs = {**export_kwargs, **self.extra_kwargs}
     return self.module(*export_args, **full_kwargs)
+
+
+def define_conversion_flags(model_name: str):
+  """Defines common flags used for model conversion."""
+
+  flags.DEFINE_string(
+      'checkpoint_path',
+      os.path.join(pathlib.Path.home(), f'Downloads/llm_data/{model_name}'),
+      'The path to the model checkpoint, or directory holding the checkpoint.',
+  )
+  flags.DEFINE_string(
+      'output_path',
+      '/tmp/',
+      'The path to export the tflite model.',
+  )
+  flags.DEFINE_string(
+      'output_name_prefix',
+      'qwen',
+      'The prefix of the output tflite model name.',
+  )
+  flags.DEFINE_multi_integer(
+      'prefill_seq_lens',
+      (8, 64, 128, 256, 512, 1024),
+      'List of the maximum sizes of prefill input tensors.',
+  )
+  flags.DEFINE_integer(
+      'kv_cache_max_len',
+      1280,
+      'The maximum size of KV cache buffer, including both prefill and decode.',
+  )
+  flags.DEFINE_bool(
+      'quantize',
+      True,
+      'Whether the model should be quantized.',
+  )
+  flags.DEFINE_multi_integer(
+      'lora_ranks',
+      None,
+      'If set, the model will be converted with the provided list of LoRA'
+      ' ranks.',
+  )
+
+  return flags
 
 
 def convert_to_tflite(
