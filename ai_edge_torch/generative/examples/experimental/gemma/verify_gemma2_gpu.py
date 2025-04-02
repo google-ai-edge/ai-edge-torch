@@ -32,12 +32,18 @@ _MAX_NEW_TOKENS = flags.DEFINE_integer(
     "The maximum size of the generated tokens.",
 )
 
+_MASK_AS_INPUT = flags.DEFINE_bool(
+    "mask_as_input",
+    True,
+    "Pass the causal self attention mask to the model.",
+)
+
 
 def main(_):
   checkpoint = kagglehub.model_download("google/gemma-2/pyTorch/gemma-2-2b-it")
 
   verify_util.verify_gemma2_gpu(
-      checkpoint, _PROMPTS.value, _MAX_NEW_TOKENS.value
+      checkpoint, _PROMPTS.value, _MAX_NEW_TOKENS.value, _MASK_AS_INPUT.value
   )
 
 

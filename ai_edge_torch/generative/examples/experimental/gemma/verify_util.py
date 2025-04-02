@@ -108,6 +108,7 @@ def verify_reauthored_gemma_model(
     weight_filename: str = "model.ckpt",
     tokenizer_filename: str = "tokenizer.model",
     max_new_tokens: int = 20,
+    mask_as_input: bool = False,
     rtol: float = 1e-05,
     atol: float = 1e-05,
 ) -> bool:
@@ -126,7 +127,9 @@ def verify_reauthored_gemma_model(
 
   return verifier.verify_reauthored_model(
       original_model=GemmaWrapper(original_model),
-      reauthored_model=verifier.ReauthoredModelWrapper(reauthored_model),
+      reauthored_model=verifier.ReauthoredModelWrapper(
+          reauthored_model, mask_as_input=mask_as_input
+      ),
       tokenizer=GemmaTokenizerWrapper(original_model.tokenizer),
       generate_prompts=generate_prompts,
       max_new_tokens=max_new_tokens,
@@ -137,7 +140,10 @@ def verify_reauthored_gemma_model(
 
 
 def verify_gemma2_gpu(
-    gemma2_model_path: str, prompts: List[str], max_new_tokens: int
+    gemma2_model_path: str,
+    prompts: List[str],
+    max_new_tokens: int,
+    mask_as_input: bool,
 ) -> bool:
   """Verifies the reauthored Gemma2 model.
 
@@ -153,5 +159,6 @@ def verify_gemma2_gpu(
       generate_prompts=prompts,
       forward_input_ids=[[2, 651, 9456, 576, 573, 3520, 3858, 603, 235248]],
       max_new_tokens=max_new_tokens,
+      mask_as_input=mask_as_input,
       atol=1e-04,
   )

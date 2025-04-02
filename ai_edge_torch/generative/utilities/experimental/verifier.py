@@ -23,6 +23,15 @@ from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 import torch
 
 
+def _create_mask(mask_len, kv_cache_max_len, slice_at):
+  mask = torch.full(
+      (mask_len, kv_cache_max_len), float("-inf"), dtype=torch.float32
+  )
+  mask = torch.triu(mask, diagonal=1).unsqueeze(0).unsqueeze(0)
+  mask = mask[:, :, slice_at, :]
+  return mask
+
+
 class ModelWrapper(torch.nn.Module):
   """A wrapper for the model to be verified.
 
@@ -30,7 +39,7 @@ class ModelWrapper(torch.nn.Module):
   verification to call.
   """
 
-  def __init__(self, model: torch.nn.Module):
+  def __init__(self, model: torch.nn.Module, mask_as_input=False):
     """Initializes the wrapper.
 
     Args:
@@ -40,6 +49,7 @@ class ModelWrapper(torch.nn.Module):
         ai_edge_torch Generative API.
     """
     super().__init__()
+    self.mask_as_input = mask_as_input
     self.model = model
     self.export_config = ExportConfig(output_logits_on_prefill=True)
 
@@ -117,6 +127,15 @@ class ReauthoredModelWrapper(ModelWrapper):
       extra_args["export_config"] = self.export_config
     if pixel_values is not None:
       extra_args["pixel_values"] = pixel_values
+
+    if self.mask_as_input:
+      mask_size = input_pos[-1] + 1
+      slice_at = torch.arange(input_pos[0], input_pos[-1] + 1, dtype=torch.int)
+      mask = _create_mask(
+          mask_size, self.model.config.kv_cache_max_len, slice_at
+      )
+      extra_args["mask"] = mask
+
     output = self.model.forward(tokens, input_pos, kv_cache, **extra_args)
     return output["logits"], output["kv_cache"]
 
