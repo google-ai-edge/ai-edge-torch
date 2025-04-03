@@ -19,7 +19,7 @@ import math
 from typing import Optional
 
 from ai_edge_torch.generative.custom_ops import bmm_4d as bmm_lib
-from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils
+from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.layers.experimental import types
 from ai_edge_torch.hlfb import StableHLOCompositeBuilder
 from multipledispatch import dispatch
@@ -28,7 +28,7 @@ import torch.nn.functional as F
 
 
 def scaled_dot_product_attention(
-    kv: kv_utils.KVCacheBase,
+    kv: kv_utils.KVCacheEntry,
     query: torch.Tensor,
     key: torch.Tensor,
     value: torch.Tensor,
@@ -37,10 +37,10 @@ def scaled_dot_product_attention(
     scale: Optional[float] = None,
     softcap: Optional[float] = None,
 ):
-  if hasattr(kv, "k_type") and hasattr(kv, "v_type"):
+  if hasattr(kv, "kv_layout"):
     return _sdpa(
-        kv.k_type,
-        kv.v_type,
+        kv.kv_layout[0](),  # key layout
+        kv.kv_layout[1](),  # value layout
         query=query,
         key=key,
         value=value,
@@ -49,10 +49,7 @@ def scaled_dot_product_attention(
         scale=scale,
         softcap=softcap,
     )
-  raise ValueError(
-      f"SDPA for K type {type(kv.caches[0].k_type)} and V type"
-      f" {type(kv.caches[0].v_type)} not supported."
-  )
+  raise ValueError("No kv_layout attribute found in kv.")
 
 
 @dispatch(types.BNTH, types.BNHT)

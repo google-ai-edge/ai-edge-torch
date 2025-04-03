@@ -20,8 +20,8 @@ import os
 from typing import List, Optional, Tuple
 
 from ai_edge_torch.generative.examples.gemma3 import gemma3
+from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
-from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils
 from ai_edge_torch.generative.utilities.experimental import verifier
 from gemma import config as gemma_config
 from gemma import model as gemma_model
@@ -94,7 +94,9 @@ class UnifiedGemma3Wrapper(verifier.ReauthoredModelWrapper):
 
   def _init_kv_cache(self):
     """Returns an initialized KV cache."""
-    return kv_utils.KVCacheTransposed.from_model_config(self.model.model.config)
+    return kv_utils.KVCache.from_model_config(
+        self.model.model.config, kv_layout=kv_utils.KV_LAYOUT_TRANSPOSED
+    )
 
   def forward(
       self, tokens: torch.Tensor, pixel_values: torch.Tensor = None
