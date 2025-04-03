@@ -13,14 +13,18 @@
 # limitations under the License.
 # ==============================================================================
 """Torch-TFL op to MLIR lowerings."""
+
 from typing import Sequence
+
 from ai_edge_torch import odml_torch
 from ai_edge_torch.odml_torch.experimental.torch_tfl import _ops
 from ai_edge_torch.odml_torch.lowerings import registry
 from ai_edge_torch.odml_torch.lowerings import utils as lowering_utils
 from jax._src.lib.mlir import ir
 from jax._src.lib.mlir.dialects import hlo as stablehlo
+import numpy as np
 import torch
+
 
 lower = registry.lower
 LoweringContext = odml_torch.lowerings.context.LoweringContext
@@ -242,4 +246,20 @@ def _tfl_gelu_lowering(
       attributes={
           "approximate": ir.BoolAttr.get(approximate),
       },
+  )
+
+
+@lower(torch.ops.tfl.transpose.default)
+def _tfl_transpose_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    perm: Sequence[int],
+) -> ir.Value:
+  constant_perm = lowering_utils.numpy_array_constant(
+      np.array(perm, dtype=np.int32)
+  )
+  return _ir_operation(
+      "tfl.transpose",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x, constant_perm],
   )

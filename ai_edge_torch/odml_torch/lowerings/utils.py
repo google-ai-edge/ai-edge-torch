@@ -14,10 +14,10 @@
 # ==============================================================================
 """Utilities for building MLIR lowerings."""
 
+from collections.abc import Callable
 import functools
 import numbers
-from typing import Any
-from typing import Optional
+from typing import Any, Optional, Union
 from ai_edge_torch.odml_torch import export_utils
 from jax._src.lib.mlir import ir
 from jax._src.lib.mlir.dialects import hlo as stablehlo
@@ -222,3 +222,48 @@ def convert_int_to_float(t: ir.Value) -> ir.Value:
     return stablehlo.convert(
         ir.RankedTensorType.get(t.type.shape, ir.F64Type.get()), t
     )
+
+
+# IR Helpers
+IrValues = Union[ir.Value, tuple[ir.Value, ...]]
+
+
+# Non-canonicalized dtype to IR type mapping.
+_numpy_dtype_to_ir_type: dict[np.dtype, Callable[[], ir.Type]] = {
+    np.dtype(np.bool_): functools.partial(ir.IntegerType.get_signless, 1),
+    np.dtype(np.int8): functools.partial(ir.IntegerType.get_signless, 8),
+    np.dtype(np.int16): functools.partial(ir.IntegerType.get_signless, 16),
+    np.dtype(np.int32): functools.partial(ir.IntegerType.get_signless, 32),
+    np.dtype(np.int64): functools.partial(ir.IntegerType.get_signless, 64),
+    np.dtype(np.uint8): functools.partial(ir.IntegerType.get_unsigned, 8),
+    np.dtype(np.uint16): functools.partial(ir.IntegerType.get_unsigned, 16),
+    np.dtype(np.uint32): functools.partial(ir.IntegerType.get_unsigned, 32),
+    np.dtype(np.uint64): functools.partial(ir.IntegerType.get_unsigned, 64),
+    np.dtype(np.float16): ir.F16Type.get,
+    np.dtype(np.float32): ir.F32Type.get,
+    np.dtype(np.float64): ir.F64Type.get,
+    np.dtype(np.complex64): lambda: ir.ComplexType.get(ir.F32Type.get()),
+    np.dtype(np.complex128): lambda: ir.ComplexType.get(ir.F64Type.get()),
+}
+
+
+def numpy_dtype_to_ir_type(dtype: np.dtype | np.generic) -> ir.Type:
+  assert isinstance(dtype, (np.dtype, np.generic)), type(dtype)
+  dtype = np.dtype(dtype)
+  try:
+    ir_type_factory = _numpy_dtype_to_ir_type[dtype]
+  except KeyError as err:
+    raise TypeError(
+        f"No numpy_dtype_to_ir_type handler for dtype: {dtype}"
+    ) from err
+  return ir_type_factory()
+
+
+def numpy_array_constant(x: np.ndarray | np.generic) -> IrValues:
+  element_type = numpy_dtype_to_ir_type(x.dtype)
+  shape = x.shape
+  if x.dtype == np.bool_:
+    x = np.packbits(x, bitorder="little")  # type: ignore
+  x = np.ascontiguousarray(x)
+  attr = ir.DenseElementsAttr.get(x, type=element_type, shape=shape)  # type: ignore
+  return stablehlo.constant(attr)

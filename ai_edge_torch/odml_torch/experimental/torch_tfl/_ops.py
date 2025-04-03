@@ -95,6 +95,13 @@ def tfl_gelu(x: torch.Tensor, approximate: bool = False) -> torch.Tensor:
   return torch.nn.functional.gelu(x, approximate=gelu_approximate)
 
 
+@custom_op_with_fake("tfl::transpose")
+def tfl_transpose(input: torch.Tensor, perm: Sequence[int]) -> torch.Tensor:
+  assert len(perm) == input.ndim
+
+  return torch.permute(input, perm).clone()
+
+
 @custom_op_with_fake("tfl::slice")
 def tfl_slice(
     input: torch.Tensor, begin: Sequence[int], size: Sequence[int]
