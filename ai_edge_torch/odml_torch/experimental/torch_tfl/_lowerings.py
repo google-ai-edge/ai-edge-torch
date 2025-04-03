@@ -263,3 +263,19 @@ def _tfl_transpose_lowering(
       results=lowering_utils.node_meta_to_ir_types(lctx.node),
       operands=[x, constant_perm],
   )
+
+
+@lower(torch.ops.tfl.softmax.default)
+def _tfl_softmax_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    beta: float = 1.0,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.softmax",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x],
+      attributes={
+          "beta": ir.FloatAttr.get(ir.F32Type.get(), beta),
+      },
+  )

@@ -114,3 +114,20 @@ def _aten_gelu_decomp(x, approximate="none"):
 @register_decomp(torch.ops.aten.permute.default)
 def _aten_permute_decomp(x, dims: Sequence[int]):
   return torch.ops.tfl.transpose(x, dims)
+
+
+@register_decomp(torch.ops.aten._softmax.default)
+def _aten__softmax_decomp(
+    x, dim: int, half_to_float: bool  # pylint: disable=unused-argument
+):
+  if dim == -1 or dim == x.dim() - 1:
+    return torch.ops.tfl.softmax(x)
+  else:
+    dims = list(range(x.dim()))
+    # Transpose the input by swapping the dim with the last dimension.
+    dims[dim], dims[-1] = dims[-1], dims[dim]
+    x_permuted = torch.ops.tfl.transpose(x, dims)
+    # Compute the softmax on the last dimension.
+    softmax_result = torch.ops.tfl.softmax(x_permuted)
+    # Transpose the result back to the original dimensions.
+    return torch.ops.tfl.transpose(softmax_result, dims)
