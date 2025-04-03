@@ -102,6 +102,13 @@ def tfl_transpose(input: torch.Tensor, perm: Sequence[int]) -> torch.Tensor:
   return torch.permute(input, perm).clone()
 
 
+@custom_op_with_fake("tfl::reshape")
+def tfl_reshape(input: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
+  assert torch.Size(shape).numel() == input.numel()
+
+  return input.view(shape).clone()
+
+
 @custom_op_with_fake("tfl::softmax")
 def tfl_softmax(x: torch.Tensor) -> torch.Tensor:
   return torch.nn.functional.softmax(x)

@@ -116,6 +116,11 @@ def _aten_permute_decomp(x, dims: Sequence[int]):
   return torch.ops.tfl.transpose(x, dims)
 
 
+@register_decomp(torch.ops.aten.view.default)
+def _aten_view_decomp(x, shape: Sequence[int]):
+  return torch.ops.tfl.reshape(x, shape)
+
+
 @register_decomp(torch.ops.aten._softmax.default)
 def _aten__softmax_decomp(
     x, dim: int, half_to_float: bool  # pylint: disable=unused-argument

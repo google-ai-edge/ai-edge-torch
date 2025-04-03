@@ -265,6 +265,22 @@ def _tfl_transpose_lowering(
   )
 
 
+@lower(torch.ops.tfl.reshape.default)
+def _tfl_reshape_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    shape: Sequence[int],
+) -> ir.Value:
+  constant_shape = lowering_utils.numpy_array_constant(
+      np.array(shape, dtype=np.int32)
+  )
+  return _ir_operation(
+      "tfl.reshape",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x, constant_shape],
+  )
+
+
 @lower(torch.ops.tfl.softmax.default)
 def _tfl_softmax_lowering(
     lctx: LoweringContext,
