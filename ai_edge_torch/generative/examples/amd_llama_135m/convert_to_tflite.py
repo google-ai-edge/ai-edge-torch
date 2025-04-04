@@ -15,14 +15,14 @@
 
 """Example of converting AMD-Llama-135m model to multi-signature tflite model."""
 
-import os
 from absl import app
-from absl import flags
 from ai_edge_torch.generative.examples.amd_llama_135m import amd_llama_135m
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
+from ai_edge_torch.generative.utilities import export_config
 
 flags = converter.define_conversion_flags("amd-llama-135m")
+ExportConfig = export_config.ExportConfig
+
 
 def main(_):
   pytorch_model = amd_llama_135m.build_model(

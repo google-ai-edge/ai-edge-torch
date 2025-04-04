@@ -34,8 +34,11 @@ from ai_edge_torch.generative.examples.qwen import qwen
 from ai_edge_torch.generative.examples.smollm import smollm
 from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
+from ai_edge_torch.generative.utilities import export_config
 import torch
+
+
+ExportConfig = export_config.ExportConfig
 
 _CHECKPOINT_ROOT_PATH = flags.DEFINE_string(
     "checkpoint_root_path",

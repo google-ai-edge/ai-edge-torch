@@ -15,16 +15,13 @@
 
 """Example of converting DeepSeek R1 distilled models to tflite model."""
 
-import os
-import pathlib
-
 from absl import app
-from absl import flags
 from ai_edge_torch.generative.examples.deepseek import deepseek
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
+from ai_edge_torch.generative.utilities import export_config
 
 flags = converter.define_conversion_flags("deepseek")
+ExportConfig = export_config.ExportConfig
 
 def main(_):
   pytorch_model = deepseek.build_model(

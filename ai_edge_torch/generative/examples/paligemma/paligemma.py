@@ -23,7 +23,7 @@ from ai_edge_torch.generative.examples.paligemma import decoder2
 from ai_edge_torch.generative.examples.paligemma import image_encoder
 import ai_edge_torch.generative.layers.kv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
-from ai_edge_torch.generative.utilities import model_builder
+from ai_edge_torch.generative.utilities import export_config as export_cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
 from torch import nn
@@ -71,7 +71,7 @@ class PaliGemma(nn.Module):
       kv_cache: kv_utils.KVCache,
       mask: Optional[torch.Tensor] = None,
       pixel_values: torch.Tensor = None,
-      export_config: Optional[model_builder.ExportConfig] = None,
+      export_config: Optional[export_cfg.ExportConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
     if pixel_values is None:
       return self.decoder(

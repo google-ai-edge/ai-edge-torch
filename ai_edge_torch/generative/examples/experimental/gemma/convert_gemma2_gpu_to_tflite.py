@@ -15,18 +15,15 @@
 
 """Example of converting a Gemma2 model to multi-signature tflite model."""
 
-import os
-import pathlib
-
 from absl import app
-from absl import flags
 from ai_edge_torch.generative.examples.experimental.gemma import gemma2_gpu
 from ai_edge_torch.generative.layers.experimental import kv_cache
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
+from ai_edge_torch.generative.utilities import export_config
 import torch
 
 flags = converter.define_conversion_flags('gemma2-2b')
+ExportConfig = export_config.ExportConfig
 
 def _create_mask(mask_len, kv_cache_max_len):
   mask = torch.full(

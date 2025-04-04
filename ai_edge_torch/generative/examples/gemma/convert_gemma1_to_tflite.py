@@ -15,13 +15,14 @@
 
 """Example of converting a Gemma1 model to multi-signature tflite model."""
 
-import os
 from absl import app
 from ai_edge_torch.generative.examples.gemma import gemma1
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
+from ai_edge_torch.generative.utilities import export_config
 
 flags = converter.define_conversion_flags("gemma-2b")
+ExportConfig = export_config.ExportConfig
+
 
 def main(_):
   pytorch_model = gemma1.build_2b_model(

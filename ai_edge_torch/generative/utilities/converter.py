@@ -23,8 +23,10 @@ from ai_edge_torch._convert import converter as converter_utils
 from ai_edge_torch.generative.layers import lora as lora_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.quantize import quant_recipes
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
+from ai_edge_torch.generative.utilities import export_config
 import torch
+
+ExportConfig = export_config.ExportConfig
 
 
 class ExportableModule(torch.nn.Module):

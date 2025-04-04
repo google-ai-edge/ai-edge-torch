@@ -15,15 +15,15 @@
 
 """Example of converting a PaliGemma model to multi-signature tflite model."""
 
-import os
 from absl import app
-from absl import flags
 from ai_edge_torch.generative.examples.paligemma import paligemma
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
+from ai_edge_torch.generative.utilities import export_config
 import torch
 
 flags = converter.define_conversion_flags('paligemma2-3b-224')
+ExportConfig = export_config.ExportConfig
+
 
 _VERSION = flags.DEFINE_enum(
     'version',

@@ -20,7 +20,7 @@ from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.smollm import smollm
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities import model_builder
+from ai_edge_torch.generative.utilities import export_config as export_cfg
 
 flags = converter.define_conversion_flags('smollm')
 
@@ -42,7 +42,7 @@ def main(_):
       prefill_seq_len=flags.FLAGS.prefill_seq_lens,
       quantize=flags.FLAGS.quantize,
       lora_ranks=flags.FLAGS.lora_ranks,
-      export_config=model_builder.ExportConfig(
+      export_config=export_cfg.ExportConfig(
           decode_batch_size=_DECODE_BATCH_SIZE.value
       ),
   )

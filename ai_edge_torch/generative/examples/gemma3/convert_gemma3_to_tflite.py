@@ -15,16 +15,16 @@
 
 """Example of converting a Gemma3 model to multi-signature tflite model."""
 
-import os
 from absl import app
-from absl import flags
 from ai_edge_torch.generative.examples.gemma3 import gemma3
 from ai_edge_torch.generative.layers.experimental import kv_cache
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
+from ai_edge_torch.generative.utilities import export_config
 import torch
 
 flags = converter.define_conversion_flags('gemma3-1b')
+ExportConfig = export_config.ExportConfig
+
 
 _MODEL_SIZE = flags.DEFINE_string(
     'model_size',

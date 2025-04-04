@@ -15,15 +15,15 @@
 
 """Example of converting Llama 3.2 1B model to multi-signature tflite model."""
 
-import os
 from absl import app
-from absl import flags
 from ai_edge_torch.generative.examples.llama import llama
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
+from ai_edge_torch.generative.utilities import export_config
 
 
 flags = converter.define_conversion_flags('llama')
+ExportConfig = export_config.ExportConfig
+
 
 _MODEL_SIZE = flags.DEFINE_enum(
     'model_size',

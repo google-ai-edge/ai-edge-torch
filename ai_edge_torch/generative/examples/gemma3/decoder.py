@@ -23,6 +23,7 @@ from ai_edge_torch.generative.layers.experimental import attention
 from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
+from ai_edge_torch.generative.utilities import export_config as export_cfg
 from ai_edge_torch.generative.utilities import model_builder
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
@@ -244,7 +245,7 @@ class Decoder(nn.Module):
       input_embeds: Optional[torch.Tensor] = None,
       mask: Optional[torch.Tensor] = None,
       image_indices: Optional[torch.Tensor] = None,
-      export_config: Optional[model_builder.ExportConfig] = None,
+      export_config: Optional[export_cfg.ExportConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCacheBase]:
 
     pixel_mask = None
@@ -288,7 +289,7 @@ class Decoder(nn.Module):
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCacheBase,
       pixel_mask: Optional[torch.Tensor] = None,
-      export_config: Optional[model_builder.ExportConfig] = None,
+      export_config: Optional[export_cfg.ExportConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCacheBase]:
     """Forwards the model with input embeddings."""
     assert len(self.transformer_blocks) == len(kv_cache.caches), (

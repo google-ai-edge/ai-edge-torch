@@ -15,14 +15,14 @@
 
 """Example of converting a Phi-3.5 model to multi-signature tflite model."""
 
-import os
 from absl import app
-from absl import flags
 from ai_edge_torch.generative.examples.phi import phi3
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
+from ai_edge_torch.generative.utilities import export_config
 
 flags = converter.define_conversion_flags("phi3")
+ExportConfig = export_config.ExportConfig
+
 
 def main(_):
   pytorch_model = phi3.build_model(

@@ -19,8 +19,10 @@ import logging
 from typing import Any, List, Optional
 
 from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
+from ai_edge_torch.generative.utilities import export_config
 import torch
+
+ExportConfig = export_config.ExportConfig
 
 
 def _create_mask(mask_len, kv_cache_max_len, slice_at):

@@ -15,14 +15,14 @@
 
 """Example of converting TinyLlama model to multi-signature tflite model."""
 
-import os
 from absl import app
-from absl import flags
 from ai_edge_torch.generative.examples.tiny_llama import tiny_llama
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
+from ai_edge_torch.generative.utilities import export_config
 
 flags = converter.define_conversion_flags("tiny_llama")
+ExportConfig = export_config.ExportConfig
+
 
 def main(_):
   pytorch_model = tiny_llama.build_model(

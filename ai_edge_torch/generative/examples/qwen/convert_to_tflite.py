@@ -15,14 +15,14 @@
 
 """Example of converting Qwen 2.5 models to multi-signature tflite model."""
 
-import os
 from absl import app
-from absl import flags
 from ai_edge_torch.generative.examples.qwen import qwen
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
+from ai_edge_torch.generative.utilities import export_config
 
 flags = converter.define_conversion_flags('qwen')
+ExportConfig = export_config.ExportConfig
+
 
 _MODEL_SIZE = flags.DEFINE_enum(
     'model_size',

@@ -24,7 +24,7 @@ from ai_edge_torch.generative.examples.gemma3 import image_encoder
 from ai_edge_torch.generative.layers import builder
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
-from ai_edge_torch.generative.utilities import model_builder
+from ai_edge_torch.generative.utilities import export_config as export_cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
 from torch import nn
@@ -83,7 +83,7 @@ class Gemma3MM(nn.Module):
       image_indices: Optional[torch.Tensor] = None,
       image_feat_indices: Optional[torch.Tensor] = None,
       pixel_values: torch.Tensor = None,
-      export_config: Optional[model_builder.ExportConfig] = None,
+      export_config: Optional[export_cfg.ExportConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
     _, seq_len = tokens.size()
     assert self.config.decoder_config.max_seq_len >= seq_len, (
@@ -149,6 +149,7 @@ class Gemma3MM(nn.Module):
         image_indices=image_indices,
         export_config=export_config,
     )
+
 
 def get_fake_model_config(**kwargs) -> Gemma3MMConfig:
   return Gemma3MMConfig(

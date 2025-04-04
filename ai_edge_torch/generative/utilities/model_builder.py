@@ -16,8 +16,7 @@
 """Utilities to be used for re-authoring transformer models."""
 
 import copy
-from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 from ai_edge_torch.generative.layers import attention
 from ai_edge_torch.generative.layers import builder
@@ -25,6 +24,7 @@ from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.layers import lora as lora_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
+from ai_edge_torch.generative.utilities import export_config as export_cfg
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
 from torch import nn
@@ -46,22 +46,6 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
 
 TENSOR_NAMES_WITH_SEPARATE_LM_HEAD = copy.copy(TENSOR_NAMES)
 TENSOR_NAMES_WITH_SEPARATE_LM_HEAD.lm_head = "lm_head"
-
-
-@dataclass
-class ExportConfig:
-  """Model generating configuration settings."""
-
-  # On prefill signatures, should the model produce logit output?
-  # When False, only decode signatures will produce output.
-  output_logits_on_prefill: bool = False
-  # Attention masks given as inputs to the model.
-  prefill_mask: Optional[torch.Tensor | List[torch.Tensor]] = None
-  decode_mask: Optional[torch.Tensor | List[torch.Tensor]] = None
-  # The KV Cache class for K and V buffers in attention.
-  kvcache_cls: type = kv_utils.KVCache
-  # The batch size of the decode signature.
-  decode_batch_size: int = 1
 
 
 class DecoderOnlyModel(nn.Module):
@@ -107,7 +91,7 @@ class DecoderOnlyModel(nn.Module):
       kv_cache: kv_utils.KVCache,
       mask: Optional[torch.Tensor] = None,
       lora: Optional[lora_utils.LoRA] = None,
-      export_config: Optional[ExportConfig] = None,
+      export_config: Optional[export_cfg.ExportConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
     _, seq_len = tokens.size()
     assert self.config.max_seq_len >= seq_len, (
@@ -139,7 +123,7 @@ class DecoderOnlyModel(nn.Module):
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
       lora: Optional[lora_utils.LoRA] = None,
-      export_config: Optional[ExportConfig] = None,
+      export_config: Optional[export_cfg.ExportConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
     """Forwards the model with input embeddings."""
     assert len(self.transformer_blocks) == len(kv_cache.caches), (

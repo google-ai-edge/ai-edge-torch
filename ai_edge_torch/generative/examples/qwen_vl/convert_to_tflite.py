@@ -15,14 +15,14 @@
 
 """Example of converting a Qwen 2.5 VL model to multi-signature tflite model."""
 
-import os
 from absl import app
-from absl import flags
 from ai_edge_torch.generative.examples.qwen_vl import qwen_vl
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
+from ai_edge_torch.generative.utilities import export_config
 
 flags = converter.define_conversion_flags('qwen_vl')
+ExportConfig = export_config.ExportConfig
+
 
 _IMAGE_HEIGHT = flags.DEFINE_integer(
     'image_height',
