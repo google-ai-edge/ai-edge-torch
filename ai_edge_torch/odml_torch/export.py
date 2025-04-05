@@ -209,7 +209,10 @@ class MlirLowered:
 
   def get_text(self, enable_debug_info=False):
     return str(
-        self.module.operation.get_asm(enable_debug_info=enable_debug_info)
+        self.module.operation.get_asm(
+            enable_debug_info=enable_debug_info,
+            large_elements_limit=16,
+        )
     )
 
   @property
@@ -326,8 +329,24 @@ def _convert_q_dq_per_channel_args_to_list(
 
 def exported_program_to_mlir(
     exported_program: torch.export.ExportedProgram,
+    *,
+    ir_context: ir.Context | None = None,
+    _pre_lower_pass: (
+        Callable[[torch.export.ExportedProgram], None] | None
+    ) = None,
 ) -> MlirLowered:
-  """Lower the exported program to MLIR."""
+  """Lower the exported program to MLIR.
+
+  Args:
+    exported_program: The exported program to lower.
+    ir_context: The MLIR context to use. If not provided, a new context will be
+      created.
+    _pre_lower_pass: A function to run on exported program before lowering.
+
+  Returns:
+    The lowered MLIR module, metadata, and weight tensors bundle from exported
+    program.
+  """
   exported_program = fx_infra.safe_run_decompositions(
       exported_program,
       fx_infra.decomp.pre_lower_decomp(),
@@ -340,10 +359,16 @@ def exported_program_to_mlir(
   # Do not call run_decompositions after applying the passes.
   _convert_q_dq_per_channel_args_to_list(exported_program)
 
-  with export_utils.create_ir_context() as context, ir.Location.unknown():
+  if _pre_lower_pass:
+    _pre_lower_pass(exported_program)
+
+  if not ir_context:
+    ir_context = export_utils.create_ir_context()
+
+  with ir_context, ir.Location.unknown():
 
     module = ir.Module.create()
-    lctx = LoweringContext(context, module)
+    lctx = LoweringContext(ir_context, module)
     interpreter = LoweringInterpreter(exported_program.graph_module, lctx)
     ir_flat_inputs, export_flat_args, tensor_metas = _build_flat_inputs(
         exported_program
@@ -382,7 +407,6 @@ def exported_program_to_mlir(
 
     main_func.attributes["sym_visibility"] = ir.StringAttr.get("public")
     temp_func.erase()
-
     module.operation.verify()
 
   input_signature = []
@@ -422,5 +446,5 @@ def exported_program_to_mlir(
       for tensor_meta in _get_output_metas(exported_program)
   ]
   return MlirLowered(
-      context, module, state_dict, input_signature, output_signature
+      ir_context, module, state_dict, input_signature, output_signature
   )
