@@ -62,6 +62,9 @@ class TensorDimensionMeta(type):
   def __repr__(cls):
     return f'{cls.__name__}'
 
+  def __iter__(cls):
+    return iter(getattr(cls, 'dimensions'))
+
 
 def create_tensor_dimension_order_class(dims: Tuple[TensorDims]):
   """Creates a TensorDimensionMeta class with the specified dimensions.

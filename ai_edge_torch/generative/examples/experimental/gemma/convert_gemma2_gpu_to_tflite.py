@@ -17,7 +17,7 @@
 
 from absl import app
 from ai_edge_torch.generative.examples.experimental.gemma import gemma2_gpu
-from ai_edge_torch.generative.layers.experimental import kv_cache
+from ai_edge_torch.generative.layers import kv_cache
 from ai_edge_torch.generative.utilities import converter
 from ai_edge_torch.generative.utilities import export_config
 import torch
@@ -50,7 +50,7 @@ def _create_export_config(
   )
   decode_mask = torch.triu(decode_mask, diagonal=1).unsqueeze(0).unsqueeze(0)
   export_config.decode_mask = decode_mask
-  export_config.kvcache_cls = kv_cache.KVCacheTransposed
+  export_config.kvcache_layout = kv_cache.KV_LAYOUT_TRANSPOSED
   return export_config
 
 

@@ -25,9 +25,9 @@ implemenatation are:
 from typing import List, Optional, Tuple
 
 from ai_edge_torch.generative.layers import builder
+from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 from ai_edge_torch.generative.layers.experimental import attention
-from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
 from ai_edge_torch.generative.utilities import export_config as export_cfg
@@ -75,8 +75,8 @@ class Gemma2Block(attention.TransformerBlock):
       rope: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
       mask: Optional[torch.Tensor] = None,
       input_pos: Optional[torch.Tensor] = None,
-      kv_cache: kv_utils.KVCacheEntryBase = None,
-  ) -> Tuple[torch.Tensor, Optional[kv_utils.KVCacheEntryBase]]:
+      kv_cache: kv_utils.KVCacheEntry = None,
+  ) -> Tuple[torch.Tensor, Optional[kv_utils.KVCacheEntry]]:
     """Forward function of the Gemma2Block.
 
     Exactly the same as TransformerBlock but we call the post-attention norm
@@ -87,7 +87,7 @@ class Gemma2Block(attention.TransformerBlock):
       rope (Tuple[torch.Tensor, torch.Tensor]): the input rope tensor.
       mask (torch.Tensor): the optional mask tensor.
       input_pos (torch.Tensor): the optional input position tensor.
-      kv_cache (KVCacheEntryBase): the optional kv cache entry.
+      kv_cache (KVCacheEntry): the optional kv cache entry.
 
     Returns:
       output activation from this transformer block, and updated kv cache (if
@@ -151,10 +151,10 @@ class Gemma2(nn.Module):
       self,
       tokens: torch.Tensor,
       input_pos: torch.Tensor,
-      kv_cache: kv_utils.KVCacheBase,
+      kv_cache: kv_utils.KVCache,
       mask: Optional[torch.Tensor] = None,
       export_config: Optional[export_cfg.ExportConfig] = None,
-  ) -> dict[torch.Tensor, kv_utils.KVCacheBase]:
+  ) -> dict[torch.Tensor, kv_utils.KVCache]:
     _, seq_len = tokens.size()
     assert self.config.max_seq_len >= seq_len, (
         f"Cannot forward sequence of length {seq_len}, max seq length is only"
@@ -185,9 +185,9 @@ class Gemma2(nn.Module):
       rope: Tuple[torch.Tensor, torch.Tensor],
       mask: torch.Tensor | List[torch.Tensor],
       input_pos: torch.Tensor,
-      kv_cache: kv_utils.KVCacheBase,
+      kv_cache: kv_utils.KVCache,
       export_config: Optional[export_cfg.ExportConfig] = None,
-  ) -> dict[torch.Tensor, kv_utils.KVCacheBase]:
+  ) -> dict[torch.Tensor, kv_utils.KVCache]:
     """Forwards the model with input embeddings."""
     assert len(self.transformer_blocks) == len(kv_cache.caches), (
         "The number of transformer blocks and the number of KV cache entries"
@@ -204,7 +204,7 @@ class Gemma2(nn.Module):
       x, kv_entry = block(x, rope, mask_entry, input_pos, kv_entry)
       if kv_entry:
         updated_kv_entries.append(kv_entry)
-    updated_kv_cache = kv_utils.KVCacheBase(tuple(updated_kv_entries))
+    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entries))
 
     if export_config is not None:
       if (

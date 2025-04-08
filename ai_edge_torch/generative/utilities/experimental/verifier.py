@@ -18,7 +18,7 @@
 import logging
 from typing import Any, List, Optional
 
-from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils
+from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.utilities import export_config
 import torch
 
@@ -97,7 +97,9 @@ class ReauthoredModelWrapper(ModelWrapper):
 
   def _init_kv_cache(self):
     """Returns an initialized KV cache."""
-    return kv_utils.KVCacheTransposed.from_model_config(self.model.config)
+    return kv_utils.KVCache.from_model_config(
+        self.model.config, kv_layout=kv_utils.KV_LAYOUT_TRANSPOSED
+    )
 
   def _get_extra_args_for_forward(self) -> dict[str, Any]:
     """Returns extra arguments for the forward() method."""
@@ -107,15 +109,15 @@ class ReauthoredModelWrapper(ModelWrapper):
       self,
       tokens: torch.Tensor,
       input_pos: torch.Tensor,
-      kv_cache: kv_utils.KVCacheBase,
+      kv_cache: kv_utils.KVCache,
       pixel_values: torch.Tensor,
-  ) -> tuple[torch.Tensor, kv_utils.KVCacheBase]:
+  ) -> tuple[torch.Tensor, kv_utils.KVCache]:
     """Forwards the model and updates an external KV cache.
 
     Args:
       tokens (torch.Tensor): The input tokens to forward.
       input_pos (torch.Tensor): The input positions to forward.
-      kv_cache (KVCacheBase): The KV cache to forward.
+      kv_cache (KVCache): The KV cache to forward.
       pixel_values (torch.Tensor): The input pixel values to forward.
 
     Returns:
@@ -327,6 +329,7 @@ def verify_reauthored_model(
           original_model, reauthored_model, input_ids, rtol=rtol, atol=atol
       )
     except AssertionError as e:
+      logging.error("AssertionError: %s", e)
       logging.error("*** FAILED *** verify with input IDs: %s", input_ids)
       failure_count += 1
       if not continue_on_failure:
@@ -341,6 +344,7 @@ def verify_reauthored_model(
           original_model, reauthored_model, tokenizer, prompts, max_new_tokens
       )
     except AssertionError as e:
+      logging.error("AssertionError: %s", e)
       logging.error("*** FAILED *** verify with prompts: %s", prompts)
       failure_count += 1
       if not continue_on_failure:

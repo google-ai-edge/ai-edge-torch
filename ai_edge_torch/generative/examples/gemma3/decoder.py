@@ -18,9 +18,9 @@
 from typing import List, Optional, Tuple
 
 from ai_edge_torch.generative.layers import builder
+from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 from ai_edge_torch.generative.layers.experimental import attention
-from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
 from ai_edge_torch.generative.utilities import export_config as export_cfg
@@ -81,8 +81,8 @@ class DecoderBlock(attention.TransformerBlock):
       rope: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
       mask: Optional[torch.Tensor] = None,
       input_pos: Optional[torch.Tensor] = None,
-      kv_cache: kv_utils.KVCacheEntryBase = None,
-  ) -> Tuple[torch.Tensor, Optional[kv_utils.KVCacheEntryBase]]:
+      kv_cache: kv_utils.KVCacheEntry = None,
+  ) -> Tuple[torch.Tensor, Optional[kv_utils.KVCacheEntry]]:
     """Forward function of the Gemma3Block.
 
     Exactly the same as TransformerBlock but we call the post-attention norm
@@ -241,13 +241,12 @@ class Decoder(nn.Module):
       self,
       tokens: torch.Tensor,
       input_pos: torch.Tensor,
-      kv_cache: kv_utils.KVCacheBase,
+      kv_cache: kv_utils.KVCache,
       input_embeds: Optional[torch.Tensor] = None,
       mask: Optional[torch.Tensor] = None,
       image_indices: Optional[torch.Tensor] = None,
       export_config: Optional[export_cfg.ExportConfig] = None,
-  ) -> dict[torch.Tensor, kv_utils.KVCacheBase]:
-
+  ) -> dict[torch.Tensor, kv_utils.KVCache]:
     pixel_mask = None
     if input_embeds is None:
       # token embeddings of shape (b, t, n_embd)
@@ -287,10 +286,10 @@ class Decoder(nn.Module):
       rope: List[Tuple[torch.Tensor, torch.Tensor]],
       mask: torch.Tensor | List[torch.Tensor],
       input_pos: torch.Tensor,
-      kv_cache: kv_utils.KVCacheBase,
+      kv_cache: kv_utils.KVCache,
       pixel_mask: Optional[torch.Tensor] = None,
       export_config: Optional[export_cfg.ExportConfig] = None,
-  ) -> dict[torch.Tensor, kv_utils.KVCacheBase]:
+  ) -> dict[torch.Tensor, kv_utils.KVCache]:
     """Forwards the model with input embeddings."""
     assert len(self.transformer_blocks) == len(kv_cache.caches), (
         "The number of transformer blocks and the number of KV cache entries"
@@ -326,7 +325,7 @@ class Decoder(nn.Module):
       x, kv_entry = block(x, rope[i], mask_entry, input_pos, kv_entry)
       if kv_entry:
         updated_kv_entries.append(kv_entry)
-    updated_kv_cache = kv_utils.KVCacheBase(tuple(updated_kv_entries))
+    updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entries))
     if export_config is not None:
       if (
           torch.numel(input_pos) > 1

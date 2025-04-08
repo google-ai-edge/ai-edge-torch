@@ -32,7 +32,9 @@ class ExportConfig:
   # Attention masks given as inputs to the model.
   prefill_mask: Optional[torch.Tensor | List[torch.Tensor]] = None
   decode_mask: Optional[torch.Tensor | List[torch.Tensor]] = None
-  # The KV Cache class for K and V buffers in attention.
+  # The KV Cache layout for K and V buffers in attention.
+  kvcache_layout: kv_utils.KVLayout = kv_utils.KV_LAYOUT_DEFAULT
+  # TODO(b/409373223): The KV Cache class for K and V buffers in attention.
   kvcache_cls: type = kv_utils.KVCache
   # The batch size of the decode signature.
   decode_batch_size: int = 1

@@ -20,6 +20,7 @@ import pathlib
 from typing import Optional, Union
 from absl import flags
 from ai_edge_torch._convert import converter as converter_utils
+from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.layers import lora as lora_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.quantize import quant_recipes
@@ -218,9 +219,13 @@ def _export_helper(
       [[0] for _ in range(export_config.decode_batch_size)], dtype=torch.int
   )
   decode_input_pos = torch.tensor([0], dtype=torch.int)
-  prefill_kv = export_config.kvcache_cls.from_model_config(config)
-  decode_kv = export_config.kvcache_cls.from_model_config(
-      config, batch_size=export_config.decode_batch_size
+  prefill_kv = kv_utils.KVCache.from_model_config(
+      config, kv_layout=export_config.kvcache_layout
+  )
+  decode_kv = kv_utils.KVCache.from_model_config(
+      config,
+      batch_size=export_config.decode_batch_size,
+      kv_layout=export_config.kvcache_layout,
   )
 
   quant_config = quant_recipes.full_int8_dynamic_recipe() if quantize else None
