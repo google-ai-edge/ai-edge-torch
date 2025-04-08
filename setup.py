@@ -84,8 +84,8 @@ setup(
         "numpy",
         "scipy",
         "safetensors",
-        "multipledispatch"
-        "transformers"
+        "multipledispatch",
+        "transformers",
         "kagglehub",
         "tabulate",
         "torch>=2.4.0",
