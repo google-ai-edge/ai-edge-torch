@@ -52,6 +52,7 @@ def torch_dtype_to_tf(dtype):
       torch.int32: tf.int32,
       torch.int16: tf.int16,
       torch.bool: tf.bool,
+      torch.bfloat16: tf.bfloat16,
   }.get(dtype)
 
 

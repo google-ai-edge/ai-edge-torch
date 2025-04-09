@@ -301,3 +301,22 @@ def _aten_slice_scatter(lctx, self, src, dim=0, start=None, end=None, step=1):
   )
   out = stablehlo.select(pred, self, src)
   return out
+
+
+# Schema:
+#   - aten::_to_copy(Tensor self, *, ScalarType? dtype=None,
+#       Layout? layout=None, Device? device=None, bool? pin_memory=None,
+#       bool non_blocking=False, MemoryFormat? memory_format=None) -> Tensor
+@lower(torch.ops.aten._to_copy.default)
+def _aten_to_copy(
+    lctx, x: ir.Value, dtype: torch.dtype | None = None, **kwargs
+):
+  if not dtype:
+    return x
+
+  return stablehlo.convert(
+      ir.RankedTensorType.get(
+          x.type.shape, utils.torch_dtype_to_ir_element_type(dtype)
+      ),
+      x,
+  )

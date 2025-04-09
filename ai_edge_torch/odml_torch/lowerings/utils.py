@@ -37,6 +37,7 @@ def torch_dtype_to_ir_element_type(dtype) -> ir.Type:
       torch.int16: functools.partial(ir.IntegerType.get_signless, 16),
       torch.int8: functools.partial(ir.IntegerType.get_signless, 8),
       torch.bool: functools.partial(ir.IntegerType.get_signless, 1),
+      torch.bfloat16: ir.BF16Type.get,
   }[dtype]
   return ty_get()
 
