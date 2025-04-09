@@ -44,7 +44,8 @@ def update(
   assert (
       cache.kv_layout == kv_utils.KV_LAYOUT_TRANSPOSED
   ), "KV entry must have transposed layout."
-  return _update_kv_impl_transposed(cache, input_pos, k_slice, v_slice)
+  update_kv_cache = _update_kv_impl_transposed
+  return update_kv_cache(cache, input_pos, k_slice, v_slice)
 
 
 def _get_slice_indices(

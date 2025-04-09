@@ -24,8 +24,7 @@ from typing import Optional, Tuple, Union
 from ai_edge_torch.generative.layers import builder
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.layers import lora as lora_utils
-from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils_experimental
-from ai_edge_torch.generative.layers.experimental import scaled_dot_product_attention as sdpa
+from ai_edge_torch.generative.layers import sdpa_with_kv_update
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
 import torch
@@ -147,7 +146,6 @@ class CausalSelfAttention(nn.Module):
     self.key_norm = builder.build_norm(config.head_dim, config.key_norm_config)
     self.config = config
     self.enable_hlfb = enable_hlfb
-    self.sdpa_func = sdpa.scaled_dot_product_attention
 
   def forward(
       self,
@@ -221,36 +219,8 @@ class CausalSelfAttention(nn.Module):
       cos, sin = rope
       q, k = rotary_pos_emb.apply_rope_inline(q, k, cos, sin)
 
-    # Transpose k/v to specific layout for GPU implementation.
-    b, _, n, h = q.shape
-    g = n // self.config.num_query_groups
-    # btnh -> bnth -> b(kg)th -> 1(bk)(gt)h
-    q = q.permute(0, 2, 1, 3).reshape(
-        1, b * self.config.num_query_groups, g * T, h
-    )
-
-    k = k.permute(0, 2, 1, 3).reshape(
-        1, -1, T, self.config.head_dim
-    )  # 1, bk, s, h
-    v = v.permute(0, 2, 3, 1).reshape(
-        1, -1, self.config.head_dim, T
-    )  # 1, bk, h, s
-
-    if kv_cache is not None:
-      kv_cache = kv_utils_experimental.update(kv_cache, input_pos, k, v)
-      k, v = kv_cache.k_cache, kv_cache.v_cache
-
-    sdpa_out = self.sdpa_func(
-        kv_cache,
-        q,
-        k,
-        v,
-        self.config.head_dim,
-        mask=mask,
-        softcap=self.config.logit_softcap,
-    )  # 1, bk, gt, h
-    sdpa_out = (
-        sdpa_out.reshape(B, -1, T, h).permute(0, 2, 1, 3).reshape(B, T, -1)
+    sdpa_out, kv_cache = sdpa_with_kv_update.sdpa_with_kv_update(
+        q, k, v, kv_cache, input_pos, mask, self.config
     )
 
     # Compute the output projection.

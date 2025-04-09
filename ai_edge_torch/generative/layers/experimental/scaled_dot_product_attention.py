@@ -82,7 +82,6 @@ def _sdpa(k_type, v_type, *args, **kwargs):
   padded_logits = logits + mask
   padded_logits = padded_logits.reshape(1, bk, gt, s)
   probs = F.softmax(padded_logits, dim=-1).type_as(key)
-
   encoded = bmm_lib.bmm_4d(probs, value)
 
   return encoded  # 1, bk, gt, h

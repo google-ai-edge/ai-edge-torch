@@ -19,7 +19,7 @@ import logging
 from typing import Any, List, Optional
 
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
-from ai_edge_torch.generative.utilities import export_config
+from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 import torch
 
 ExportConfig = export_config.ExportConfig
