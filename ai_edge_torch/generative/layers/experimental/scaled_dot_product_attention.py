@@ -20,7 +20,7 @@ from typing import Optional
 
 from ai_edge_torch.generative.custom_ops import bmm_4d as bmm_lib
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
-from ai_edge_torch.generative.layers.experimental import types
+from ai_edge_torch.generative.utilities import types
 from ai_edge_torch.hlfb import StableHLOCompositeBuilder
 from multipledispatch import dispatch
 import torch

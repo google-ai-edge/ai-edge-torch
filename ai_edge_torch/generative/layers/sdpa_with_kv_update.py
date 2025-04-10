@@ -19,8 +19,8 @@ from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.layers import scaled_dot_product_attention as sdpa_default
 from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils_experimental
 from ai_edge_torch.generative.layers.experimental import scaled_dot_product_attention as sdpa
-from ai_edge_torch.generative.layers.experimental import types
 import ai_edge_torch.generative.layers.model_config as cfg
+from ai_edge_torch.generative.utilities import types
 from multipledispatch import dispatch
 import torch
 

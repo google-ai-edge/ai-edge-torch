@@ -20,7 +20,7 @@ from typing import Any, List, Tuple
 
 from ai_edge_torch.generative.custom_ops.dynamic_update_slice import dynamic_update_slice
 from ai_edge_torch.generative.layers import model_config
-from ai_edge_torch.generative.layers.experimental import types
+from ai_edge_torch.generative.utilities import types
 import torch
 import torch.utils._pytree as pytree
 
