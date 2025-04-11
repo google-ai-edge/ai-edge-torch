@@ -102,11 +102,18 @@ def tfl_transpose(input: torch.Tensor, perm: Sequence[int]) -> torch.Tensor:
   return torch.permute(input, perm).clone()
 
 
-@custom_op_with_fake("tfl::reshape")
+@torch.library.custom_op("tfl::reshape", mutates_args=())
 def tfl_reshape(input: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
   assert torch.Size(shape).numel() == input.numel()
 
   return input.view(shape).clone()
+
+
+# Use explicit fake implementation for tfl.reshape because dynamo cannot
+# derive the output's symbolic shape from the impl above.
+@torch.library.register_fake("tfl::reshape")
+def tfl_reshape_fake(input: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
+  return torch.empty(shape, dtype=input.dtype)
 
 
 @custom_op_with_fake("tfl::softmax")
