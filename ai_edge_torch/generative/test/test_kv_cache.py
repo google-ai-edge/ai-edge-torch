@@ -18,6 +18,7 @@
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 import torch
+import torch.utils._pytree as pytree
 
 from absl.testing import absltest as googletest
 
@@ -114,6 +115,60 @@ class TestKVLayers(googletest.TestCase):
     self.assertEqual(len(input_specs), 2)
     self.assertEqual(input_specs[0].arg.name, "kv_k_0")
     self.assertEqual(input_specs[1].arg.name, "kv_v_0")
+
+  def test_pytree_roundtrip_kv_cache(self):
+    NUM_LAYERS = 4
+    config = self._get_test_config(
+        num_layers=NUM_LAYERS,
+        head_dim=2,
+        num_query_groups=1,
+        kv_cache_max_len=4,
+    )
+    kv = kv_utils.KVCache.from_model_config(config, batch_size=1)
+    flat, treespec = pytree.tree_flatten(kv)
+    self.assertLen(flat, NUM_LAYERS * 2)
+    kv_unflat = pytree.tree_unflatten(flat, treespec)
+    self.assertEqual(kv, kv_unflat)
+
+  def test_pytree_roundtrip_kv_cache_derived(self):
+    NUM_LAYERS = 4
+    config = self._get_test_config(
+        num_layers=NUM_LAYERS,
+        head_dim=2,
+        num_query_groups=1,
+        kv_cache_max_len=4,
+    )
+    kv = kv_utils.KVCache.from_model_config(
+        config, batch_size=1, kv_layout=kv_utils.KV_LAYOUT_TRANSPOSED
+    )
+    flat, treespec = pytree.tree_flatten(kv)
+    self.assertLen(flat, NUM_LAYERS * 2)
+    kv_unflat = pytree.tree_unflatten(flat, treespec)
+    self.assertEqual(kv, kv_unflat)
+
+  def test_pytree_roundtrip_kv_entry(self):
+    attn_config = cfg.AttentionConfig(
+        num_heads=1, head_dim=1, num_query_groups=1
+    )
+    kv = kv_utils.KVCacheEntry.from_model_config(32, attn_config)
+    flat, treespec = pytree.tree_flatten(kv)
+    self.assertLen(flat, 2)
+    kv_unflat = pytree.tree_unflatten(flat, treespec)
+    self.assertEqual(kv, kv_unflat)
+    self.assertIsInstance(kv_unflat, kv_utils.KVCacheEntry)
+
+  def test_pytree_roundtrip_kv_entry_derived(self):
+    attn_config = cfg.AttentionConfig(
+        num_heads=1, head_dim=1, num_query_groups=1
+    )
+    kv = kv_utils.KVCacheEntry.from_model_config(
+        32, attn_config, kv_layout=kv_utils.KV_LAYOUT_TRANSPOSED
+    )
+    flat, treespec = pytree.tree_flatten(kv)
+    self.assertLen(flat, 2)
+    kv_unflat = pytree.tree_unflatten(flat, treespec)
+    self.assertEqual(kv, kv_unflat)
+    self.assertIsInstance(kv_unflat, kv_utils.KVCacheEntry)
 
 
 if __name__ == "__main__":

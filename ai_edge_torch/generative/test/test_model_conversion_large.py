@@ -27,6 +27,7 @@ from ai_edge_torch.generative.examples.paligemma import decoder2
 from ai_edge_torch.generative.examples.paligemma import paligemma
 from ai_edge_torch.generative.examples.phi import phi2
 from ai_edge_torch.generative.examples.phi import phi3
+from ai_edge_torch.generative.examples.phi import phi4
 from ai_edge_torch.generative.examples.qwen import qwen
 from ai_edge_torch.generative.examples.qwen_vl import qwen_vl
 from ai_edge_torch.generative.examples.smollm import smollm
@@ -138,6 +139,15 @@ class TestModelConversion(googletest.TestCase):
     config = phi3.get_fake_model_config()
     pytorch_model = phi3.Phi3_5Mini(config).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-5, rtol=1e-5)
+
+  @googletest.skipIf(
+      ai_edge_torch.config.in_oss,
+      reason="tests with custom ops are not supported in oss",
+  )
+  def test_phi4(self):
+    config = phi4.get_fake_model_config()
+    pytorch_model = phi4.Phi4Mini(config).eval()
+    self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
 
   @googletest.skipIf(
       ai_edge_torch.config.in_oss,

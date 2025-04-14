@@ -12,12 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+from ai_edge_torch import fx_infra
 from ai_edge_torch import odml_torch
 import numpy as np
 import torch
 import torchvision
 
 from absl.testing import absltest as googletest
+
+
+def _reset_from_node_meta_and_lower(ep: torch.export.ExportedProgram):
+  """Lower the exported program with canonical history stack."""
+  ep = fx_infra.graph_utils.reset_from_node_meta(ep)
+  return odml_torch.export.exported_program_to_mlir(ep)
+
+
+def _is_aten_op(node: torch.fx.Node) -> bool:
+  return node.op == "call_function" and not node.name.startswith("getitem")
+
+
+class AddModel(torch.nn.Module):
+  """A simple model that does addition."""
+
+  def forward(self, x, y):
+    return x + y + x + y
 
 
 class TensorflowIntegrationTest(googletest.TestCase):
@@ -28,11 +46,6 @@ class TensorflowIntegrationTest(googletest.TestCase):
 
   def test_mlir_lowered_call(self):
     """Test a simple model with MLIR lowered call."""
-
-    class AddModel(torch.nn.Module):
-
-      def forward(self, x, y):
-        return x + y + x + y
 
     model = AddModel().eval()
     forward_args = lambda: (torch.rand((10, 10)), torch.rand((10, 10)))
@@ -53,8 +66,7 @@ class TensorflowIntegrationTest(googletest.TestCase):
     forward_args = lambda: (torch.rand((1, 3, 224, 224)),)
 
     ep = torch.export.export(model, forward_args())
-
-    lowered = odml_torch.export.exported_program_to_mlir(ep)
+    lowered = _reset_from_node_meta_and_lower(ep)
 
     args = forward_args()
     torch_output = model(*args).detach().numpy()
@@ -70,7 +82,7 @@ class TensorflowIntegrationTest(googletest.TestCase):
     forward_args = lambda: (torch.rand((1, 3, 224, 224)),)
 
     ep = torch.export.export(model, forward_args())
-    lowered = odml_torch.export.exported_program_to_mlir(ep)
+    lowered = _reset_from_node_meta_and_lower(ep)
 
     lowered_text = lowered.get_text(enable_debug_info=True)
     # Check the file info.
@@ -79,8 +91,33 @@ class TensorflowIntegrationTest(googletest.TestCase):
     for n in ep.graph.nodes:
       # Record all aten op nodes from the original graph and check if they
       # are lowered to the same name in the lowered graph.
-      if n.op == "call_function" and not n.name.startswith("getitem"):
+      if _is_aten_op(n):
         # Ensure strings like `loc("relu__1"` are present in the lowered text.
+        self.assertIn(f'loc("{n.name}"', lowered_text)
+
+  def test_debuginfo_from_loaded_reexport_lower(self):
+    """Test the debuginfo with loaded reexport lower."""
+
+    model = AddModel().eval()
+    forward_args = lambda: (torch.rand((10, 10)), torch.rand((10, 10)))
+
+    # Ensure the debuginfo is preserved after saving, loading and reexporting.
+    ep = torch.export.export(model, forward_args())
+    torch.export.save(ep, "/tmp/add_model.pt2")
+    loaded_ep = torch.export.load("/tmp/add_model.pt2")
+    reexported_ep = torch.export.export(loaded_ep.module(), forward_args())
+    lowered = _reset_from_node_meta_and_lower(reexported_ep)
+
+    lowered_text = lowered.get_text(enable_debug_info=True)
+    # Check the file info.
+    self.assertIn(
+        "ai_edge_torch/odml_torch/test/test_tf_integration.py", lowered_text
+    )
+    # Check the fx node names.
+    for n in reexported_ep.graph.nodes:
+      # Record all aten op nodes from the original graph and check if they
+      # are lowered to the same name in the lowered graph.
+      if _is_aten_op(n):
         self.assertIn(f'loc("{n.name}"', lowered_text)
 
 

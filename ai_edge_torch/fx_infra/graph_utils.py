@@ -13,7 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 """FX graph utilities."""
+
+from packaging import version
 import torch
+from torch.fx import traceback
 
 
 def remove_dangling_args(graph_module: torch.fx.GraphModule):
@@ -40,3 +43,32 @@ def remove_assert_tensor_metadata_nodes(graph_module: torch.fx.GraphModule):
   graph_module.graph.lint()
   graph_module.recompile()
   return graph_module
+
+
+def is_torch_version_under(torch_version: str) -> bool:
+  """Checks if the current torch version is under the given version."""
+  if not torch_version:
+    raise ValueError("torch_version cannot be empty.")
+  current_version = version.parse(torch.__version__)
+  compared_version = version.parse(torch_version)
+  return current_version < compared_version
+
+
+def reset_from_node_meta(ep: torch.export.ExportedProgram):
+  """Resets the "from_node" meta field to fx node name only for the exported program."""
+
+  for node in ep.graph.nodes:
+    if not hasattr(node, "meta") or "from_node" not in node.meta:
+      continue
+    if is_torch_version_under("2.6.0.dev0"):
+      # For torch version under 2.6.0, the history stack is a list of tuple. We
+      # will only keep the current node's name in the history stack.
+      history = [(node.name,)]
+    else:
+      # Clean up the history stack by keeping only the current node info (fx
+      # node name and graph id) in a list of size 1. Clear the "from_node" field
+      # to prevent redundant additions to the history stack.
+      history = [traceback.NodeSource(node)]
+      history[0].from_node = []
+    node.meta["from_node"] = history
+  return ep

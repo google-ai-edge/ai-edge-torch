@@ -136,10 +136,7 @@ def _build_phi3_rope(
 
 class Phi3_5Mini(model_builder.DecoderOnlyModel):
   """A Phi-3.5 model built from the Edge Generative API layers."""
-
-  def __init__(self, config: cfg.ModelConfig):
-    super().__init__(config)
-    attn_config = self.config.block_config(0).attn_config
+  pass
 
 
 def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
@@ -150,7 +147,7 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       is 1024.
 
   Returns:
-    The model config for a Phi-2 model.
+    The model config for a Phi-3.5 model.
   """
   attn_config = cfg.AttentionConfig(
       num_heads=32,

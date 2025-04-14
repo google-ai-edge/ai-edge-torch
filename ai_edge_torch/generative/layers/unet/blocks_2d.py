@@ -122,7 +122,6 @@ class AttentionBlock2D(nn.Module):
         hidden_dim, config.normalization_config
     )
     self.attention = SelfAttention(
-        config.attention_batch_size,
         hidden_dim,
         config.attention_config,
         enable_hlfb=config.enable_hlfb,
@@ -178,7 +177,6 @@ class CrossAttentionBlock2D(nn.Module):
         config.output_dim, config.normalization_config
     )
     self.attention = CrossAttention(
-        config.attention_batch_size,
         config.query_dim,
         config.cross_dim,
         config.hidden_dim,
@@ -305,7 +303,8 @@ class TransformerBlock2D(nn.Module):
     Args:
       config (unet_cfg.TransformerBlock2Dconfig): the configuration of this
         block.
-      dim_override: in case specified, overrides config.attention_block_config.hidden_dim. Set to None by default.
+      dim_override: in case specified, overrides
+        config.attention_block_config.hidden_dim. Set to None by default.
     """
     super().__init__()
     self.config = config

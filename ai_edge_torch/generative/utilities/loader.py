@@ -193,7 +193,8 @@ class ModelLoader:
 
     if strict and state:
       raise ValueError(
-          f"Failed to map all tensor. Remaing tensor are: {list(state.keys())}"
+          "Failed to map all tensor. Remaining tensor are:"
+          f" {list(state.keys())}"
       )
     return model.load_state_dict(converted_state, strict=strict)
 
@@ -201,11 +202,15 @@ class ModelLoader:
     """A best effort method for finding appropriate state loader.
 
     Raises:
-        ValueError: If it fails to find an appropriate loader.
+        FileNotFoundError: If the path does not exist.
+        ValueError: Path exists but fails to find an appropriate loader.
 
     Returns:
         Callable[[str], Dict[str, torch.Tensor]]: State loader to be used.
     """
+    if not os.path.exists(self._file_name):
+      raise FileNotFoundError(f"File or directory not found: {self._file_name}")
+
     if os.path.isdir(self._file_name):
       if glob.glob(os.path.join(self._file_name, "*.safetensors")):
         return load_safetensors

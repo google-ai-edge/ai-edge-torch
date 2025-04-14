@@ -14,18 +14,20 @@
 # ==============================================================================
 """Utilities for building MLIR lowerings."""
 
+from collections.abc import Callable
 import functools
 import numbers
-from typing import Any
-from typing import Optional
-
+from typing import Any, Optional, Union
+from ai_edge_torch.odml_torch import export_utils
 from jax._src.lib.mlir import ir
 from jax._src.lib.mlir.dialects import hlo as stablehlo
 import numpy as np
 import torch
+import torch.utils._pytree as pytree
 
 
-def torch_dtype_to_ir_element_type(dtype):
+def torch_dtype_to_ir_element_type(dtype) -> ir.Type:
+  """Builds ir.Type from torch dtype."""
   ty_get = {
       torch.double: ir.F64Type.get,
       torch.float32: ir.F32Type.get,
@@ -35,8 +37,30 @@ def torch_dtype_to_ir_element_type(dtype):
       torch.int16: functools.partial(ir.IntegerType.get_signless, 16),
       torch.int8: functools.partial(ir.IntegerType.get_signless, 8),
       torch.bool: functools.partial(ir.IntegerType.get_signless, 1),
+      torch.bfloat16: ir.BF16Type.get,
   }[dtype]
   return ty_get()
+
+
+def node_meta_to_ir_types(node: torch.fx.Node) -> list[ir.Type]:
+  """Builds IR result types from torch FX node meta."""
+  tensor_meta = node.meta.get("tensor_meta") or node.meta.get("val")
+  if not tensor_meta:
+    raise RuntimeError(f"{node.name} does not have tensor meta")
+
+  tensor_meta_list, _ = pytree.tree_flatten(
+      [tensor_meta],
+      is_leaf=lambda x: hasattr(x, "dtype") and hasattr(x, "shape"),
+  )
+  results = []
+  for meta in tensor_meta_list:
+    shape = [
+        export_utils.IR_DYNAMIC if export_utils.is_torch_dynamic(dim) else dim
+        for dim in meta.shape
+    ]
+    elty = torch_dtype_to_ir_element_type(meta.dtype)
+    results.append(ir.RankedTensorType.get(shape, elty))
+  return results
 
 
 def splat(val, ty, shape=tuple(), *, loc: Optional[Any] = None):
@@ -199,3 +223,48 @@ def convert_int_to_float(t: ir.Value) -> ir.Value:
     return stablehlo.convert(
         ir.RankedTensorType.get(t.type.shape, ir.F64Type.get()), t
     )
+
+
+# IR Helpers
+IrValues = Union[ir.Value, tuple[ir.Value, ...]]
+
+
+# Non-canonicalized dtype to IR type mapping.
+_numpy_dtype_to_ir_type: dict[np.dtype, Callable[[], ir.Type]] = {
+    np.dtype(np.bool_): functools.partial(ir.IntegerType.get_signless, 1),
+    np.dtype(np.int8): functools.partial(ir.IntegerType.get_signless, 8),
+    np.dtype(np.int16): functools.partial(ir.IntegerType.get_signless, 16),
+    np.dtype(np.int32): functools.partial(ir.IntegerType.get_signless, 32),
+    np.dtype(np.int64): functools.partial(ir.IntegerType.get_signless, 64),
+    np.dtype(np.uint8): functools.partial(ir.IntegerType.get_unsigned, 8),
+    np.dtype(np.uint16): functools.partial(ir.IntegerType.get_unsigned, 16),
+    np.dtype(np.uint32): functools.partial(ir.IntegerType.get_unsigned, 32),
+    np.dtype(np.uint64): functools.partial(ir.IntegerType.get_unsigned, 64),
+    np.dtype(np.float16): ir.F16Type.get,
+    np.dtype(np.float32): ir.F32Type.get,
+    np.dtype(np.float64): ir.F64Type.get,
+    np.dtype(np.complex64): lambda: ir.ComplexType.get(ir.F32Type.get()),
+    np.dtype(np.complex128): lambda: ir.ComplexType.get(ir.F64Type.get()),
+}
+
+
+def numpy_dtype_to_ir_type(dtype: np.dtype | np.generic) -> ir.Type:
+  assert isinstance(dtype, (np.dtype, np.generic)), type(dtype)
+  dtype = np.dtype(dtype)
+  try:
+    ir_type_factory = _numpy_dtype_to_ir_type[dtype]
+  except KeyError as err:
+    raise TypeError(
+        f"No numpy_dtype_to_ir_type handler for dtype: {dtype}"
+    ) from err
+  return ir_type_factory()
+
+
+def numpy_array_constant(x: np.ndarray | np.generic) -> IrValues:
+  element_type = numpy_dtype_to_ir_type(x.dtype)
+  shape = x.shape
+  if x.dtype == np.bool_:
+    x = np.packbits(x, bitorder="little")  # type: ignore
+  x = np.ascontiguousarray(x)
+  attr = ir.DenseElementsAttr.get(x, type=element_type, shape=shape)  # type: ignore
+  return stablehlo.constant(attr)

@@ -20,6 +20,7 @@ import enum
 from typing import Callable, Optional, Sequence, Tuple, Union
 from ai_edge_torch.generative.layers import rotary_position_embedding
 
+
 @enum.unique
 class ActivationType(enum.Enum):
   """Different activation functions supported by the default builder."""
@@ -220,15 +221,17 @@ class ModelConfig:
   # The maximum sequence length of the KV cache. Should not exceed max_seq_len.
   kv_cache_max_len: int = 0
 
-  # Default batch size of the exported model. Default value is 1.
-  batch_size: int = 1
-
   # Softcap on the model output logits.
   final_logit_softcap: Optional[float] = None
 
   # The function to call to create the RoPE sin and cos vectors during the
   # forward pass. Defaults to a standard implementation.
   build_rope: Callable = rotary_position_embedding.build_rope
+
+  # Whether or not to use a mask cache. Mask cache can speed up inference when
+  # statically exporting models. However, it is not supported in the dynamic
+  # export.
+  use_mask_cache: bool = True
 
   @property
   def kv_cache_max(self) -> int:

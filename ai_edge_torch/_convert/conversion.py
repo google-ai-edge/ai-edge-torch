@@ -40,8 +40,8 @@ def _run_convert_passes(
       fx_passes.OptimizeLayoutTransposesPass(),
       fx_passes.CanonicalizePass(),
       fx_passes.BuildAtenCompositePass(),
-      fx_passes.CanonicalizePass(),
       fx_passes.RemoveNonUserOutputsPass(),
+      fx_passes.CastInputsBf16ToF32Pass(),
       fx_passes.CanonicalizePass(),
   ]
 
@@ -124,6 +124,10 @@ def convert_signatures(
       exported_program = torch.export.export(**kwargs, strict=False)
     else:
       exported_program = torch.export.export(**kwargs, strict=True)
+
+    exported_program = fx_infra.graph_utils.reset_from_node_meta(
+        exported_program
+    )
 
     exported_program = fx_infra.safe_run_decompositions(
         exported_program,

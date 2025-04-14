@@ -23,12 +23,13 @@ from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
+from ai_edge_torch.generative.utilities import export_config as export_cfg
 from ai_edge_torch.generative.utilities import model_builder
 import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
 from torch import nn
 
-TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
+TENSOR_NAMES_FUSED_QKV = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.up_proj",
     ff_down_proj="model.layers.{}.mlp.down_proj",
     ff_gate_proj="model.layers.{}.mlp.gate_proj",
@@ -43,7 +44,7 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     lm_head=None,
 )
 
-ALT_TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
+TENSOR_NAMES_SEP_QKV = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.up_proj",
     ff_down_proj="model.layers.{}.mlp.down_proj",
     ff_gate_proj="model.layers.{}.mlp.gate_proj",
@@ -58,6 +59,11 @@ ALT_TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     embedding="model.embed_tokens",
     final_norm="model.norm",
 )
+
+TENSOR_NAMES_DICT = {
+    "safetensors": TENSOR_NAMES_SEP_QKV,
+    "kaggle": TENSOR_NAMES_FUSED_QKV,
+}
 
 
 class Gemma2Block(attention.TransformerBlock):
@@ -146,7 +152,7 @@ class Gemma2(nn.Module):
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
       mask: Optional[torch.Tensor] = None,
-      export_config: Optional[model_builder.ExportConfig] = None,
+      export_config: Optional[export_cfg.ExportConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
     _, seq_len = tokens.size()
     assert self.config.max_seq_len >= seq_len, (
@@ -179,7 +185,7 @@ class Gemma2(nn.Module):
       mask: torch.Tensor | List[torch.Tensor],
       input_pos: torch.Tensor,
       kv_cache: kv_utils.KVCache,
-      export_config: Optional[model_builder.ExportConfig] = None,
+      export_config: Optional[export_cfg.ExportConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
     """Forwards the model with input embeddings."""
     assert len(self.transformer_blocks) == len(kv_cache.caches), (
@@ -247,11 +253,14 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
         rotary_base=10000,
         rotary_percentage=1.0,
         qkv_transpose_before_split=True,
+        # The safetensors from HF is not using the interleaved qkv format, so
+        # we need to disable interleaving here in the model config.
+        qkv_fused_interleaved=False,
         logit_softcap=50.0,
         sliding_window_size=4096,
         attn_type=(
             cfg.AttentionType.GLOBAL
-            if idx % 2 == 0
+            if (idx + 1) % 2 == 0
             else cfg.AttentionType.LOCAL_SLIDING
         ),
     )
@@ -297,18 +306,13 @@ def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
 
 
 def build_2b_model(checkpoint_path: str, **kwargs) -> nn.Module:
-  try:
-    return model_builder.build_decoder_only_model(
-        checkpoint_path=checkpoint_path,
-        config=get_model_config_2b(**kwargs),
-        tensor_names=TENSOR_NAMES,
-        model_class=Gemma2,
-    )
-  except KeyError as ke:
-    # Also attempt to load with an alternative naming scheme.
-    return model_builder.build_decoder_only_model(
-        checkpoint_path=checkpoint_path,
-        config=get_model_config_2b(**kwargs),
-        tensor_names=ALT_TENSOR_NAMES,
-        model_class=Gemma2,
-    )
+  for tensor_names in TENSOR_NAMES_DICT.values():
+    try:
+      return model_builder.build_decoder_only_model(
+          checkpoint_path=checkpoint_path,
+          config=get_model_config_2b(**kwargs),
+          tensor_names=tensor_names,
+          model_class=Gemma2,
+      )
+    except KeyError as ke:
+      continue

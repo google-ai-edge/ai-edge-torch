@@ -553,6 +553,27 @@ class TestConvert(googletest.TestCase):
       self.fail(f"PT2E conversion failed: {err}")
     # pylint: enable=broad-except
 
+  def test_convert_model_with_bfloat16_inputs(self):
+    """Test converting a simple model with torch.bfloat16 input.
+
+    bf16 inputs would remain in converted model signature but be casted to f32
+    right after the model inputs.
+    """
+
+    class SampleModel(nn.Module):
+
+      def forward(self, x: torch.Tensor):
+        return (x + 1) * 1.2
+
+    model = SampleModel().eval()
+    args = (torch.randn(10, 10).to(torch.bfloat16),)
+    # pylint: disable=broad-except
+    try:
+      ai_edge_torch.convert(model, args)
+    except Exception as err:
+      self.fail(f"Conversion failed with bloat16 inputs: {err}")
+    # pylint: enable=broad-except
+
 
 if __name__ == "__main__":
   googletest.main()

@@ -22,11 +22,12 @@ from ai_edge_torch.generative.layers import builder
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.model_config as cfg
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
+from ai_edge_torch.generative.utilities import export_config
 import torch
 from torch import nn
 
 RoPECache = Tuple[torch.Tensor, torch.Tensor]
+ExportConfig = export_config.ExportConfig
 
 
 class ToyModelWithKVCache(torch.nn.Module):

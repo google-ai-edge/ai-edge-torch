@@ -290,6 +290,58 @@ class TestStableHLOCompositeBuilder(googletest.TestCase):
 
     self.assertEqual(mlir.count("stablehlo.custom_call @mark_tensor"), 18)
 
+  def test_build_nested_composites(self):
+    class SampleModel(torch.nn.Module):
+
+      def inner(self, x: torch.Tensor):
+        builder = composite.StableHLOCompositeBuilder("test.inner")
+        x = builder.mark_inputs(x)
+        y = x + 1
+        y = builder.mark_outputs(y)
+        return y
+
+      def outer(self, x: torch.Tensor):
+        builder = composite.StableHLOCompositeBuilder("test.outer")
+        x = builder.mark_inputs(x)
+        y = x + 2
+        y = self.inner(y)
+        y = builder.mark_outputs(y)
+        return y
+
+      def forward(self, x):
+        x = self.outer(x)
+        return x
+
+    ir_text = _export_stablehlo_mlir(
+        SampleModel().eval(), (torch.rand((2, 2)),)
+    )
+    self.assertEqual(ir_text.count("stablehlo.custom_call @mark_tensor"), 4)
+
+  def test_build_composite_multiple_mark_calls(self):
+    class SampleModel(torch.nn.Module):
+
+      def forward(self, x1, x2):
+        builder = composite.StableHLOCompositeBuilder(
+            name="test.multiple_mark_calls"
+        )
+        x1 = builder.mark_inputs(x1)
+        x2 = builder.mark_inputs(x2)
+
+        z1 = x1 + x2
+        z2 = x1 - x2
+
+        z1 = builder.mark_outputs(z1)
+        z2 = builder.mark_outputs(z2)
+
+        return z1, z2
+
+    mlir = _export_stablehlo_mlir(
+        SampleModel().eval(), (torch.rand((2, 2)), torch.rand((2, 2)))
+    )
+    self.assertEqual(mlir.count("stablehlo.custom_call @mark_tensor"), 4)
+    self.assertEqual(mlir.count("pos\\22: 0"), 2)
+    self.assertEqual(mlir.count("pos\\22: 1"), 2)
+
 
 if __name__ == "__main__":
   googletest.main()

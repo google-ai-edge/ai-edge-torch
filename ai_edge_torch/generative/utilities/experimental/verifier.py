@@ -18,9 +18,20 @@
 import logging
 from typing import Any, List, Optional
 
-from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils
+from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.utilities.model_builder import ExportConfig
 import torch
+
+ExportConfig = export_config.ExportConfig
+
+
+def _create_mask(mask_len, kv_cache_max_len, slice_at):
+  mask = torch.full(
+      (mask_len, kv_cache_max_len), float("-inf"), dtype=torch.float32
+  )
+  mask = torch.triu(mask, diagonal=1).unsqueeze(0).unsqueeze(0)
+  mask = mask[:, :, slice_at, :]
+  return mask
 
 
 class ModelWrapper(torch.nn.Module):
@@ -30,7 +41,7 @@ class ModelWrapper(torch.nn.Module):
   verification to call.
   """
 
-  def __init__(self, model: torch.nn.Module):
+  def __init__(self, model: torch.nn.Module, mask_as_input=False):
     """Initializes the wrapper.
 
     Args:
@@ -40,6 +51,7 @@ class ModelWrapper(torch.nn.Module):
         ai_edge_torch Generative API.
     """
     super().__init__()
+    self.mask_as_input = mask_as_input
     self.model = model
     self.export_config = ExportConfig(output_logits_on_prefill=True)
 
@@ -85,7 +97,9 @@ class ReauthoredModelWrapper(ModelWrapper):
 
   def _init_kv_cache(self):
     """Returns an initialized KV cache."""
-    return kv_utils.KVCacheTransposed.from_model_config(self.model.config)
+    return kv_utils.KVCache.from_model_config(
+        self.model.config, kv_layout=kv_utils.KV_LAYOUT_TRANSPOSED
+    )
 
   def _get_extra_args_for_forward(self) -> dict[str, Any]:
     """Returns extra arguments for the forward() method."""
@@ -95,15 +109,15 @@ class ReauthoredModelWrapper(ModelWrapper):
       self,
       tokens: torch.Tensor,
       input_pos: torch.Tensor,
-      kv_cache: kv_utils.KVCacheBase,
+      kv_cache: kv_utils.KVCache,
       pixel_values: torch.Tensor,
-  ) -> tuple[torch.Tensor, kv_utils.KVCacheBase]:
+  ) -> tuple[torch.Tensor, kv_utils.KVCache]:
     """Forwards the model and updates an external KV cache.
 
     Args:
       tokens (torch.Tensor): The input tokens to forward.
       input_pos (torch.Tensor): The input positions to forward.
-      kv_cache (KVCacheBase): The KV cache to forward.
+      kv_cache (KVCache): The KV cache to forward.
       pixel_values (torch.Tensor): The input pixel values to forward.
 
     Returns:
@@ -117,6 +131,15 @@ class ReauthoredModelWrapper(ModelWrapper):
       extra_args["export_config"] = self.export_config
     if pixel_values is not None:
       extra_args["pixel_values"] = pixel_values
+
+    if self.mask_as_input:
+      mask_size = input_pos[-1] + 1
+      slice_at = torch.arange(input_pos[0], input_pos[-1] + 1, dtype=torch.int)
+      mask = _create_mask(
+          mask_size, self.model.config.kv_cache_max_len, slice_at
+      )
+      extra_args["mask"] = mask
+
     output = self.model.forward(tokens, input_pos, kv_cache, **extra_args)
     return output["logits"], output["kv_cache"]
 
@@ -306,6 +329,7 @@ def verify_reauthored_model(
           original_model, reauthored_model, input_ids, rtol=rtol, atol=atol
       )
     except AssertionError as e:
+      logging.error("AssertionError: %s", e)
       logging.error("*** FAILED *** verify with input IDs: %s", input_ids)
       failure_count += 1
       if not continue_on_failure:
@@ -320,6 +344,7 @@ def verify_reauthored_model(
           original_model, reauthored_model, tokenizer, prompts, max_new_tokens
       )
     except AssertionError as e:
+      logging.error("AssertionError: %s", e)
       logging.error("*** FAILED *** verify with prompts: %s", prompts)
       failure_count += 1
       if not continue_on_failure:

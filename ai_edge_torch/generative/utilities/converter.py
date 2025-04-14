@@ -16,13 +16,18 @@
 """Common utility functions for model conversion."""
 
 import os
+import pathlib
 from typing import Optional, Union
+from absl import flags
 from ai_edge_torch._convert import converter as converter_utils
+from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.layers import lora as lora_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.quantize import quant_recipes
-from ai_edge_torch.generative.utilities.model_builder import ExportConfig
+from ai_edge_torch.generative.utilities import export_config
 import torch
+
+ExportConfig = export_config.ExportConfig
 
 
 class ExportableModule(torch.nn.Module):
@@ -35,6 +40,49 @@ class ExportableModule(torch.nn.Module):
   def forward(self, *export_args, **export_kwargs):
     full_kwargs = {**export_kwargs, **self.extra_kwargs}
     return self.module(*export_args, **full_kwargs)
+
+
+def define_conversion_flags(model_name: str):
+  """Defines common flags used for model conversion."""
+
+  flags.DEFINE_string(
+      'checkpoint_path',
+      os.path.join(pathlib.Path.home(), f'Downloads/llm_data/{model_name}'),
+      'The path to the model checkpoint, or directory holding the checkpoint.',
+  )
+  flags.DEFINE_string(
+      'output_path',
+      '/tmp/',
+      'The path to export the tflite model.',
+  )
+  flags.DEFINE_string(
+      'output_name_prefix',
+      'qwen',
+      'The prefix of the output tflite model name.',
+  )
+  flags.DEFINE_multi_integer(
+      'prefill_seq_lens',
+      (8, 64, 128, 256, 512, 1024),
+      'List of the maximum sizes of prefill input tensors.',
+  )
+  flags.DEFINE_integer(
+      'kv_cache_max_len',
+      1280,
+      'The maximum size of KV cache buffer, including both prefill and decode.',
+  )
+  flags.DEFINE_bool(
+      'quantize',
+      True,
+      'Whether the model should be quantized.',
+  )
+  flags.DEFINE_multi_integer(
+      'lora_ranks',
+      None,
+      'If set, the model will be converted with the provided list of LoRA'
+      ' ranks.',
+  )
+
+  return flags
 
 
 def convert_to_tflite(
@@ -110,6 +158,11 @@ def convert_to_tflite(
   lora_suffix = (
       '' if not lora_ranks else f'_lora{",".join(map(str, lora_ranks))}'
   )
+
+  if export_config is not None:
+    if export_config.decode_batch_size > 1:
+      output_name_prefix += f'_dbs{export_config.decode_batch_size}'
+
   output_filename = (
       f'{output_name_prefix}_{quant_suffix}_ekv{kv_size}{lora_suffix}.tflite'
   )
@@ -162,9 +215,18 @@ def _export_helper(
   if prefill_masks:
     assert len(prefill_masks) == len(prefill_seq_lens)
 
-  decode_token = torch.tensor([[0]], dtype=torch.int)
+  decode_token = torch.tensor(
+      [[0] for _ in range(export_config.decode_batch_size)], dtype=torch.int
+  )
   decode_input_pos = torch.tensor([0], dtype=torch.int)
-  kv = export_config.kvcache_cls.from_model_config(config)
+  prefill_kv = kv_utils.KVCache.from_model_config(
+      config, kv_layout=export_config.kvcache_layout
+  )
+  decode_kv = kv_utils.KVCache.from_model_config(
+      config,
+      batch_size=export_config.decode_batch_size,
+      kv_layout=export_config.kvcache_layout,
+  )
 
   quant_config = quant_recipes.full_int8_dynamic_recipe() if quantize else None
 
@@ -183,7 +245,7 @@ def _export_helper(
       sample_kwargs = {
           'tokens': prefill_tokens,
           'input_pos': prefill_input_pos,
-          'kv_cache': kv,
+          'kv_cache': prefill_kv,
       }
       if prefill_masks is not None:
         sample_kwargs['mask'] = prefill_masks[i]
@@ -211,7 +273,7 @@ def _export_helper(
     sample_kwargs = {
         'tokens': decode_token,
         'input_pos': decode_input_pos,
-        'kv_cache': kv,
+        'kv_cache': decode_kv,
     }
     if export_config.decode_mask is not None:
       sample_kwargs['mask'] = export_config.decode_mask

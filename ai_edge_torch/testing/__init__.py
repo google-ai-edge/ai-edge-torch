@@ -12,3 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+from ai_edge_torch.testing import export
+from ai_edge_torch.testing import model_coverage
+
+export_with_tensor_inputs_only = export.export_with_tensor_inputs_only

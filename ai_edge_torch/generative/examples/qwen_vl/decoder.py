@@ -19,6 +19,7 @@ from typing import Optional, Tuple
 
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.model_config as cfg
+from ai_edge_torch.generative.utilities import export_config as export_cfg
 from ai_edge_torch.generative.utilities import model_builder
 import torch
 
@@ -41,7 +42,7 @@ class Decoder(model_builder.DecoderOnlyModel):
       input_embeds: torch.Tensor = None,
       rope: Tuple[torch.Tensor, torch.Tensor] = None,
       mask: Optional[torch.Tensor] = None,
-      export_config: Optional[model_builder.ExportConfig] = None,
+      export_config: Optional[export_cfg.ExportConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
     if input_embeds is None:
       _, seq_len = tokens.size()
