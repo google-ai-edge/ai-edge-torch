@@ -181,7 +181,7 @@ def verify_with_input_ids(
     original_model: ModelWrapper,
     reauthored_model: ReauthoredModelWrapper,
     input_ids: List[int],
-    kv_cache_max_len: int = 1024,
+    kv_cache_max_len: int = 128,
     rtol: float = 1e-05,
     atol: float = 1e-05,
 ):
@@ -273,6 +273,8 @@ def verify_reauthored_model(
     rtol: float = 1e-05,
     atol: float = 1e-05,
     continue_on_failure: bool = False,
+    verify_inputs: bool = True,
+    verify_prompts: bool = True,
 ) -> bool:
   """Verifies the reauthored model against the original model.
 
@@ -301,33 +303,37 @@ def verify_reauthored_model(
   """
   failure_count = 0
 
-  for input_ids in forward_input_ids:
-    logging.info("Verifying the reauthored model with input IDs: %s", input_ids)
-    try:
-      verify_with_input_ids(
-          original_model, reauthored_model, input_ids, rtol=rtol, atol=atol
+  if verify_inputs:
+    for input_ids in forward_input_ids:
+      logging.info(
+          "Verifying the reauthored model with input IDs: %s", input_ids
       )
-    except AssertionError as e:
-      logging.error("*** FAILED *** verify with input IDs: %s", input_ids)
-      failure_count += 1
-      if not continue_on_failure:
-        return False
-    else:
-      logging.info("*** PASSED *** verify with input IDs: %s", input_ids)
+      try:
+        verify_with_input_ids(
+            original_model, reauthored_model, input_ids, rtol=rtol, atol=atol
+        )
+      except AssertionError as e:
+        logging.error("*** FAILED *** verify with input IDs: %s", input_ids)
+        failure_count += 1
+        if not continue_on_failure:
+          return False
+      else:
+        logging.info("*** PASSED *** verify with input IDs: %s", input_ids)
 
-  for prompts in generate_prompts:
-    logging.info("Verifying the reauthored model with prompts: %s", prompts)
-    try:
-      verify_model_with_prompts(
-          original_model, reauthored_model, tokenizer, prompts, max_new_tokens
-      )
-    except AssertionError as e:
-      logging.error("*** FAILED *** verify with prompts: %s", prompts)
-      failure_count += 1
-      if not continue_on_failure:
-        return False
-    else:
-      logging.info("*** PASSED *** verify with prompts: %s", prompts)
+  if verify_prompts:
+    for prompts in generate_prompts:
+      logging.info("Verifying the reauthored model with prompts: %s", prompts)
+      try:
+        verify_model_with_prompts(
+            original_model, reauthored_model, tokenizer, prompts, max_new_tokens
+        )
+      except AssertionError as e:
+        logging.error("*** FAILED *** verify with prompts: %s", prompts)
+        failure_count += 1
+        if not continue_on_failure:
+          return False
+      else:
+        logging.info("*** PASSED *** verify with prompts: %s", prompts)
 
   if failure_count == 0:
     logging.info("*** PASSED *** verify_reauthored_model")
