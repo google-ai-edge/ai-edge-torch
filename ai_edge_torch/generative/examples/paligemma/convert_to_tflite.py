@@ -48,6 +48,7 @@ def main(_):
       pixel_values_size=torch.Size(
           [1, config.channels, config.image_size, config.image_size]
       ),
+      pixel_seq_len=(config.image_size // config.patch_size) ** 2,
       quantize=flags.FLAGS.quantize,
       config=pytorch_model.config.decoder_config,
       export_config=ExportConfig(),

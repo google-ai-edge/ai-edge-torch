@@ -43,6 +43,9 @@ def main(_):
   )
 
   grid_thw = pytorch_model.image_encoder.get_grid_thw()
+  spatial_merge_size = (
+      pytorch_model.config.image_encoder_config.spatial_merge_size
+  )
   converter.convert_to_tflite(
       pytorch_model,
       output_path=flags.FLAGS.output_path,
@@ -50,6 +53,10 @@ def main(_):
       prefill_seq_len=flags.FLAGS.prefill_seq_lens,
       pixel_values_size=(
           pytorch_model.image_encoder.get_pixel_values_size(grid_thw)
+      ),
+      pixel_seq_len=(
+          (grid_thw[0][1] // spatial_merge_size)
+          * (grid_thw[0][2] // spatial_merge_size)
       ),
       quantize=flags.FLAGS.quantize,
       config=pytorch_model.config.decoder_config,
