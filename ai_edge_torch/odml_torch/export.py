@@ -264,6 +264,8 @@ def _convert_i64_to_i32(exported_program: torch.export.ExportedProgram):
     exported_program: The exported program to apply the pass.
   """
 
+  is_modified = False
+
   def in_i32(x: int):
     return -2147483648 <= x <= 2147483647
 
@@ -271,6 +273,7 @@ def _convert_i64_to_i32(exported_program: torch.export.ExportedProgram):
     return torch.ops.aten._to_copy.default(x, dtype=torch.int32)
 
   def rewrite_arange(node: torch.fx.Node):
+    nonlocal is_modified
     tensor_meta = node.meta.get("tensor_meta", None)
     if not tensor_meta:
       return
@@ -282,12 +285,14 @@ def _convert_i64_to_i32(exported_program: torch.export.ExportedProgram):
       return
     op = node.target
     node.target = lambda *args, **kwargs: to_int32(op(*args, **kwargs))
+    is_modified = True
 
   graph_module = exported_program.graph_module
   for node in graph_module.graph.nodes:
 
     if node.target == torch.ops.aten.arange.start_step:
       rewrite_arange(node)
+  return is_modified
 
 
 # TODO(b/331481564) Make this a ai_edge_torch FX pass.
@@ -351,9 +356,9 @@ def exported_program_to_mlir(
       exported_program,
       fx_infra.decomp.pre_lower_decomp(),
   )
-  _convert_i64_to_i32(exported_program)
-  # Run decompositions for retracing and cananicalization.
-  exported_program = fx_infra.safe_run_decompositions(exported_program, {})
+  if _convert_i64_to_i32(exported_program):
+    # Run decompositions for retracing and cananicalization, if modified.
+    exported_program = fx_infra.safe_run_decompositions(exported_program, {})
 
   # Passes below mutate the exported program to a state not executable by torch.
   # Do not call run_decompositions after applying the passes.

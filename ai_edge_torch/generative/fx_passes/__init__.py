@@ -23,8 +23,5 @@ def run_generative_passes(
 ) -> torch.export.ExportedProgram:
   return fx_infra.run_passes(
       exported_program,
-      [
-          RemoveSDPACompositeZeroMaskPass(),
-          CanonicalizePass(),
-      ],
+      [RemoveSDPACompositeZeroMaskPass()],
   )
