@@ -37,6 +37,7 @@ def _run_convert_passes(
   passes = [
       fx_passes.CastInputsBf16ToF32Pass(),
       fx_passes.BuildInterpolateCompositePass(),
+      fx_passes.CanonicalizePass(),
       fx_passes.OptimizeLayoutTransposesPass(),
       fx_passes.CanonicalizePass(),
       fx_passes.BuildAtenCompositePass(),
