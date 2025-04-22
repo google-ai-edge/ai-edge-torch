@@ -39,9 +39,24 @@ def dynamic_update_slice(
 
 
 # Use register_fake to add a ``FakeTensor`` kernel for the operator
-@dynamic_update_slice.register_fake
-def _(in_tensor, update, start_indices):
+@torch.library.custom_op("ai_edge_torch::dynamic_update_slice", mutates_args=())
+def _(
+    in_tensor: torch.Tensor,
+    update: torch.Tensor,
+    start_indices: Sequence[torch.Tensor],
+) -> torch.Tensor:
   return in_tensor.clone().detach()
+
+
+# Use explicit fake implementation for dynamic_update_slice because dynamo
+# cannot derive the output's symbolic shape from the impl above.
+@torch.library.register_fake("ai_edge_torch::dynamic_update_slice")
+def dynamic_update_slice_fake(
+    in_tensor: torch.Tensor,
+    update: torch.Tensor,
+    start_indices: Sequence[torch.Tensor],
+) -> torch.Tensor:
+  return torch.empty(in_tensor.size(), dtype=in_tensor.dtype)
 
 
 @lowerings.lower(torch.ops.ai_edge_torch.dynamic_update_slice)
