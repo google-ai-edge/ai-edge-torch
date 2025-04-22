@@ -1,33 +1,72 @@
+##################################################
+# generative/layers/utilities/whisper_loader.py
+##################################################
+
 from dataclasses import dataclass
 import glob
 import os
 from typing import Callable, Dict, List, Tuple
 
 import torch
+
 from ai_edge_torch.generative.layers import model_config
 
 from ai_edge_torch.generative.utilities.loader import load_pytorch_statedict, load_safetensors
 
 
-class WhisperEncoderModelLoader:
+@dataclass
+class EncoderTensorNames:
+    conv1D_0: str
+    conv1D_1: str
+    layer_norm: str
+    attn_key_proj: str
+    attn_value_proj: str
+    attn_query_proj: str
+    attn_output_proj: str
+    pre_attn_norm: str
+    pre_ff_norm: str
+    ff_up_proj: str
+    ff_down_proj: str
+    embed_positions: str
+
+@dataclass
+class DecoderTensorNames:
+    layer_norm: str
+    attn_key_proj: str
+    attn_value_proj: str
+    attn_query_proj: str
+    attn_output_proj: str
+    pre_attn_norm: str
+    pre_cross_attn_norm: str
+    cross_attn_q_proj: str
+    cross_attn_out_proj: str
+    pre_ff_norm: str
+    ff_up_proj: str
+    ff_down_proj: str
+    embed_positions: str
+    embed_tokens: str
+
+
+# Depending on Encoder or Decoder, we pop or pass the cross attention
+# projections from the source state dictionary.
+@dataclass
+class CrossAttentionTensorNames:
+    cross_attn_key_proj: str
+    cross_attn_value_proj: str
+
+# ValueError: Failed to map all tensor. Remaining tensor are:
+#  ['                                                   'model.encoder.layers.0.final_layer_norm.bias',
+#   'model.encoder.layers.0.self_attn_layer_norm.bias', 'model.encoder.layers.1.final_layer_norm.bias',
+#   'model.encoder.layers.1.self_attn_layer_norm.bias', 'model.encoder.layers.2.final_layer_norm.bias',
+#   'model.encoder.layers.2.self_attn_layer_norm.bias', 'model.encoder.layers.3.final_layer_norm.bias',
+#   'model.encoder.layers.3.self_attn_layer_norm.bias']
+class WhisperModelLoader:
   """Utility class for loading and converting checkpoints to ODML transformer layer format."""
 
-  @dataclass
-  class TensorNames:
-    conv1D_0: str = None
-    conv1D_1: str = None
-    layer_norm: str = None
-    attn_key_proj: str = None
-    attn_value_proj: str = None
-    attn_query_proj: str = None
-    attn_output_proj: str = None
-    pre_attn_norm: str = None
-    post_attn_norm: str = None
-    ff_up_proj: str = None
-    ff_down_proj: str = None
-    embed_positions: str = None
-
-  def __init__(self, file_name: str, names: TensorNames) -> None:
+  def __init__(self,
+               file_name: str,
+               names: Union[EncoderTensorNames, DecoderTensorNames],
+               cross_attention_names: CrossAttentionTensorNames) -> None:
     """ModelLoader constructor.
 
     Can be used to load multiple models of the same type.
@@ -39,7 +78,9 @@ class WhisperEncoderModelLoader:
     """
     self._file_name = file_name
     self._names = names
+    self._cross_attn_names = cross_attention_names
     self._loader = self._get_loader()
+    self._MODEL_PREFIX = "model.encoder" if isinstance(self._names, EncoderTensorNames) else "model.decoder"
 
   def get_state(self) -> Dict[str, torch.Tensor]:
     return self._loader(self._file_name)
@@ -67,28 +108,50 @@ class WhisperEncoderModelLoader:
     state = state["model_state_dict"] if "model_state_dict" in state else state
     converted_state = dict()
 
-    if self._names.conv1D_0 is not None:
-      converted_state["conv1.weight"] = state.pop(f"{self._names.conv1D_0}.weight")
-      converted_state["conv1.bias"] = state.pop(f"{self._names.conv1D_0}.bias")
+    keys_to_pop = list()
+    if isinstance(self._names, DecoderTensorNames):
+      for key in state:
+        if 'model.encoder.' in key:
+            keys_to_pop.append(key)
+            continue
+        if 'encoder_attn.k_proj' in key or 'encoder_attn.v_proj' in key:
+            keys_to_pop.append(key)
+            continue
+      if self._names.embed_tokens is not None:
+          converted_state['embed_tokens.weight'] = state.pop(
+          f"{self._MODEL_PREFIX}.{self._names.embed_tokens}.weight"
+      )
+      for i in range(model.config.num_layers):
+        self._map_cross_attention_decoder_blocks(i, model.config, state, converted_state)
 
-    if self._names.conv1D_1 is not None:
-      converted_state["conv2.weight"] = state.pop(f"{self._names.conv1D_1}.weight")
-      converted_state["conv2.bias"] = state.pop(f"{self._names.conv1D_1}.bias")
+    for key in keys_to_pop:
+      state.pop(key)
+
+    keys_to_pop = list()
+    if isinstance(self._names, EncoderTensorNames):
+        for key in state:
+            if 'encoder_attn.k_proj' in key or 'encoder_attn.v_proj' in key:
+                continue
+            if 'model.decoder.' in key:
+                keys_to_pop.append(key)
+                continue
+        self._map_conv(state, converted_state)
+        for i in range(model.config.num_layers):
+            self._map_cross_attention_encoder_blocks(i, model.config, state, converted_state)
+
+    for key in keys_to_pop:
+      state.pop(key)
 
     if self._names.layer_norm is not None:
       layer_norm_name = self._names.layer_norm
-      converted_state["layer_norm.weight"] = state.pop(f"{layer_norm_name}.weight")
-      if f"{layer_norm_name}.bias" in state:
-        converted_state["layer_norm.bias"] = state.pop(f"{layer_norm_name}.bias")
+      converted_state["layer_norm.weight"] = state.pop(f"{self._MODEL_PREFIX}.{layer_norm_name}.weight")
+      if f"{self._MODEL_PREFIX}.{layer_norm_name}.bias" in state:
+        converted_state["layer_norm.bias"] = state.pop(f"{self._MODEL_PREFIX}.{layer_norm_name}.bias")
 
     if self._names.embed_positions is not None:
       converted_state["embed_positions.weight"] = state.pop(
-          f"{self._names.embed_positions}.weight"
+          f"{self._MODEL_PREFIX}.{self._names.embed_positions}.weight"
       )
-      if model.config.embedding_use_bias:
-        converted_state["embed_positions.bias"] = state.pop(
-            f"{self._names.embed_positions}.bias"
-        )
 
     for i in range(model.config.num_layers):
       self._map_norm(i, model.config, state, converted_state)
@@ -101,6 +164,94 @@ class WhisperEncoderModelLoader:
           f" {list(state.keys())}"
       )
     model.load_state_dict(converted_state, strict=strict)
+
+  def _map_conv(self,
+                state: Dict[str, torch.Tensor],
+                converted_state: Dict[str, torch.Tensor],) -> None:
+
+    if self._names.conv1D_0 is not None:
+      converted_state["conv1.weight"] = state.pop(f"{self._MODEL_PREFIX}.{self._names.conv1D_0}.weight")
+      converted_state["conv1.bias"] = state.pop(f"{self._MODEL_PREFIX}.{self._names.conv1D_0}.bias")
+
+    if self._names.conv1D_1 is not None:
+      converted_state["conv2.weight"] = state.pop(f"{self._MODEL_PREFIX}.{self._names.conv1D_1}.weight")
+      converted_state["conv2.bias"] = state.pop(f"{self._MODEL_PREFIX}.{self._names.conv1D_1}.bias")
+
+
+  # Lifts the cross attention k,v projections from the decoder in to the encoder
+  # as outputs, rather than having encoder output the latents.
+  def _map_cross_attention_encoder_blocks(self,
+                                   idx: int,
+                                   config: Union[AudioEncoderConfig, TextDecoderConfig],
+                                   state: Dict[str, torch.Tensor],
+                                   converted_state: Dict[str, torch.Tensor]):
+    k_cross_proj = f"k_cross_modules.{idx}"
+    v_cross_proj = f"v_cross_modules.{idx}"
+
+    cross_attn_key_proj_name = f"model.decoder.{self._cross_attn_names.cross_attn_key_proj}".format(idx)
+    cross_attn_value_proj_name = f"model.decoder.{self._cross_attn_names.cross_attn_value_proj}".format(idx)
+
+    converted_state[f"{k_cross_proj}.weight"] = state.pop(
+        f"{cross_attn_key_proj_name}.weight"
+    )
+    converted_state[f"{v_cross_proj}.weight"] = state.pop(
+        f"{cross_attn_value_proj_name}.weight"
+    )
+    converted_state[f"{v_cross_proj}.bias"] = state.pop(
+        f"{cross_attn_value_proj_name}.bias"
+    )
+
+
+  # Maps remaining q proj, out proj, and pre-cross attn norm in decoder.
+  # Assumes that k, v projections are computed once in the encoder.
+# model.decoder.layers.3.encoder_attn.q_proj.bias
+# model.decoder.layers.3.encoder_attn.q_proj.weight
+
+# model.decoder.layers.3.encoder_attn.out_proj.bias
+# model.decoder.layers.3.encoder_attn.out_proj.weight
+
+# model.decoder.layers.3.encoder_attn_layer_norm.bias
+# model.decoder.layers.3.encoder_attn_layer_norm.weight
+
+    # pre_cross_attn_norm: str
+    # cross_attn_q_proj: str
+    # cross_attn_out_proj: str
+
+    #   pre_cross_attn_norm = "layers.{}.encoder_attn_layer_norm",
+    # cross_attn_q_proj = "layers.{}.encoder_attn.q_proj",
+    # cross_attn_out_proj = "layers.{}.encoder_attn.out_proj",
+  def _map_cross_attention_decoder_blocks(self,
+                                   idx: int,
+                                   config: Union[AudioEncoderConfig, TextDecoderConfig],
+                                   state: Dict[str, torch.Tensor],
+                                   converted_state: Dict[str, torch.Tensor]):
+
+    norm_name_pt = self._names.pre_cross_attn_norm.format(idx)
+    q_proj_pt = self._names.cross_attn_q_proj.format(idx)
+    out_proj_pt = self._names.cross_attn_out_proj.format(idx)
+
+    converted_cross_attn_name = f"transformer_blocks.{idx}.pre_cross_atten_norm"
+    q_cross_proj_name = f"transformer_blocks.{idx}.cross_atten_func.q_projection"
+    out_cross_proj_name = f"transformer_blocks.{idx}.cross_atten_func.output_projection"
+
+    converted_state[f"{converted_cross_attn_name}.weight"] = state.pop(
+        f"model.decoder.{norm_name_pt}.weight"
+    )
+    converted_state[f"{converted_cross_attn_name}.bias"] = state.pop(
+        f"model.decoder.{norm_name_pt}.bias"
+    )
+    converted_state[f"{q_cross_proj_name}.weight"] = state.pop(
+        f"model.decoder.{q_proj_pt}.weight"
+    )
+    converted_state[f"{q_cross_proj_name}.bias"] = state.pop(
+        f"model.decoder.{q_proj_pt}.bias"
+    )
+    converted_state[f"{out_cross_proj_name}.weight"] = state.pop(
+        f"model.decoder.{out_proj_pt}.weight"
+    )
+    converted_state[f"{out_cross_proj_name}.bias"] = state.pop(
+        f"model.decoder.{out_proj_pt}.bias"
+    )
 
 
   def _get_loader(self) -> Callable[[str], Dict[str, torch.Tensor]]:
@@ -127,31 +278,31 @@ class WhisperEncoderModelLoader:
       return load_pytorch_statedict
 
     raise ValueError("File format not supported.")
-    
+
   def _map_feedforward(
       self,
       idx: int,
-      config: model_config.ModelConfig,
+      config: Union[AudioEncoderConfig, TextDecoderConfig],
       state: Dict[str, torch.Tensor],
       converted_state: Dict[str, torch.Tensor],
   ):
     prefix = f"transformer_blocks.{idx}"
-    ff_config = config.block_config(idx).ff_config
+    ff_config = config.block_config.ff_config
     if ff_config.type == model_config.FeedForwardType.SEQUENTIAL:
       ff_up_proj_name = self._names.ff_up_proj.format(idx)
       ff_down_proj_name = self._names.ff_down_proj.format(idx)
       converted_state[f"{prefix}.ff.w1.weight"] = state.pop(
-          f"{ff_up_proj_name}.weight"
+          f"{self._MODEL_PREFIX}.{ff_up_proj_name}.weight"
       )
       converted_state[f"{prefix}.ff.w2.weight"] = state.pop(
-          f"{ff_down_proj_name}.weight"
+          f"{self._MODEL_PREFIX}.{ff_down_proj_name}.weight"
       )
       if ff_config.use_bias:
         converted_state[f"{prefix}.ff.w1.bias"] = state.pop(
-            f"{ff_up_proj_name}.bias"
+            f"{self._MODEL_PREFIX}.{ff_up_proj_name}.bias"
         )
         converted_state[f"{prefix}.ff.w2.bias"] = state.pop(
-            f"{ff_down_proj_name}.bias"
+            f"{self._MODEL_PREFIX}.{ff_down_proj_name}.bias"
         )
     else:
         raise ValueError("Expected model_config.FeedForwardType.SEQUENTIAL")
@@ -159,17 +310,17 @@ class WhisperEncoderModelLoader:
   def _map_attention(
       self,
       idx: int,
-      config: model_config.ModelConfig,
+      config: Union[AudioEncoderConfig, TextDecoderConfig],
       state: Dict[str, torch.Tensor],
       converted_state: Dict[str, torch.Tensor],
   ):
     prefix = f"transformer_blocks.{idx}"
-    attn_config = config.block_config(idx).attn_config
+    attn_config = config.block_config.attn_config
     if hasattr(self._names, "attn_fused_qkv_proj"):
         if self._names.attn_fused_qkv_proj:
             fused_qkv_name = self._names.attn_fused_qkv_proj.format(idx)
             converted_state[f"{prefix}.atten_func.qkv_projection.weight"] = state.pop(
-                f"{fused_qkv_name}.weight"
+                f"{self._MODEL_PREFIX}.{fused_qkv_name}.weight"
             )
     else:
       q_name = self._names.attn_query_proj.format(idx)
@@ -178,42 +329,42 @@ class WhisperEncoderModelLoader:
       converted_state[f"{prefix}.atten_func.qkv_projection.weight"] = (
           self._fuse_qkv(
               attn_config,
-              state.pop(f"{q_name}.weight"),
-              state.pop(f"{k_name}.weight"),
-              state.pop(f"{v_name}.weight"),
+              state.pop(f"{self._MODEL_PREFIX}.{q_name}.weight"),
+              state.pop(f"{self._MODEL_PREFIX}.{k_name}.weight"),
+              state.pop(f"{self._MODEL_PREFIX}.{v_name}.weight"),
           )
       )
     if attn_config.qkv_use_bias:
       if hasattr(self._names, "attn_fused_qkv_proj"):
           if self._names.attn_fused_qkv_proj:
               converted_state[f"{prefix}.atten_func.qkv_projection.bias"] = state.pop(
-              f"{fused_qkv_name}.bias"
+              f"{self._MODEL_PREFIX}.{fused_qkv_name}.bias"
               )
       else:
 
-        k_bias = torch.zeros(state[f"{q_name}.bias"].shape)
+        k_bias = torch.zeros(state[f"{self._MODEL_PREFIX}.{q_name}.bias"].shape)
         converted_state[f"{prefix}.atten_func.qkv_projection.bias"] = (
             self._fuse_qkv(
                 attn_config,
-                state.pop(f"{q_name}.bias"),
+                state.pop(f"{self._MODEL_PREFIX}.{q_name}.bias"),
                 k_bias,
-                state.pop(f"{v_name}.bias"),
+                state.pop(f"{self._MODEL_PREFIX}.{v_name}.bias"),
             )
         )
 
     o_name = self._names.attn_output_proj.format(idx)
     converted_state[f"{prefix}.atten_func.output_projection.weight"] = (
-        state.pop(f"{o_name}.weight")
+        state.pop(f"{self._MODEL_PREFIX}.{o_name}.weight")
     )
     if attn_config.output_proj_use_bias:
       converted_state[f"{prefix}.atten_func.output_projection.bias"] = (
-          state.pop(f"{o_name}.bias")
+          state.pop(f"{self._MODEL_PREFIX}.{o_name}.bias")
       )
 
   def _map_norm(
       self,
       idx: int,
-      config: model_config.ModelConfig,
+      config: Union[AudioEncoderConfig, TextDecoderConfig],
       state: Dict[str, torch.Tensor],
       converted_state: Dict[str, torch.Tensor],
   ):
@@ -221,21 +372,21 @@ class WhisperEncoderModelLoader:
     if self._names.pre_attn_norm is not None:
       pre_attn_norm_name = self._names.pre_attn_norm.format(idx)
       converted_state[f"{prefix}.pre_atten_norm.weight"] = state.pop(
-          f"{pre_attn_norm_name}.weight"
+          f"{self._MODEL_PREFIX}.{pre_attn_norm_name}.weight"
       )
-      if f"{pre_attn_norm_name}.bias" in state:
+      if f"{self._MODEL_PREFIX}.{pre_attn_norm_name}.bias" in state:
         converted_state[f"{prefix}.pre_atten_norm.bias"] = state.pop(
-            f"{pre_attn_norm_name}.bias"
+            f"{self._MODEL_PREFIX}.{pre_attn_norm_name}.bias"
         )
 
-    if self._names.post_attn_norm is not None:
-      post_attn_norm_name = self._names.post_attn_norm.format(idx)
-      converted_state[f"{prefix}.post_atten_norm.weight"] = state.pop(
-          f"{post_attn_norm_name}.weight"
+    if self._names.pre_ff_norm is not None:
+      pre_ff_norm_name = self._names.pre_ff_norm.format(idx)
+      converted_state[f"{prefix}.ff.pre_ff_norm.weight"] = state.pop(
+          f"{self._MODEL_PREFIX}.{pre_ff_norm_name}.weight"
       )
-      if f"{post_attn_norm_name}.bias" in state:
-        converted_state[f"{prefix}.post_atten_norm.bias"] = state.pop(
-            f"{post_attn_norm_name}.bias"
+      if f"{self._MODEL_PREFIX}.{pre_ff_norm_name}.bias" in state:
+        converted_state[f"{prefix}.ff.pre_ff_norm.bias"] = state.pop(
+            f"{self._MODEL_PREFIX}.{pre_ff_norm_name}.bias"
         )
 
   def _fuse_qkv(
