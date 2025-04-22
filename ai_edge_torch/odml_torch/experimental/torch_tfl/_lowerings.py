@@ -269,15 +269,41 @@ def _tfl_transpose_lowering(
 def _tfl_reshape_lowering(
     lctx: LoweringContext,
     x: ir.Value,
-    shape: Sequence[int],
+    shape: Sequence[int | ir.Value],
 ) -> ir.Value:
-  constant_shape = lowering_utils.numpy_array_constant(
-      np.array(shape, dtype=np.int32)
-  )
+  # Check if all elements in the shape sequence are integers.
+  if not shape or all(isinstance(dim, int) for dim in shape):
+    # If all are integers, create a constant numpy array.
+    # Assuming int32 is the required type for TFLite shape tensors.
+    shape_ir_value = lowering_utils.numpy_array_constant(
+        np.array(shape, dtype=np.int32)
+    )
+  else:
+    # Handle mixed int and ir.Value shape sequence
+    processed_dims = []
+    for dim in shape:
+      if isinstance(dim, int):
+        # Convert int to a constant 1D tensor
+        shape_ir_value = lowering_utils.numpy_array_constant(
+            np.array([dim], dtype=np.int32)
+        )
+        processed_dims.append(shape_ir_value)
+      else:
+        assert isinstance(dim, ir.Value)
+        # Convert ir.Value to a constant 1D tensor
+        new_type = ir.RankedTensorType.get([1], dim.type.element_type)
+        reshape_dim = stablehlo.reshape(new_type, dim)
+        processed_dims.append(reshape_dim)
+
+    shape_ir_value = stablehlo.concatenate(
+        processed_dims,
+        dimension=0,
+    )
+
   return _ir_operation(
       "tfl.reshape",
       results=lowering_utils.node_meta_to_ir_types(lctx.node),
-      operands=[x, constant_shape],
+      operands=[x, shape_ir_value],
   )
 
 

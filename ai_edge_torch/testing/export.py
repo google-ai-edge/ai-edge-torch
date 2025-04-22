@@ -15,7 +15,7 @@
 """Torch export utilities for testing."""
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Dict, Sequence
 
 import torch
 from torch.utils import _pytree as pytree
@@ -25,6 +25,7 @@ def export_with_tensor_inputs_only(
     model: Callable[..., Any],
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
+    dynamic_shapes: Dict[str, Any] | Sequence[Any] | None = None,
 ) -> torch.export.ExportedProgram:
   """Exports a PyTorch model, treating only tensor inputs as export inputs.
 
@@ -76,8 +77,12 @@ def export_with_tensor_inputs_only(
 
   export_args = tuple(export_args)
   export_kwargs = {}
+  # Need to wrap dynamic_shapes in a tuple to match the inputs structure of
+  # ModuleWrapper.
+  dynamic_shapes = (dynamic_shapes,) if dynamic_shapes else None
   return torch.export.export(
       ModuleWrapper(model, args, kwargs).eval(),
       export_args,
       export_kwargs,
+      dynamic_shapes=dynamic_shapes,
   )

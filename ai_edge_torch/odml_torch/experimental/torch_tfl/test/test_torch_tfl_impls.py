@@ -14,6 +14,8 @@
 # ==============================================================================
 """Numerical validation tests for torch ops and Torch-TFL ops."""
 
+from typing import Any, Dict, Sequence
+
 import ai_edge_torch
 from ai_edge_torch import testing
 from ai_edge_torch.odml_torch.experimental import torch_tfl
@@ -53,14 +55,23 @@ class TestTorchTFLImpls(parameterized.TestCase):
     torch.manual_seed(0)
 
   def _assert_export_and_close(
-      self, func, args, kwargs, atol=1e-3, rtol=1e-5, equal_nan=True
+      self,
+      func,
+      args,
+      kwargs,
+      dynamic_shapes: Dict[str, Any] | Sequence[Any] | None = None,
+      atol=1e-3,
+      rtol=1e-5,
+      equal_nan=True,
   ):
     """Assert func, args, and kwargs can be lowered and pass numerical validation."""
     with self.subTest("torch_eval"):
       expected = func(*args, **kwargs)
 
       with self.subTest("export_and_decompse"):
-        exported_program = export_with_tensor_inputs_only(func, args, kwargs)
+        exported_program = export_with_tensor_inputs_only(
+            func, args, kwargs, dynamic_shapes
+        )
         exported_program = exported_program.run_decompositions(
             torch_tfl.decomps
         )
@@ -81,7 +92,9 @@ class TestTorchTFLImpls(parameterized.TestCase):
 
         with self.subTest("convert_eval"):
           args, kwargs = exported_program.example_inputs
-          edge_model = ai_edge_torch.convert(exported_program.module(), args)
+          edge_model = ai_edge_torch.convert(
+              exported_program.module(), args, dynamic_shapes=dynamic_shapes
+          )
           actual = edge_model(*args, **kwargs)
 
           with self.subTest("torch_convert_eval_diff:" + str(atol)):
@@ -142,8 +155,40 @@ class TestTorchTFLImpls(parameterized.TestCase):
       # fmt: on
       # pyformat: enable
   )
-  def test_op(self, op, args, kwargs):
+  def test_op(
+      self,
+      op,
+      args,
+      kwargs,
+  ):
     self._assert_export_and_close(op, args, kwargs)
+
+  @parameterized.named_parameters(
+      # fmt: off
+      # pyformat: disabledef
+      ("reshape_without_dynamic_shape_0", (rnd(torch.float32, (10, 2, 3)),), dict(), None),
+      ("reshape_with_dynamic_shape_1", (rnd(torch.float32, (10, 2, 3)),), dict(), ((torch.export.Dim("batch"), None, None),)),
+      ("reshape_with_dynamic_shape_2", (rnd(torch.float32, (10, 2, 3)),), dict(), ({0: torch.export.Dim("batch")},)),
+      ("reshape_with_dynamic_shape_3", (rnd(torch.float32, (10, 2, 3)),), dict(), ((torch.export.Dim("batch"), torch.export.Dim("height"), torch.export.Dim("width")),)),
+      ("reshape_with_dynamic_shape_4", (rnd(torch.float32, (10, 2, 3)),), dict(), ({0: torch.export.Dim("batch"), 1: torch.export.Dim("height"), 2: torch.export.Dim("width")},)),
+      # fmt: on
+      # pyformat: enable
+  )
+  def test_reshape_op(
+      self,
+      args,
+      kwargs,
+      dynamic_shapes: Dict[str, Any] | Sequence[Any] | None = None,
+  ):
+
+    class ReshapeModel(torch.nn.Module):
+
+      def forward(self, x):
+        x = x + x
+        x = x.reshape([x.shape[0], x.shape[1] * x.shape[2]])
+        return x
+
+    self._assert_export_and_close(ReshapeModel(), args, kwargs, dynamic_shapes)
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 import math
+import operator
 from typing import Optional, Union
 
 from ai_edge_torch.odml_torch import export_utils
@@ -23,6 +24,7 @@ from jax._src.lib.mlir import ir
 from jax._src.lib.mlir.dialects import hlo as stablehlo
 import numpy as np
 import torch
+
 
 LoweringContext = context.LoweringContext
 lower = registry.lower
@@ -320,3 +322,22 @@ def _aten_to_copy(
       ),
       x,
   )
+
+
+# Schema:
+#   - aten::sym_size.int(Tensor self, int dim) -> SymInt
+@lower(torch.ops.aten.sym_size.int)
+def _aten_sym_size_int(lctx, x: ir.Value, dim: int):
+  return stablehlo.get_dimension_size(x, dim)
+
+
+# Lowering for the multiplication operator (`*`).
+# Handles cases where one operand is an integer (scalar) and the other is a
+# tensor, broadcasting the scalar to the tensor's shape before multiplication.
+@lower(operator.mul)
+def _operator_mul(lctx, self: int | ir.Value, other: int | ir.Value):
+  if isinstance(self, int) and isinstance(other, ir.Value):
+    self = utils.splat(self, other.type.element_type, other.type.shape)
+  if isinstance(other, int) and isinstance(self, ir.Value):
+    other = utils.splat(other, self.type.element_type, self.type.shape)
+  return stablehlo.multiply(self, other)
