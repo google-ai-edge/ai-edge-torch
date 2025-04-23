@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# Common utility functions for data loading etc.
-from dataclasses import dataclass
+
+"""Common utility functions for data loading etc."""
+
 from typing import Tuple
+
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.layers import scaled_dot_product_attention as sdpa_default
 from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils_experimental
 from ai_edge_torch.generative.layers.experimental import scaled_dot_product_attention as sdpa
 import ai_edge_torch.generative.layers.model_config as cfg
-from ai_edge_torch.generative.utilities import types
-from multipledispatch import dispatch
 import torch
 
 
@@ -33,32 +33,27 @@ def sdpa_with_kv_update(
     input_pos: torch.Tensor,
     mask: torch.Tensor,
     config: cfg.AttentionConfig,
+    enable_hlfb: bool,
 ) -> Tuple[torch.Tensor, kv_utils.KVCacheEntry]:
-  return sdpa_with_kv_update_impl(
-      kv.kv_layout[0](),  # key layout
-      kv.kv_layout[1](),  # value layout
-      query=query,
-      key=key,
-      value=value,
-      kv=kv,
-      input_pos=input_pos,
-      mask=mask,
-      config=config,
+  """Wrapper function for scaled dot product attention with KV cache update."""
+  if kv is not None and kv.kv_layout == kv_utils.KV_LAYOUT_TRANSPOSED:
+    return _sdpa_with_kv_update_transposed(
+        query, key, value, kv, input_pos, mask, config
+    )
+  return _sdpa_with_kv_update_default(
+      query, key, value, kv, input_pos, mask, config, enable_hlfb
   )
 
 
-@dispatch(types.BNTH, types.BNHT)
-def sdpa_with_kv_update_impl(
-    k_type, v_type, *args, **kwargs
+def _sdpa_with_kv_update_transposed(
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    kv: kv_utils.KVCacheEntry,
+    input_pos: torch.Tensor,
+    mask: torch.Tensor,
+    config: cfg.AttentionConfig,
 ) -> Tuple[torch.Tensor, kv_utils.KVCacheEntry]:
-  query = kwargs["query"]
-  key = kwargs["key"]
-  value = kwargs["value"]
-  kv = kwargs["kv"]
-  input_pos = kwargs["input_pos"]
-  mask = kwargs["mask"]
-  config = kwargs["config"]
-
   # Transpose k/v to specific layout for GPU implementation.
   b, seq_len, n, h = query.shape
   g = n // config.num_query_groups
@@ -74,9 +69,8 @@ def sdpa_with_kv_update_impl(
       1, -1, config.head_dim, seq_len
   )  # 1, bk, h, s
 
-  if kv is not None:
-    kv = kv_utils_experimental.update(kv, input_pos, key, value)
-    key, value = kv.k_cache, kv.v_cache
+  kv = kv_utils_experimental.update(kv, input_pos, key, value)
+  key, value = kv.k_cache, kv.v_cache
 
   sdpa_out = sdpa.scaled_dot_product_attention(
       kv,
@@ -95,24 +89,26 @@ def sdpa_with_kv_update_impl(
   return sdpa_out, kv
 
 
-@dispatch(object, object)
-def sdpa_with_kv_update_impl(
-    k_type, v_type, *args, **kwargs
+def _sdpa_with_kv_update_default(
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    kv: kv_utils.KVCacheEntry,
+    input_pos: torch.Tensor,
+    mask: torch.Tensor,
+    config: cfg.AttentionConfig,
+    enable_hlfb: bool,
 ) -> Tuple[torch.Tensor, kv_utils.KVCacheEntry]:
-  query = kwargs["query"]
-  key = kwargs["key"]
-  value = kwargs["value"]
-  kv = kwargs["kv"]
-  input_pos = kwargs["input_pos"]
-  mask = kwargs["mask"]
-  config = kwargs["config"]
-
   b, seq_len, _, _ = query.shape
   if kv is not None:
     kv = kv_utils.update(kv, input_pos, key, value)
     key, value = kv.k_cache, kv.v_cache
 
-  sdpa_out = sdpa_default.scaled_dot_product_attention(
+  if enable_hlfb:
+    sdpa_func = sdpa_default.scaled_dot_product_attention_with_hlfb
+  else:
+    sdpa_func = sdpa_default.scaled_dot_product_attention
+  sdpa_out = sdpa_func(
       query,
       key,
       value,
