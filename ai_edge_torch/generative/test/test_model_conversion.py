@@ -32,10 +32,8 @@ class TestModelConversion(googletest.TestCase):
 
   def setUp(self):
     super().setUp()
-    # Builder function for an Interpreter that supports custom ops.
     self._interpreter_builder = (
-        lambda tflite_model: lambda: interpreter.InterpreterWithCustomOps(
-            custom_op_registerers=["GenAIOpsRegisterer"],
+        lambda tflite_model: lambda: interpreter.Interpreter(
             model_content=tflite_model,
             experimental_default_delegate_latest_features=True,
         )
@@ -85,44 +83,24 @@ class TestModelConversion(googletest.TestCase):
         )
     )
 
-  @googletest.skipIf(
-      ai_edge_torch.config.in_oss,
-      reason="tests with custom ops are not supported in oss",
-  )
   def test_toy_model_with_kv_cache(self):
     self._test_model_with_kv_cache(enable_hlfb=False)
 
-  @googletest.skipIf(
-      ai_edge_torch.config.in_oss,
-      reason="tests with custom ops are not supported in oss",
-  )
   def test_toy_model_with_kv_cache_with_hlfb(self):
     self._test_model_with_kv_cache(enable_hlfb=True)
 
-  @googletest.skipIf(
-      ai_edge_torch.config.in_oss,
-      reason="tests with custom ops are not supported in oss",
-  )
   def test_toy_model_with_kv_cache_transposed(self):
     self._test_model_with_kv_cache(kv_layout=kv_cache.KV_LAYOUT_TRANSPOSED)
 
-  @googletest.skipIf(
-      ai_edge_torch.config.in_oss,
-      reason="tests with custom ops are not supported in oss",
-  )
   def test_toy_model_has_dus_op(self):
     """Tests that the model has the dynamic update slice op."""
     _, edge_model, _ = self._get_params(
         enable_hlfb=True, kv_layout=kv_cache.KV_LAYOUT_DEFAULT
     )
-    interpreter_ = interpreter.InterpreterWithCustomOps(
-        custom_op_registerers=["GenAIOpsRegisterer"],
-        model_content=edge_model.tflite_model(),
-        experimental_default_delegate_latest_features=True,
-    )
+    interpreter = self._interpreter_builder(edge_model.tflite_model())()
 
     # pylint: disable=protected-access
-    op_names = [op["op_name"] for op in interpreter_._get_ops_details()]
+    op_names = [op["op_name"] for op in interpreter._get_ops_details()]
     self.assertIn("DYNAMIC_UPDATE_SLICE", op_names)
 
   def _test_multisig_model(
@@ -197,19 +175,11 @@ class TestModelConversion(googletest.TestCase):
         )
     )
 
-  @googletest.skipIf(
-      ai_edge_torch.config.in_oss,
-      reason="tests with custom ops are not supported in oss",
-  )
   def test_tiny_llama_multisig(self):
     config = tiny_llama.get_fake_model_config()
     pytorch_model = tiny_llama.TinyLlama(config).eval()
     self._test_multisig_model(config, pytorch_model, atol=1e-5, rtol=1e-5)
 
-  @googletest.skipIf(
-      ai_edge_torch.config.in_oss,
-      reason="tests with custom ops are not supported in oss",
-  )
   def test_tiny_llama_multisig_kv_layout_transposed(self):
     config = tiny_llama.get_fake_model_config()
     pytorch_model = tiny_llama.TinyLlama(config).eval()

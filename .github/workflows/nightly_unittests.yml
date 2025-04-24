@@ -10,6 +10,9 @@ on:
 
   workflow_dispatch: {}
 
+env:
+  RUN_LARGE_TESTS: true
+
 jobs:
   run-unittests-python:
     if: |
