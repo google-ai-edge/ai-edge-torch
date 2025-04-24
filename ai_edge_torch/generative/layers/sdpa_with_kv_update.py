@@ -18,9 +18,8 @@
 from typing import Tuple
 
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
-from ai_edge_torch.generative.layers import scaled_dot_product_attention as sdpa_default
+from ai_edge_torch.generative.layers import scaled_dot_product_attention as sdpa
 from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils_experimental
-from ai_edge_torch.generative.layers.experimental import scaled_dot_product_attention as sdpa
 import ai_edge_torch.generative.layers.model_config as cfg
 import torch
 
@@ -72,8 +71,7 @@ def _sdpa_with_kv_update_transposed(
   kv = kv_utils_experimental.update(kv, input_pos, key, value)
   key, value = kv.k_cache, kv.v_cache
 
-  sdpa_out = sdpa.scaled_dot_product_attention(
-      kv,
+  sdpa_out = sdpa.scaled_dot_product_attention_transposed(
       query,
       key,
       value,
@@ -105,9 +103,9 @@ def _sdpa_with_kv_update_default(
     key, value = kv.k_cache, kv.v_cache
 
   if enable_hlfb:
-    sdpa_func = sdpa_default.scaled_dot_product_attention_with_hlfb
+    sdpa_func = sdpa.scaled_dot_product_attention_with_hlfb
   else:
-    sdpa_func = sdpa_default.scaled_dot_product_attention
+    sdpa_func = sdpa.scaled_dot_product_attention
   sdpa_out = sdpa_func(
       query,
       key,

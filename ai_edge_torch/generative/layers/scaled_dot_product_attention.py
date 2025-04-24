@@ -17,6 +17,8 @@
 import math
 from typing import Optional
 
+from ai_edge_torch.generative.custom_ops import bmm_4d as bmm_lib
+from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.hlfb import StableHLOCompositeBuilder
 import torch
 import torch.nn.functional as F
@@ -142,3 +144,52 @@ def scaled_dot_product_attention_with_hlfb(
   result = y.transpose(1, 2)
   result = builder.mark_outputs(result)
   return result
+
+
+def scaled_dot_product_attention_transposed(
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    head_size: int,
+    mask: Optional[torch.Tensor] = None,
+    scale: Optional[float] = None,
+    softcap: Optional[float] = None,
+):
+  """Scaled dot product attention with transposed key and value.
+
+  Args:
+    query: Query tensor, with shape [B, T, N, H].
+    key: Key tensor, with shape [B, T, KV_LEN, H].
+    value: Value tensor, with shape [B, T, KV_LEN, H].
+    head_size (int): head dimension.
+    mask (torch.Tensor): the optional mask tensor.
+    scale (float): the optional scale factor.
+    softcap (float): the optional softcap for the logits.
+
+  Returns:
+    The output tensor of scaled_dot_product_attention_transposed.
+  """
+
+  if scale is None:
+    scale = 1.0 / math.sqrt(head_size)
+
+  query = query * scale
+
+  assert mask is not None, "Mask should not be None!"
+  t = mask.shape[2]
+
+  logits = bmm_lib.bmm_4d(query, key)
+
+  _, bk, gt, s = logits.shape
+  g = gt // t
+  logits = logits.reshape((bk, g, t, s))
+  if softcap is not None:
+    logits = torch.tanh(logits / softcap)
+    logits = logits * softcap
+
+  padded_logits = logits + mask
+  padded_logits = padded_logits.reshape(1, bk, gt, s)
+  probs = F.softmax(padded_logits, dim=-1).type_as(key)
+  encoded = bmm_lib.bmm_4d(probs, value)
+
+  return encoded  # 1, bk, gt, h
