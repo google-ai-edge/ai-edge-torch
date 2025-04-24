@@ -24,10 +24,10 @@ implemenatation are:
 
 from typing import List, Optional, Tuple
 
+from ai_edge_torch.generative.layers import attention
 from ai_edge_torch.generative.layers import builder
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
-from ai_edge_torch.generative.layers.experimental import attention
 import ai_edge_torch.generative.layers.model_config as cfg
 import ai_edge_torch.generative.layers.rotary_position_embedding as rotary_pos_emb
 from ai_edge_torch.generative.utilities import export_config as export_cfg
@@ -66,6 +66,7 @@ ALT_TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     embedding="model.embed_tokens",
     final_norm="model.norm",
 )
+
 
 class Gemma2Block(attention.TransformerBlock):
 
