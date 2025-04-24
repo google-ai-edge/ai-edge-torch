@@ -53,6 +53,7 @@ def get_3b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   norm_config = cfg.NormalizationConfig(
       type=cfg.NormalizationType.RMS_NORM,
       epsilon=1e-06,
+      enable_hlfb=True,
   )
   block_config = cfg.TransformerBlockConfig(
       attn_config=attn_config,

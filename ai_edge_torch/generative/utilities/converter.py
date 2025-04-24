@@ -81,6 +81,11 @@ def define_conversion_flags(model_name: str):
       'If set, the model will be converted with the provided list of LoRA'
       ' ranks.',
   )
+  flags.DEFINE_bool(
+      'transpose_kv_cache',
+      False,
+      'If set, the model will be converted with transposed KV cache.',
+  )
 
   return flags
 
