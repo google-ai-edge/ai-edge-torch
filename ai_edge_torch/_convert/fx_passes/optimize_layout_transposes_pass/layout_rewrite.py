@@ -17,6 +17,7 @@
 import operator
 
 import ai_edge_torch
+from ai_edge_torch import lowertools
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import layout_mark
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import op_func_registry
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import utils
@@ -24,7 +25,7 @@ import torch
 import torch.utils._pytree as pytree
 
 aten = torch.ops.aten
-StableHLOCompositeBuilder = ai_edge_torch.hlfb.StableHLOCompositeBuilder
+StableHLOCompositeBuilder = lowertools.StableHLOCompositeBuilder
 
 __all__ = ["rewrite_nhwc_node", "has_nhwc_rewriter"]
 

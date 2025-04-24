@@ -20,7 +20,8 @@ import torch
 import torch.utils._pytree as pytree
 
 _composite_builders: dict[
-    Callable, Callable[[torch.fx.GraphModule, torch.fx.Node], None]
+    Callable[[Any, ...], Any],
+    Callable[[torch.fx.GraphModule, torch.fx.Node], None],
 ] = {}
 
 
@@ -272,11 +273,71 @@ def _aten_embedding(gm: torch.fx.GraphModule, node: torch.fx.Node):
     output = op(**full_kwargs)
     output = builder.mark_outputs(output)
 
-    # Explicitly reshape back to the original shape. This places the ReshapeOp outside of the HLFB.
+    # Explicitly reshape back to the original shape. This places the ReshapeOp
+    # outside of the HLFB.
     output = torch.reshape(output, (*(original_idx_shape), embedding_dim))
     return output
 
   node.target = embedding
+
+
+@_register_composite_builder(torch.ops.aten.upsample_bilinear2d.vec)
+def _aten_upsample_bilinear2d_vec(_, node: torch.fx.Node):
+  """Build a composite for aten.upsample_bilinear2d.vec."""
+  op = node.target
+  args_mapper = TorchOpArgumentsMapper(op)
+  # Assumes later FX passes does not change the args/kwargs of the op.
+  # Which is a valid assumption for, given that composite/mark_tensor wrapper
+  # should semantically prevents any future mutations on the op.
+  output_h, output_w = node.meta["val"].shape[-2:]
+
+  def upsample_bilinear2d_vec(*args, **kwargs):
+    nonlocal op, args_mapper
+    full_kwargs = args_mapper.get_full_kwargs(args, kwargs)
+
+    builder = lowertools.StableHLOCompositeBuilder(
+        name="odml.upsample_bilinear2d",
+        attr={
+            "size": (int(output_h), int(output_w)),
+            "align_corners": full_kwargs["align_corners"],
+            "is_nchw_op": True,
+        },
+    )
+    full_kwargs["input"] = builder.mark_inputs(full_kwargs["input"])
+    output = op(**full_kwargs)
+    output = builder.mark_outputs(output)
+    return output
+
+  node.target = upsample_bilinear2d_vec
+
+
+@_register_composite_builder(torch.ops.aten.upsample_nearest2d.vec)
+def _aten_upsample_nearest2d_vec(_, node: torch.fx.Node):
+  """Build a composite for aten.upsample_nearest2d.vec."""
+  op = node.target
+  args_mapper = TorchOpArgumentsMapper(op)
+  # Assumes later FX passes does not change the args/kwargs of the op.
+  # Which is a valid assumption for, given that composite/mark_tensor wrapper
+  # should semantically prevents any future mutations on the op.
+  output_h, output_w = node.meta["val"].shape[-2:]
+
+  def upsample_nearest2d_vec(*args, **kwargs):
+    nonlocal op, args_mapper
+    full_kwargs = args_mapper.get_full_kwargs(args, kwargs)
+
+    builder = lowertools.StableHLOCompositeBuilder(
+        name="tfl.resize_nearest_neighbor",
+        attr={
+            "size": (int(output_h), int(output_w)),
+            "is_nchw_op": True,
+        },
+    )
+    full_kwargs["input"] = builder.mark_inputs(full_kwargs["input"])
+    output = op(**full_kwargs)
+    output = builder.mark_outputs(output)
+    return output
+
+  node.target = upsample_nearest2d_vec
 
 
 class BuildAtenCompositePass(fx_infra.PassBase):

@@ -34,6 +34,8 @@ fx_infra.decomp.update_pre_lower_decomp(
         torch.ops.aten.replication_pad1d,
         torch.ops.aten.replication_pad2d,
         torch.ops.aten.replication_pad3d,
+        torch.ops.aten.upsample_bilinear2d.vec,
+        torch.ops.aten.upsample_nearest2d.vec,
         torch.ops.aten.addmm,
     ])
 )
