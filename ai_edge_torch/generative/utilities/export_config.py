@@ -14,8 +14,11 @@
 # ==============================================================================
 
 """Config for customizing model export process."""
+
 import dataclasses
 from typing import List, Optional
+
+from absl import flags
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import torch
 
@@ -38,3 +41,30 @@ class ExportConfig:
   kvcache_cls: type = kv_utils.KVCache
   # The batch size of the decode signature.
   decode_batch_size: int = 1
+
+
+def _build_mask(mask_len, kv_cache_max_len) -> torch.Tensor:
+  if isinstance(mask_len, list):
+    return [_build_mask(i, kv_cache_max_len) for i in mask_len]
+
+  mask = torch.full(
+      (mask_len, kv_cache_max_len), float('-inf'), dtype=torch.float32
+  )
+  mask = torch.triu(mask, diagonal=1).unsqueeze(0).unsqueeze(0)
+  return mask
+
+
+def get_from_flags() -> ExportConfig:
+  """Builds an export config according to the commandline flags."""
+  export_config = ExportConfig()
+
+  if flags.FLAGS.mask_as_input:
+    export_config.prefill_mask = _build_mask(
+        flags.FLAGS.prefill_seq_lens, flags.FLAGS.kv_cache_max_len
+    )
+    export_config.decode_mask = _build_mask(1, flags.FLAGS.kv_cache_max_len)
+
+  if flags.FLAGS.transpose_kv_cache:
+    export_config.kvcache_layout = kv_utils.KV_LAYOUT_TRANSPOSED
+
+  return export_config

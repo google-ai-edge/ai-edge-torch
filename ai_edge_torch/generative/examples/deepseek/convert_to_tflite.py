@@ -19,41 +19,9 @@ from absl import app
 from ai_edge_torch.generative.examples.deepseek import deepseek
 from ai_edge_torch.generative.layers import kv_cache
 from ai_edge_torch.generative.utilities import converter
-from ai_edge_torch.generative.utilities.model_builder import export_cfg
-import torch
+from ai_edge_torch.generative.utilities import export_config
 
 flags = converter.define_conversion_flags('deepseek')
-ExportConfig = export_cfg.ExportConfig
-
-
-def _create_mask(mask_len, kv_cache_max_len):
-  mask = torch.full(
-      (mask_len, kv_cache_max_len), float('-inf'), dtype=torch.float32
-  )
-  mask = torch.triu(mask, diagonal=1).unsqueeze(0).unsqueeze(0)
-  return mask
-
-
-def _create_export_config(
-    prefill_seq_lens: list[int], kv_cache_max_len: int
-) -> ExportConfig:
-  """Creates the export config for the model."""
-  export_config = ExportConfig()
-  if isinstance(prefill_seq_lens, list):
-    prefill_mask = [_create_mask(i, kv_cache_max_len) for i in prefill_seq_lens]
-  else:
-    prefill_mask = _create_mask(prefill_seq_lens, kv_cache_max_len)
-
-  export_config.prefill_mask = prefill_mask
-
-  decode_mask = torch.full(
-      (1, kv_cache_max_len), float('-inf'), dtype=torch.float32
-  )
-  decode_mask = torch.triu(decode_mask, diagonal=1).unsqueeze(0).unsqueeze(0)
-  export_config.decode_mask = decode_mask
-  export_config.kvcache_layout = kv_cache.KV_LAYOUT_TRANSPOSED
-  return export_config
-
 
 def main(_):
   pytorch_model = deepseek.build_model(
@@ -66,9 +34,7 @@ def main(_):
       prefill_seq_len=flags.FLAGS.prefill_seq_lens,
       quantize=flags.FLAGS.quantize,
       lora_ranks=flags.FLAGS.lora_ranks,
-      export_config=_create_export_config(
-          flags.FLAGS.prefill_seq_lens, flags.FLAGS.kv_cache_max_len
-      ),
+      export_config=export_config.get_from_flags(),
   )
 
 

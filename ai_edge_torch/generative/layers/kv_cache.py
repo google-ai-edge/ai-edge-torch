@@ -51,10 +51,7 @@ class KVCacheEntry:
       config: model_config.AttentionConfig,
       batch_size: int,
   ) -> List[int]:
-    """Constructs the shape of the key or value cache entry based on
-
-    the specified layout.
-    """
+    """Construct the shape of KV cache entry based on the specified layout."""
     output_shape = []
     for dim_spec in shape_spec:
       if dim_spec is types.TensorDims.BATCH:
@@ -212,6 +209,7 @@ pytree.register_pytree_node(
     flatten_with_keys_fn=_flatten_kvc_with_keys,
     serialized_type_name="",
 )
+
 
 def update(
     cache: KVCacheEntry,
