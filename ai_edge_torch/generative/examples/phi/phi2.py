@@ -65,7 +65,7 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       use_bias=True,
   )
   norm_config = cfg.NormalizationConfig(
-      type=cfg.NormalizationType.LAYER_NORM,
+      type=cfg.NormalizationType.LAYER_NORM, enable_hlfb=True
   )
   block_config = cfg.TransformerBlockConfig(
       attn_config=attn_config,

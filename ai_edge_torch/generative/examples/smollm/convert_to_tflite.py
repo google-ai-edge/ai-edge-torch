@@ -35,6 +35,10 @@ def main(_):
   pytorch_model = smollm.build_model(
       flags.FLAGS.checkpoint_path, kv_cache_max_len=flags.FLAGS.kv_cache_max_len
   )
+
+  export_config = export_cfg.get_from_flags()
+  export_config.decode_batch_size = _DECODE_BATCH_SIZE.value
+
   converter.convert_to_tflite(
       pytorch_model,
       output_path=flags.FLAGS.output_path,
@@ -42,9 +46,7 @@ def main(_):
       prefill_seq_len=flags.FLAGS.prefill_seq_lens,
       quantize=flags.FLAGS.quantize,
       lora_ranks=flags.FLAGS.lora_ranks,
-      export_config=export_cfg.ExportConfig(
-          decode_batch_size=_DECODE_BATCH_SIZE.value
-      ),
+      export_config=export_config,
   )
 
 

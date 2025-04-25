@@ -22,7 +22,6 @@ from ai_edge_torch.generative.utilities import converter
 from ai_edge_torch.generative.utilities import export_config
 
 flags = converter.define_conversion_flags("phi2")
-ExportConfig = export_config.ExportConfig
 
 
 def main(_):
@@ -36,7 +35,7 @@ def main(_):
       prefill_seq_len=flags.FLAGS.prefill_seq_lens,
       quantize=flags.FLAGS.quantize,
       lora_ranks=flags.FLAGS.lora_ranks,
-      export_config=ExportConfig(),
+      export_config=export_config.get_from_flags(),
   )
 
 
