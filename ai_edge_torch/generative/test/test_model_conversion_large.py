@@ -20,6 +20,7 @@ from ai_edge_torch.generative.examples.amd_llama_135m import amd_llama_135m
 from ai_edge_torch.generative.examples.deepseek import deepseek
 from ai_edge_torch.generative.examples.gemma import gemma1
 from ai_edge_torch.generative.examples.gemma import gemma2
+from ai_edge_torch.generative.examples.hammer import hammer
 from ai_edge_torch.generative.examples.llama import llama
 from ai_edge_torch.generative.examples.openelm import openelm
 from ai_edge_torch.generative.examples.paligemma import decoder
@@ -147,6 +148,12 @@ class TestModelConversion(googletest.TestCase):
     config = deepseek.get_fake_model_config()
     pytorch_model = deepseek.DeepSeekDistillQwen(config).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-5, rtol=1e-5)
+
+  def test_hammer(self):
+    config = hammer.get_fake_model_config()
+    pytorch_model = hammer.Hammer(config).eval()
+    self._test_model(config, pytorch_model, "prefill", atol=1e-5, rtol=1e-5)
+
 
   def test_amd_llama_135m(self):
     config = amd_llama_135m.get_fake_model_config()

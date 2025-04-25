@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import abc
 import re
+import os
 from typing import Callable
 
 import numpy.typing as npt
@@ -154,6 +155,7 @@ class TfLiteModel(Model):
     Args:
       path: The path to file to which the model is serialized.
     """
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'wb') as file_handle:
       file_handle.write(self._tflite_model)
 
