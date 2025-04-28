@@ -18,7 +18,7 @@
 import dataclasses
 from typing import Any, List, Tuple
 
-from ai_edge_torch.generative.custom_ops.dynamic_update_slice import dynamic_update_slice
+import ai_edge_torch.generative.custom_ops.dynamic_update_slice as dus_utils
 from ai_edge_torch.generative.layers import model_config
 from ai_edge_torch.generative.utilities import types
 import torch
@@ -266,8 +266,78 @@ def _update_kv_impl(
   k_slice_indices = _get_slice_indices(input_pos)
   v_slice_indices = _get_slice_indices(input_pos)
 
-  k = dynamic_update_slice(cache.k_cache, k_slice, k_slice_indices)
-  v = dynamic_update_slice(cache.v_cache, v_slice, v_slice_indices)
+  k = dus_utils.dynamic_update_slice(cache.k_cache, k_slice, k_slice_indices)
+  v = dus_utils.dynamic_update_slice(cache.v_cache, v_slice, v_slice_indices)
 
   updated_cache = KVCacheEntry(k, v, cache.kv_layout)
   return updated_cache
+
+
+def update_transposed(
+    cache: KVCacheEntry,
+    input_pos: torch.Tensor,
+    k_slice: torch.Tensor,
+    v_slice: torch.Tensor,
+) -> KVCacheEntry:
+  """Out of place update of Cache buffer.
+
+  Args:
+      cache (KVCacheEntry): The original cache buffer.
+      input_pos (torch.Tensor): The update slice positions.
+      k_slice (torch.Tensor): The K slice to be updated in the new cache.
+      v_slice (torch.Tensor): The V slice to be updated in the new cache.
+
+  Returns:
+      KVCacheEntry: The updated KVCacheBase entry based on the passed
+      inputs.
+  """
+  assert (
+      cache.kv_layout == KV_LAYOUT_TRANSPOSED
+  ), "KV entry must have transposed layout."
+  return _update_kv_impl_transposed(cache, input_pos, k_slice, v_slice)
+
+
+def _get_slice_indices_transposed(
+    positions: torch.Tensor, cache_dim: int, ts_idx: int
+) -> torch.Tensor:
+  """Returns the slice indices."""
+  positions = positions.float()[0].reshape(
+      1,
+  )
+
+  zeros = torch.zeros((1,), dtype=torch.float32)
+  indices = []
+  for i in range(cache_dim):
+    if i == ts_idx:
+      indices.append(positions)
+    else:
+      indices.append(zeros)
+  slice_indices = torch.cat(indices, dim=0)
+  slice_indices = slice_indices.int()
+  return slice_indices
+
+
+def _update_kv_impl_transposed(
+    cache: KVCacheEntry,
+    input_pos: torch.Tensor,
+    k_slice: torch.Tensor,
+    v_slice: torch.Tensor,
+) -> KVCacheEntry:
+  """Updates the cache buffer with High Level Function Boundary annotation."""
+  cache_dim = 4
+  k_ts_idx = 2
+  v_ts_idx = 3
+  positions = input_pos.clone()
+  k_slice_indices = _get_slice_indices_transposed(
+      positions, cache_dim, k_ts_idx
+  )
+  v_slice_indices = _get_slice_indices_transposed(
+      positions, cache_dim, v_ts_idx
+  )
+  k = dus_utils.dynamic_update_slice(
+      cache.k_cache, k_slice, [x for x in k_slice_indices]
+  )
+  v = dus_utils.dynamic_update_slice(
+      cache.v_cache, v_slice, [x for x in v_slice_indices]
+  )
+  return KVCacheEntry(k, v, cache.kv_layout)

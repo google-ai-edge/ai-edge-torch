@@ -19,7 +19,6 @@ from typing import Tuple
 
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.layers import scaled_dot_product_attention as sdpa
-from ai_edge_torch.generative.layers.experimental import kv_cache as kv_utils_experimental
 import ai_edge_torch.generative.layers.model_config as cfg
 import torch
 
@@ -68,7 +67,7 @@ def _sdpa_with_kv_update_transposed(
       1, -1, config.head_dim, seq_len
   )  # 1, bk, h, s
 
-  kv = kv_utils_experimental.update(kv, input_pos, key, value)
+  kv = kv_utils.update_transposed(kv, input_pos, key, value)
   key, value = kv.k_cache, kv.v_cache
 
   sdpa_out = sdpa.scaled_dot_product_attention_transposed(
