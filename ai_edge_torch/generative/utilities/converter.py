@@ -57,7 +57,7 @@ def define_conversion_flags(model_name: str):
   )
   flags.DEFINE_string(
       'output_name_prefix',
-      model_name,
+      f'{model_name}',
       'The prefix of the output tflite model name.',
   )
   flags.DEFINE_multi_integer(
