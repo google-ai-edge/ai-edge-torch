@@ -236,6 +236,7 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       type=cfg.NormalizationType.RMS_NORM,
       epsilon=1e-6,
       zero_centered=True,
+      enable_hlfb=True,
   )
   ff_config = cfg.FeedForwardConfig(
       type=cfg.FeedForwardType.GATED,
@@ -314,5 +315,5 @@ def build_2b_model(checkpoint_path: str, **kwargs) -> nn.Module:
           tensor_names=tensor_names,
           model_class=Gemma2,
       )
-    except KeyError as ke:
+    except KeyError as _:
       continue

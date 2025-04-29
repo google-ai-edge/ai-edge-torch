@@ -85,13 +85,34 @@ class ModelWrapper(torch.nn.Module):
 class ReauthoredModelWrapper(ModelWrapper):
   """A wrapper for the model reauthored with ai_edge_torch Generative API."""
 
+  def __init__(
+      self,
+      model: torch.nn.Module,
+      mask_as_input: bool = False,
+      kv_layout: kv_utils.KVLayout = kv_utils.KV_LAYOUT_DEFAULT,
+  ):
+    """Wraps a reauthored model with some options."""
+    super().__init__(model)
+    self.mask_as_input = mask_as_input
+    self.kv_layout = kv_layout
+
   def _init_kv_cache(self):
     """Returns an initialized KV cache."""
-    return kv_utils.KVCache.from_model_config(self.model.config)
+    return kv_utils.KVCache.from_model_config(
+        self.model.config, kv_layout=self.kv_layout
+    )
 
   def _get_extra_args_for_forward(self) -> dict[str, Any]:
     """Returns extra arguments for the forward() method."""
     return {}
+
+  def _build_mask(self, input_pos: torch.Tensor) -> torch.Tensor:
+    """Builds a mask for the model."""
+    kv_cache_max_len = self.model.config.kv_cache_max_len
+    mask = torch.full(
+        (len(input_pos), kv_cache_max_len), float("-inf"), dtype=torch.float32
+    )
+    return torch.triu(mask, diagonal=input_pos[0] + 1).unsqueeze(0).unsqueeze(0)
 
   def _forward_with_kv_cache(
       self,
@@ -119,6 +140,8 @@ class ReauthoredModelWrapper(ModelWrapper):
       extra_args["export_config"] = self.export_config
     if pixel_values is not None:
       extra_args["pixel_values"] = pixel_values
+    if self.mask_as_input:
+      extra_args["mask"] = self._build_mask(input_pos)
     output = self.model.forward(tokens, input_pos, kv_cache, **extra_args)
     return output["logits"], output["kv_cache"]
 

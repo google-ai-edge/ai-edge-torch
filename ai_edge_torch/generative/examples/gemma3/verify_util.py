@@ -22,7 +22,7 @@ from typing import List, Optional, Tuple
 from ai_edge_torch.generative.examples.gemma3 import gemma3
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
-from ai_edge_torch.generative.utilities.experimental import verifier
+from ai_edge_torch.generative.utilities import verifier
 from gemma import config as gemma_config
 from gemma import model as gemma_model
 import torch
@@ -92,10 +92,12 @@ class GemmaWrapper(verifier.ModelWrapper):
 class UnifiedGemma3Wrapper(verifier.ReauthoredModelWrapper):
   """Unified Gemma3 model wrapper for verification."""
 
+  def __init__(self, model: torch.nn.Module):
+    super().__init__(model, kv_layout=kv_utils.KV_LAYOUT_TRANSPOSED)
+
   def _init_kv_cache(self):
-    """Returns an initialized KV cache."""
     return kv_utils.KVCache.from_model_config(
-        self.model.model.config, kv_layout=kv_utils.KV_LAYOUT_TRANSPOSED
+        self.model.model.config, kv_layout=self.kv_layout
     )
 
   def forward(

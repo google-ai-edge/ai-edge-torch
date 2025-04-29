@@ -18,6 +18,7 @@
 from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.gemma import verify_util
+import ai_edge_torch.generative.layers.kv_cache as kv_utils
 import kagglehub
 
 
@@ -31,12 +32,27 @@ _MAX_NEW_TOKENS = flags.DEFINE_integer(
     30,
     "The maximum size of the generated tokens.",
 )
-
+_MASK_AS_INPUT = flags.DEFINE_bool(
+    "mask_as_input",
+    True,
+    "Pass the causal self attention mask to the model.",
+)
+_TRANSPOSE_KV_CACHE = flags.DEFINE_bool(
+    "transpose_kv_cache",
+    True,
+    "Transpose the KV cache to reduce memory usage.",
+)
 
 def main(_):
   checkpoint = kagglehub.model_download("google/gemma-2/pyTorch/gemma-2-2b-it")
 
-  verify_util.verify_gemma2(checkpoint, _PROMPTS.value, _MAX_NEW_TOKENS.value)
+  verify_util.verify_gemma2(
+      checkpoint,
+      _PROMPTS.value,
+      _MAX_NEW_TOKENS.value,
+      _MASK_AS_INPUT.value,
+      kv_utils.KV_LAYOUT_TRANSPOSED if _TRANSPOSE_KV_CACHE.value else kv_utils.KV_LAYOUT_DEFAULT,
+  )
 
 
 if __name__ == "__main__":

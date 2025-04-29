@@ -50,8 +50,7 @@ def _build_mask(mask_len, kv_cache_max_len) -> torch.Tensor:
   mask = torch.full(
       (mask_len, kv_cache_max_len), float('-inf'), dtype=torch.float32
   )
-  mask = torch.triu(mask, diagonal=1).unsqueeze(0).unsqueeze(0)
-  return mask
+  return torch.triu(mask, diagonal=1).unsqueeze(0).unsqueeze(0)
 
 
 def get_from_flags() -> ExportConfig:
@@ -62,6 +61,13 @@ def get_from_flags() -> ExportConfig:
     export_config.prefill_mask = _build_mask(
         flags.FLAGS.prefill_seq_lens, flags.FLAGS.kv_cache_max_len
     )
+    # Note that the decode mask is not a correct causal mask, but it is okay
+    # for the conversion purpose because only the shape matters in conversion.
+    # A correct causal mask of decode for a given token position of decode, it
+    # should be built like:
+    #
+    #  torch.triu(mask, diagonal=decode_position).unsqueeze(0).unsqueeze(0)
+    #
     export_config.decode_mask = _build_mask(1, flags.FLAGS.kv_cache_max_len)
 
   if flags.FLAGS.transpose_kv_cache:

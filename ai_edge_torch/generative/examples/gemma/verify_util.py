@@ -21,6 +21,7 @@ from typing import List, Tuple
 
 from ai_edge_torch.generative.examples.gemma import gemma2
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
+import ai_edge_torch.generative.layers.kv_cache as kv_utils
 from ai_edge_torch.generative.utilities import verifier
 from gemma import config as gemma_config
 from gemma import model as gemma_model
@@ -108,6 +109,8 @@ def verify_reauthored_gemma_model(
     weight_filename: str = "model.ckpt",
     tokenizer_filename: str = "tokenizer.model",
     max_new_tokens: int = 20,
+    mask_as_input: bool = False,
+    kv_layout: kv_utils.KVLayout = kv_utils.KV_LAYOUT_DEFAULT,
     rtol: float = 1e-05,
     atol: float = 1e-05,
 ) -> bool:
@@ -126,7 +129,11 @@ def verify_reauthored_gemma_model(
 
   return verifier.verify_reauthored_model(
       original_model=GemmaWrapper(original_model),
-      reauthored_model=verifier.ReauthoredModelWrapper(reauthored_model),
+      reauthored_model=verifier.ReauthoredModelWrapper(
+          reauthored_model,
+          mask_as_input=mask_as_input,
+          kv_layout=kv_layout,
+      ),
       tokenizer=GemmaTokenizerWrapper(original_model.tokenizer),
       generate_prompts=generate_prompts,
       max_new_tokens=max_new_tokens,
@@ -137,7 +144,11 @@ def verify_reauthored_gemma_model(
 
 
 def verify_gemma2(
-    gemma2_model_path: str, prompts: List[str], max_new_tokens: int
+    gemma2_model_path: str,
+    prompts: List[str],
+    max_new_tokens: int,
+    mask_as_input: bool = False,
+    kv_layout: kv_utils.KVLayout = kv_utils.KV_LAYOUT_DEFAULT,
 ) -> bool:
   """Verifies the reauthored Gemma2 model.
 
@@ -153,5 +164,7 @@ def verify_gemma2(
       generate_prompts=prompts,
       forward_input_ids=[[2, 651, 9456, 576, 573, 3520, 3858, 603, 235248]],
       max_new_tokens=max_new_tokens,
+      mask_as_input=mask_as_input,
+      kv_layout=kv_layout,
       atol=1e-04,
   )
