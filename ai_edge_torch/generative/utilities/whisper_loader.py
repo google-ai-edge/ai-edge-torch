@@ -54,12 +54,6 @@ class CrossAttentionTensorNames:
     cross_attn_key_proj: str
     cross_attn_value_proj: str
 
-# ValueError: Failed to map all tensor. Remaining tensor are:
-#  ['                                                   'model.encoder.layers.0.final_layer_norm.bias',
-#   'model.encoder.layers.0.self_attn_layer_norm.bias', 'model.encoder.layers.1.final_layer_norm.bias',
-#   'model.encoder.layers.1.self_attn_layer_norm.bias', 'model.encoder.layers.2.final_layer_norm.bias',
-#   'model.encoder.layers.2.self_attn_layer_norm.bias', 'model.encoder.layers.3.final_layer_norm.bias',
-#   'model.encoder.layers.3.self_attn_layer_norm.bias']
 class WhisperModelLoader:
   """Utility class for loading and converting checkpoints to ODML transformer layer format."""
 
@@ -201,25 +195,6 @@ class WhisperModelLoader:
         f"{cross_attn_value_proj_name}.bias"
     )
 
-
-  # Maps remaining q proj, out proj, and pre-cross attn norm in decoder.
-  # Assumes that k, v projections are computed once in the encoder.
-# model.decoder.layers.3.encoder_attn.q_proj.bias
-# model.decoder.layers.3.encoder_attn.q_proj.weight
-
-# model.decoder.layers.3.encoder_attn.out_proj.bias
-# model.decoder.layers.3.encoder_attn.out_proj.weight
-
-# model.decoder.layers.3.encoder_attn_layer_norm.bias
-# model.decoder.layers.3.encoder_attn_layer_norm.weight
-
-    # pre_cross_attn_norm: str
-    # cross_attn_q_proj: str
-    # cross_attn_out_proj: str
-
-    #   pre_cross_attn_norm = "layers.{}.encoder_attn_layer_norm",
-    # cross_attn_q_proj = "layers.{}.encoder_attn.q_proj",
-    # cross_attn_out_proj = "layers.{}.encoder_attn.out_proj",
   def _map_cross_attention_decoder_blocks(self,
                                    idx: int,
                                    config: Union[AudioEncoderConfig, TextDecoderConfig],
