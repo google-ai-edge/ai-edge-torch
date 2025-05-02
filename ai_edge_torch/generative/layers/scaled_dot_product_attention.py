@@ -160,7 +160,7 @@ def scaled_dot_product_attention_transposed(
   Args:
     query: Query tensor, with shape [B, T, N, H].
     key: Key tensor, with shape [B, T, KV_LEN, H].
-    value: Value tensor, with shape [B, T, KV_LEN, H].
+    value: Value tensor, with shape [B, T, H, KV_LEN].
     head_size (int): head dimension.
     mask (torch.Tensor): the optional mask tensor.
     scale (float): the optional scale factor.
