@@ -95,6 +95,18 @@ def define_conversion_flags(model_name: str):
   return flags
 
 
+def _build_mask(mask_len, kv_cache_max_len, causal_mask_value) -> torch.Tensor:
+  if isinstance(mask_len, list):
+    return [
+        _build_mask(i, kv_cache_max_len, causal_mask_value) for i in mask_len
+    ]
+
+  mask = torch.full(
+      (mask_len, kv_cache_max_len), causal_mask_value, dtype=torch.float32
+  )
+  return torch.triu(mask, diagonal=1).unsqueeze(0).unsqueeze(0)
+
+
 def convert_to_tflite(
     pytorch_model: torch.nn.Module,
     output_path: str,
@@ -229,14 +241,15 @@ def _export_helper(
           torch.arange(0, seq_len + pixel_seq_len, dtype=torch.int)
       )
 
-  if export_config.prefill_mask is None:
-    prefill_masks = None
-  elif isinstance(export_config.prefill_mask, torch.Tensor):
-    prefill_masks = [export_config.prefill_mask]
-  elif isinstance(export_config.prefill_mask, list):
-    prefill_masks = export_config.prefill_mask
-  else:
-    raise ValueError('Prefill masks unrecognized.')
+  prefill_masks = None
+  if flags.FLAGS.mask_as_input:
+    prefill_masks = [
+        _build_mask(
+            flags.FLAGS.prefill_seq_lens,
+            flags.FLAGS.kv_cache_max_len,
+            config.get_causal_mask_value(),
+        )
+    ]
 
   if prefill_masks:
     assert len(prefill_masks) == len(prefill_seq_lens)
@@ -299,8 +312,17 @@ def _export_helper(
         'input_pos': decode_input_pos,
         'kv_cache': decode_kv,
     }
-    if export_config.decode_mask is not None:
-      sample_kwargs['mask'] = export_config.decode_mask
+    if flags.FLAGS.mask_as_input:
+      # Note that the decode mask is not a correct causal mask, but it is okay
+      # for the conversion purpose because only the shape matters in conversion.
+      # A correct causal mask of decode for a given token position of decode, it
+      # should be built like:
+      #
+      #  torch.triu(mask, diagonal=decode_position).unsqueeze(0).unsqueeze(0)
+      #
+      sample_kwargs['mask'] = _build_mask(
+          1, flags.FLAGS.kv_cache_max_len, config.get_causal_mask_value()
+      )
     if lora is not None:
       sample_kwargs['lora'] = lora
 

@@ -116,6 +116,8 @@ class AttentionConfig:
   attn_type: Optional[AttentionType] = None
   # The size of the sliding window used for local attention.
   sliding_window_size: Optional[int] = None
+  # The default causal mask value used by attention layer.
+  causal_mask_value: float = float("-inf")
 
 
 @dataclasses.dataclass
@@ -247,3 +249,7 @@ class ModelConfig:
           f"Index {idx} is out of range for layer configs: {self.block_configs}"
       )
     return self.block_configs[idx]
+
+  @property
+  def get_causal_mask_value(self) -> float:
+    return self.block_config(0).attn_config.causal_mask_value

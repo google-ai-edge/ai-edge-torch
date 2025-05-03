@@ -75,7 +75,7 @@ class Decoder(model_builder.DecoderOnlyModel):
     if mask is None:
       embeds_len = input_embeds.shape[1]
       mask = torch.zeros(embeds_len, self.config.kv_cache_max)
-      mask[:, embeds_len:] = float("-inf")
+      mask[:, embeds_len:] = attn_config.causal_mask_value
 
     return self._forward_with_embeds(
         input_embeds,

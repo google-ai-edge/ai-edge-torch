@@ -75,7 +75,7 @@ class Decoder2(gemma2.Gemma2):
       # By default, don't mask image embeds with a diagonal causal mask.
       embeds_len = input_embeds.shape[1]
       mask = torch.zeros(embeds_len, self.config.kv_cache_max)
-      mask[:, embeds_len:] = float("-inf")
+      mask[:, embeds_len:] = attn_config.causal_mask_value
 
     return self._forward_with_embeds(
         input_embeds, rope, mask, input_pos, kv_cache, export_config

@@ -199,7 +199,11 @@ class Decoder(nn.Module):
     sliding_mask = torch.where(
         sliding_mask_bool,
         torch.zeros_like(sliding_mask_bool, dtype=torch.float),
-        torch.full_like(sliding_mask_bool, float("-inf"), dtype=torch.float),
+        torch.full_like(
+            sliding_mask_bool,
+            self.config.get_causal_mask_value(),
+            dtype=torch.float,
+        ),
     )
 
     return sliding_mask
@@ -215,7 +219,7 @@ class Decoder(nn.Module):
       mask = torch.logical_and(mask, pixel_mask)
     else:
       mask = torch.logical_or(mask, pixel_mask)
-    mask = torch.where(mask, 0, float("-inf"))
+    mask = torch.where(mask, 0, self.config.get_causal_mask_value())
     return mask
 
   def build_pixel_mask(self, image_indices: torch.Tensor):

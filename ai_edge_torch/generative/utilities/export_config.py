@@ -33,6 +33,8 @@ class ExportConfig:
   # When False, only decode signatures will produce output.
   output_logits_on_prefill: bool = False
   # Attention masks given as inputs to the model.
+  # Note that `prefill_mask`, `decode_mask`, and `kvcache_cls` are deprecated
+  # and will be removed in a future version.
   prefill_mask: Optional[torch.Tensor | List[torch.Tensor]] = None
   decode_mask: Optional[torch.Tensor | List[torch.Tensor]] = None
   # The KV Cache layout for K and V buffers in attention.
@@ -43,32 +45,9 @@ class ExportConfig:
   decode_batch_size: int = 1
 
 
-def _build_mask(mask_len, kv_cache_max_len) -> torch.Tensor:
-  if isinstance(mask_len, list):
-    return [_build_mask(i, kv_cache_max_len) for i in mask_len]
-
-  mask = torch.full(
-      (mask_len, kv_cache_max_len), float('-inf'), dtype=torch.float32
-  )
-  return torch.triu(mask, diagonal=1).unsqueeze(0).unsqueeze(0)
-
-
 def get_from_flags() -> ExportConfig:
   """Builds an export config according to the commandline flags."""
   export_config = ExportConfig()
-
-  if flags.FLAGS.mask_as_input:
-    export_config.prefill_mask = _build_mask(
-        flags.FLAGS.prefill_seq_lens, flags.FLAGS.kv_cache_max_len
-    )
-    # Note that the decode mask is not a correct causal mask, but it is okay
-    # for the conversion purpose because only the shape matters in conversion.
-    # A correct causal mask of decode for a given token position of decode, it
-    # should be built like:
-    #
-    #  torch.triu(mask, diagonal=decode_position).unsqueeze(0).unsqueeze(0)
-    #
-    export_config.decode_mask = _build_mask(1, flags.FLAGS.kv_cache_max_len)
 
   if flags.FLAGS.transpose_kv_cache:
     export_config.kvcache_layout = kv_utils.KV_LAYOUT_TRANSPOSED
