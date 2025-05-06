@@ -243,15 +243,13 @@ def _export_helper(
 
   prefill_masks = None
   if flags.FLAGS.mask_as_input:
-    prefill_masks = [
-        _build_mask(
-            flags.FLAGS.prefill_seq_lens,
-            flags.FLAGS.kv_cache_max_len,
-            config.get_causal_mask_value(),
-        )
-    ]
-
-  if prefill_masks:
+    prefill_masks = _build_mask(
+        flags.FLAGS.prefill_seq_lens,
+        flags.FLAGS.kv_cache_max_len,
+        config.causal_mask_value,
+    )
+    if not isinstance(prefill_masks, list):
+      prefill_masks = [prefill_masks]
     assert len(prefill_masks) == len(prefill_seq_lens)
 
   decode_token = torch.tensor(
@@ -321,7 +319,7 @@ def _export_helper(
       #  torch.triu(mask, diagonal=decode_position).unsqueeze(0).unsqueeze(0)
       #
       sample_kwargs['mask'] = _build_mask(
-          1, flags.FLAGS.kv_cache_max_len, config.get_causal_mask_value()
+          1, flags.FLAGS.kv_cache_max_len, config.causal_mask_value
       )
     if lora is not None:
       sample_kwargs['lora'] = lora

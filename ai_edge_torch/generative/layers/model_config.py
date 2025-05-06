@@ -251,5 +251,5 @@ class ModelConfig:
     return self.block_configs[idx]
 
   @property
-  def get_causal_mask_value(self) -> float:
+  def causal_mask_value(self) -> float:
     return self.block_config(0).attn_config.causal_mask_value
