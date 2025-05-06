@@ -47,7 +47,9 @@ class TestModelConversion(googletest.TestCase):
     tokens, input_pos = torch.tensor([[1]], dtype=torch.int), torch.tensor(
         [10], dtype=torch.int
     )
-    kv = kv_cache.KVCache.from_model_config(config, kv_layout=kv_layout)
+    kv = kv_cache.KVCache.from_model_config(
+        kv_cache_max=config.max_seq_len, config=config, kv_layout=kv_layout
+    )
     kwargs = {
         "tokens": tokens,
         "input_pos": input_pos,
@@ -122,7 +124,9 @@ class TestModelConversion(googletest.TestCase):
     decode_token = torch.tensor([[1]], dtype=torch.int)
     decode_input_pos = torch.tensor([5], dtype=torch.int)
 
-    kv = kv_cache.KVCache.from_model_config(config, kv_layout=kv_layout)
+    kv = kv_cache.KVCache.from_model_config(
+        kv_cache_max=128, config=config, kv_layout=kv_layout
+    )
 
     edge_model = (
         ai_edge_torch.signature(
