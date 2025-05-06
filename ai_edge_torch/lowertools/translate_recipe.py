@@ -13,9 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
-from ai_edge_quantizer import quantizer
 from ai_edge_torch.generative.quantize import quant_attrs
 from ai_edge_torch.generative.quantize import quant_recipe
+from ai_edge_quantizer import quantizer
 
 _ComputePrecision = quantizer.qtyping.ComputePrecision
 _QuantGranularity = quantizer.qtyping.QuantGranularity
@@ -39,6 +39,8 @@ def _get_nbits_from_dtype(dtype: quant_attrs.Dtype) -> int:
     return 16
   elif dtype == quant_attrs.Dtype.INT8:
     return 8
+  elif dtype == quant_attrs.Dtype.INT4:
+    return 4
   raise ValueError('Unimplemented number of bits')
 
 
@@ -76,6 +78,8 @@ def _get_granularity(
     return _QuantGranularity.CHANNELWISE
   if granularity == quant_attrs.Granularity.NONE:
     return _QuantGranularity.TENSORWISE
+  if granularity == quant_attrs.Granularity.BLOCKWISE:
+    return _QuantGranularity.BLOCKWISE
   raise ValueError('Unimplemented granularity')
 
 
@@ -101,6 +105,7 @@ def _set_quant_config(
               symmetric=True,
               granularity=_get_granularity(layer_recipe.granularity),
               dtype=_get_dtype_from_dtype(layer_recipe.weight_dtype),
+              block_size=layer_recipe.block_size,
           ),
           compute_precision=_get_compute_precision_from_mode(layer_recipe.mode),
           explicit_dequantize=_get_explicit_dequant_from_mode(

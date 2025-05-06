@@ -54,3 +54,15 @@ def full_fp16_recipe() -> quant_config.QuantConfig:
           default=quant_recipe_utils.create_layer_quant_fp16()
       )
   )
+
+
+def all_supported_int4_dynamic_block_recipe(
+    block_size: int,
+) -> quant_config.QuantConfig:
+  return quant_config.QuantConfig(
+      generative_recipe=quant_recipe.GenerativeQuantRecipe(
+          default=quant_recipe_utils.create_layer_quant_int4_dynamic_block(
+              block_size
+          )
+      )
+  )

@@ -23,6 +23,7 @@ class Dtype(enum.Enum):
   FP32 = enum.auto()
   FP16 = enum.auto()
   INT8 = enum.auto()
+  INT4 = enum.auto()
 
 
 @enum.unique
@@ -66,3 +67,4 @@ class Granularity(enum.Enum):
 
   NONE = enum.auto()
   CHANNELWISE = enum.auto()
+  BLOCKWISE = enum.auto()

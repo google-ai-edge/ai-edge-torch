@@ -60,3 +60,16 @@ def create_layer_quant_fp16() -> quant_recipe.LayerQuantRecipe:
       algorithm=quant_attrs.Algorithm.FLOAT_CAST,
       granularity=quant_attrs.Granularity.NONE,
   )
+
+
+def create_layer_quant_int4_dynamic_block(
+    block_size: int,
+) -> quant_recipe.LayerQuantRecipe:
+  return quant_recipe.LayerQuantRecipe(
+      activation_dtype=quant_attrs.Dtype.FP32,
+      weight_dtype=quant_attrs.Dtype.INT4,
+      mode=quant_attrs.Mode.DYNAMIC_RANGE,
+      algorithm=quant_attrs.Algorithm.MIN_MAX,
+      granularity=quant_attrs.Granularity.BLOCKWISE,
+      block_size=block_size,
+  )
