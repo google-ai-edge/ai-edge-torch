@@ -14,7 +14,6 @@
 # ==============================================================================
 
 import ai_edge_torch
-from ai_edge_torch import config
 from ai_edge_torch.generative.examples.test_models import toy_model  # NOQA
 from ai_edge_torch.generative.quantize import quant_recipe
 from ai_edge_torch.generative.quantize import quant_recipe_utils

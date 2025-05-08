@@ -46,8 +46,9 @@ Once converted, you will get a quantized `.tflite` model which will be ready for
 
 In the current release, the following schemes are supported:
 
-* Dynamic range quantization with FP32 activations and INT8 weights for linear ops
-* FP16 quantization with FP16 weights and FP32 activations and computation for all ops
+* Dynamic quantization with FP32 activations and INT8 weights for linear ops
+* FP16 quantization with FP16 weights and FP32 activations and computation for all opss
+* Dynamic INT4 blockwise quantization: FP32 activations, INT4 weights, and integer computation, block size must be multiple of 32
 
 These correspond to the available recipes in `quant_recipes.py`
 <br/>

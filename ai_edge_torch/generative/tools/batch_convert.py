@@ -282,9 +282,12 @@ def convert_models(conversion_configs: Sequence[ConversionConfig]) -> None:
       )
       converter.convert_to_tflite(
           pytorch_model,
-          tflite_path=os.path.join(config.tflite_output_path, output_filename),
+          output_path=config.tflite_output_path,
+          output_name_prefix=output_filename,
           prefill_seq_len=config.prefill_seq_lens,
-          quantize=True if precision == ExportPrecision.INT8 else False,
+          quantize=converter.QuantizationName.DYNAMIC_INT8
+          if precision == ExportPrecision.INT8
+          else converter.QuantizationName.NONE,
           export_config=ExportConfig(),
       )
       logging.info("Successfully converted model: %s", output_filename)
