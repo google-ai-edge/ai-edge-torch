@@ -81,6 +81,7 @@ setup(
     ),
     python_requires=">=3.10",
     install_requires=[
+        "absl-py",
         "numpy",
         "scipy",
         "safetensors",
