@@ -261,7 +261,6 @@ class Decoder(nn.Module):
       pixel_mask = self.build_pixel_mask(image_indices)
     # RoPE parameters are the same for all blocks. Use the first layer.
     attn_config = self.config.block_config(0).attn_config
-    n_elem = int(attn_config.rotary_percentage * attn_config.head_dim)
     # Different rotary base for global and local attention
     # based on attention pattern
     rope = [
@@ -305,7 +304,7 @@ class Decoder(nn.Module):
     if pixel_mask is None:
       mask = [
           self.get_local_global_attention_mask(
-              mask,
+              mask[i] if isinstance(mask, list) else mask,
               self.config.block_config(i).attn_config.attn_type,
               input_pos,
               self.config.block_config(i).attn_config.sliding_window_size,
@@ -316,7 +315,7 @@ class Decoder(nn.Module):
       pixel_mask = pixel_mask.index_select(2, input_pos)
       mask = [
           self.compose_mask(
-              mask[i],
+              mask[i] if isinstance(mask, list) else mask,
               pixel_mask,
               self.config.block_config(i).attn_config.attn_type,
           )
