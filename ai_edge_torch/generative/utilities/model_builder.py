@@ -75,8 +75,7 @@ class DecoderOnlyModel(nn.Module):
         for idx in range(config.num_layers)
     )
     self.final_norm = builder.build_norm(
-        config.embedding_dim,
-        config.final_norm_config,
+        config.embedding_dim, config.final_norm_config
     )
     self.mask_cache = attn_utils.build_causal_mask_cache(
         size=config.kv_cache_max,

@@ -119,9 +119,7 @@ class Decoder(nn.Module):
         config.vocab_size, config.embedding_dim, padding_idx=0
     )
     self.lm_head = nn.Linear(
-        config.embedding_dim,
-        config.vocab_size,
-        bias=config.lm_head_use_bias,
+        config.embedding_dim, config.vocab_size, bias=config.lm_head_use_bias
     )
     # Gemma3 re-uses the embedding as the head projection layer.
     self.lm_head.weight.data = self.tok_embedding.weight.data
@@ -130,29 +128,12 @@ class Decoder(nn.Module):
         for idx in range(config.num_layers)
     )
     self.final_norm = builder.build_norm(
-        config.embedding_dim,
-        config.final_norm_config,
+        config.embedding_dim, config.final_norm_config
     )
     self.mask_cache = attn_utils.build_causal_mask_cache(
         size=config.kv_cache_max,
     )
-    # Gemma3 has same hyper parameters for each layer except for attention
-    # types. Use the first layer.
-    attn_config = config.block_config(0).attn_config
-    self.sliding_window_mask_cache = attn_utils.build_sliding_window_mask_cache(
-        size=config.kv_cache_max,
-        window_size=attn_config.sliding_window_size,
-    )
     self.config = config
-
-  def get_attention_mask(
-      self,
-      attn_type: cfg.AttentionType,
-      input_pos: torch.Tensor,
-  ) -> torch.Tensor:
-    if attn_type == cfg.AttentionType.LOCAL_SLIDING:
-      return self.sliding_window_mask_cache.index_select(2, input_pos)
-    return self.mask_cache.index_select(2, input_pos)
 
   def get_local_global_attention_mask(
       self,
@@ -200,9 +181,7 @@ class Decoder(nn.Module):
         sliding_mask_bool,
         torch.zeros_like(sliding_mask_bool, dtype=torch.float),
         torch.full_like(
-            sliding_mask_bool,
-            self.config.causal_mask_value,
-            dtype=torch.float,
+            sliding_mask_bool, self.config.causal_mask_value, dtype=torch.float
         ),
     )
 
@@ -272,12 +251,8 @@ class Decoder(nn.Module):
         for i in range(self.config.num_layers)
     ]
     if mask is None:
-      mask = [
-          self.get_attention_mask(
-              self.config.block_config(i).attn_config.attn_type, input_pos
-          )
-          for i in range(self.config.num_layers)
-      ]
+      mask = self.mask_cache.index_select(2, input_pos)
+      mask = mask[:, :, :, : self.config.kv_cache_max]
 
     return self._forward_with_embeds(
         input_embeds, rope, mask, input_pos, kv_cache, pixel_mask, export_config
@@ -329,6 +304,7 @@ class Decoder(nn.Module):
       if kv_entry:
         updated_kv_entries.append(kv_entry)
     updated_kv_cache = kv_utils.KVCache(tuple(updated_kv_entries))
+
     if export_config is not None:
       if (
           torch.numel(input_pos) > 1
