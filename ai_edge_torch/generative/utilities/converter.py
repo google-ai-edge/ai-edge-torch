@@ -42,7 +42,11 @@ class ExportableModule(torch.nn.Module):
     return self.module(*export_args, **full_kwargs)
 
 
-def define_conversion_flags(model_name: str):
+def define_conversion_flags(
+    model_name: str,
+    default_mask_as_input: bool = False,
+    default_transpose_kv_cache: bool = False,
+):
   """Defines common flags used for model conversion."""
 
   flags.DEFINE_string(
@@ -83,13 +87,13 @@ def define_conversion_flags(model_name: str):
   )
   flags.DEFINE_bool(
       'mask_as_input',
-      False,
+      default_mask_as_input,
       'If true, the mask will be passed in as input. Otherwise, mask will be '
       'built by the model internally.',
   )
   flags.DEFINE_bool(
       'transpose_kv_cache',
-      False,
+      default_transpose_kv_cache,
       'If true, the model will be converted with transposed KV cache.',
   )
   return flags

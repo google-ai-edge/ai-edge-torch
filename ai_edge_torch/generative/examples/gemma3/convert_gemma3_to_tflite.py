@@ -20,7 +20,9 @@ from ai_edge_torch.generative.examples.gemma3 import gemma3
 from ai_edge_torch.generative.utilities import converter
 from ai_edge_torch.generative.utilities import export_config
 
-flags = converter.define_conversion_flags('gemma3-1b')
+flags = converter.define_conversion_flags(
+    'gemma3-1b', default_mask_as_input=True, default_transpose_kv_cache=True
+)
 
 _MODEL_SIZE = flags.DEFINE_string(
     'model_size',

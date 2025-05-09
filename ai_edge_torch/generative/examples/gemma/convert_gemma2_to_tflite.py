@@ -20,7 +20,9 @@ from ai_edge_torch.generative.examples.gemma import gemma2
 from ai_edge_torch.generative.utilities import converter
 from ai_edge_torch.generative.utilities import export_config
 
-flags = converter.define_conversion_flags("gemma2-2b")
+flags = converter.define_conversion_flags(
+    "gemma2-2b", default_mask_as_input=True, default_transpose_kv_cache=True
+)
 
 
 def main(_):
