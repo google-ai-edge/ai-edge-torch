@@ -270,6 +270,7 @@ def _export_helper(
   )
 
   quant_config = quant_recipes.full_int8_dynamic_recipe() if quantize else None
+  quant_config._model_config = config
 
   # For export, we create a module that captures any non-exportable,
   # arugments, e.g. the generation config object.
@@ -334,5 +335,7 @@ def _export_helper(
         sample_kwargs=sample_kwargs,
     )
 
-  edge_model = converter.convert(quant_config=quant_config)
+  edge_model = converter.convert(
+      quant_config=quant_config,
+  )
   edge_model.export(output_file)

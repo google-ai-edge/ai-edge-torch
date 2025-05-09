@@ -16,8 +16,11 @@
 from dataclasses import dataclass
 from typing import Optional, Union
 
+from ai_edge_torch.generative.layers import model_config
 from ai_edge_torch.generative.quantize import quant_attrs
 from ai_edge_torch.generative.quantize import supported_schemes
+
+ModelConfig = model_config.ModelConfig
 
 
 @dataclass
@@ -52,7 +55,7 @@ class LayerQuantRecipe:
         f'w:{self.weight_dtype.name}, '
         f'{self.mode.name}, '
         f'{self.algorithm.name}, '
-        f'{self.granularity.name}'
+        f'{self.granularity.name}, '
         f'{self.block_size}'
     )
     return f'{base_str})'
@@ -133,6 +136,7 @@ class GenerativeQuantRecipe:
   feedforward: Union[
       Optional[LayerQuantRecipe], Optional[dict[int, LayerQuantRecipe]]
   ] = None
+  _model_config: Optional[ModelConfig] = None
 
   def __str__(self):
     return f"""GenerativeQuantRecipe(

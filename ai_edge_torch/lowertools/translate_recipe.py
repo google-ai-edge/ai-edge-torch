@@ -29,6 +29,8 @@ _IDX_TRANSFORMER_BLOCKS_REGEX_STR = 'transformer_blocks\[{}\]'
 _ATTENTION_REGEX_STR = 'ai_edge_torch.generative.layers.attention'
 _FEEDFORWARD_REGEX_STR = 'ai_edge_torch.generative.layers.feed_forward'
 _EMBEDDING_REGEX_STR = 'Embedding_tok_embedding'
+# TODO: b/415833584 - Improve the regex for pre-softmax layer.
+_DECODE_LOGITS_REGEX_STR = 'StatefulPartitionedCall'
 _ANY_TWO_DIGITS_REGEX_STR = '\d{1,2}'
 
 
@@ -95,10 +97,11 @@ def _set_quant_config(
     rm: quantizer.recipe_manager.RecipeManager,
     layer_recipe: quant_recipe.LayerQuantRecipe,
     regex: str,
+    operation_name: _OpName = _OpName.ALL_SUPPORTED,
 ):
   rm.add_quantization_config(
       regex=regex,
-      operation_name=_OpName.ALL_SUPPORTED,
+      operation_name=operation_name,
       op_config=_OpQuantConfig(
           weight_tensor_config=_TensorQuantConfig(
               num_bits=_get_nbits_from_dtype(layer_recipe.weight_dtype),
@@ -126,6 +129,16 @@ def translate_to_ai_edge_recipe(
 
   if recipe.embedding is not None:
     _set_quant_config(rm, recipe.embedding, _EMBEDDING_REGEX_STR)
+    if (
+        recipe._model_config is not None
+        and recipe._model_config.lm_head_share_weight_with_embedding
+    ):
+      _set_quant_config(
+          rm,
+          recipe.embedding,
+          _DECODE_LOGITS_REGEX_STR,
+          _OpName.FULLY_CONNECTED,
+      )
 
   if recipe.attention is not None:
     if isinstance(recipe.attention, dict):
