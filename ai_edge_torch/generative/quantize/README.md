@@ -18,11 +18,12 @@ Once converted, you will get a quantized `.tflite` model which will be ready for
 
 In the current release, the following schemes are supported:
 
-* Dynamic range quantization: FP32 activations, INT8 weights, and integer computation
-* Weight-only quantization: FP32 activations, INT8 weights, and floating point computation
+* Dynamic INT8 quantization: FP32 activations, INT8 weights, and integer computation
+* Weight-only INT8 quantization: FP32 activations, INT8 weights, and floating point computation
 * FP16 quantization: FP16 weights, FP32 activations and floating point computation for all ops
+* Dynamic INT4 blockwise quantization: FP32 activations, INT4 weights, and integer computation, block size must be multiple of 32
 
-These correspond to the available recipes in `quant_recipes.py`.
+Preset recipes to the available recipes in `quant_recipes.py`.
 
 ## Advanced usage
 
@@ -36,8 +37,8 @@ def custom_selective_quantization_recipe() -> quant_config.QuantConfig:
       generative_recipe=quant_recipe.GenerativeQuantRecipe(
           default=create_layer_quant_fp16(),
           embedding=create_layer_quant_int8_dynamic(),
-          attention=create_layer_quant_int8_weight_only(),
-          feedforward=create_layer_quant_int8_dynamic(),
+          attention=create_layer_quant_int4_block(32),
+          feedforward=create_layer_quant_int4_block(256),
       )
   )
 ```

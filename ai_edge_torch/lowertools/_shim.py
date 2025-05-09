@@ -50,7 +50,7 @@ def exported_programs_to_tflite(
     *,
     quant_config: Optional[qcfg.QuantConfig] = None,
     _tfl_converter_flags: Optional[dict[str, Any]] = None,
-    _saved_model_dir: Optional[str] = None
+    _saved_model_dir: Optional[str] = None,
 ):
   """Converts a list of ExportedProgram to a TFLite model.
 
