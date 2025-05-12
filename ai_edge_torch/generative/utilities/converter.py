@@ -123,7 +123,7 @@ def define_conversion_flags(
 
 def get_quant_recipe_from_flag(
     quantize: str,
-) -> Optional[quant_recipes.QuantizationRecipe]:
+) -> Optional[quant_recipes.QuantConfig]:
   """Processes the quantization flag and returns the corresponding recipe.
 
   Args:
@@ -144,10 +144,6 @@ def get_quant_recipe_from_flag(
       return quant_recipes.full_int8_weight_only_recipe()
     case QuantizationName.FP16:
       return quant_recipes.full_fp16_recipe()
-    case QuantizationName.DYNAMIC_INT4_BLOCK32:
-      return quant_recipes.full_int4_dynamic_block_recipe(32)
-    case QuantizationName.DYNAMIC_INT4_BLOCK128:
-      return quant_recipes.full_int4_dynamic_block_recipe(128)
     case _:
       raise ValueError(f'Unsupported quantization flag: {quantize}')
 
