@@ -26,6 +26,7 @@ from ai_edge_torch.generative.layers import lora as lora_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.quantize import quant_recipes
 from ai_edge_torch.generative.utilities import export_config
+from ai_edge_torch.quantize import quant_config as qcfg
 import torch
 
 ExportConfig = export_config.ExportConfig
@@ -123,7 +124,8 @@ def define_conversion_flags(
 
 def get_quant_recipe_from_flag(
     quantize: str,
-) -> Optional[quant_recipes.QuantizationRecipe]:
+    model_config: cfg.ModelConfig,
+) -> Optional[qcfg.QuantConfig]:
   """Processes the quantization flag and returns the corresponding recipe.
 
   Args:
@@ -139,15 +141,19 @@ def get_quant_recipe_from_flag(
     case QuantizationName.NONE:
       return None
     case QuantizationName.DYNAMIC_INT8:
-      return quant_recipes.full_int8_dynamic_recipe()
+      return quant_recipes.full_int8_dynamic_recipe(mcfg=model_config)
     case QuantizationName.WEIGHT_ONLY_INT8:
-      return quant_recipes.full_int8_weight_only_recipe()
+      return quant_recipes.full_int8_weight_only_recipe(mcfg=model_config)
     case QuantizationName.FP16:
       return quant_recipes.full_fp16_recipe()
     case QuantizationName.DYNAMIC_INT4_BLOCK32:
-      return quant_recipes.full_int4_dynamic_block_recipe(32)
+      return quant_recipes.all_supported_int4_dynamic_block_recipe(
+          32, mcfg=model_config
+      )
     case QuantizationName.DYNAMIC_INT4_BLOCK128:
-      return quant_recipes.full_int4_dynamic_block_recipe(128)
+      return quant_recipes.all_supported_int4_dynamic_block_recipe(
+          128, mcfg=model_config
+      )
     case _:
       raise ValueError(f'Unsupported quantization flag: {quantize}')
 
@@ -351,8 +357,7 @@ def _export_helper(
       kv_layout=export_config.kvcache_layout,
   )
 
-  quant_config = get_quant_recipe_from_flag(quantize)
-  quant_config._model_config = config
+  quant_config = get_quant_recipe_from_flag(quantize, config)
 
   # For export, we create a module that captures any non-exportable,
   # arugments, e.g. the generation config object.
