@@ -51,7 +51,7 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
     The model config for an OpenELM model.
   """
   norm_config = cfg.NormalizationConfig(
-      type=cfg.NormalizationType.RMS_NORM, epsilon=1e-6
+      type=cfg.NormalizationType.RMS_NORM, epsilon=1e-6, enable_hlfb=True
   )
   num_heads = [12] * 4 + [16] * 14 + [20] * 12 + [24] * 6
   num_query_groups = [3] * 4 + [4] * 14 + [5] * 12 + [6] * 6
