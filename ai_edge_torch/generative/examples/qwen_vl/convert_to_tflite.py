@@ -21,8 +21,6 @@ from ai_edge_torch.generative.utilities import converter
 from ai_edge_torch.generative.utilities import export_config
 
 flags = converter.define_conversion_flags('qwen_vl')
-ExportConfig = export_config.ExportConfig
-
 
 _IMAGE_HEIGHT = flags.DEFINE_integer(
     'image_height',
@@ -34,6 +32,7 @@ _IMAGE_WIDTH = flags.DEFINE_integer(
     46 * 14,
     'The width of image.',
 )
+
 
 def main(_):
   pytorch_model = qwen_vl.build_model(
@@ -60,7 +59,7 @@ def main(_):
       ),
       quantize=flags.FLAGS.quantize,
       config=pytorch_model.config.decoder_config,
-      export_config=ExportConfig(),
+      export_config=export_config.get_from_flags(),
   )
 
 

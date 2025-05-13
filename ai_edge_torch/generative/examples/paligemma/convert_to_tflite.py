@@ -22,8 +22,6 @@ from ai_edge_torch.generative.utilities import export_config
 import torch
 
 flags = converter.define_conversion_flags('paligemma2-3b-224')
-ExportConfig = export_config.ExportConfig
-
 
 _VERSION = flags.DEFINE_enum(
     'version',
@@ -31,6 +29,7 @@ _VERSION = flags.DEFINE_enum(
     ['1', '2'],
     'The version of PaliGemma model to verify.',
 )
+
 
 def main(_):
   pytorch_model = paligemma.build_model(
@@ -51,7 +50,7 @@ def main(_):
       pixel_seq_len=(config.image_size // config.patch_size) ** 2,
       quantize=flags.FLAGS.quantize,
       config=pytorch_model.config.decoder_config,
-      export_config=ExportConfig(),
+      export_config=export_config.get_from_flags(),
   )
 
 

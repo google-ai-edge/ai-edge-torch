@@ -280,6 +280,15 @@ def convert_to_tflite(
       '' if not lora_ranks else f'_lora{",".join(map(str, lora_ranks))}'
   )
 
+  if pixel_values_size is not None:
+    assert pixel_seq_len > 0, 'pixel_seq_len must be greater than 0'
+    max_prefill_seq_len = max(prefill_seq_lens)
+    assert kv_size > max_prefill_seq_len + pixel_seq_len, (
+        f'The KV cache size ({kv_size}) must be greater than the maximum '
+        f'prefill sequence length ({max_prefill_seq_len}) + pixel sequence '
+        f'length ({pixel_seq_len})'
+    )
+
   if export_config is not None:
     if export_config.decode_batch_size > 1:
       output_name_prefix += f'_dbs{export_config.decode_batch_size}'
