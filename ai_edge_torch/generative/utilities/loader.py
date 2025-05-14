@@ -117,7 +117,12 @@ class ModelLoader:
     final_norm: str = None
     lm_head: str = None
 
-  def __init__(self, file_name: str, names: TensorNames) -> None:
+  def __init__(
+      self,
+      file_name: str,
+      names: TensorNames,
+      custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+  ) -> None:
     """ModelLoader constructor.
 
     Can be used to load multiple models of the same type.
@@ -126,10 +131,15 @@ class ModelLoader:
         file_name (str): Path to the checkpoint. Can be a directory or an exact
           file.
         names (TensorNames): An instance of `TensorNames` to determine mappings.
+        custom_loader (Callable[[str], Dict[str, torch.Tensor]]): A custom
+          loader to be used. If not provided, the class will determine a proper
+          loader.
     """
     self._file_name = file_name
     self._names = names
-    self._loader = self._get_loader()
+    self._loader = (
+        custom_loader if custom_loader is not None else self._get_loader()
+    )
 
   def get_state(self) -> Dict[str, torch.Tensor]:
     return self._loader(self._file_name)

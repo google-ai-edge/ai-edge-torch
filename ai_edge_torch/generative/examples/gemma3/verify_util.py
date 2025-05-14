@@ -17,7 +17,7 @@
 
 import logging
 import os
-from typing import List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from ai_edge_torch.generative.examples.gemma3 import gemma3
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
@@ -167,6 +167,7 @@ def verify_reauthored_gemma_model(
     generate_prompts: List[str],
     forward_input_ids: List[List[int]],
     weight_filename: str,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
     tokenizer_filename: str = "tokenizer.model",
     max_new_tokens: int = 20,
     rtol: float = 1e-05,
@@ -196,7 +197,14 @@ def verify_reauthored_gemma_model(
 
   logging.info("Loading the original model from: %s", checkpoint)
   original_model = gemma_model.GemmaForCausalLM(config).eval()
-  original_model.load_weights(os.path.join(checkpoint, weight_filename))
+  checkpoint_path = os.path.join(checkpoint, weight_filename)
+  if custom_loader is None:
+    original_model.load_weights(checkpoint_path)
+  else:
+    original_model.load_state_dict(
+        custom_loader(checkpoint_path)["model_state_dict"],
+        strict=False,
+    )
 
   return verifier.verify_reauthored_model(
       original_model=GemmaWrapper(original_model),
@@ -216,6 +224,7 @@ def verify_gemma3(
     max_new_tokens: int,
     variant: str,
     weight_filename: str,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
 ) -> bool:
   """Verifies the reauthored Gemma3 model.
 
@@ -225,6 +234,7 @@ def verify_gemma3(
       max_new_tokens: Maximum number of new tokens to generate.
       variant: Gemma model variant.
       weight_filename: Name of the weight file.
+      custom_loader: A custom loader to load the weights.
 
   Returns:
       True if the verification passes, False otherwise.
@@ -234,7 +244,7 @@ def verify_gemma3(
 
   if variant == "1b":
     reauthored_model = UnifiedGemma3Wrapper(
-        gemma3.build_model_1b(gemma3_model_path)
+        gemma3.build_model_1b(gemma3_model_path, custom_loader)
     )
   else:
     raise ValueError(f"Unsupported Gemma3 variant: {variant}")
@@ -247,5 +257,6 @@ def verify_gemma3(
       forward_input_ids=[[2, 651, 9456, 576, 573, 3520, 3858, 603, 235248]],
       max_new_tokens=max_new_tokens,
       weight_filename=weight_filename,
+      custom_loader=custom_loader,
       atol=1e-04,
   )

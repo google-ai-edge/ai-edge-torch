@@ -16,8 +16,7 @@
 """Example of building a Gemma3 gpu model."""
 
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
-import xmlrpc
+from typing import List, Optional, Tuple, Callable, Dict
 
 from ai_edge_torch.generative.examples.gemma3 import decoder
 from ai_edge_torch.generative.examples.gemma3 import image_encoder
@@ -166,9 +165,14 @@ def get_fake_model_config(**kwargs) -> Gemma3MMConfig:
       mm_extra_tokens=32,
   )
 
-def build_model_1b(checkpoint_path: str, **kwargs) -> decoder.Decoder:
+
+def build_model_1b(
+    checkpoint_path: str,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+    **kwargs,
+) -> decoder.Decoder:
   if checkpoint_path:
-    model = decoder.build_model_1b(checkpoint_path, **kwargs)
+    model = decoder.build_model_1b(checkpoint_path, custom_loader, **kwargs)
   else:
     config = decoder.get_decoder_config_1b(**kwargs)
     model = decoder.Decoder(config)

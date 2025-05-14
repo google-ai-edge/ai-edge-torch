@@ -16,6 +16,7 @@
 """Utilities to be used for re-authoring transformer models."""
 
 import copy
+from typing import Callable, Dict
 from typing import Optional, Tuple
 
 from ai_edge_torch.generative.layers import attention
@@ -160,9 +161,12 @@ def build_decoder_only_model(
     config: cfg.ModelConfig,
     tensor_names: loading_utils.ModelLoader.TensorNames,
     model_class: type[nn.Module] = DecoderOnlyModel,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
 ) -> nn.Module:
   transformer = model_class(config)
-  loader = loading_utils.ModelLoader(checkpoint_path, tensor_names)
+  loader = loading_utils.ModelLoader(
+      checkpoint_path, tensor_names, custom_loader
+  )
   loader.load(
       transformer, strict=not config.lm_head_share_weight_with_embedding
   )

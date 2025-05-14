@@ -15,7 +15,7 @@
 
 """Example of building a Decoder for Gemma3 model."""
 
-from typing import List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from ai_edge_torch.generative.layers import attention
 from ai_edge_torch.generative.layers import builder
@@ -410,7 +410,11 @@ def get_fake_decoder_config_1b(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
   return config
 
 
-def build_model_1b(checkpoint_path: str, **kwargs) -> nn.Module:
+def build_model_1b(
+    checkpoint_path: str,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+    **kwargs,
+) -> nn.Module:
   # TODO(b/403644647): Better error handling for loading checkpoints with
   # different tensor names.
   for tensor_names in TENSOR_NAMES_DICT.values():
@@ -420,6 +424,7 @@ def build_model_1b(checkpoint_path: str, **kwargs) -> nn.Module:
           config=get_decoder_config_1b(**kwargs),
           tensor_names=tensor_names,
           model_class=Decoder,
+          custom_loader=custom_loader,
       )
     except KeyError as ke:
       continue
