@@ -19,8 +19,34 @@ import os
 from typing import Callable, Dict, List, Tuple
 
 from ai_edge_torch.generative.layers import model_config
+import safetensors
 from safetensors import safe_open
 import torch
+
+
+def get_custom_loader(
+    checkpoint_path: str,
+) -> Callable[[str], Dict[str, torch.Tensor]]:
+  """Returns a custom loader for the given checkpoint path.
+
+  Those customer loaders can either support state dictionary or safetensors, and
+  the actual data might be fetched from a remote source.
+
+  Args:
+    checkpoint_path (string): The path to the checkpoint.
+
+  Returns:
+    Callable[[str], Dict[str, torch.Tensor]]: The custom loader.
+
+  Raises:
+    ValueError: If the checkpoint format is not supported.
+  """
+
+  if os.path.splitext(checkpoint_path)[1] in [".bin", ".pt", ".ckpt"]:
+    return lambda path: torch.load(path, weights_only=True)
+  if checkpoint_path.endswith(".safetensors"):
+    return safetensors.torch.load_file
+  raise ValueError(f"Unsupported checkpoint format: {checkpoint_path}")
 
 
 def load_safetensors(full_path: str):
