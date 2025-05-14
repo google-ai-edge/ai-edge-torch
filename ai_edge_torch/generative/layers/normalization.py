@@ -28,6 +28,8 @@ class RMSNorm(torch.nn.Module):
       dim: int,
       eps: float = 1e-6,
       zero_centered_gamma=False,
+      with_scale: bool = False,
+      scale_shift: float = 1.0,
       enable_hlfb: bool = False,
   ):
     """Initialize the RMSNorm layer.
@@ -37,13 +39,22 @@ class RMSNorm(torch.nn.Module):
       eps (float): A small float value to ensure numerical stability (default:
         1e-6).
       zero_centered_gamma (bool): Whether or not gamma has an offset.
+      with_scale (bool): Whether or not to use a scale parameter.
+      scale_shift (float): The shift to apply to the scale parameter.
       enable_hlfb (bool): use HLFB in the op.
     """
     super().__init__()
+    self.dim = dim
     self.enable_hlfb = enable_hlfb
     self.eps = eps
-    self.weight = torch.nn.Parameter(torch.ones(dim))
+    self.weight = torch.nn.Parameter(torch.ones(dim), requires_grad=False)
     self.zero_centered_gamma = zero_centered_gamma
+    self.with_scale = with_scale
+    if with_scale:
+      self.scale = torch.nn.Parameter(
+          torch.zeros((dim,), dtype=torch.float32), requires_grad=False
+      )
+    self.scale_shift = scale_shift
 
   def _norm(self, x):
     """Apply RMSNorm normalization.
@@ -70,14 +81,20 @@ class RMSNorm(torch.nn.Module):
     else:
       w = self.weight
 
+    final_scale = (
+        self.scale + self.scale_shift
+        if self.with_scale
+        else torch.ones((self.dim,), dtype=torch.float32)
+    )
     if self.enable_hlfb:
       return rms_norm_with_hlfb(
           x,
           w,
           self.eps,
+          final_scale,
       )
     else:
-      output = self._norm(x.float()).type_as(x)
+      output = self._norm(x.float()).type_as(x) * final_scale
       return output * w
 
 
@@ -104,8 +121,8 @@ class GroupNorm(torch.nn.Module):
     self.enable_hlfb = enable_hlfb
     self.group_num = group_num
     self.eps = eps
-    self.weight = torch.nn.Parameter(torch.empty(dim))
-    self.bias = torch.nn.Parameter(torch.empty(dim))
+    self.weight = torch.nn.Parameter(torch.empty(dim), requires_grad=False)
+    self.bias = torch.nn.Parameter(torch.empty(dim), requires_grad=False)
 
   def forward(self, x):
     """Running the forward pass of GroupNorm layer.
@@ -140,8 +157,8 @@ class LayerNorm(torch.nn.Module):
     self.enable_hlfb = enable_hlfb
     self.normalized_shape = (dim,)
     self.eps = eps
-    self.weight = torch.nn.Parameter(torch.empty(dim))
-    self.bias = torch.nn.Parameter(torch.empty(dim))
+    self.weight = torch.nn.Parameter(torch.empty(dim), requires_grad=False)
+    self.bias = torch.nn.Parameter(torch.empty(dim), requires_grad=False)
 
   def forward(self, x):
     """Running the forward pass of LayerNorm layer.
@@ -165,6 +182,7 @@ def rms_norm_with_hlfb(
     x: torch.Tensor,
     w: torch.Tensor,
     eps: float,
+    final_scale: torch.Tensor,
 ):
   """RMS Normalization with high-level function boundary enabled.
 
@@ -172,6 +190,7 @@ def rms_norm_with_hlfb(
     x (torch.Tensor): Input tensor for RMS Normalization, with BCHW shape.
     w (torch.Tensor): The learned parameter tensor for normalization.
     eps (float): A small float value to ensure numerical stability.
+    final_scale (torch.Tensor): The final scale to apply to the normalization.
 
   Returns:
     The output tensor of RMS Normalization.
@@ -185,7 +204,7 @@ def rms_norm_with_hlfb(
   def _norm(x):
     return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + eps)
 
-  output = _norm(x.float()).type_as(x)
+  output = _norm(x.float()).type_as(x) * final_scale
   out = output * w
 
   out = builder.mark_outputs(out)
