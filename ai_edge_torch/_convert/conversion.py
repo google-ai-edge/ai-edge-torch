@@ -26,6 +26,9 @@ from ai_edge_torch.generative import fx_passes as generative_fx_passes
 from ai_edge_torch.quantize import quant_config as qcfg
 import torch
 
+from ai_edge_litert.aot import aot_compile as aot_compile_lib
+from ai_edge_litert.aot.core import types as litert_types
+
 
 def _run_convert_passes(
     exported_program: torch.export.ExportedProgram,
@@ -153,3 +156,23 @@ def convert_signatures(
   )
 
   return model.TfLiteModel(tflite_model)
+
+
+def aot_compile(
+    compilation_configs: list[litert_types.CompilationConfig],
+    cpu_model: model.TfLiteModel,
+) -> litert_types.CompilationResult:
+  """Compiles the given CPU model.
+
+  Args:
+    compilation_configs: The list of compilation configs to use.
+    cpu_model: The CPU model to compile.
+
+  Returns:
+    The compilation result.
+  """
+  litert_model = litert_types.Model.create_from_bytes(cpu_model.tflite_model())
+  return aot_compile_lib.aot_compile(
+      litert_model,
+      config=compilation_configs,
+  )

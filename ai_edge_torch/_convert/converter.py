@@ -23,6 +23,9 @@ from ai_edge_torch._convert import signature as signature_module
 from ai_edge_torch.quantize import quant_config as qcfg
 import torch
 
+from ai_edge_litert.aot.core import types as litert_types
+from ai_edge_litert.aot.vendors import import_vendor as vendor_lib
+
 
 class Converter:
   """A converter for converting PyTorch models to edge models.
@@ -32,6 +35,7 @@ class Converter:
 
   def __init__(self):
     self._signatures: list[signature_module.Signature] = []
+    self._compilation_configs: list[litert_types.CompilationConfig] = []
 
   def signature(
       self,
@@ -96,6 +100,31 @@ class Converter:
     )
     return self
 
+  def experimental_add_compilation_backend(
+      self,
+      target: litert_types.Target | None = None,
+      **kwargs: litert_types.Config,
+  ) -> Converter:
+    """Adds an AOT compilation target to the converter.
+
+    NOTE: This API is experimental and subject to change.
+
+    Args:
+      target: The target to compile for. If not specified, will compile to all
+        registered AOT targets in ai_edge_litert. See ai_edge_litert.aot.vendors
+        for more details. Adding a same target multiple times will be a no-op.
+      **kwargs: Additional arguments to pass to the backend compiler.
+
+    Returns:
+      The converter object itself.
+    """
+    if target is None:
+      target = vendor_lib.AllRegisteredTarget()
+    if isinstance(target, litert_types.Target):
+      target = litert_types.CompilationConfig(target=target, **kwargs)
+    self._compilation_configs.append(target)
+    return self
+
   def convert(
       self,
       module: torch.nn.Module = None,
@@ -107,7 +136,7 @@ class Converter:
       dynamic_shapes: Optional[Union[dict[str, Any], Tuple[Any, ...]]] = None,
       _ai_edge_converter_flags: Optional[dict[str, Any]] = None,
       _saved_model_dir: Optional[str] = None,
-  ) -> model.TfLiteModel:
+  ) -> model.TfLiteModel | litert_types.CompilationResult:
     """Finalizes the conversion and produces an edge model.
 
     This could be called with no arguments as follows:
@@ -144,7 +173,9 @@ class Converter:
         specified, a random temporary directory would be used.
 
     Returns:
-      The converted edge model.
+      The converted edge model. If compilation configs are provided, returns the
+      compilation result that contains the compiled edge models for different
+      targets.
 
     Raises:
       ValueError: If the arguments are not provided as expected. See the example
@@ -169,13 +200,16 @@ class Converter:
             "sample_args or sample_kwargs must be provided if a module is"
             " specified."
         )
-    return conversion.convert_signatures(
+    converted_model = conversion.convert_signatures(
         self._signatures,
         strict_export=strict_export,
         quant_config=quant_config,
         _tfl_converter_flags=_ai_edge_converter_flags,
         _saved_model_dir=_saved_model_dir,
     )
+    if self._compilation_configs:
+      return conversion.aot_compile(self._compilation_configs, converted_model)
+    return converted_model
 
 
 def signature(
@@ -209,6 +243,26 @@ def signature(
   return Converter().signature(
       name, module, sample_args, sample_kwargs, dynamic_shapes=dynamic_shapes
   )
+
+
+def experimental_add_compilation_backend(
+    target: litert_types.Target | None = None,
+    **kwargs: litert_types.Config,
+) -> Converter:
+  """Adds an AOT compilation target to the converter.
+
+  NOTE: This API is experimental and subject to change.
+
+  Args:
+    target: The target to compile for. If not specified, will compile to all
+      registered AOT targets in ai_edge_litert. See ai_edge_litert.aot.vendors
+      for more details. Adding a same target multiple times will be a no-op.
+    **kwargs: Additional arguments to pass to the backend compiler.
+
+  Returns:
+    The converter object itself.
+  """
+  return Converter().experimental_add_compilation_backend(target, **kwargs)
 
 
 def convert(

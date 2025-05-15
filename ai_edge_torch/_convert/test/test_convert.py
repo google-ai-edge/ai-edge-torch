@@ -29,6 +29,8 @@ from torch.ao.quantization import quantize_pt2e
 import torchvision
 
 from absl.testing import absltest as googletest
+from ai_edge_litert.aot.core import types as litert_types
+from ai_edge_litert.aot.vendors import fallback_backend
 from ai_edge_litert import interpreter as tfl_interpreter  # pylint: disable=g-direct-tensorflow-import
 
 
@@ -573,6 +575,29 @@ class TestConvert(googletest.TestCase):
     except Exception as err:
       self.fail(f"Conversion failed with bloat16 inputs: {err}")
     # pylint: enable=broad-except
+
+  def test_compile_model(self):
+    """Tests AOT compilation of a simple Add module."""
+
+    class Add(nn.Module):
+
+      def forward(self, a, b):
+        return a + b
+
+    args = (
+        torch.randn((5, 10)),
+        torch.randn((5, 10)),
+    )
+    torch_module = Add().eval()
+    compilation_result = ai_edge_torch.experimental_add_compilation_backend(
+        fallback_backend.FallbackTarget()
+    ).convert(torch_module, args)
+    assert isinstance(compilation_result, litert_types.CompilationResult)
+    self.assertLen(compilation_result.models_with_backend, 1)
+    self.assertEqual(
+        compilation_result.models_with_backend[0][0].id(),
+        fallback_backend.FallbackBackend.id(),
+    )
 
 
 if __name__ == "__main__":

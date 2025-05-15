@@ -14,6 +14,7 @@
 # ==============================================================================
 from ai_edge_torch._config import config
 from ai_edge_torch._convert.converter import convert
+from ai_edge_torch._convert.converter import experimental_add_compilation_backend
 from ai_edge_torch._convert.converter import signature
 from ai_edge_torch._convert.to_channel_last_io import to_channel_last_io
 from ai_edge_torch.model import Model
