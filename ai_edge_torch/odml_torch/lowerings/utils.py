@@ -268,3 +268,16 @@ def numpy_array_constant(x: np.ndarray | np.generic) -> IrValues:
   x = np.ascontiguousarray(x)
   attr = ir.DenseElementsAttr.get(x, type=element_type, shape=shape)  # type: ignore
   return stablehlo.constant(attr)
+
+
+def convert_to_ir_value(
+    value: ir.Value | int | float | np.ndarray | np.generic,
+) -> ir.Value:
+  if isinstance(value, (np.ndarray, np.generic)):
+    return numpy_array_constant(value)
+  if isinstance(value, (int, float)):
+    dtype = np.float32 if isinstance(value, float) else np.int32
+    return numpy_array_constant(np.array([value], dtype=dtype))
+  if isinstance(value, ir.Value):
+    return value
+  raise TypeError(f"Unsupported type for conversion to ir.Value: {type(value)}")

@@ -73,9 +73,10 @@ def _tfl_batch_matmul_lowering(
 def _tfl_add_lowering(
     lctx: LoweringContext,
     lhs: ir.Value,
-    rhs: ir.Value,
+    rhs: ir.Value | int | float,
     fused_activation_function: str = "NONE",
 ) -> ir.Value:
+  rhs = lowering_utils.convert_to_ir_value(rhs)
   return _ir_operation(
       "tfl.add",
       results=lowering_utils.node_meta_to_ir_types(lctx.node),
@@ -92,9 +93,10 @@ def _tfl_add_lowering(
 def _tfl_sub_lowering(
     lctx: LoweringContext,
     lhs: ir.Value,
-    rhs: ir.Value,
+    rhs: ir.Value | int | float,
     fused_activation_function: str = "NONE",
 ) -> ir.Value:
+  rhs = lowering_utils.convert_to_ir_value(rhs)
   return _ir_operation(
       "tfl.sub",
       results=lowering_utils.node_meta_to_ir_types(lctx.node),
@@ -111,9 +113,10 @@ def _tfl_sub_lowering(
 def _tfl_mul_lowering(
     lctx: LoweringContext,
     lhs: ir.Value,
-    rhs: ir.Value,
+    rhs: ir.Value | int | float,
     fused_activation_function: str = "NONE",
 ) -> ir.Value:
+  rhs = lowering_utils.convert_to_ir_value(rhs)
   return _ir_operation(
       "tfl.mul",
       results=lowering_utils.node_meta_to_ir_types(lctx.node),
@@ -130,9 +133,10 @@ def _tfl_mul_lowering(
 def _tfl_div_lowering(
     lctx: LoweringContext,
     lhs: ir.Value,
-    rhs: ir.Value,
+    rhs: ir.Value | int | float,
     fused_activation_function: str = "NONE",
 ) -> ir.Value:
+  rhs = lowering_utils.convert_to_ir_value(rhs)
   return _ir_operation(
       "tfl.div",
       results=lowering_utils.node_meta_to_ir_types(lctx.node),

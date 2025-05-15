@@ -13,10 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 """Torch-TFL op definitions and fake implementations."""
+
 import re
-from typing import Sequence
+from typing import Any, Sequence
+
 from ai_edge_torch.odml_torch.experimental.torch_tfl import torch_library_utils
+import numpy as np
 import torch
+
 
 custom_op_with_fake = torch_library_utils.custom_op_with_fake
 
@@ -34,23 +38,23 @@ def tfl_batch_matmul(
   return torch.matmul(x, y)
 
 
-@custom_op_with_fake("tfl::add")
-def tfl_add(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+@custom_op_with_fake("tfl::add", schema="(Tensor x, Any y) -> Tensor")
+def tfl_add(x: torch.Tensor, y: Any) -> torch.Tensor:
   return torch.add(x, y)
 
 
-@custom_op_with_fake("tfl::sub")
-def tfl_sub(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+@custom_op_with_fake("tfl::sub", schema="(Tensor x, Any y) -> Tensor")
+def tfl_sub(x: torch.Tensor, y: Any) -> torch.Tensor:
   return torch.sub(x, y)
 
 
-@custom_op_with_fake("tfl::mul")
-def tfl_mul(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+@custom_op_with_fake("tfl::mul", schema="(Tensor x, Any y) -> Tensor")
+def tfl_mul(x: torch.Tensor, y: Any) -> torch.Tensor:
   return torch.mul(x, y)
 
 
-@custom_op_with_fake("tfl::div")
-def tfl_div(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+@custom_op_with_fake("tfl::div", schema="(Tensor x, Any y) -> Tensor")
+def tfl_div(x: torch.Tensor, y: Any) -> torch.Tensor:
   return torch.div(x, y)
 
 
@@ -102,23 +106,82 @@ def tfl_transpose(input: torch.Tensor, perm: Sequence[int]) -> torch.Tensor:
   return torch.permute(input, perm).clone()
 
 
+def _normalize_shape(
+    tensor_input: torch.Tensor, shape: Sequence[int]
+) -> Sequence[int]:
+  """Normalize the size for the -1 dimension in the "shape".
+
+  Args:
+      tensor_input: The input tensor.
+      shape: The desired shape, which may contain a -1 to indicate an inferred
+        dimension.
+
+  Returns:
+      The inferred shape.
+
+  Raises:
+      ValueError: If the shape is invalid or cannot be inferred.
+  """
+  inferred_shape = list(shape)
+  if -1 in inferred_shape:
+    numel = tensor_input.numel()
+    product = 1
+    neg_one_idx = -1
+    for i, dim in enumerate(inferred_shape):
+      if dim == -1:
+        if neg_one_idx != -1:
+          raise ValueError("Only one dimension can be inferred (-1)")
+        neg_one_idx = i
+      elif dim >= 0:
+        product *= dim
+      else:
+        raise ValueError(
+            "Shape dimensions must be non-negative or -1 for inference"
+        )
+
+    if neg_one_idx != -1:
+      if product == 0:
+        if numel != 0:
+          raise ValueError(
+              "Cannot infer dimension for non-zero input size when other"
+              " dimensions multiply to zero"
+          )
+        inferred_shape[neg_one_idx] = 0
+      else:
+        if numel % product != 0:
+          raise ValueError(
+              f"Input size {numel} not divisible by product of known dimensions"
+              f" {product}"
+          )
+        inferred_shape[neg_one_idx] = numel // product
+
+  # Ensure the inferred shape still matches the total number of elements
+  if np.prod(inferred_shape) != tensor_input.numel():
+    raise ValueError(
+        f"Calculated shape {inferred_shape} does not match input numel"
+        f" {tensor_input.numel()}"
+    )
+
+  return inferred_shape
+
+
 @torch.library.custom_op("tfl::reshape", mutates_args=())
 def tfl_reshape(input: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
-  assert torch.Size(shape).numel() == input.numel()
-
-  return input.view(shape).clone()
+  inferred_shape = _normalize_shape(input, shape)
+  return input.view(inferred_shape).clone()
 
 
 # Use explicit fake implementation for tfl.reshape because dynamo cannot
 # derive the output's symbolic shape from the impl above.
 @torch.library.register_fake("tfl::reshape")
 def tfl_reshape_fake(input: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
-  return torch.empty(shape, dtype=input.dtype)
+  inferred_shape = _normalize_shape(input, shape)
+  return torch.empty(inferred_shape, dtype=input.dtype)
 
 
 @custom_op_with_fake("tfl::softmax")
 def tfl_softmax(x: torch.Tensor) -> torch.Tensor:
-  return torch.nn.functional.softmax(x)
+  return torch.nn.functional.softmax(x, dim=-1)
 
 
 @custom_op_with_fake("tfl::slice")
