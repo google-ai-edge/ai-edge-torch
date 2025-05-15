@@ -21,6 +21,7 @@ from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.paligemma import paligemma
 from ai_edge_torch.generative.layers import kv_cache
+from ai_edge_torch.generative.utilities import transformers_verifier
 from ai_edge_torch.generative.utilities import verifier
 import kagglehub
 from PIL import Image
@@ -39,10 +40,15 @@ _IMAGE_URL = flags.DEFINE_string(
     "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/car.jpg?download=true",
     "The image URI to encode.",
 )
-_PROMPTS = flags.DEFINE_string(
-    "prompts",
+_PROMPTS_WITH_IMAGE = flags.DEFINE_string(
+    "prompts_with_image",
     "<image><bos>describe en",
-    "The input prompts to generate answers.",
+    "The input prompts to generate answers with an image.",
+)
+_PROMPTS_TEXT_ONLY = flags.DEFINE_multi_string(
+    "prompts_text_only",
+    "What is the meaning of life?",
+    "The input prompts to generate answers only with text.",
 )
 _MAX_NEW_TOKENS = flags.DEFINE_integer(
     "max_new_tokens",
@@ -84,6 +90,7 @@ def main(_):
   reauthored_model = paligemma.build_model(
       reauthored_checkpoint, version=int(_VERSION.value)
   )
+  wrapped_reauthored_model = ReauthoredPaliGemmaWrapper(reauthored_model)
 
   logging.info("Loading the processor from: %s", checkpoint)
   # It works only when GemmaTokenizerFast is available. In some environments,
@@ -91,9 +98,25 @@ def main(_):
   # sentencepiece model file properly.
   processor = transformers.AutoProcessor.from_pretrained(checkpoint)
 
+  logging.info("Verifying with text-only prompts...")
+  verifier.verify_reauthored_model(
+      original_model=transformers_verifier.TransformersModelWrapper(
+          original_model
+      ),
+      reauthored_model=wrapped_reauthored_model,
+      tokenizer=verifier.TokenizerWrapper(processor.tokenizer),
+      generate_prompts=_PROMPTS_TEXT_ONLY.value,
+      max_new_tokens=_MAX_NEW_TOKENS.value,
+      verify_inputs=False,  # Numeric check not working. Disable it for now.
+      atol=1e-04,
+  )
+
+  logging.info("Verifying with image input...")
   logging.info("Loading the image from: %s", _IMAGE_URL.value)
   image = Image.open(requests.get(_IMAGE_URL.value, stream=True).raw)
-  inputs = processor(text=_PROMPTS.value, images=image, return_tensors="pt")
+  inputs = processor(
+      text=_PROMPTS_WITH_IMAGE.value, images=image, return_tensors="pt"
+  )
 
   logging.info("Verifying the reauthored model with model.forward()...")
   logging.info("Forwarding the original model...")
@@ -104,7 +127,6 @@ def main(_):
   logging.info("outputs_original: %s", outputs_original)
 
   logging.info("Forwarding the reauthored model...")
-  wrapped_reauthored_model = ReauthoredPaliGemmaWrapper(reauthored_model)
   outputs_reauthored = wrapped_reauthored_model.forward(
       tokens=inputs["input_ids"],
       pixel_values=inputs["pixel_values"],
