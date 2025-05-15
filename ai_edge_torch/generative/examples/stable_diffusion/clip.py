@@ -57,7 +57,8 @@ class CLIP(nn.Module):
     super().__init__()
     self.tok_embedding = nn.Embedding(config.vocab_size, config.embedding_dim)
     self.tok_embedding_position = nn.Parameter(
-        torch.zeros((config.max_seq_len, config.embedding_dim))
+        torch.zeros((config.max_seq_len, config.embedding_dim)),
+        requires_grad=False,
     )
 
     self.config = config

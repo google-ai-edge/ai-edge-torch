@@ -66,7 +66,8 @@ class SiglipVisionEncoder(nn.Module):
         config.image_embedding.image_size // config.image_embedding.patch_size
     ) ** 2
     self.tok_embedding_position = nn.Parameter(
-        torch.zeros((num_patches, config.embedding_dim))
+        torch.zeros((num_patches, config.embedding_dim)),
+        requires_grad=False,
     )
 
     self.transformer_blocks = nn.ModuleList(
