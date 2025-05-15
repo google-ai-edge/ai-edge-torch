@@ -17,7 +17,7 @@
 
 from functools import partial
 import math
-from typing import Tuple
+from typing import Callable, Dict, Tuple
 
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.utilities import model_builder
@@ -157,11 +157,16 @@ def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
   return config
 
 
-def build_model(checkpoint_path: str, **kwargs) -> torch.nn.Module:
+def build_model(
+    checkpoint_path: str,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+    **kwargs
+) -> torch.nn.Module:
   """Instantiates the model instance and load checkpoint if provided."""
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
       config=get_model_config(**kwargs),
       tensor_names=TENSOR_NAMES,
       model_class=Phi4Mini,
+      custom_loader=custom_loader,
   )

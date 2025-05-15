@@ -19,6 +19,7 @@ from absl import app
 from ai_edge_torch.generative.examples.qwen_vl import qwen_vl
 from ai_edge_torch.generative.utilities import converter
 from ai_edge_torch.generative.utilities import export_config
+from ai_edge_torch.generative.utilities import loader
 
 flags = converter.define_conversion_flags('qwen_vl')
 
@@ -35,8 +36,12 @@ _IMAGE_WIDTH = flags.DEFINE_integer(
 
 
 def main(_):
+  checkpoint_path = flags.FLAGS.checkpoint_path
   pytorch_model = qwen_vl.build_model(
-      flags.FLAGS.checkpoint_path,
+      checkpoint_path,
+      custom_loader=loader.maybe_get_custom_loader(
+          checkpoint_path, flags.FLAGS.custom_checkpoint_loader
+      ),
       kv_cache_max_len=flags.FLAGS.kv_cache_max_len,
       image_size=(_IMAGE_HEIGHT.value, _IMAGE_WIDTH.value),
   )

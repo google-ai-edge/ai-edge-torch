@@ -15,7 +15,7 @@
 
 """Example of building a Gemma2 model."""
 
-from typing import List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from ai_edge_torch.generative.layers import attention
 from ai_edge_torch.generative.layers import builder
@@ -306,7 +306,11 @@ def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
   return config
 
 
-def build_2b_model(checkpoint_path: str, **kwargs) -> nn.Module:
+def build_2b_model(
+    checkpoint_path: str,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+    **kwargs,
+) -> nn.Module:
   for tensor_names in TENSOR_NAMES_DICT.values():
     try:
       return model_builder.build_decoder_only_model(
@@ -314,6 +318,7 @@ def build_2b_model(checkpoint_path: str, **kwargs) -> nn.Module:
           config=get_model_config_2b(**kwargs),
           tensor_names=tensor_names,
           model_class=Gemma2,
+          custom_loader=custom_loader,
       )
     except KeyError as _:
       continue

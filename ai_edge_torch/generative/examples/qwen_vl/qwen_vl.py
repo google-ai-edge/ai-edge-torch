@@ -16,7 +16,7 @@
 """Example of building a full-stack of Qwen 2.5 VL model."""
 
 import dataclasses
-from typing import List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from ai_edge_torch.generative.examples.qwen_vl import decoder
 from ai_edge_torch.generative.examples.qwen_vl import image_encoder
@@ -204,12 +204,20 @@ def get_fake_model_config(**kwargs) -> QwenVLConfig:
   )
 
 
-def build_model(checkpoint_path: str, **kwargs) -> QwenVL:
+def build_model(
+    checkpoint_path: str,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+    **kwargs
+) -> QwenVL:
   config = get_model_config(**kwargs)
   model = QwenVL(config)
-  image_encoder.load_image_encoder(checkpoint_path, model.image_encoder)
+  image_encoder.load_image_encoder(
+      checkpoint_path, model.image_encoder, custom_loader
+  )
   # Load the parameters of decoder.
-  loader = loading_utils.ModelLoader(checkpoint_path, decoder.TENSOR_NAMES)
+  loader = loading_utils.ModelLoader(
+      checkpoint_path, decoder.TENSOR_NAMES, custom_loader
+  )
   loader.load(model.decoder, strict=False)
   model.eval()
   return model

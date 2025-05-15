@@ -15,9 +15,11 @@
 
 """Example of building an OpenELM model."""
 
+from typing import Callable, Dict
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.utilities import model_builder
 import ai_edge_torch.generative.utilities.loader as loading_utils
+import torch
 from torch import nn
 
 TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
@@ -118,10 +120,15 @@ def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
   return config
 
 
-def build_model(checkpoint_path: str, **kwargs) -> nn.Module:
+def build_model(
+    checkpoint_path: str,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+    **kwargs
+) -> nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
       config=get_model_config(**kwargs),
       tensor_names=TENSOR_NAMES,
       model_class=OpenELM,
+      custom_loader=custom_loader,
   )

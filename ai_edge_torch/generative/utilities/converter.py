@@ -119,6 +119,12 @@ def define_conversion_flags(
       default_transpose_kv_cache,
       'If true, the model will be converted with transposed KV cache.',
   )
+  flags.DEFINE_bool(
+      'custom_checkpoint_loader',
+      False,
+      'If true, the conversion script will use a custom checkpoint loader which'
+      ' will read a checkpoint from a remote source.',
+  )
   return flags
 
 

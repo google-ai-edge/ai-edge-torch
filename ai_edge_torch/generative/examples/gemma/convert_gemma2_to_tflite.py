@@ -19,6 +19,7 @@ from absl import app
 from ai_edge_torch.generative.examples.gemma import gemma2
 from ai_edge_torch.generative.utilities import converter
 from ai_edge_torch.generative.utilities import export_config
+from ai_edge_torch.generative.utilities import loader
 
 flags = converter.define_conversion_flags(
     "gemma2-2b", default_mask_as_input=True, default_transpose_kv_cache=True
@@ -26,8 +27,13 @@ flags = converter.define_conversion_flags(
 
 
 def main(_):
+  checkpoint_path = flags.FLAGS.checkpoint_path
   pytorch_model = gemma2.build_2b_model(
-      flags.FLAGS.checkpoint_path, kv_cache_max_len=flags.FLAGS.kv_cache_max_len
+      checkpoint_path,
+      custom_loader=loader.maybe_get_custom_loader(
+          checkpoint_path, flags.FLAGS.custom_checkpoint_loader
+      ),
+      kv_cache_max_len=flags.FLAGS.kv_cache_max_len,
   )
   converter.convert_to_tflite(
       pytorch_model,

@@ -15,8 +15,10 @@
 
 """Example of building Qwen 2.5 models."""
 
+from typing import Callable, Dict
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.utilities import model_builder
+import torch
 from torch import nn
 
 TENSOR_NAMES = model_builder.TENSOR_NAMES
@@ -108,28 +110,43 @@ def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
   return config
 
 
-def build_3b_model(checkpoint_path: str, **kwargs) -> nn.Module:
+def build_3b_model(
+    checkpoint_path: str,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+    **kwargs
+) -> nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
       config=get_3b_model_config(**kwargs),
       tensor_names=TENSOR_NAMES,
       model_class=Qwen,
+      custom_loader=custom_loader,
   )
 
 
-def build_1_5b_model(checkpoint_path: str, **kwargs) -> nn.Module:
+def build_1_5b_model(
+    checkpoint_path: str,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+    **kwargs
+) -> nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
       config=get_1_5b_model_config(**kwargs),
       tensor_names=TENSOR_NAMES,
       model_class=Qwen,
+      custom_loader=custom_loader,
   )
 
 
-def build_0_5b_model(checkpoint_path: str, **kwargs) -> nn.Module:
+def build_0_5b_model(
+    checkpoint_path: str,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+    **kwargs
+) -> nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
       config=get_0_5b_model_config(**kwargs),
       tensor_names=TENSOR_NAMES,
       model_class=Qwen,
+      custom_loader=custom_loader,
   )

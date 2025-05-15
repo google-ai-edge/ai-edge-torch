@@ -15,12 +15,12 @@
 
 """Example of converting SmolLM model to multi-signature tflite model."""
 
-import os
 from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.smollm import smollm
 from ai_edge_torch.generative.utilities import converter
 from ai_edge_torch.generative.utilities import export_config as export_cfg
+from ai_edge_torch.generative.utilities import loader
 
 flags = converter.define_conversion_flags('smollm')
 
@@ -32,8 +32,13 @@ _DECODE_BATCH_SIZE = flags.DEFINE_integer(
 
 
 def main(_):
+  checkpoint_path = flags.FLAGS.checkpoint_path
   pytorch_model = smollm.build_model(
-      flags.FLAGS.checkpoint_path, kv_cache_max_len=flags.FLAGS.kv_cache_max_len
+      checkpoint_path,
+      custom_loader=loader.maybe_get_custom_loader(
+          checkpoint_path, flags.FLAGS.custom_checkpoint_loader
+      ),
+      kv_cache_max_len=flags.FLAGS.kv_cache_max_len,
   )
 
   export_config = export_cfg.get_from_flags()

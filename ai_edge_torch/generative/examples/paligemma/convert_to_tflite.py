@@ -19,6 +19,7 @@ from absl import app
 from ai_edge_torch.generative.examples.paligemma import paligemma
 from ai_edge_torch.generative.utilities import converter
 from ai_edge_torch.generative.utilities import export_config
+from ai_edge_torch.generative.utilities import loader
 import torch
 
 flags = converter.define_conversion_flags('paligemma2-3b-224')
@@ -32,9 +33,13 @@ _VERSION = flags.DEFINE_enum(
 
 
 def main(_):
+  checkpoint_path = flags.FLAGS.checkpoint_path
   pytorch_model = paligemma.build_model(
-      flags.FLAGS.checkpoint_path,
+      checkpoint_path,
       version=int(_VERSION.value),
+      custom_loader=loader.maybe_get_custom_loader(
+          checkpoint_path, flags.FLAGS.custom_checkpoint_loader
+      ),
       kv_cache_max_len=flags.FLAGS.kv_cache_max_len,
   )
 

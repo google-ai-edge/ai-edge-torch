@@ -19,13 +19,19 @@ from absl import app
 from ai_edge_torch.generative.examples.gemma import gemma1
 from ai_edge_torch.generative.utilities import converter
 from ai_edge_torch.generative.utilities import export_config
+from ai_edge_torch.generative.utilities import loader
 
 flags = converter.define_conversion_flags("gemma-2b")
 
 
 def main(_):
+  checkpoint_path = flags.FLAGS.checkpoint_path
   pytorch_model = gemma1.build_2b_model(
-      flags.FLAGS.checkpoint_path, kv_cache_max_len=flags.FLAGS.kv_cache_max_len
+      checkpoint_path,
+      custom_loader=loader.maybe_get_custom_loader(
+          checkpoint_path, flags.FLAGS.custom_checkpoint_loader
+      ),
+      kv_cache_max_len=flags.FLAGS.kv_cache_max_len,
   )
   converter.convert_to_tflite(
       pytorch_model,

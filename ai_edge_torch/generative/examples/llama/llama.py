@@ -17,7 +17,7 @@
 
 from functools import partial
 import math
-from typing import Tuple
+from typing import Callable, Dict, Tuple
 
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.utilities import model_builder
@@ -180,19 +180,38 @@ def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
 
 
 def _build_model(
-    checkpoint_path: str, config: cfg.ModelConfig
+    checkpoint_path: str,
+    config: cfg.ModelConfig,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
 ) -> torch.nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
       config=config,
       tensor_names=TENSOR_NAMES,
       model_class=Llama,
+      custom_loader=custom_loader,
   )
 
 
-def build_1b_model(checkpoint_path: str, **kwargs) -> torch.nn.Module:
-  return _build_model(checkpoint_path, get_1b_model_config(**kwargs))
+def build_1b_model(
+    checkpoint_path: str,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+    **kwargs
+) -> torch.nn.Module:
+  return _build_model(
+      checkpoint_path,
+      get_1b_model_config(**kwargs),
+      custom_loader=custom_loader,
+  )
 
 
-def build_3b_model(checkpoint_path: str, **kwargs) -> torch.nn.Module:
-  return _build_model(checkpoint_path, get_3b_model_config(**kwargs))
+def build_3b_model(
+    checkpoint_path: str,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+    **kwargs
+) -> torch.nn.Module:
+  return _build_model(
+      checkpoint_path,
+      get_3b_model_config(**kwargs),
+      custom_loader=custom_loader,
+  )

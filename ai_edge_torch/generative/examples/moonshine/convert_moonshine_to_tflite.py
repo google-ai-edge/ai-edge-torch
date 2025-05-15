@@ -22,7 +22,6 @@ from absl import app
 from absl import flags
 import ai_edge_torch
 from ai_edge_torch.generative.examples.moonshine import moonshine
-from ai_edge_torch.generative.utilities import converter
 import torch
 
 _CHECKPOINT_PATH = flags.DEFINE_string(

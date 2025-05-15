@@ -15,8 +15,10 @@
 
 """Example of building a TinyLlama model."""
 
+from typing import Callable, Dict
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.utilities import model_builder
+import torch
 from torch import nn
 
 TENSOR_NAMES = model_builder.TENSOR_NAMES_WITH_SEPARATE_LM_HEAD
@@ -81,10 +83,15 @@ def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
   return config
 
 
-def build_model(checkpoint_path: str, **kwargs) -> nn.Module:
+def build_model(
+    checkpoint_path: str,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+    **kwargs
+) -> nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
       config=get_model_config(**kwargs),
       tensor_names=TENSOR_NAMES,
       model_class=TinyLlama,
+      custom_loader=custom_loader,
   )

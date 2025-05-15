@@ -49,6 +49,25 @@ def get_custom_loader(
   raise ValueError(f"Unsupported checkpoint format: {checkpoint_path}")
 
 
+def maybe_get_custom_loader(
+    checkpoint_path: str,
+    use_custom_loader: bool = False,
+) -> Callable[[str], Dict[str, torch.Tensor]] | None:
+  """Returns a custom loader for the given checkpoint path.
+
+  If use_custom_loader is True, the function will return a custom loader.
+  Otherwise, it will return None.
+
+  Args:
+    checkpoint_path (string): The path to the checkpoint.
+    use_custom_loader (bool): Whether to use a custom loader.
+
+  Returns:
+    Callable[[str], Dict[str, torch.Tensor]] | None: The custom loader.
+  """
+  return get_custom_loader(checkpoint_path) if use_custom_loader else None
+
+
 def load_safetensors(full_path: str):
   """Loads safetensors into a single state dictionary.
 

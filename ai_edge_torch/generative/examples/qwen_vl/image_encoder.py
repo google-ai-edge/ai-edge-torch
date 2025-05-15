@@ -16,7 +16,7 @@
 """Example of building an image encoder of Qwen 2.5 VL model."""
 
 import dataclasses
-from typing import List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from ai_edge_torch.generative.layers import attention
 from ai_edge_torch.generative.layers import attention_utils
@@ -385,13 +385,21 @@ def build_image_encoder(
   return encoder
 
 
-def load_image_encoder(checkpoint_path: str, encoder: QwenVLImageEncoder):
-  loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
+def load_image_encoder(
+    checkpoint_path: str,
+    encoder: QwenVLImageEncoder,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+):
+  loader = loading_utils.ModelLoader(
+      checkpoint_path, TENSOR_NAMES, custom_loader
+  )
   # Loose the strictness because only image encoder is being loaded.
   loader.load(encoder, strict=False)
 
   # Load merger weights.
-  merger_loader = loading_utils.ModelLoader(checkpoint_path, None)
+  merger_loader = loading_utils.ModelLoader(
+      checkpoint_path, None, custom_loader
+  )
   state = merger_loader.get_state()
   w1_state = dict()
   w1_state["weight"] = state.pop(f"{MERGER_TENSOR_NAMES.ff_up_proj}.weight")

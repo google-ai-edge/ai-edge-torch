@@ -16,7 +16,7 @@
 """Example of building a full-stack of PaliGemma model."""
 
 import dataclasses
-from typing import Optional
+from typing import Callable, Dict, Optional
 
 from ai_edge_torch.generative.examples.paligemma import decoder
 from ai_edge_torch.generative.examples.paligemma import decoder2
@@ -139,7 +139,12 @@ def get_fake_model_config(get_decoder_config, **kwargs) -> PaliGemmaConfig:
   )
 
 
-def build_model(checkpoint_path: str, version: int = 2, **kwargs) -> PaliGemma:
+def build_model(
+    checkpoint_path: str,
+    version: int = 2,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+    **kwargs,
+) -> PaliGemma:
   if version == 1:
     decoder_class = decoder.Decoder
     decoder_tensor_names = decoder.TENSOR_NAMES
@@ -153,15 +158,17 @@ def build_model(checkpoint_path: str, version: int = 2, **kwargs) -> PaliGemma:
   model = PaliGemma(config, decoder_class)
   # Load the parameters of image encoder.
   loader = loading_utils.ModelLoader(
-      checkpoint_path, image_encoder.TENSOR_NAMES
+      checkpoint_path, image_encoder.TENSOR_NAMES, custom_loader
   )
   loader.load(model.image_encoder, strict=False)
   # Load the parameters of decoder.
-  loader = loading_utils.ModelLoader(checkpoint_path, decoder_tensor_names)
+  loader = loading_utils.ModelLoader(
+      checkpoint_path, decoder_tensor_names, custom_loader
+  )
   loader.load(model.decoder, strict=False)
 
   # Load the parameters of image projection.
-  loader = loading_utils.ModelLoader(checkpoint_path, None)
+  loader = loading_utils.ModelLoader(checkpoint_path, None, custom_loader)
   state = loader.get_state()
   converted_state = dict()
   converted_state["weight"] = state.pop(f"{PROJECTION_TENSOR_NAME}.weight")
