@@ -18,11 +18,24 @@ Once converted, you will get a quantized `.tflite` model which will be ready for
 
 In the current release, the following schemes are supported:
 
-* Dynamic range quantization: FP32 activations, INT8 weights, and integer computation
-* Weight-only quantization: FP32 activations, INT8 weights, and floating point computation
+* Dynamic INT8 quantization: FP32 activations, INT8 weights, and integer computation
+* Weight-only INT8 quantization: FP32 activations, INT8 weights, and floating point computation
 * FP16 quantization: FP16 weights, FP32 activations and floating point computation for all ops
+* Dynamic INT4 blockwise quantization: FP32 activations, INT4 weights, and integer computation
 
-These correspond to the available recipes in `quant_recipes.py`.
+ Available preset recipes in [`quant_recipes.py`](./quant_recipes.py).
+
+When using command line, recipes can be specified using strings listed in [`converter.py`](../utilities/converter.py).
+
+For a more concrete example, please see [gemma3](../examples/gemma3/README.md)
+
+### Notes on blockwise quantization
+* When blockwise quantization is used, the last dimension of the weight is sliced into blocks of the specific sizes.
+* Each block will have its own scale & zero point.
+* The smallest block size supported is 32.
+* The last dimension shape must also be divisible by the block size specified by users.
+* Smaller block sizes are expected to give better model quality, but the model would be bigger and run slower.
+* Bigger block sizes are expected to be faster and produce smaller model, but give worse model quality.
 
 ## Advanced usage
 
@@ -36,10 +49,12 @@ def custom_selective_quantization_recipe() -> quant_config.QuantConfig:
       generative_recipe=quant_recipe.GenerativeQuantRecipe(
           default=create_layer_quant_fp16(),
           embedding=create_layer_quant_int8_dynamic(),
-          attention=create_layer_quant_int8_weight_only(),
-          feedforward=create_layer_quant_int8_dynamic(),
+          attention=create_layer_quant_int4_block(32),
+          feedforward=create_layer_quant_int4_block(256),
       )
   )
 ```
 
-For example, this recipe specifies that the embedding table, attention, and feedforward layers should be quantized to INT8. Specifically, for attention layers the computation should be in FP32. All other ops should be quantized to the default scheme which is specified as FP16.
+For example, this recipe specifies that the embedding table should be quantized to int8, attention should be quantized to int4 with block size of 32, and feedforward layers should be quantized to int4 with block size of 256. All other ops should be quantized to the default scheme which is specified as FP16.
+
+

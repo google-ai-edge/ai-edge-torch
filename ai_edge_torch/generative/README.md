@@ -42,15 +42,7 @@ edge_model = ai_edge_torch.convert(
 
 Once converted, you will get a quantized `.tflite` model which will be ready for on-device execution.
 
-#### Supported schemes
-
-In the current release, the following schemes are supported:
-
-* Dynamic range quantization with FP32 activations and INT8 weights for linear ops
-* FP16 quantization with FP16 weights and FP32 activations and computation for all ops
-
-These correspond to the available recipes in `quant_recipes.py`
-<br/>
+Please refer to [quantization documentation](quantize/README.md) for more details.
 
 ### Convert PyTorch LLM to a TFLite model
 
