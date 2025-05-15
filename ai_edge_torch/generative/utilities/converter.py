@@ -397,13 +397,19 @@ def _export_helper(
       )
 
       if prefill_pixel_values is not None:
-        sample_kwargs['tokens'] = prefill_tokens_list_with_pixel[i]
-        sample_kwargs['input_pos'] = prefill_input_pos_list_with_pixel[i]
-        sample_kwargs['pixel_values'] = prefill_pixel_values
+        sample_pixel_kwargs = {
+            'tokens': prefill_tokens_list_with_pixel[i],
+            'input_pos': prefill_input_pos_list_with_pixel[i],
+            'kv_cache': prefill_kv,
+            'pixel_values': prefill_pixel_values,
+        }
+        # mask should be built internally when pixel values are passed.
+        if lora is not None:
+          sample_pixel_kwargs['lora'] = lora
         converter.add_signature(
             prefill_signature_name + '_pixel',
             mod,
-            sample_kwargs=sample_kwargs,
+            sample_kwargs=sample_pixel_kwargs,
         )
 
     sample_kwargs = {
