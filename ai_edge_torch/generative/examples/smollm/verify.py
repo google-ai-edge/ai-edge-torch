@@ -43,8 +43,8 @@ _MODEL_VERSION = flags.DEFINE_enum(
     "The version of SmolLm to verify.",
 )
 _CHECKPOINT = {
-    "v1": "HuggingFaceTB/SmolLM-135M",
-    "v2": "HuggingFaceTB/SmolLM2-135M",
+    "v1": "HuggingFaceTB/SmolLM-135M-Instruct",
+    "v2": "HuggingFaceTB/SmolLM2-135M-Instruct",
 }
 
 _BUILDER = {
