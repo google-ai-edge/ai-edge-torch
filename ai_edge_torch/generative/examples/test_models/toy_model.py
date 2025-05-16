@@ -138,7 +138,9 @@ def get_model_config() -> cfg.ModelConfig:
       activation=cfg.ActivationConfig(cfg.ActivationType.SILU),
       intermediate_size=256,
   )
-  norm_config = cfg.NormalizationConfig(type=cfg.NormalizationType.RMS_NORM)
+  norm_config = cfg.NormalizationConfig(
+      type=cfg.NormalizationType.RMS_NORM, enable_hlfb=False
+  )
   block_config = cfg.TransformerBlockConfig(
       attn_config=attn_config,
       ff_config=ff_config,
@@ -152,5 +154,6 @@ def get_model_config() -> cfg.ModelConfig:
       embedding_dim=128,
       block_configs=block_config,
       final_norm_config=norm_config,
+      enable_hlfb=False,
   )
   return config

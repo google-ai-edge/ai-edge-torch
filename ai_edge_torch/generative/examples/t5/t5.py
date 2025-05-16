@@ -393,8 +393,7 @@ def get_model_config_t5() -> cfg.ModelConfig:
   )
   # T5 Confirmed as RMS Norm and eps = 1e-6 TJA.
   norm_config = cfg.NormalizationConfig(
-      type=cfg.NormalizationType.RMS_NORM,
-      epsilon=1e-6,
+      type=cfg.NormalizationType.RMS_NORM, epsilon=1e-6, enable_hlfb=False
   )
   block_config = cfg.TransformerBlockConfig(
       attn_config=attn_config,
@@ -411,7 +410,6 @@ def get_model_config_t5() -> cfg.ModelConfig:
       block_configs=block_config,
       final_norm_config=norm_config,
       lm_head_use_bias=False,
-      enable_hlfb=True,
   )
   return config
 

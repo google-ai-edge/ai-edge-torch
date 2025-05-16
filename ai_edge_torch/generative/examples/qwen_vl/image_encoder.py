@@ -332,8 +332,7 @@ def get_image_encoder_config(image_size: Tuple[int, int]) -> QwenVLImageConfig:
       use_bias=True,
   )
   norm_config = cfg.NormalizationConfig(
-      type=cfg.NormalizationType.RMS_NORM,
-      epsilon=1e-6,
+      type=cfg.NormalizationType.RMS_NORM, epsilon=1e-6
   )
   block_config = cfg.TransformerBlockConfig(
       attn_config=attn_config,
@@ -359,7 +358,6 @@ def get_image_encoder_config(image_size: Tuple[int, int]) -> QwenVLImageConfig:
       window_size=112,
       spatial_merge_size=2,
       full_atten_block_indexes=[7, 15, 23, 31],
-      enable_hlfb=True,
   )
   return config
 

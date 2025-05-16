@@ -53,9 +53,7 @@ def get_3b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       intermediate_size=11008,
   )
   norm_config = cfg.NormalizationConfig(
-      type=cfg.NormalizationType.RMS_NORM,
-      epsilon=1e-06,
-      enable_hlfb=True,
+      type=cfg.NormalizationType.RMS_NORM, epsilon=1e-06
   )
   block_config = cfg.TransformerBlockConfig(
       attn_config=attn_config,
@@ -71,7 +69,6 @@ def get_3b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       kv_cache_max_len=kv_cache_max_len,
       block_configs=block_config,
       final_norm_config=norm_config,
-      enable_hlfb=True,
   )
   return config
 

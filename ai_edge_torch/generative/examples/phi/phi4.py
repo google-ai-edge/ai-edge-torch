@@ -112,9 +112,7 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       activation=cfg.ActivationConfig(cfg.ActivationType.SILU_GLU),
       intermediate_size=8192,
   )
-  norm_config = cfg.NormalizationConfig(
-      type=cfg.NormalizationType.RMS_NORM, enable_hlfb=True
-  )
+  norm_config = cfg.NormalizationConfig(type=cfg.NormalizationType.RMS_NORM)
   block_config = cfg.TransformerBlockConfig(
       attn_config=attn_config,
       ff_config=ff_config,
@@ -141,7 +139,6 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       embedding_dim=3072,
       block_configs=block_config,
       final_norm_config=norm_config,
-      enable_hlfb=True,
       build_rope=build_rope,
   )
   return config

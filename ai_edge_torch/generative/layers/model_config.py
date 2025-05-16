@@ -66,7 +66,7 @@ class NormalizationConfig:
   """Normalizater parameters."""
 
   type: NormalizationType = NormalizationType.NONE
-  enable_hlfb: bool = False
+  enable_hlfb: bool = True
   epsilon: float = 1e-5
   zero_centered: bool = False
   # Number of groups used in group normalization.
@@ -218,7 +218,7 @@ class ModelConfig:
   lm_head_share_weight_with_embedding: bool = True
 
   # Whether to turn on high-level function boundary.
-  enable_hlfb: bool = False
+  enable_hlfb: bool = True
 
   # The maximum sequence length of the KV cache. Should not exceed max_seq_len.
   kv_cache_max_len: int = 0

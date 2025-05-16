@@ -53,9 +53,7 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       intermediate_size=8960,
   )
   norm_config = cfg.NormalizationConfig(
-      type=cfg.NormalizationType.RMS_NORM,
-      epsilon=1e-06,
-      enable_hlfb=True,
+      type=cfg.NormalizationType.RMS_NORM, epsilon=1e-06
   )
   block_config = cfg.TransformerBlockConfig(
       attn_config=attn_config,
@@ -72,7 +70,6 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       block_configs=block_config,
       final_norm_config=norm_config,
       lm_head_share_weight_with_embedding=False,
-      enable_hlfb=True,
   )
   return config
 

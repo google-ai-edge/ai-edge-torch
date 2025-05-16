@@ -113,7 +113,9 @@ def get_model_config() -> cfg.ModelConfig:
       use_bias=True,
   )
 
-  norm_config = cfg.NormalizationConfig(type=cfg.NormalizationType.LAYER_NORM)
+  norm_config = cfg.NormalizationConfig(
+      type=cfg.NormalizationType.LAYER_NORM, enable_hlfb=False
+  )
 
   block_config = cfg.TransformerBlockConfig(
       attn_config=attn_config,
@@ -129,7 +131,6 @@ def get_model_config() -> cfg.ModelConfig:
       embedding_dim=embedding_dim,
       block_configs=block_config,
       final_norm_config=norm_config,
-      enable_hlfb=True,
   )
 
   return config
@@ -164,7 +165,9 @@ def get_fake_model_config() -> cfg.ModelConfig:
       use_bias=True,
   )
 
-  norm_config = cfg.NormalizationConfig(type=cfg.NormalizationType.LAYER_NORM)
+  norm_config = cfg.NormalizationConfig(
+      type=cfg.NormalizationType.LAYER_NORM, enable_hlfb=False
+  )
 
   block_config = cfg.TransformerBlockConfig(
       attn_config=attn_config,
@@ -180,7 +183,6 @@ def get_fake_model_config() -> cfg.ModelConfig:
       embedding_dim=embedding_dim,
       block_configs=block_config,
       final_norm_config=norm_config,
-      enable_hlfb=True,
   )
 
   return config

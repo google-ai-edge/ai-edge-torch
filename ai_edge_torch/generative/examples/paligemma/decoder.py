@@ -110,10 +110,7 @@ def get_decoder_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       intermediate_size=16384,
   )
   norm_config = cfg.NormalizationConfig(
-      type=cfg.NormalizationType.RMS_NORM,
-      epsilon=1e-6,
-      zero_centered=True,
-      enable_hlfb=True,
+      type=cfg.NormalizationType.RMS_NORM, epsilon=1e-6, zero_centered=True
   )
   block_config = cfg.TransformerBlockConfig(
       attn_config=attn_config,
@@ -132,7 +129,6 @@ def get_decoder_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       block_configs=block_config,
       final_norm_config=norm_config,
       lm_head_use_bias=False,
-      enable_hlfb=True,
   )
   return config
 

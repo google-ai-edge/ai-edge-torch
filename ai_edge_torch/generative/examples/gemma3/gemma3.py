@@ -158,9 +158,7 @@ def get_fake_model_config(**kwargs) -> Gemma3MMConfig:
       image_projection_scale=128**0.5,
       image_projection_use_bias=False,
       mm_norm_config=cfg.NormalizationConfig(
-          type=cfg.NormalizationType.LAYER_NORM,
-          epsilon=1e-6,
-          enable_hlfb=True,
+          type=cfg.NormalizationType.LAYER_NORM, epsilon=1e-6
       ),
       mm_extra_tokens=32,
   )

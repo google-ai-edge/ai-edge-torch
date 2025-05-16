@@ -233,10 +233,7 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
     The model config for a Gemma 2B model.
   """
   norm_config = cfg.NormalizationConfig(
-      type=cfg.NormalizationType.RMS_NORM,
-      epsilon=1e-6,
-      zero_centered=True,
-      enable_hlfb=True,
+      type=cfg.NormalizationType.RMS_NORM, epsilon=1e-6, zero_centered=True
   )
   ff_config = cfg.FeedForwardConfig(
       type=cfg.FeedForwardType.GATED,
@@ -284,7 +281,6 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       block_configs=[get_block_config(i) for i in range(num_layers)],
       final_norm_config=norm_config,
       lm_head_use_bias=False,
-      enable_hlfb=True,
       final_logit_softcap=30.0,
   )
   return config

@@ -118,9 +118,7 @@ def get_image_encoder_config() -> cfg.ModelConfig:
       use_bias=True,
   )
   norm_config = cfg.NormalizationConfig(
-      type=cfg.NormalizationType.LAYER_NORM,
-      epsilon=1e-6,
-      enable_hlfb=True,
+      type=cfg.NormalizationType.LAYER_NORM, epsilon=1e-6
   )
   block_config = cfg.TransformerBlockConfig(
       attn_config=attn_config,
@@ -137,7 +135,6 @@ def get_image_encoder_config() -> cfg.ModelConfig:
       image_embedding=image_embedding_config,
       block_configs=block_config,
       final_norm_config=norm_config,
-      enable_hlfb=True,
   )
   return config
 
