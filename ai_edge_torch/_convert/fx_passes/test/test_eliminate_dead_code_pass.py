@@ -1,4 +1,4 @@
-# Copyright 2024 The AI Edge Torch Authors.
+# Copyright 2025 The AI Edge Torch Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,20 +14,20 @@
 # ==============================================================================
 """Tests for RemoveNonUserOutputsPass."""
 
-import re
-from typing import Any, Callable, Union
+from typing import Callable, Union
 
 from ai_edge_torch import fx_infra
-from ai_edge_torch import lowertools
 from ai_edge_torch._convert import fx_passes
 import torch
 
 from absl.testing import absltest as googletest
 
 
-def _export_to_stablehlo(
-    func: Union[torch.nn.Module, Callable[..., Any]], export_args
-):
+def export_with_pass(
+    func: Union[torch.nn.Module, Callable[..., torch.Tensor]],
+    export_args: list[torch.Tensor],
+) -> torch.export.ExportedProgram:
+  """Exports a function with OptimizeLayoutTransposesPass."""
   if not isinstance(func, torch.nn.Module):
 
     class TestModule(torch.nn.Module):
@@ -46,36 +46,27 @@ def _export_to_stablehlo(
   )
   exported_program = fx_infra.run_passes(
       exported_program,
-      [
-          fx_passes.RemoveNonUserOutputsPass(),
-          fx_infra.CanonicalizePass(),
-      ],
+      [fx_passes.EliminateDeadCodePass()],
   )
+  return exported_program
 
-  return lowertools.exported_program_to_mlir_text(exported_program)
 
+class TestEliminateDeadCodePass(googletest.TestCase):
+  """Tests for EliminateDeadCodePass."""
 
-class TestRemoveNonUserOutputsPass(googletest.TestCase):
-  """Tests for RemoveNonUserOutputsPass."""
+  def test_eliminate_unused_rand_nodes(self):
 
-  def test_remove_input_mutations(self):
     def f(x):
-      x += 1
-      x = x + 2
-      x = x + 3
+      a = torch.ops.aten.rand.default((10, 10))
+      b = torch.ops.aten.rand.default((10, 10))
+      _ = a + b
+      x = x + 1
       return x
 
-    stablehlo = _export_to_stablehlo(
-        f,
-        (torch.rand(10, 10),),
-    )
-    first_return = re.search(
-        r"^\s+return[^\n]+\n",
-        stablehlo,
-        re.MULTILINE,
-    ).group(0)
+    exported_program = export_with_pass(f, (torch.rand(10, 10),))
 
-    self.assertRegex(first_return.strip(), r"return %\d+ : tensor<10x10xf32>")
+    ops = [node.target for node in exported_program.graph.nodes]
+    self.assertNotIn(torch.ops.aten.rand.default, ops)
 
 
 if __name__ == "__main__":
