@@ -66,6 +66,11 @@ def _aten_mul_tensor_decomp(x, y):
   return torch.ops.tfl.mul(x, y)
 
 
+@register_decomp(torch.ops.aten.mul.Scalar)
+def _aten_mul_scalar_decomp(x, y):
+  return torch.ops.tfl.mul(x, y)
+
+
 @register_decomp(torch.ops.aten.div.Tensor)
 def _aten_div_tensor_decomp(x, y):
   return torch.ops.tfl.div(x, y)
