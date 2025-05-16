@@ -149,8 +149,12 @@ class Decoder(nn.Module):
           cache_len=attention_mask.shape[-1],
           sliding_window_size=sliding_window_size,
       )
-      # Combine masks using logical AND (min in this case).
-      combined_mask = torch.min(attention_mask, sliding_mask)
+      # Expand sliding_mask to match attention_mask's dimensions
+      # (e.g., [B, 1, seq_len, cache_len]).
+      # Assuming the head dimension is dim 1 for attention_mask.
+      expanded_sliding_mask = sliding_mask.unsqueeze(1)
+      # Combine masks using logical AND (min ensures -inf propagates).
+      combined_mask = torch.min(attention_mask, expanded_sliding_mask)
       return combined_mask
     return attention_mask
 
@@ -161,9 +165,9 @@ class Decoder(nn.Module):
       sliding_window_size: int,
   ) -> torch.Tensor:
     """Creates mask for sliding window attention (PyTorch)."""
-    cache_positions = torch.tensor(
-        [i for i in range(cache_len)], dtype=torch.int32
-    )
+    # Use torch.arange to create a tensor with a range of integers in a
+    # Dynamo-friendly way.
+    cache_positions = torch.arange(cache_len, dtype=torch.int32)
     cache_positions = cache_positions.view(1, 1, -1)  # [1, 1, cache_len]
     segment_pos_expanded = segment_pos.clone().unsqueeze(-1)  # [B, seq_len, 1]
 
