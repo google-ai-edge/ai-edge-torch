@@ -100,7 +100,8 @@ def define_conversion_flags(
   flags.DEFINE_string(
       'quantize',
       'dynamic_int8',
-      'How the model should be quantized.',
+      'How the model should be quantized. Set to "none" to disable'
+      ' quantization. See `QuantizationName` for supported quantization types.',
   )
   flags.DEFINE_multi_integer(
       'lora_ranks',
