@@ -15,9 +15,15 @@
 
 """Verifies the reauthored Hammer 2.1 0.5B and 1.5B models."""
 
+import logging
+import pathlib
+
 from absl import app
 from absl import flags
-from ai_edge_torch.generative.examples.hammer import verify_util
+from ai_edge_torch.generative.examples.hammer import hammer
+from ai_edge_torch.generative.utilities import transformers_verifier
+from ai_edge_torch.generative.utilities import verifier
+import transformers
 
 
 _MODEL_SIZE = flags.DEFINE_enum(
@@ -42,13 +48,37 @@ _CHECKPOINT = {
     "1.5b": "MadeAgents/Hammer2.1-1.5b",
 }
 
+_BUILDER = {
+    "0.5b": hammer.build_0_5b_model,
+    "1.5b": hammer.build_1_5b_model,
+}
+
 
 def main(_):
-  verify_util.verify_hammer(
-      model_size=_MODEL_SIZE.value,
-      checkpoint_dir=_CHECKPOINT[_MODEL_SIZE.value],
+  checkpoint = _CHECKPOINT[_MODEL_SIZE.value]
+  logging.info("Loading the original model from: %s", checkpoint)
+  original_model = transformers.AutoModelForCausalLM.from_pretrained(checkpoint)
+
+  # Locate the cached dir.
+  cached_config_file = transformers.utils.cached_file(
+      checkpoint, transformers.utils.CONFIG_NAME
+  )
+  reauthored_checkpoint = pathlib.Path(cached_config_file).parent
+  logging.info("Building the reauthored model from: %s", reauthored_checkpoint)
+  reauthored_model = _BUILDER[_MODEL_SIZE.value](reauthored_checkpoint)
+
+  logging.info("Loading the tokenizer from: %s", checkpoint)
+  tokenizer = transformers.AutoTokenizer.from_pretrained(checkpoint)
+
+  verifier.verify_reauthored_model(
+      original_model=transformers_verifier.TransformersModelWrapper(
+          original_model
+      ),
+      reauthored_model=verifier.ReauthoredModelWrapper(reauthored_model),
+      tokenizer=verifier.TokenizerWrapper(tokenizer),
+      generate_prompts=_PROMPTS.value,
       max_new_tokens=_MAX_NEW_TOKENS.value,
-      prompts=_PROMPTS.value,
+      atol=1e-04,
   )
 
 

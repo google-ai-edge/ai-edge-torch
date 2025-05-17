@@ -22,7 +22,6 @@ from typing import Callable, Dict, List, Optional, Tuple
 from ai_edge_torch.generative.examples.gemma3 import gemma3
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
-from ai_edge_torch.generative.utilities import loader
 from ai_edge_torch.generative.utilities import verifier
 from gemma import config as gemma_config
 from gemma import model as gemma_model
@@ -260,16 +259,4 @@ def verify_gemma3(
       weight_filename=weight_filename,
       custom_loader=custom_loader,
       atol=1e-04,
-  )
-
-
-def verify_gemma3_with_custom_loader(checkpoint: str) -> bool:
-  """Verifies the reauthored Gemma3 model with a custom loader."""
-  return verify_gemma3(
-      checkpoint=checkpoint,
-      prompts=["What is the meaning of life?"],
-      max_new_tokens=30,
-      variant="1b",
-      weight_filename="model.ckpt",
-      custom_loader=loader.get_custom_loader("", checkpoint_format="pt"),
   )

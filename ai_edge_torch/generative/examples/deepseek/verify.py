@@ -15,9 +15,15 @@
 
 """Verifies the reauthored DeepSeek R1 distilled 1.5B model."""
 
+import logging
+import pathlib
+
 from absl import app
 from absl import flags
-from ai_edge_torch.generative.examples.deepseek import verify_util
+from ai_edge_torch.generative.examples.deepseek import deepseek
+from ai_edge_torch.generative.utilities import transformers_verifier
+from ai_edge_torch.generative.utilities import verifier
+import transformers
 
 
 _PROMPTS = flags.DEFINE_multi_string(
@@ -33,10 +39,30 @@ _MAX_NEW_TOKENS = flags.DEFINE_integer(
 
 
 def main(_):
-  verify_util.verify_deepseek_r1_distill_1_5b(
-      "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
+  checkpoint = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+  logging.info("Loading the original model from: %s", checkpoint)
+  original_model = transformers.AutoModelForCausalLM.from_pretrained(checkpoint)
+
+  # Locate the cached dir.
+  cached_config_file = transformers.utils.cached_file(
+      checkpoint, transformers.utils.CONFIG_NAME
+  )
+  reauthored_checkpoint = pathlib.Path(cached_config_file).parent
+  logging.info("Building the reauthored model from: %s", reauthored_checkpoint)
+  reauthored_model = deepseek.build_model(str(reauthored_checkpoint))
+
+  logging.info("Loading the tokenizer from: %s", checkpoint)
+  tokenizer = transformers.AutoTokenizer.from_pretrained(checkpoint)
+
+  verifier.verify_reauthored_model(
+      original_model=transformers_verifier.TransformersModelWrapper(
+          original_model
+      ),
+      reauthored_model=verifier.ReauthoredModelWrapper(reauthored_model),
+      tokenizer=verifier.TokenizerWrapper(tokenizer),
+      generate_prompts=_PROMPTS.value,
       max_new_tokens=_MAX_NEW_TOKENS.value,
-      prompts=_PROMPTS.value,
+      atol=1e-04,
   )
 
 
