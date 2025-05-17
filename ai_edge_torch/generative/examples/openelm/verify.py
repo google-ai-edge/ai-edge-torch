@@ -15,14 +15,9 @@
 
 """Verifies the reauthored OpenELM-3B model."""
 
-import logging
-import pathlib
 from absl import app
 from absl import flags
-from ai_edge_torch.generative.examples.openelm import openelm
-from ai_edge_torch.generative.utilities import transformers_verifier
-from ai_edge_torch.generative.utilities import verifier
-import transformers
+from ai_edge_torch.generative.examples.openelm import verify_util
 
 
 _PROMPTS = flags.DEFINE_multi_string(
@@ -38,32 +33,10 @@ _MAX_NEW_TOKENS = flags.DEFINE_integer(
 
 
 def main(_):
-  checkpoint = "apple/OpenELM-3B"
-  logging.info("Loading the original model from: %s", checkpoint)
-  original_model = transformers.AutoModelForCausalLM.from_pretrained(
-      checkpoint, trust_remote_code=True
-  )
-
-  # Locate the cached dir.
-  cached_config_file = transformers.utils.cached_file(
-      checkpoint, transformers.utils.CONFIG_NAME
-  )
-  reauthored_checkpoint = pathlib.Path(cached_config_file).parent
-  logging.info("Building the reauthored model from: %s", reauthored_checkpoint)
-  reauthored_model = openelm.build_model(str(reauthored_checkpoint))
-
-  tokenizer_checkpoint = "meta-llama/Llama-2-7b-hf"
-  logging.info("Loading the tokenizer from: %s", tokenizer_checkpoint)
-  tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_checkpoint)
-
-  verifier.verify_reauthored_model(
-      original_model=transformers_verifier.TransformersModelWrapper(
-          original_model
-      ),
-      reauthored_model=verifier.ReauthoredModelWrapper(reauthored_model),
-      tokenizer=verifier.TokenizerWrapper(tokenizer),
-      generate_prompts=_PROMPTS.value,
+  verify_util.verify_openelm(
+      checkpoint_dir="apple/OpenELM-3B",
       max_new_tokens=_MAX_NEW_TOKENS.value,
+      prompts=_PROMPTS.value,
   )
 
 
