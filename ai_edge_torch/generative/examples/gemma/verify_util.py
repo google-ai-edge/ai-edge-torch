@@ -17,11 +17,13 @@
 
 import logging
 import os
-from typing import List, Tuple
+from typing import Callable, Dict, List, Tuple
 
+from ai_edge_torch.generative.examples.gemma import gemma1
 from ai_edge_torch.generative.examples.gemma import gemma2
 import ai_edge_torch.generative.layers.attention_utils as attn_utils
 import ai_edge_torch.generative.layers.kv_cache as kv_utils
+from ai_edge_torch.generative.utilities import loader
 from ai_edge_torch.generative.utilities import verifier
 from gemma import config as gemma_config
 from gemma import model as gemma_model
@@ -107,6 +109,7 @@ def verify_reauthored_gemma_model(
     generate_prompts: List[str],
     forward_input_ids: List[List[int]],
     weight_filename: str = "model.ckpt",
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] | None = None,
     tokenizer_filename: str = "tokenizer.model",
     max_new_tokens: int = 20,
     mask_as_input: bool = False,
@@ -125,7 +128,14 @@ def verify_reauthored_gemma_model(
 
   logging.info("Loading the original model from: %s", checkpoint)
   original_model = gemma_model.GemmaForCausalLM(config).eval()
-  original_model.load_weights(os.path.join(checkpoint, weight_filename))
+  checkpoint_path = os.path.join(checkpoint, weight_filename)
+  if custom_loader is None:
+    original_model.load_weights(checkpoint_path)
+  else:
+    original_model.load_state_dict(
+        custom_loader(checkpoint_path)["model_state_dict"],
+        strict=False,
+    )
 
   return verifier.verify_reauthored_model(
       original_model=GemmaWrapper(original_model),
@@ -144,27 +154,62 @@ def verify_reauthored_gemma_model(
 
 
 def verify_gemma2(
-    gemma2_model_path: str,
+    checkpoint_dir: str,
+    weight_filename: str,
     prompts: List[str],
     max_new_tokens: int,
     mask_as_input: bool = False,
     kv_layout: kv_utils.KVLayout = kv_utils.KV_LAYOUT_DEFAULT,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] | None = None,
 ) -> bool:
   """Verifies the reauthored Gemma2 model.
 
   Return True if the verification passes, False otherwise.
   """
-  logging.info("Building the reauthored model from: %s", gemma2_model_path)
-  reauthored_model = gemma2.build_2b_model(gemma2_model_path)
+  checkpoint_path = os.path.join(checkpoint_dir, weight_filename)
+  logging.info("Building the reauthored model from: %s", checkpoint_path)
+  reauthored_model = gemma2.build_2b_model(checkpoint_path, custom_loader)
 
   return verify_reauthored_gemma_model(
-      checkpoint=gemma2_model_path,
+      checkpoint=checkpoint_dir,
       variant="2b-v2",
       reauthored_model=reauthored_model,
       generate_prompts=prompts,
       forward_input_ids=[[2, 651, 9456, 576, 573, 3520, 3858, 603, 235248]],
+      weight_filename=weight_filename,
+      custom_loader=custom_loader,
       max_new_tokens=max_new_tokens,
       mask_as_input=mask_as_input,
       kv_layout=kv_layout,
       atol=1e-04,
+  )
+
+
+def verify_gemma1_with_custom_loader(checkpoint_dir: str) -> bool:
+  """Verifies the reauthored Gemma1 model with a custom loader."""
+  weight_filename = "gemma-2b-it.ckpt"
+  checkpoint_path = os.path.join(checkpoint_dir, weight_filename)
+  custom_loader = loader.get_custom_loader(checkpoint_path)
+  reauthored_model = gemma1.build_2b_model(checkpoint_path, custom_loader)
+  return verify_reauthored_gemma_model(
+      checkpoint=checkpoint_dir,
+      variant="2b",
+      reauthored_model=reauthored_model,
+      weight_filename=weight_filename,
+      custom_loader=custom_loader,
+      generate_prompts=["What is the meaning of life?"],
+      forward_input_ids=[[1, 2, 3, 4]],
+      max_new_tokens=30,
+  )
+
+
+def verify_gemma2_with_custom_loader(checkpoint_dir: str) -> bool:
+  """Verifies the reauthored Gemma2 model with a custom loader."""
+  return verify_gemma2(
+      checkpoint_dir=checkpoint_dir,
+      weight_filename="model.ckpt",
+      prompts=["What is the meaning of life?"],
+      max_new_tokens=30,
+      mask_as_input=True,
+      custom_loader=loader.get_custom_loader("", checkpoint_format="pt"),
   )

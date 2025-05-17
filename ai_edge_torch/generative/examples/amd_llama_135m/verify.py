@@ -15,15 +15,9 @@
 
 """Verifies the reauthored AMD-Llama-135M model."""
 
-import logging
-import pathlib
-
 from absl import app
 from absl import flags
-from ai_edge_torch.generative.examples.amd_llama_135m import amd_llama_135m
-from ai_edge_torch.generative.utilities import transformers_verifier
-from ai_edge_torch.generative.utilities import verifier
-import transformers
+from ai_edge_torch.generative.examples.amd_llama_135m import verify_util
 
 
 _PROMPTS = flags.DEFINE_multi_string(
@@ -39,32 +33,10 @@ _MAX_NEW_TOKENS = flags.DEFINE_integer(
 
 
 def main(_):
-  checkpoint = "amd/AMD-Llama-135m"
-  logging.info("Loading the original model from: %s", checkpoint)
-  original_model = transformers.AutoModelForCausalLM.from_pretrained(
-      checkpoint, trust_remote_code=True
-  )
-
-  # Locate the cached dir.
-  cached_config_file = transformers.utils.cached_file(
-      checkpoint, transformers.utils.CONFIG_NAME
-  )
-  reauthored_checkpoint = pathlib.Path(cached_config_file).parent
-  logging.info("Building the reauthored model from: %s", reauthored_checkpoint)
-  reauthored_model = amd_llama_135m.build_model(str(reauthored_checkpoint))
-
-  logging.info("Loading the tokenizer from: %s", checkpoint)
-  tokenizer = transformers.AutoTokenizer.from_pretrained(checkpoint)
-
-  verifier.verify_reauthored_model(
-      original_model=transformers_verifier.TransformersModelWrapper(
-          original_model
-      ),
-      reauthored_model=verifier.ReauthoredModelWrapper(reauthored_model),
-      tokenizer=verifier.TokenizerWrapper(tokenizer),
-      generate_prompts=_PROMPTS.value,
+  verify_util.verify_amd_llama_135m(
+      "amd/AMD-Llama-135m",
       max_new_tokens=_MAX_NEW_TOKENS.value,
-      atol=1e-04,
+      prompts=_PROMPTS.value,
   )
 
 
