@@ -76,6 +76,21 @@ def _aten_div_tensor_decomp(x, y):
   return torch.ops.tfl.div(x, y)
 
 
+@register_decomp(torch.ops.aten.pow.Scalar)
+def _aten_pow_scalar_decomp(x, y):
+  return torch.ops.tfl.pow(x, y)
+
+
+@register_decomp(torch.ops.aten.pow.Tensor_Scalar)
+def _aten_pow_tensor_scalar_decomp(x, y):
+  return torch.ops.tfl.pow(x, y)
+
+
+@register_decomp(torch.ops.aten.pow.Tensor_Tensor)
+def _aten_pow_tensor_tensor_decomp(x, y):
+  return torch.ops.tfl.pow(x, y)
+
+
 @register_decomp(torch.ops.aten.gt.Tensor)
 def _aten_gt_tensor_decomp(x, y):
   return torch.ops.tfl.greater(x, y)

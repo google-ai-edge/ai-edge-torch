@@ -149,6 +149,21 @@ def _tfl_div_lowering(
   )
 
 
+@lower(torch.ops.tfl.pow.default)
+def _tfl_pow_lowering(
+    lctx: LoweringContext,
+    lhs: ir.Value,
+    rhs: ir.Value | int | float,
+) -> ir.Value:
+  lhs = lowering_utils.convert_to_ir_value(lhs)
+  rhs = lowering_utils.convert_to_ir_value(rhs)
+  return _ir_operation(
+      "tfl.pow",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[lhs, rhs],
+  )
+
+
 @lower(torch.ops.tfl.greater.default)
 def _tfl_greater_lowering(
     lctx: LoweringContext,

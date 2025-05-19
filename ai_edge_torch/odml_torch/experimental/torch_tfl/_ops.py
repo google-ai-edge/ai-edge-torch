@@ -58,6 +58,11 @@ def tfl_div(x: torch.Tensor, y: Any) -> torch.Tensor:
   return torch.div(x, y)
 
 
+@custom_op_with_fake("tfl::pow", schema="(Any x, Any y) -> Tensor")
+def tfl_pow(x: Any, y: Any) -> torch.Tensor:
+  return torch.pow(x, y)
+
+
 @custom_op_with_fake("tfl::greater")
 def tfl_greater(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
   return torch.gt(x, y)
