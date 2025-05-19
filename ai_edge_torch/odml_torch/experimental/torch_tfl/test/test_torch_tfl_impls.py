@@ -124,6 +124,7 @@ class TestTorchTFLImpls(parameterized.TestCase):
       ("aten_mul_Tensor_0", torch.ops.aten.mul.Tensor, (rnd(torch.float32, (10, 10)), rnd(torch.float32, (10, 10)),), dict()),
       ("aten_mul_Tensor_1", torch.ops.aten.mul.Tensor, (rnd(torch.float32, (1, 10)), rnd(torch.float32, (10, 1)),), dict()),
       ("aten_mul_Tensor_2", torch.ops.aten.mul.Tensor, (rnd(torch.float32, (10, 10)), np.random.rand(),), dict()),
+      ("aten_mul_Scalar_0", torch.ops.aten.mul.Scalar, (rnd(torch.float32, (10, 10)), np.random.rand(),), dict()),
       ("aten_div_Tensor_0", torch.ops.aten.div.Tensor, (rnd(torch.float32, (10, 10)), rnd(torch.float32, (10, 10)),), dict()),
       ("aten_div_Tensor_1", torch.ops.aten.div.Tensor, (rnd(torch.float32, (1, 10)), rnd(torch.float32, (10, 1)),), dict()),
       ("aten_div_Tensor_2", torch.ops.aten.div.Tensor, (rnd(torch.float32, (10, 10)), np.random.rand(),), dict()),
