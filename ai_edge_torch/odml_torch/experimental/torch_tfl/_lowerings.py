@@ -339,6 +339,99 @@ def _tfl_reshape_lowering(
   )
 
 
+@lower(torch.ops.tfl.range.default)
+def _tfl_range_lowering(
+    lctx: LoweringContext,
+    start: int | float | ir.Value,
+    limit: int | float | ir.Value,
+    delta: int | float | ir.Value,
+) -> ir.Value:
+  tensor_meta = lctx.node.meta.get("tensor_meta") or lctx.node.meta.get("val")
+  output_torch_dtype = tensor_meta.dtype
+
+  original_mlir_output_types = lowering_utils.node_meta_to_ir_types(lctx.node)
+  if not original_mlir_output_types or not isinstance(
+      original_mlir_output_types[0], ir.RankedTensorType
+  ):
+    raise ValueError(
+        "tfl.range output type is not a RankedTensorType as expected."
+    )
+
+  original_mlir_output_type = original_mlir_output_types[0]
+  original_output_shape = original_mlir_output_type.shape
+  original_output_element_type = original_mlir_output_type.element_type
+
+  # Determine the TFLite-compatible element type for the 'tfl.range' op's
+  # own output, and the NumPy dtype for its inputs.
+  tflite_op_internal_element_type = (
+      lowering_utils.torch_dtype_to_ir_element_type(output_torch_dtype)
+  )
+  if output_torch_dtype in (
+      torch.int32,
+      torch.int64,
+      torch.short,
+      torch.int8,
+      torch.uint8,
+  ):
+    numpy_dtype_for_inputs = np.int32
+  elif output_torch_dtype in (
+      torch.float32,
+      torch.float64,
+      torch.bfloat16,
+      torch.float16,
+  ):
+    numpy_dtype_for_inputs = np.float32
+  else:
+    raise TypeError(
+        f"Unsupported PyTorch output dtype {output_torch_dtype} for"
+        " tfl.range. Cannot determine TFLite-compatible type. Expected an"
+        " integer or float type."
+    )
+
+  operands = []
+  for val_py_scalar in [
+      start,
+      limit,
+      delta,
+  ]:
+    if isinstance(val_py_scalar, ir.Value):
+      operands.append(val_py_scalar)
+    else:
+      numpy_scalar_0d = (
+          torch.tensor(val_py_scalar, dtype=output_torch_dtype)
+          .detach()
+          .numpy()
+      )
+      scalar_tensor_val = lowering_utils.numpy_array_constant(numpy_scalar_0d)
+      operands.append(scalar_tensor_val)
+
+  # Define the result type that the tfl.range *kernel* (the custom op) will
+  # produce. This must be an i32 or f32 tensor.
+  tfl_op_kernel_output_type = ir.RankedTensorType.get(
+      original_output_shape, tflite_op_internal_element_type
+  )
+
+  tfl_range_op_val = _ir_operation(
+      "tfl.range",
+      results=[tfl_op_kernel_output_type],  # tfl.range op produces i32 or f32
+      operands=operands,
+  )
+
+  # The _tfl_range_lowering function must return a value of the
+  # original_mlir_output_type.
+  # If the tfl.range op's internal element type is different from the
+  # original_output_element_type, we need to convert.
+  if tflite_op_internal_element_type != original_output_element_type:
+    # Convert the tfl.range output to the original expected type.
+    final_output_val = stablehlo.convert(
+        original_mlir_output_type, tfl_range_op_val
+    )
+  else:
+    final_output_val = tfl_range_op_val
+
+  return final_output_val
+
+
 @lower(torch.ops.tfl.softmax.default)
 def _tfl_softmax_lowering(
     lctx: LoweringContext,
