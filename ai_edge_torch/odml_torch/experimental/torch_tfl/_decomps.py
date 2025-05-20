@@ -39,6 +39,11 @@ def _aten_mm_decomp(x, y):
   return torch.ops.tfl.batch_matmul(x, y)
 
 
+@register_decomp(torch.ops.aten.bmm.default)
+def _aten_bmm_decomp(x, y):
+  return torch.ops.tfl.batch_matmul(x, y)
+
+
 @register_decomp(torch.ops.aten.add.Tensor)
 def _aten_add_tensor_decomp(x, y, alpha=1):
   out = torch.ops.tfl.add(x, y)
