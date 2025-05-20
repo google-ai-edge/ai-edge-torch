@@ -43,6 +43,9 @@ class ExportConfig:
   kvcache_cls: type = kv_utils.KVCache
   # The batch size of the decode signature.
   decode_batch_size: int = 1
+  # If true, the mask will be passed in as input. Otherwise, mask will be
+  # built by the model internally.
+  mask_as_input: bool = False
 
 
 def get_from_flags() -> ExportConfig:
@@ -51,5 +54,7 @@ def get_from_flags() -> ExportConfig:
 
   if flags.FLAGS.transpose_kv_cache:
     export_config.kvcache_layout = kv_utils.KV_LAYOUT_TRANSPOSED
+  if flags.FLAGS.mask_as_input:
+    export_config.mask_as_input = flags.FLAGS.mask_as_input
 
   return export_config

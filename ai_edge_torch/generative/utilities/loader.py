@@ -19,8 +19,8 @@ import os
 from typing import Callable, Dict, List, Optional, Tuple
 
 from ai_edge_torch.generative.layers import model_config
-import safetensors
 from safetensors import safe_open
+from safetensors.torch import load_file
 import torch
 
 
@@ -47,7 +47,7 @@ def get_custom_loader(
 
   if checkpoint_format:
     if checkpoint_format == "safetensors":
-      return safetensors.torch.load_file
+      return load_file
     if checkpoint_format == "pt":
       return lambda path: torch.load(path, weights_only=True)
     raise ValueError(f"Unsupported checkpoint format: {checkpoint_format}")
@@ -55,7 +55,7 @@ def get_custom_loader(
   if os.path.splitext(checkpoint_path)[1] in [".bin", ".pt", ".ckpt"]:
     return lambda path: torch.load(path, weights_only=True)
   if checkpoint_path.endswith(".safetensors"):
-    return safetensors.torch.load_file
+    return load_file
   raise ValueError(f"Unsupported checkpoint format: {checkpoint_path}")
 
 

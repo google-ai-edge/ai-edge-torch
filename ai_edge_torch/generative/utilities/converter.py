@@ -350,10 +350,10 @@ def _export_helper(
       )
 
   prefill_masks = None
-  if flags.FLAGS.mask_as_input:
+  if export_config.mask_as_input:
     prefill_masks = _build_mask(
-        flags.FLAGS.prefill_seq_lens,
-        flags.FLAGS.kv_cache_max_len,
+        prefill_seq_lens,
+        config.kv_cache_max_len,
         config.causal_mask_value,
     )
     if not isinstance(prefill_masks, list):
@@ -424,7 +424,7 @@ def _export_helper(
         'input_pos': decode_input_pos,
         'kv_cache': decode_kv,
     }
-    if flags.FLAGS.mask_as_input:
+    if export_config.mask_as_input:
       # Note that the decode mask is not a correct causal mask, but it is okay
       # for the conversion purpose because only the shape matters in conversion.
       # A correct causal mask of decode for a given token position of decode, it
@@ -433,7 +433,7 @@ def _export_helper(
       #  torch.triu(mask, diagonal=decode_position).unsqueeze(0).unsqueeze(0)
       #
       sample_kwargs['mask'] = _build_mask(
-          1, flags.FLAGS.kv_cache_max_len, config.causal_mask_value
+          1, config.kv_cache_max_len, config.causal_mask_value
       )
     if lora is not None:
       sample_kwargs['lora'] = lora
