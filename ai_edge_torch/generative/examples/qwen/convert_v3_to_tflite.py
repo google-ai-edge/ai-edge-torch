@@ -1,0 +1,61 @@
+# Copyright 2025 The AI Edge Torch Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
+"""Example of converting Qwen 3.0 models to multi-signature tflite model."""
+
+from absl import app
+from ai_edge_torch.generative.examples.qwen import qwen3
+from ai_edge_torch.generative.utilities import converter
+from ai_edge_torch.generative.utilities import export_config
+from ai_edge_torch.generative.utilities import loader
+
+flags = converter.define_conversion_flags('qwen')
+
+_MODEL_SIZE = flags.DEFINE_enum(
+    'model_size',
+    '1.7b',
+    ['0.6b', '1.7b', '4b'],
+    'The size of the model to convert.',
+)
+
+_BUILDER = {
+    '0.6b': qwen3.build_0_6b_model,
+    '1.7b': qwen3.build_1_7b_model,
+    '4b': qwen3.build_4b_model,
+}
+
+
+def main(_):
+  checkpoint_path = flags.FLAGS.checkpoint_path
+  pytorch_model = _BUILDER[_MODEL_SIZE.value](
+      checkpoint_path,
+      custom_loader=loader.maybe_get_custom_loader(
+          checkpoint_path, flags.FLAGS.custom_checkpoint_loader
+      ),
+      kv_cache_max_len=flags.FLAGS.kv_cache_max_len,
+  )
+  converter.convert_to_tflite(
+      pytorch_model,
+      output_path=flags.FLAGS.output_path,
+      output_name_prefix=flags.FLAGS.output_name_prefix,
+      prefill_seq_len=flags.FLAGS.prefill_seq_lens,
+      quantize=flags.FLAGS.quantize,
+      lora_ranks=flags.FLAGS.lora_ranks,
+      export_config=export_config.get_from_flags(),
+  )
+
+
+if __name__ == '__main__':
+  app.run(main)

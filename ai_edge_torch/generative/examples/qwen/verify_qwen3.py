@@ -1,4 +1,4 @@
-# Copyright 2024 The AI Edge Torch Authors.
+# Copyright 2025 The AI Edge Torch Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-"""Verifies the reauthored Qwen 2.5 0.5B, 1.5B, and 3B models."""
+"""Verifies the reauthored Qwen 3.0 0.6B, 1.7B, and 4B models."""
 
 
 from absl import app
@@ -23,8 +23,8 @@ from ai_edge_torch.generative.examples.qwen import verify_util
 
 _MODEL_SIZE = flags.DEFINE_enum(
     "model_size",
-    "3b",
-    ["0.5b", "1.5b", "3b"],
+    "0.6b",
+    ["0.6b", "1.7b", "4b"],
     "The size of the model to verify.",
 )
 _PROMPTS = flags.DEFINE_multi_string(
@@ -39,15 +39,16 @@ _MAX_NEW_TOKENS = flags.DEFINE_integer(
 )
 
 _CHECKPOINT = {
-    "0.5b": "Qwen/Qwen2.5-0.5B-Instruct",
-    "1.5b": "Qwen/Qwen2.5-1.5B-Instruct",
-    "3b": "Qwen/Qwen2.5-3B-Instruct",
+    "0.6b": "Qwen/Qwen3-0.6B",
+    "1.7b": "Qwen/Qwen3-1.7B",
+    "4b": "Qwen/Qwen3-4B",
 }
 
 
 def main(_):
   verify_util.verify_qwen(
       model_size=_MODEL_SIZE.value,
+      model_version="v3",
       checkpoint_dir=_CHECKPOINT[_MODEL_SIZE.value],
       max_new_tokens=_MAX_NEW_TOKENS.value,
       prompts=_PROMPTS.value,

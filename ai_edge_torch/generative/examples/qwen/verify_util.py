@@ -17,17 +17,28 @@ import logging
 import os
 import pathlib
 
-from ai_edge_torch.generative.examples.qwen import qwen
+from ai_edge_torch.generative.examples.qwen import qwen, qwen3
 from ai_edge_torch.generative.utilities import loader
 from ai_edge_torch.generative.utilities import transformers_verifier
 from ai_edge_torch.generative.utilities import verifier
 import transformers
 
 
-_BUILDER = {
+_BUILDER_V2 = {
     "0.5b": qwen.build_0_5b_model,
     "1.5b": qwen.build_1_5b_model,
     "3b": qwen.build_3b_model,
+}
+
+_BUILDER_V3 = {
+    "0.6b": qwen3.build_0_6b_model,
+    "1.7b": qwen3.build_1_7b_model,
+    "4b": qwen3.build_4b_model,
+}
+
+_BUILDER = {
+    "v2": _BUILDER_V2,
+    "v3": _BUILDER_V3,
 }
 
 DEFAULT_PROMPTS = ["What is the meaning of life?"]
@@ -35,6 +46,7 @@ DEFAULT_PROMPTS = ["What is the meaning of life?"]
 
 def verify_qwen(
     model_size: str,
+    model_version: str,
     checkpoint_dir: str,
     weight_filename: str = "model.safetensors",
     max_new_tokens: int = 30,
@@ -64,7 +76,7 @@ def verify_qwen(
     reauthored_checkpoint = os.path.join(checkpoint_dir, weight_filename)
 
   logging.info("Building the reauthored model from: %s", reauthored_checkpoint)
-  reauthored_model = _BUILDER[model_size](
+  reauthored_model = _BUILDER[model_version][model_size](
       checkpoint_path=reauthored_checkpoint,
       custom_loader=custom_loader,
   )

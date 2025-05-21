@@ -52,6 +52,8 @@ same architecture as SmolLM but it has been trained on improved training data.
 ## Qwen
 Alibaba's [Qwen 2.5](https://huggingface.co/collections/Qwen/qwen25-66e81a666513e518adb90d9e)
 0.5B, 1B, 3B models are also provided as examples.
+[Qwen 3](https://huggingface.co/Qwen/Qwen3-0.6B), which includes 0.6B, 1.7B and
+4B as examples.
 
 ## Qwen VL
 Alibaba's [Qwen 2.5 VL](https://huggingface.co/Qwen/Qwen2.5-VL-3B-Instruct)

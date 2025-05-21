@@ -15,8 +15,6 @@
 
 """Utilities for the models predefined in HuggingFace transformers."""
 
-from typing import cast
-
 from ai_edge_torch.generative.utilities import verifier
 import torch
 import transformers
@@ -39,4 +37,8 @@ class TransformersModelWrapper(verifier.ModelWrapper):
       self, inputs: torch.Tensor, max_new_tokens: int
   ) -> torch.IntTensor:
     gen_config = transformers.GenerationConfig(max_new_tokens=max_new_tokens)
-    return self.model.generate(inputs=inputs, generation_config=gen_config)
+    # Do not override GenerationConfig with model defaults. Always keep greedy
+    # sampling.
+    return self.model.generate(
+        inputs=inputs, generation_config=gen_config, use_model_defaults=False
+    )
