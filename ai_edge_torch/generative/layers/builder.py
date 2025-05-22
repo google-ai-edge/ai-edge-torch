@@ -15,9 +15,9 @@
 # Builder class for individual components.
 from typing import Callable
 
+from ai_edge_torch.generative.layers import normalization
 import ai_edge_torch.generative.layers.feed_forward as feed_forward
 import ai_edge_torch.generative.layers.model_config as cfg
-import ai_edge_torch.generative.layers.normalization as normalization
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -74,6 +74,8 @@ def build_norm(dim: int, config: cfg.NormalizationConfig):
         dim,
         eps=config.epsilon,
         zero_centered_gamma=config.zero_centered,
+        with_scale=config.with_scale,
+        scale_shift=config.scale_shift,
         enable_hlfb=config.enable_hlfb,
     )
   elif config.type == cfg.NormalizationType.LAYER_NORM:
@@ -107,20 +109,13 @@ def build_ff(dim: int, config: cfg.FeedForwardConfig):
   else:
     raise ValueError("Unsupported feedforward type.")
 
-  activation = get_activation(config.activation)
-
   pre_ff_norm = build_norm(dim, config.pre_ff_norm_config)
   post_ff_norm = build_norm(dim, config.post_ff_norm_config)
 
   return ff_module(
       dim=dim,
-      hidden_dim=config.intermediate_size,
-      activation=activation,
-      use_bias=config.use_bias,
-      use_glu=(
-          config.activation.type == cfg.ActivationType.GE_GLU
-          or config.activation.type == cfg.ActivationType.SILU_GLU
-      ),
+      activation=get_activation(config.activation),
+      config=config,
       pre_ff_norm=pre_ff_norm,
       post_ff_norm=post_ff_norm,
   )

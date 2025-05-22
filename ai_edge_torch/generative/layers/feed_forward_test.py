@@ -14,6 +14,7 @@
 # ==============================================================================
 
 from ai_edge_torch.generative.layers import feed_forward
+from ai_edge_torch.generative.layers import model_config as cfg
 import torch
 import torch.nn.functional as F
 from absl.testing import absltest as googletest
@@ -22,28 +23,32 @@ from absl.testing import absltest as googletest
 class FeedForwardTest(googletest.TestCase):
 
   def test_sequential_feed_forward(self):
+    ff_config = cfg.FeedForwardConfig(
+        type=cfg.FeedForwardType.SEQUENTIAL,
+        activation=cfg.ActivationConfig(cfg.ActivationType.SILU),
+        intermediate_size=10,
+        use_bias=True,
+    )
     ff = feed_forward.SequentialFeedForward(
         dim=10,
-        hidden_dim=10,
         activation=F.silu,
-        use_bias=True,
-        use_glu=False,
-        pre_ff_norm=torch.nn.Identity(),
-        post_ff_norm=torch.nn.Identity(),
+        config=ff_config,
     )
     x = torch.ones((1, 10))
     out = ff(x)
     self.assertEqual(out.shape, (1, 10))
 
   def test_gated_feed_forward(self):
+    ff_config = cfg.FeedForwardConfig(
+        type=cfg.FeedForwardType.GATED,
+        activation=cfg.ActivationConfig(cfg.ActivationType.SILU),
+        intermediate_size=10,
+        use_bias=True,
+    )
     ff = feed_forward.GatedFeedForward(
         dim=10,
-        hidden_dim=10,
         activation=F.silu,
-        use_bias=True,
-        use_glu=False,
-        pre_ff_norm=torch.nn.Identity(),
-        post_ff_norm=torch.nn.Identity(),
+        config=ff_config,
     )
     x = torch.ones((1, 10))
     out = ff(x)
