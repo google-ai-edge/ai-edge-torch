@@ -164,6 +164,19 @@ def _tfl_pow_lowering(
   )
 
 
+@lower(torch.ops.tfl.logical_and.default)
+def _tfl_logical_and_lowering(
+    lctx: LoweringContext,
+    lhs: ir.Value,
+    rhs: ir.Value,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.logical_and",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[lhs, rhs],
+  )
+
+
 @lower(torch.ops.tfl.greater.default)
 def _tfl_greater_lowering(
     lctx: LoweringContext,

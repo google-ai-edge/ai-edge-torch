@@ -63,6 +63,11 @@ def tfl_pow(x: Any, y: Any) -> torch.Tensor:
   return torch.pow(x, y)
 
 
+@custom_op_with_fake("tfl::logical_and")
+def tfl_logical_and(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+  return torch.logical_and(x, y)
+
+
 @custom_op_with_fake("tfl::greater")
 def tfl_greater(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
   return torch.gt(x, y)

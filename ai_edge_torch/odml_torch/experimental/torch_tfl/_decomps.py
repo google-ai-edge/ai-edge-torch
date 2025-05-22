@@ -96,6 +96,20 @@ def _aten_pow_tensor_tensor_decomp(x, y):
   return torch.ops.tfl.pow(x, y)
 
 
+@register_decomp(torch.ops.aten.bitwise_and.Tensor)
+def _aten_bitwise_and_tensor_decomp(x, y):
+  if not (
+      isinstance(x, torch.Tensor)
+      and x.dtype == torch.bool
+      and isinstance(y, torch.Tensor)
+      and y.dtype == torch.bool
+  ):
+    raise TypeError(
+        "Input tensors for aten.bitwise_and only supports bool for now."
+    )
+  return torch.ops.tfl.logical_and(x, y)
+
+
 @register_decomp(torch.ops.aten.gt.Tensor)
 def _aten_gt_tensor_decomp(x, y):
   return torch.ops.tfl.greater(x, y)
