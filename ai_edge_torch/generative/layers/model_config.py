@@ -69,8 +69,30 @@ class NormalizationConfig:
   enable_hlfb: bool = True
   epsilon: float = 1e-5
   zero_centered: bool = False
+  # Whether to use a scale parameter in the normalization.
+  with_scale: bool = False
+  # The shift to apply to the scale parameter.
+  scale_shift: float = 0.0
   # Number of groups used in group normalization.
   group_num: Optional[float] = None
+
+
+# Exprimental feature and may subject to change.
+class KVCacheUpdateStrategy(enum.Enum):
+  """Different alignment strategies of the KV cache.
+
+  Due to restrictions from different devices, we may need to apply different
+  alignment strategies to the KV cache during Attention layer's cache update.
+
+  Available options:
+    INPLACE: Update the existing cache in place using indexes.
+    PREPEND_LEFT: Append the new kv to the left of the existing cache. When this
+      cache update is applied, the newer kvs will always be prepended at the
+      beginning of the cache.
+  """
+
+  INPLACE = enum.auto()
+  PREPEND_LEFT = enum.auto()
 
 
 @dataclasses.dataclass
@@ -108,6 +130,12 @@ class AttentionConfig:
   key_norm_config: NormalizationConfig = dataclasses.field(
       default_factory=NormalizationConfig
   )
+  # The normalization applied to value projection's output.
+  value_norm_config: NormalizationConfig = dataclasses.field(
+      default_factory=NormalizationConfig
+  )
+  # Whether the KV cache is shared with the previous attention block.
+  kv_shared: bool = False
   relative_attention_num_buckets: int = 0
   relative_attention_max_distance: int = 0
   # Softcap on the output logits.
@@ -118,6 +146,8 @@ class AttentionConfig:
   sliding_window_size: Optional[int] = None
   # The default causal mask value used by attention layer.
   causal_mask_value: float = float("-inf")
+  # The update strategy of the KV cache. Default to INPLACE.
+  kvcache_update_strategy: KVCacheUpdateStrategy = KVCacheUpdateStrategy.INPLACE
 
 
 @dataclasses.dataclass
@@ -135,6 +165,9 @@ class FeedForwardConfig:
   type: FeedForwardType
   activation: ActivationConfig
   intermediate_size: int
+  # Whether to use two separate gating parameters or a single one in
+  # GatedFeedForward.
+  use_separate_gating: bool = True
   use_bias: bool = False
   # The normalization applied to feed forward's input.
   pre_ff_norm_config: NormalizationConfig = dataclasses.field(
