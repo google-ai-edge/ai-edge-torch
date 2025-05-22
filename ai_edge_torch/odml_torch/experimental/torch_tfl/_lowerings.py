@@ -297,6 +297,79 @@ def _tfl_transpose_lowering(
   )
 
 
+@lower(torch.ops.tfl.concatenation.default)
+def _tfl_concatenation_lowering(
+    lctx: LoweringContext,
+    tensors: Sequence[ir.Value],
+    axis: int,
+    fused_activation_function: str = "NONE",
+) -> ir.Value:
+  max_rank = 0
+  # First pass: determine max_rank among all input tensors
+  for t_val_rank_check in tensors:
+    if isinstance(t_val_rank_check.type, ir.RankedTensorType):
+      max_rank = max(max_rank, t_val_rank_check.type.rank)
+
+  ref_tensor_for_shape_inference = None
+  # If max_rank > 1, we might need to reshape. Find a reference tensor.
+  if max_rank > 1:
+    for t_val_ref_check in tensors:
+      if (
+          isinstance(t_val_ref_check.type, ir.RankedTensorType)
+          and t_val_ref_check.type.rank == max_rank
+      ):
+        ref_tensor_for_shape_inference = t_val_ref_check
+        break
+
+  processed_operands = []
+  # Perform reshaping of 1D (0,) tensors only if concatenating multi-dimensional
+  # tensors and a valid reference tensor was found.
+  perform_reshaping = (
+      max_rank > 1 and ref_tensor_for_shape_inference is not None
+  )
+
+  if perform_reshaping:
+    ref_shape = ref_tensor_for_shape_inference.type.shape
+    for t_val in tensors:
+      current_val = t_val
+      if isinstance(t_val.type, ir.RankedTensorType):
+        current_type = t_val.type
+        current_rank = current_type.rank
+        current_shape = current_type.shape
+
+        # Check if this tensor is 1D, shape (0,), and we are in a context
+        # where reshaping to max_rank is needed.
+        if current_rank == 1 and list(current_shape) == [0]:
+          new_shape_dims = []
+          for i in range(max_rank):  # Loop up to max_rank
+            if i == axis:
+              new_shape_dims.append(0)
+            else:
+              # ref_shape has length max_rank, so ref_shape[i] is safe.
+              new_shape_dims.append(ref_shape[i])
+
+          new_mlir_type = ir.RankedTensorType.get(
+              new_shape_dims, current_type.element_type
+          )
+          current_val = stablehlo.reshape(new_mlir_type, t_val)
+      processed_operands.append(current_val)
+  else:
+    # No reshaping needed, use tensors as they are.
+    processed_operands = list(tensors)
+
+  return _ir_operation(
+      "tfl.concatenation",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=processed_operands,
+      attributes={
+          "axis": ir.IntegerAttr.get(ir.IntegerType.get_signless(32), axis),
+          "fused_activation_function": ir.StringAttr.get(
+              fused_activation_function
+          ),
+      },
+  )
+
+
 @lower(torch.ops.tfl.reshape.default)
 def _tfl_reshape_lowering(
     lctx: LoweringContext,

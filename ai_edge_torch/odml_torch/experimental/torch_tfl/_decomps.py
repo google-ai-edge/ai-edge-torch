@@ -155,6 +155,11 @@ def _aten_permute_decomp(x, dims: Sequence[int]):
   return torch.ops.tfl.transpose(x, dims)
 
 
+@register_decomp(torch.ops.aten.cat.default)
+def _aten_cat_decomp(tensors, dim=0):
+  return torch.ops.tfl.concatenation(tensors, dim)
+
+
 @register_decomp(torch.ops.aten.view.default)
 def _aten_view_decomp(x, shape: Sequence[int]):
   return torch.ops.tfl.reshape(x, shape)
