@@ -20,6 +20,7 @@ from typing import Any, Sequence
 from ai_edge_torch.odml_torch.experimental.torch_tfl import torch_library_utils
 import numpy as np
 import torch
+from torch.fx.experimental.symbolic_shapes import has_free_symbols, is_symbolic
 
 
 custom_op_with_fake = torch_library_utils.custom_op_with_fake
@@ -187,6 +188,110 @@ def tfl_reshape(input: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
 def tfl_reshape_fake(input: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
   inferred_shape = _normalize_shape(input, shape)
   return torch.empty(inferred_shape, dtype=input.dtype)
+
+
+@torch.library.custom_op(
+    "tfl::range",
+    mutates_args=(),
+    schema="(Any start, Any limit, Any delta) -> Tensor",
+)
+def tfl_range(start: Any, limit: Any, delta: Any) -> torch.Tensor:
+  return torch.arange(start, limit, delta)
+
+
+# Use explicit fake implementation for tfl.range because dynamo cannot
+# derive the output's symbolic shape from the impl above.
+@torch.library.register_fake("tfl::range")
+def tfl_range_fake(start: Any, limit: Any, delta: Any) -> torch.Tensor:
+  # Determine output dtype
+  dt = torch.int64
+  for val_check in [start, limit, delta]:
+    if isinstance(val_check, float):  # Python float
+      dt = torch.get_default_dtype()
+      break
+    if isinstance(val_check, torch.Tensor):  # PyTorch tensor
+      if val_check.is_floating_point():
+        dt = torch.get_default_dtype()
+        break
+    elif is_symbolic(val_check):  # Symbolic number (SymInt or SymFloat)
+      temp_tensor_for_dtype_check = torch.tensor(val_check)
+      if temp_tensor_for_dtype_check.is_floating_point():
+        dt = torch.get_default_dtype()
+        break
+
+  s, l, d = start, limit, delta
+  numerator = torch.sub(l, s)
+
+  # Determine if delta is a concrete zero
+  is_concrete_zero_delta = False
+  if isinstance(d, (int, float)) and d == 0:
+    is_concrete_zero_delta = True
+  elif (
+      isinstance(d, torch.Tensor) and not has_free_symbols(d) and d.numel() == 1
+  ):
+    # d is a scalar tensor with a concrete shape. Check its value.
+    delta_item = d.item()
+    # Only if delta_item is NOT symbolic AND is zero, then treat as concrete zero.
+    if not is_symbolic(delta_item) and delta_item == 0:
+      is_concrete_zero_delta = True
+
+  if is_concrete_zero_delta:
+    final_size_float = torch.tensor(0.0, dtype=torch.get_default_dtype())
+  else:
+    # General case for non-zero or symbolic delta
+    num_steps_float = torch.true_divide(numerator, d)
+    size_float = torch.ceil(num_steps_float)
+    # The zero tensor for maximum should match the type of size_float (usually float)
+    # or the default float type if size_float is not a tensor (e.g. SymFloat)
+    dtype_for_zero = (
+        size_float.dtype
+        if isinstance(size_float, torch.Tensor)
+        else torch.get_default_dtype()
+    )
+    zero_for_max = torch.tensor(0.0, dtype=dtype_for_zero)
+    final_size_float = torch.maximum(size_float, zero_for_max)
+
+  # Convert to int/SymInt for shape
+  is_final_size_symbolic_scalar = False
+  # Check if final_size_float itself is a symbolic scalar (e.g., SymFloat)
+  if is_symbolic(final_size_float):
+    is_final_size_symbolic_scalar = True
+  # Else, check if it's a 0-dim tensor containing a symbolic scalar
+  elif (
+      isinstance(final_size_float, torch.Tensor)
+      and final_size_float.numel() == 1
+      and has_free_symbols(final_size_float)  # Check the tensor directly
+  ):
+    is_final_size_symbolic_scalar = True
+
+  if is_final_size_symbolic_scalar:
+    # Extract the symbolic value if it's a tensor, then convert to SymInt
+    value_to_convert = (
+        final_size_float.item()
+        if isinstance(final_size_float, torch.Tensor)
+        else final_size_float
+    )
+    output_size = torch.sym_int(value_to_convert)
+  else:
+    # final_size_float is concrete (either a Python float/int or a concrete tensor)
+    # Ensure it's a tensor for consistent handling via .item() and .all()
+    if isinstance(final_size_float, torch.Tensor):
+      final_size_tensor = final_size_float
+    else:
+      # This path is less likely given torch ops, but for robustness:
+      final_size_tensor = torch.tensor(
+          final_size_float, dtype=torch.get_default_dtype()
+      )
+
+    # Now final_size_tensor is a concrete tensor.
+    if not torch.isfinite(final_size_tensor).all():  # This is now safe.
+      output_size = 0
+    else:
+      # Ensure item is converted to int after checking for finiteness
+      output_size = int(final_size_tensor.item())
+
+  final_shape = (output_size,)
+  return torch.empty(final_shape, dtype=dt)
 
 
 @custom_op_with_fake("tfl::softmax")
