@@ -15,6 +15,7 @@
 
 """Common building blocks for Attention layer."""
 
+import abc
 from typing import Optional, Tuple, Union
 
 from ai_edge_torch.generative.layers import builder
@@ -111,7 +112,42 @@ class TransformerBlock(nn.Module):
     return output if kv is None else (output, kv)
 
 
-class CausalSelfAttention(nn.Module):
+class CausalSelfAttentionBase(nn.Module):
+  """Base class for causal self attention layer."""
+
+  def __init__(
+      self, dim: int, config: cfg.AttentionConfig, enable_hlfb: bool
+  ) -> None:
+    super().__init__()
+    self.dim = dim
+    self.config = config
+    self.enable_hlfb = enable_hlfb
+
+    self.query_norm = builder.build_norm(
+        self.config.head_dim, self.config.query_norm_config
+    )
+    self.key_norm = builder.build_norm(
+        self.config.head_dim, self.config.key_norm_config
+    )
+    self.value_norm = builder.build_norm(
+        self.config.head_dim, self.config.value_norm_config
+    )
+
+  @abc.abstractmethod
+  def forward(
+      self,
+      x: torch.Tensor,
+      rope: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+      mask: Optional[torch.Tensor] = None,
+      input_pos: Optional[torch.Tensor] = None,
+      kv_cache: Optional[kv_utils.KVCacheEntry] = None,
+      lora: Optional[lora_utils.LoRAEntry] = None,
+  ) -> Union[torch.Tensor, Tuple[torch.Tensor, kv_utils.KVCacheEntry]]:
+    raise NotImplementedError()
+
+
+class CausalSelfAttention(CausalSelfAttentionBase):
+  """Causal self attention layer implementation."""
 
   def __init__(
       self,
@@ -126,7 +162,7 @@ class CausalSelfAttention(nn.Module):
       config (cfg.AttentionConfig): attention specific configurations.
       enable_hlfb (bool): whether hlfb is enabled or not.
     """
-    super().__init__()
+    super().__init__(dim, config, enable_hlfb)
     self.kv_cache = None
     qkv_shape = (
         config.num_heads + 2 * config.num_query_groups
@@ -137,12 +173,6 @@ class CausalSelfAttention(nn.Module):
     self.output_projection = nn.Linear(
         output_shape, dim, bias=config.output_proj_use_bias
     )
-    self.query_norm = builder.build_norm(
-        config.head_dim, config.query_norm_config
-    )
-    self.key_norm = builder.build_norm(config.head_dim, config.key_norm_config)
-    self.config = config
-    self.enable_hlfb = enable_hlfb
 
   def forward(
       self,
@@ -204,6 +234,7 @@ class CausalSelfAttention(nn.Module):
 
     q = self.query_norm(q)
     k = self.key_norm(k)
+    v = self.value_norm(v)
 
     q = q.reshape(B, T, -1, self.config.head_dim)
     k = k.reshape(B, T, -1, self.config.head_dim)
