@@ -155,7 +155,8 @@ class TfLiteModel(Model):
     Args:
       path: The path to file to which the model is serialized.
     """
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if os.path.dirname(path) != '':
+      os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'wb') as file_handle:
       file_handle.write(self._tflite_model)
 
