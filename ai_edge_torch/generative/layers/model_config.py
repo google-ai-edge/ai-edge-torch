@@ -134,8 +134,6 @@ class AttentionConfig:
   value_norm_config: NormalizationConfig = dataclasses.field(
       default_factory=NormalizationConfig
   )
-  # Whether the KV cache is shared with the previous attention block.
-  kv_shared: bool = False
   relative_attention_num_buckets: int = 0
   relative_attention_max_distance: int = 0
   # Softcap on the output logits.
