@@ -268,6 +268,12 @@ class ModelConfig:
   # export.
   use_mask_cache: bool = True
 
+  # An interleaved sequence of the attention types used in the model.
+  # E.g. [AttentionType.LOCAL_SLIDING, AttentionType.LOCAL_SLIDING,
+  # AttentionType.GLOBAL] means that the model has an attention pattern of 2
+  # local attentions followed by a global attention in a repeated pattern.
+  attention_patterns: Optional[Sequence[AttentionType]] = None
+
   @property
   def kv_cache_max(self) -> int:
     if self.kv_cache_max_len > 0:
@@ -286,3 +292,19 @@ class ModelConfig:
   @property
   def causal_mask_value(self) -> float:
     return self.block_config(0).attn_config.causal_mask_value
+
+  def check_if_global_attention_layer(self, layer_idx: int) -> bool:
+    """Returns True if the layer is a global attention layer."""
+    if self.attention_patterns is None:
+      # If attention_patterns is not set, we assume the model has global
+      # attention.
+      return True
+    assert layer_idx >= 0 and layer_idx < self.num_layers, (
+        "Layer index {layer_idx} is out of range for num_layers:"
+        f" {self.num_layers}"
+    )
+
+    return (
+        self.block_config(layer_idx).attn_config.attn_type
+        == AttentionType.GLOBAL
+    )
