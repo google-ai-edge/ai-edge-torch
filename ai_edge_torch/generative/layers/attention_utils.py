@@ -61,6 +61,7 @@ def build_causal_mask_cache(
     size: int,
     dtype: torch.dtype = torch.float32,
     device: torch.device = None,
+    mask_value: float = float('-inf'),
 ) -> torch.Tensor:
   """Build a cache for causal attention mask.
 
@@ -70,6 +71,8 @@ def build_causal_mask_cache(
         torch.float32.
       device (torch.device, optional): Output tensor's data type. Defaults to
         None in which case "cpu" is used.
+      mask_value (float, optional): The value to set the mask to. Defaults to
+        float('-inf').
 
   Returns:
       torch.Tensor: Causal attention mask.
@@ -77,7 +80,7 @@ def build_causal_mask_cache(
 
   if device is None:
     device = torch.device('cpu')
-  mask = torch.full((size, size), float('-inf'), dtype=dtype, device=device)
+  mask = torch.full((size, size), mask_value, dtype=dtype, device=device)
   return torch.triu(mask, diagonal=1).unsqueeze(0).unsqueeze(0)
 
 
@@ -86,6 +89,7 @@ def build_sliding_window_mask_cache(
     window_size: int,
     dtype: torch.dtype = torch.float32,
     device: torch.device = None,
+    mask_value: float = float('-inf'),
 ) -> torch.Tensor:
   """Build a cache for a sliding window mask.
 
@@ -96,18 +100,20 @@ def build_sliding_window_mask_cache(
         torch.float32.
       device (torch.device, optional): Output tensor's data type. Defaults to
         None in which case "cpu" is used.
+      mask_value (float, optional): The value to set the mask to. Defaults to
+        float('-inf').
 
   Returns:
       torch.Tensor: Causal attention mask.
   """
 
-  mask = build_causal_mask_cache(size, dtype, device)
+  mask = build_causal_mask_cache(size, dtype, device, mask_value)
   all_ones = torch.ones_like(mask)
   window_size = min(size, window_size)
   sliding_mask = torch.triu(all_ones, -1 * window_size + 1) * torch.tril(
       all_ones, window_size - 1
   )
-  return torch.where(sliding_mask == 1, mask, float('-inf'))
+  return torch.where(sliding_mask == 1, mask, mask_value)
 
 
 def relative_position_bucket(
