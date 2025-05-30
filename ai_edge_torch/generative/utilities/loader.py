@@ -23,14 +23,13 @@ from safetensors import safe_open
 from safetensors.torch import load_file
 import torch
 
-
 def get_custom_loader(
     checkpoint_path: str,
     checkpoint_format: Optional[str] = None,
 ) -> Callable[[str], Dict[str, torch.Tensor]]:
   """Returns a custom loader for the given checkpoint path.
 
-  Those customer loaders can either support state dictionary or safetensors, and
+  Those custome loaders can either support state dictionary or safetensors, and
   the actual data might be fetched from a remote source.
 
   Args:

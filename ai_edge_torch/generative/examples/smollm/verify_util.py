@@ -16,11 +16,12 @@
 import logging
 import os
 import pathlib
-
+from typing import Callable, Dict
 from ai_edge_torch.generative.examples.smollm import smollm
 from ai_edge_torch.generative.utilities import loader
 from ai_edge_torch.generative.utilities import transformers_verifier
 from ai_edge_torch.generative.utilities import verifier
+import torch
 import transformers
 
 _BUILDER = {
@@ -36,8 +37,9 @@ def verify_smollm_135m(
     checkpoint_dir: str,
     weight_filename: str = "model.safetensors",
     max_new_tokens: int = 30,
-    initialize_from_local: bool = True,
     prompts: list[str] | None = None,
+    initialize_from_local: bool = True,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] | None = None,
 ) -> bool:
   """Verifies the reauthored SmoLLM model with a custom loader."""
   logging.info("Loading the original model from: %s", checkpoint_dir)
@@ -46,11 +48,9 @@ def verify_smollm_135m(
   )
 
   logging.info("Building the reauthored model from: %s", checkpoint_dir)
-  custom_loader = (
-      None
-      if initialize_from_local
-      else loader.get_custom_loader("", "safetensors")
-  )
+
+  if custom_loader is None and not initialize_from_local:
+    custom_loader = loader.get_custom_loader("", "safetensors")
 
   if initialize_from_local:
     # Locate the cached dir.
