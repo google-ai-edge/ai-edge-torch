@@ -61,10 +61,12 @@ class TestModelConversion(googletest.TestCase):
     np.random.seed(1234)  # Make np.random deterministic.
 
   def _test_model(self, config, model, signature_name, atol, rtol):
+    kv_cache_max = 128
+    model.build_mask_cache(kv_cache_max)
     seq_len = 10
     tokens = torch.zeros((1, seq_len), dtype=torch.int, device="cpu")
     input_pos = torch.arange(0, seq_len, dtype=torch.int)
-    kv = kv_cache.KVCache.from_model_config(config)
+    kv = kv_cache.KVCache.from_model_config(kv_cache_max, config)
 
     edge_model = ai_edge_torch.signature(
         signature_name,
@@ -154,7 +156,6 @@ class TestModelConversion(googletest.TestCase):
     pytorch_model = hammer.Hammer(config).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-5, rtol=1e-5)
 
-
   def test_amd_llama_135m(self):
     config = amd_llama_135m.get_fake_model_config()
     pytorch_model = amd_llama_135m.AmdLlama(config).eval()
@@ -163,6 +164,8 @@ class TestModelConversion(googletest.TestCase):
   def _test_paligemma_model(self, decoder_class, decoder_config, atol, rtol):
     config = paligemma.get_fake_model_config(decoder_config)
     pytorch_model = paligemma.PaliGemma(config, decoder_class).eval()
+    kv_cache_max = 128
+    pytorch_model.decoder.build_mask_cache(kv_cache_max)
 
     image_config = config.image_encoder_config.image_embedding
     num_patches = (image_config.image_size // image_config.patch_size) ** 2
@@ -171,7 +174,7 @@ class TestModelConversion(googletest.TestCase):
     seq_len = num_patches + 10
     tokens = torch.zeros((1, seq_len), dtype=torch.int)
     input_pos = torch.arange(0, seq_len, dtype=torch.int)
-    kv = kv_cache.KVCache.from_model_config(config.decoder_config)
+    kv = kv_cache.KVCache.from_model_config(kv_cache_max, config.decoder_config)
     pixel_values = torch.zeros((1, 3, 8, 8), dtype=torch.float32)
 
     edge_model = ai_edge_torch.signature(
@@ -219,6 +222,8 @@ class TestModelConversion(googletest.TestCase):
   def test_qwen_vl_model(self):
     config = qwen_vl.get_fake_model_config()
     pytorch_model = qwen_vl.QwenVL(config).eval()
+    kv_cache_max = 128
+    pytorch_model.decoder.build_mask_cache(kv_cache_max)
 
     grid_thw = pytorch_model.image_encoder.get_grid_thw()
     pixel_values_size = pytorch_model.image_encoder.get_pixel_values_size(
@@ -229,7 +234,7 @@ class TestModelConversion(googletest.TestCase):
     seq_len = pixel_values_size[0] + 10
     tokens = torch.zeros((1, seq_len), dtype=torch.int)
     input_pos = torch.arange(0, seq_len, dtype=torch.int)
-    kv = kv_cache.KVCache.from_model_config(config.decoder_config)
+    kv = kv_cache.KVCache.from_model_config(kv_cache_max, config.decoder_config)
     pixel_values = torch.zeros(pixel_values_size, dtype=torch.float32)
 
     edge_model = ai_edge_torch.signature(

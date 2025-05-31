@@ -251,9 +251,6 @@ class ModelConfig:
   # Whether to turn on high-level function boundary.
   enable_hlfb: bool = True
 
-  # The maximum sequence length of the KV cache. Should not exceed max_seq_len.
-  kv_cache_max_len: int = 0
-
   # Softcap on the model output logits.
   final_logit_softcap: Optional[float] = None
 
@@ -271,12 +268,6 @@ class ModelConfig:
   # AttentionType.GLOBAL] means that the model has an attention pattern of 2
   # local attentions followed by a global attention in a repeated pattern.
   attention_patterns: Optional[Sequence[AttentionType]] = None
-
-  @property
-  def kv_cache_max(self) -> int:
-    if self.kv_cache_max_len > 0:
-      return self.kv_cache_max_len
-    return self.max_seq_len
 
   def block_config(self, idx: int) -> TransformerBlockConfig:
     if isinstance(self.block_configs, TransformerBlockConfig):

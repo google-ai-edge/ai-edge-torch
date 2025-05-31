@@ -150,10 +150,10 @@ class Gemma3MM(nn.Module):
     )
 
 
-def get_fake_model_config(**kwargs) -> Gemma3MMConfig:
+def get_fake_model_config() -> Gemma3MMConfig:
   return Gemma3MMConfig(
       image_encoder_config=image_encoder.get_fake_image_encoder_config(),
-      decoder_config=decoder.get_fake_decoder_config_1b(**kwargs),
+      decoder_config=decoder.get_fake_decoder_config_1b(),
       image_token_id=127,
       image_projection_scale=128**0.5,
       image_projection_use_bias=False,
@@ -167,12 +167,11 @@ def get_fake_model_config(**kwargs) -> Gemma3MMConfig:
 def build_model_1b(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    **kwargs,
 ) -> decoder.Decoder:
   if checkpoint_path:
-    model = decoder.build_model_1b(checkpoint_path, custom_loader, **kwargs)
+    model = decoder.build_model_1b(checkpoint_path, custom_loader)
   else:
-    config = decoder.get_decoder_config_1b(**kwargs)
+    config = decoder.get_decoder_config_1b()
     model = decoder.Decoder(config)
   # TODO: Load the parameters of decoder from checkpoint.
   model.eval()

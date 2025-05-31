@@ -98,6 +98,7 @@ class KVCache:
   @classmethod
   def from_model_config(
       cls,
+      kv_cache_max: int,
       config: model_config.ModelConfig,
       dtype: torch.dtype = torch.float32,
       device: torch.device | None = None,
@@ -107,6 +108,7 @@ class KVCache:
     """Build an instance of the class based on model config.
 
     Args:
+        kv_cache_max (int): The maximum sequence length in the KV cache.
         config (ModelConfig): Model config used for building the cache.
         dtype (torch.dtype, optional): The data type of the cache tensor.
           Defaults to torch.float32.
@@ -120,7 +122,7 @@ class KVCache:
     """
     caches = [
         KVCacheEntry.from_model_config(
-            config.kv_cache_max
+            kv_cache_max
             if not config.block_config(idx).kv_cache_max_len
             else config.block_config(idx).kv_cache_max_len,
             config.block_config(idx).attn_config,

@@ -29,7 +29,7 @@ class Hammer(model_builder.DecoderOnlyModel):
   pass
 
 
-def get_1_5b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+def get_1_5b_model_config() -> cfg.ModelConfig:
   """Returns the model config for a Hammer 2.1 1.5B model."""
   attn_config = cfg.AttentionConfig(
       num_heads=12,
@@ -58,16 +58,15 @@ def get_1_5b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       num_layers=28,
       max_seq_len=32768,
       embedding_dim=1536,
-      kv_cache_max_len=kv_cache_max_len,
       block_configs=block_config,
       final_norm_config=norm_config,
   )
   return config
 
 
-def get_0_5b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+def get_0_5b_model_config() -> cfg.ModelConfig:
   """Returns the model config for a Hammer 2.1 0.5B model."""
-  config = get_1_5b_model_config(kv_cache_max_len)
+  config = get_1_5b_model_config()
   # Hammer has only one block config.
   block_config = config.block_config(0)
   block_config.attn_config.num_heads = 14
@@ -78,8 +77,8 @@ def get_0_5b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
-def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
-  config = get_1_5b_model_config(**kwargs)
+def get_fake_model_config() -> cfg.ModelConfig:
+  config = get_1_5b_model_config()
   config.vocab_size = 128
   config.num_layers = 2
   config.embedding_dim = 16
@@ -91,11 +90,10 @@ def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
 def build_1_5b_model(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    **kwargs
 ) -> nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
-      config=get_1_5b_model_config(**kwargs),
+      config=get_1_5b_model_config(),
       tensor_names=TENSOR_NAMES,
       model_class=Hammer,
       custom_loader=custom_loader,
@@ -105,11 +103,10 @@ def build_1_5b_model(
 def build_0_5b_model(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    **kwargs
 ) -> nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
-      config=get_0_5b_model_config(**kwargs),
+      config=get_0_5b_model_config(),
       tensor_names=TENSOR_NAMES,
       model_class=Hammer,
       custom_loader=custom_loader,

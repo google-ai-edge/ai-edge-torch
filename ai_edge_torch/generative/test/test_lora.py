@@ -58,12 +58,7 @@ class TestLora(googletest.TestCase):
     safetensors_file = resource_loader.get_path_to_datafile(
         "fixtures/test_lora_rank16.safetensors"
     )
-    config = self._get_test_config(
-        num_layers=1,
-        head_dim=8,
-        num_query_groups=1,
-        kv_cache_max_len=16,
-    )
+    config = self._get_test_config(num_layers=1, head_dim=8, num_query_groups=1)
     lora = lora_utils.LoRA.from_safetensors(
         safetensors_file,
         scale=1.0,
@@ -84,12 +79,8 @@ class TestLora(googletest.TestCase):
     n = 1
     head_dim = 2
     num_query_groups = 1
-    key_length = 4
     config = self._get_test_config(
-        num_layers=n,
-        head_dim=head_dim,
-        num_query_groups=num_query_groups,
-        kv_cache_max_len=key_length,
+        num_layers=n, head_dim=head_dim, num_query_groups=num_query_groups
     )
     inputs = torch.zeros((n, 1, head_dim))
     lora = lora_utils.LoRA.zeros(rank=16, config=config)
@@ -111,20 +102,13 @@ class TestLora(googletest.TestCase):
 
   def test_lora_tflite_serialization(self):
     """Tests the serialization of the LoRA module."""
-    config = self._get_test_config(
-        num_layers=2,
-        head_dim=8,
-        num_query_groups=1,
-        kv_cache_max_len=16,
-    )
+    config = self._get_test_config(num_layers=2, head_dim=8, num_query_groups=1)
     lora = lora_utils.LoRA.random(rank=16, config=config)
     flatbuffer_model = lora.to_tflite()
     recovered_lora = lora_utils.LoRA.from_flatbuffers(flatbuffer_model)
     self.assertEqual(lora, recovered_lora)
 
-  def _get_test_config(
-      self, num_layers, head_dim, num_query_groups, kv_cache_max_len
-  ):
+  def _get_test_config(self, num_layers, head_dim, num_query_groups):
     """Returns a test model config."""
     attn_config = cfg.AttentionConfig(
         num_heads=1, head_dim=head_dim, num_query_groups=num_query_groups
@@ -133,7 +117,6 @@ class TestLora(googletest.TestCase):
         attn_config=attn_config, ff_config=None
     )
     config = cfg.ModelConfig(
-        kv_cache_max_len=kv_cache_max_len,
         embedding_dim=head_dim,
         block_configs=block_config,
         num_layers=num_layers,

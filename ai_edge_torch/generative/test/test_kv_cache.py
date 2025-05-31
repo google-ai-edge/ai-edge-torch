@@ -25,9 +25,7 @@ from absl.testing import absltest as googletest
 
 class TestKVLayers(googletest.TestCase):
 
-  def _get_test_config(
-      self, num_layers, head_dim, num_query_groups, kv_cache_max_len
-  ):
+  def _get_test_config(self, num_layers, head_dim, num_query_groups):
     attn_config = cfg.AttentionConfig(
         num_heads=1, head_dim=head_dim, num_query_groups=num_query_groups
     )
@@ -35,7 +33,6 @@ class TestKVLayers(googletest.TestCase):
         attn_config=attn_config, ff_config=None
     )
     config = cfg.ModelConfig(
-        kv_cache_max_len=kv_cache_max_len,
         embedding_dim=head_dim,
         block_configs=block_config,
         num_layers=num_layers,
@@ -50,12 +47,9 @@ class TestKVLayers(googletest.TestCase):
     NUM_QG = 1
     KV_LEN = 4
     config = self._get_test_config(
-        num_layers=N,
-        head_dim=HEAD_DIM,
-        num_query_groups=NUM_QG,
-        kv_cache_max_len=KV_LEN,
+        num_layers=N, head_dim=HEAD_DIM, num_query_groups=NUM_QG
     )
-    kv = kv_utils.KVCache.from_model_config(config)
+    kv = kv_utils.KVCache.from_model_config(KV_LEN, config)
     entry = kv.caches[0]
     # single-slice update
     input_pos = torch.tensor([1])
@@ -103,12 +97,9 @@ class TestKVLayers(googletest.TestCase):
     NUM_QG = 1
     KV_LEN = 4
     config = self._get_test_config(
-        num_layers=N,
-        head_dim=HEAD_DIM,
-        num_query_groups=NUM_QG,
-        kv_cache_max_len=KV_LEN,
+        num_layers=N, head_dim=HEAD_DIM, num_query_groups=NUM_QG
     )
-    kv = kv_utils.KVCache.from_model_config(config)
+    kv = kv_utils.KVCache.from_model_config(KV_LEN, config)
     model = TestModel()
     exported_program = torch.export.export(model, (kv,))
     input_specs = exported_program.graph_signature.input_specs
@@ -119,12 +110,11 @@ class TestKVLayers(googletest.TestCase):
   def test_pytree_roundtrip_kv_cache(self):
     NUM_LAYERS = 4
     config = self._get_test_config(
-        num_layers=NUM_LAYERS,
-        head_dim=2,
-        num_query_groups=1,
-        kv_cache_max_len=4,
+        num_layers=NUM_LAYERS, head_dim=2, num_query_groups=1
     )
-    kv = kv_utils.KVCache.from_model_config(config, batch_size=1)
+    kv = kv_utils.KVCache.from_model_config(
+        kv_cache_max=4, config=config, batch_size=1
+    )
     flat, treespec = pytree.tree_flatten(kv)
     self.assertLen(flat, NUM_LAYERS * 2)
     kv_unflat = pytree.tree_unflatten(flat, treespec)
@@ -133,13 +123,13 @@ class TestKVLayers(googletest.TestCase):
   def test_pytree_roundtrip_kv_cache_derived(self):
     NUM_LAYERS = 4
     config = self._get_test_config(
-        num_layers=NUM_LAYERS,
-        head_dim=2,
-        num_query_groups=1,
-        kv_cache_max_len=4,
+        num_layers=NUM_LAYERS, head_dim=2, num_query_groups=1
     )
     kv = kv_utils.KVCache.from_model_config(
-        config, batch_size=1, kv_layout=kv_utils.KV_LAYOUT_TRANSPOSED
+        kv_cache_max=4,
+        config=config,
+        batch_size=1,
+        kv_layout=kv_utils.KV_LAYOUT_TRANSPOSED,
     )
     flat, treespec = pytree.tree_flatten(kv)
     self.assertLen(flat, NUM_LAYERS * 2)
