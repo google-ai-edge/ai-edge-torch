@@ -79,7 +79,9 @@ class MinCutSolver:
 
   @property
   def graph(self):
-    edges = np.array(self.edges)
+    # Ensure edges is a 2D array with shape (N, 3) and int32 dtype.
+    # If self.edges is empty, this will result in an array with shape (0, 3).
+    edges = np.array(self.edges, dtype=np.int32).reshape(-1, 3)
     return scipy.sparse.csr_matrix(
         (
             np.minimum(edges[:, 2], MinCutSolver.INF_COST),
