@@ -116,6 +116,18 @@ def tfl_transpose(input: torch.Tensor, perm: Sequence[int]) -> torch.Tensor:
   return torch.permute(input, perm).clone()
 
 
+@custom_op_with_fake("tfl::concatenation")
+def tfl_concatenation(
+    tensors: Sequence[torch.Tensor], dim: int
+) -> torch.Tensor:
+  return torch.cat(tensors, dim=dim)
+
+
+@custom_op_with_fake("tfl::fill", schema="(int[] x, Any y) -> Tensor")
+def tfl_fill(dims: Sequence[int], fill_value: Any) -> torch.Tensor:
+  return torch.full(dims, fill_value)
+
+
 def _normalize_shape(
     tensor_input: torch.Tensor, shape: Sequence[int]
 ) -> Sequence[int]:
