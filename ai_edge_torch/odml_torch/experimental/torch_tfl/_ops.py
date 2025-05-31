@@ -68,6 +68,13 @@ def tfl_logical_and(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
   return torch.logical_and(x, y)
 
 
+@custom_op_with_fake(
+    "tfl::mean", schema="(Tensor x, Any dims, bool keepdim) -> Tensor"
+)
+def tfl_mean(x: torch.Tensor, dims: Any, keepdim: bool = False) -> torch.Tensor:
+  return torch.mean(x, dims, keepdim)
+
+
 @custom_op_with_fake("tfl::greater")
 def tfl_greater(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
   return torch.gt(x, y)
@@ -114,6 +121,18 @@ def tfl_transpose(input: torch.Tensor, perm: Sequence[int]) -> torch.Tensor:
   assert len(perm) == input.ndim
 
   return torch.permute(input, perm).clone()
+
+
+@custom_op_with_fake("tfl::concatenation")
+def tfl_concatenation(
+    tensors: Sequence[torch.Tensor], dim: int
+) -> torch.Tensor:
+  return torch.cat(tensors, dim=dim)
+
+
+@custom_op_with_fake("tfl::fill", schema="(int[] x, Any y) -> Tensor")
+def tfl_fill(dims: Sequence[int], fill_value: Any) -> torch.Tensor:
+  return torch.full(dims, fill_value)
 
 
 def _normalize_shape(
