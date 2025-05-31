@@ -110,6 +110,11 @@ def _aten_bitwise_and_tensor_decomp(x, y):
   return torch.ops.tfl.logical_and(x, y)
 
 
+@register_decomp(torch.ops.aten.mean.dim)
+def _aten_mean_dim_decomp(x, dim, keepdim=False):
+  return torch.ops.tfl.mean(x, dim, keepdim)
+
+
 @register_decomp(torch.ops.aten.gt.Tensor)
 def _aten_gt_tensor_decomp(x, y):
   return torch.ops.tfl.greater(x, y)
@@ -155,9 +160,34 @@ def _aten_permute_decomp(x, dims: Sequence[int]):
   return torch.ops.tfl.transpose(x, dims)
 
 
+@register_decomp(torch.ops.aten.cat.default)
+def _aten_cat_decomp(tensors, dim=0):
+  return torch.ops.tfl.concatenation(tensors, dim)
+
+
+@register_decomp(torch.ops.aten.full_like.default)
+def _aten_full_like_decomp(x, fill_value):
+  return torch.ops.tfl.fill(tuple(x.shape), fill_value)
+
+
 @register_decomp(torch.ops.aten.view.default)
 def _aten_view_decomp(x, shape: Sequence[int]):
   return torch.ops.tfl.reshape(x, shape)
+
+
+@register_decomp(torch.ops.aten.split_with_sizes.default)
+def _aten_split_with_sizes_decomp(x, split_sizes: Sequence[int], dim=0):
+  return torch.ops.tfl.split_v(x, split_sizes, dim)
+
+
+@register_decomp(torch.ops.aten.unsqueeze.default)
+def _aten_unsqueeze_decomp(x, dim):
+  return torch.ops.tfl.expand_dims(x, dim)
+
+
+@register_decomp(torch.ops.aten.expand.default)
+def _aten_expand_decomp(x, shape: Sequence[int]):
+  return torch.ops.tfl.broadcast_to(x, shape)
 
 
 @register_decomp(torch.ops.aten._softmax.default)
