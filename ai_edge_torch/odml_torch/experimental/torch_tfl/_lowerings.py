@@ -92,10 +92,11 @@ def _tfl_add_lowering(
 @lower(torch.ops.tfl.sub.default)
 def _tfl_sub_lowering(
     lctx: LoweringContext,
-    lhs: ir.Value,
+    lhs: ir.Value | int | float,
     rhs: ir.Value | int | float,
     fused_activation_function: str = "NONE",
 ) -> ir.Value:
+  lhs = lowering_utils.convert_to_ir_value(lhs)
   rhs = lowering_utils.convert_to_ir_value(rhs)
   return _ir_operation(
       "tfl.sub",
@@ -471,6 +472,167 @@ def _tfl_range_lowering(
     final_output_val = tfl_range_op_val
 
   return final_output_val
+
+
+@lower(torch.ops.tfl.split_v.default)
+def _tfl_split_v_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    size_splits: Sequence[int | ir.Value],
+    dim: int | ir.Value,
+) -> ir.Value:
+  size_splits_ir_value = lowering_utils.convert_shape_to_ir_value(size_splits)
+  dim_ir_value = lowering_utils.numpy_array_constant(
+      np.array(dim, dtype=np.int32)
+  )
+  return _ir_operation(
+      "tfl.split_v",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x, size_splits_ir_value, dim_ir_value],
+      attributes={
+          "num_splits": ir.IntegerAttr.get(
+              ir.IntegerType.get_signless(32), len(size_splits)
+          ),
+      },
+  )
+
+
+@lower(torch.ops.tfl.expand_dims.default)
+def _tfl_expand_dims_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    dim: int | ir.Value,
+) -> ir.Value:
+  dim_ir_value = lowering_utils.numpy_array_constant(
+      np.array(dim, dtype=np.int32)
+  )
+  return _ir_operation(
+      "tfl.expand_dims",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x, dim_ir_value],
+  )
+
+
+@lower(torch.ops.tfl.broadcast_to.default)
+def _tfl_broadcast_to_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    shape: Sequence[int | ir.Value],
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.broadcast_to",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x, lowering_utils.convert_shape_to_ir_value(shape)],
+  )
+
+
+@lower(torch.ops.tfl.squeeze.default)
+def _tfl_squeeze_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    squeeze_dims: Sequence[int | ir.Value],
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.squeeze",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x],
+      attributes={
+          "squeeze_dims": ir.ArrayAttr.get([
+              ir.IntegerAttr.get(ir.IntegerType.get_signless(64), int(d))
+              for d in squeeze_dims
+          ]),
+      },
+  )
+
+
+@lower(torch.ops.tfl.strided_slice.default)
+def _tfl_strided_slice_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    begin: Sequence[int | ir.Value],
+    end: Sequence[int | ir.Value],
+    strides: Sequence[int | ir.Value],
+    begin_mask: int = 0,
+    end_mask: int = 0,
+    ellipsis_mask: int = 0,
+    new_axis_mask: int = 0,
+    shrink_axis_mask: int = 0,
+    offset: bool = False,
+) -> ir.Value:
+  begin_ir_value = lowering_utils.convert_shape_to_ir_value(begin)
+  end_ir_value = lowering_utils.convert_shape_to_ir_value(end)
+  strides_ir_value = lowering_utils.convert_shape_to_ir_value(strides)
+  return _ir_operation(
+      "tfl.strided_slice",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x, begin_ir_value, end_ir_value, strides_ir_value],
+      attributes={
+          "begin_mask": ir.IntegerAttr.get(
+              ir.IntegerType.get_signless(32), begin_mask
+          ),
+          "end_mask": ir.IntegerAttr.get(
+              ir.IntegerType.get_signless(32), end_mask
+          ),
+          "ellipsis_mask": ir.IntegerAttr.get(
+              ir.IntegerType.get_signless(32), ellipsis_mask
+          ),
+          "new_axis_mask": ir.IntegerAttr.get(
+              ir.IntegerType.get_signless(32), new_axis_mask
+          ),
+          "shrink_axis_mask": ir.IntegerAttr.get(
+              ir.IntegerType.get_signless(32), shrink_axis_mask
+          ),
+          "offset": ir.BoolAttr.get(offset),
+      },
+  )
+
+
+@lower(torch.ops.tfl.select_v2.default)
+def _tfl_select_v2_lowering(
+    lctx: LoweringContext,
+    condition: ir.Value,
+    x: ir.Value,
+    y: ir.Value,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.select_v2",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[condition, x, y],
+  )
+
+
+@lower(torch.ops.tfl.embedding_lookup.default)
+def _tfl_embedding_lookup_lowering(
+    lctx: LoweringContext,
+    indices: ir.Value,
+    weight: ir.Value,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.embedding_lookup",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[indices, weight],
+  )
+
+
+@lower(torch.ops.tfl.gather.default)
+def _tfl_gather_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    indices: ir.Value,
+    axis: int,
+    batch_dims: int = 0,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.gather",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x, indices],
+      attributes={
+          "axis": ir.IntegerAttr.get(ir.IntegerType.get_signless(32), axis),
+          "batch_dims": ir.IntegerAttr.get(
+              ir.IntegerType.get_signless(32), batch_dims
+          ),
+      },
+  )
 
 
 @lower(torch.ops.tfl.softmax.default)

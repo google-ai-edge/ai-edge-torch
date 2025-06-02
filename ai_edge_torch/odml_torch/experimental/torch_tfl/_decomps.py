@@ -233,6 +233,62 @@ def _aten_arange_start_step_decomp(
   return torch.ops.tfl.range(start, end, step)
 
 
+@register_decomp(torch.ops.aten.split_with_sizes.default)
+def _aten_split_with_sizes_decomp(x, split_sizes, dim=0):
+  return torch.ops.tfl.split_v(x, split_sizes, dim)
+
+
+@register_decomp(torch.ops.aten.unsqueeze.default)
+def _aten_unsqueeze_decomp(x, dim):
+  return torch.ops.tfl.expand_dims(x, dim)
+
+
+@register_decomp(torch.ops.aten.expand.default)
+def _aten_expand_decomp(x, shape: Sequence[int]):
+  return torch.ops.tfl.broadcast_to(x, shape)
+
+
+@register_decomp(torch.ops.aten.squeeze.dims)
+def _aten_squeeze_dims_decomp(x, squeeze_dims: Sequence[int]):
+  if len(squeeze_dims) > 8:
+    raise ValueError(
+        "torch.ops.tfl.squeeze supports squeezing at most 8 dimensions, but got"
+        f" {len(squeeze_dims)} dimensions."
+    )
+  return torch.ops.tfl.squeeze(x, squeeze_dims)
+
+
+@register_decomp(torch.ops.aten.select.int)
+def _aten_select_int_decomp(x, dim, index):
+  rank = len(x.shape)
+
+  # Initialize begin, end, strides
+  begin = [0] * rank
+  end = list(x.shape)
+  strides = [1] * rank
+
+  # Select the index on the given dim
+  begin[dim] = index
+  end[dim] = index + 1
+
+  # Perform the strided slice
+  sliced = torch.ops.tfl.strided_slice(x, begin, end, strides)
+
+  # Remove the selected dimension
+  return torch.ops.tfl.squeeze(sliced, [dim])
+
+
+@register_decomp(torch.ops.aten.where.self)
+def _aten_where_self_decomp(condition, x, y):
+  return torch.ops.tfl.select_v2(condition, x, y)
+
+
+@register_decomp(torch.ops.aten.embedding.default)
+def _aten_embedding_decomp(weight, indices, padding_idx=-1):
+  # return torch.ops.tfl.gather(weight, indices, axis=0)
+  return torch.ops.tfl.embedding_lookup(indices, weight)
+
+
 @register_decomp(torch.ops.aten._softmax.default)
 def _aten__softmax_decomp(
     x, dim: int, half_to_float: bool  # pylint: disable=unused-argument
