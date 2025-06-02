@@ -53,7 +53,7 @@ class EncoderDecoderBlock(nn.Module):
         model_config.embedding_dim,
         config.attn_config,
         config.pre_attention_norm_config,
-        model_config.max_seq_len,
+        model_config.kv_cache_max,
         model_config.enable_hlfb,
         has_relative_attention_bias=has_relative_attention_bias,
     )
@@ -64,7 +64,7 @@ class EncoderDecoderBlock(nn.Module):
           model_config.embedding_dim,
           config.attn_config,
           config.pre_attention_norm_config,
-          model_config.max_seq_len,
+          model_config.kv_cache_max,
           model_config.enable_hlfb,
           # Cross Attention does not have relative attention bias.
           has_relative_attention_bias=False,

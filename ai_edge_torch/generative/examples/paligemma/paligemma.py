@@ -45,12 +45,7 @@ class PaliGemmaConfig:
 class PaliGemma(nn.Module):
   """PaliGemma model from the Edge Generative API."""
 
-  def __init__(
-      self,
-      config: PaliGemmaConfig,
-      decoder_class: nn.Module,
-      mask_cache_size: int = 0,
-  ):
+  def __init__(self, config: PaliGemmaConfig, decoder_class: nn.Module):
     super().__init__()
 
     self.image_encoder = image_encoder.SiglipVisionEncoder(
@@ -61,7 +56,7 @@ class PaliGemma(nn.Module):
         config.decoder_config.embedding_dim,
         bias=config.image_projection_use_bias,
     )
-    self.decoder = decoder_class(config.decoder_config, mask_cache_size)
+    self.decoder = decoder_class(config.decoder_config)
     image_embedding_config = config.image_encoder_config.image_embedding
     self.num_patches = (
         image_embedding_config.image_size // image_embedding_config.patch_size
@@ -121,7 +116,7 @@ class PaliGemma(nn.Module):
     )
 
 
-def get_model_config(get_decoder_config) -> PaliGemmaConfig:
+def get_model_config(get_decoder_config, **kwargs) -> PaliGemmaConfig:
   """Returns the model config for a PaliGemma 3B-224 model.
 
   Returns:
@@ -129,16 +124,16 @@ def get_model_config(get_decoder_config) -> PaliGemmaConfig:
   """
   return PaliGemmaConfig(
       image_encoder_config=image_encoder.get_image_encoder_config(),
-      decoder_config=get_decoder_config(),
+      decoder_config=get_decoder_config(**kwargs),
       image_token_id=257152,
       image_projection_use_bias=True,
   )
 
 
-def get_fake_model_config(get_decoder_config) -> PaliGemmaConfig:
+def get_fake_model_config(get_decoder_config, **kwargs) -> PaliGemmaConfig:
   return PaliGemmaConfig(
       image_encoder_config=image_encoder.get_fake_image_encoder_config(),
-      decoder_config=get_decoder_config(),
+      decoder_config=get_decoder_config(**kwargs),
       image_token_id=127,
       image_projection_use_bias=True,
   )
@@ -148,7 +143,7 @@ def build_model(
     checkpoint_path: str,
     version: int = 2,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    mask_cache_size: int = 0,
+    **kwargs,
 ) -> PaliGemma:
   if version == 1:
     decoder_class = decoder.Decoder
@@ -159,8 +154,8 @@ def build_model(
     decoder_tensor_names = decoder2.TENSOR_NAMES
     get_decoder_config = decoder2.get_decoder2_config
 
-  config = get_model_config(get_decoder_config)
-  model = PaliGemma(config, decoder_class, mask_cache_size)
+  config = get_model_config(get_decoder_config, **kwargs)
+  model = PaliGemma(config, decoder_class)
   # Load the parameters of image encoder.
   loader = loading_utils.ModelLoader(
       checkpoint_path, image_encoder.TENSOR_NAMES, custom_loader

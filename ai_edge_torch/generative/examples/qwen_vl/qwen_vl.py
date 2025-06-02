@@ -41,13 +41,13 @@ class QwenVLConfig:
 class QwenVL(nn.Module):
   """Qwen VL model from the Edge Generative API."""
 
-  def __init__(self, config: QwenVLConfig, mask_cache_size: int = 0):
+  def __init__(self, config: QwenVLConfig):
     super().__init__()
 
     self.image_encoder = image_encoder.QwenVLImageEncoder(
         config.image_encoder_config
     )
-    self.decoder = decoder.Decoder(config.decoder_config, mask_cache_size)
+    self.decoder = decoder.Decoder(config.decoder_config)
     # The amount of adjustment in input_pos to calculate RoPE properly in
     # forward() calls after image is handled.
     self.rope_pos_adjust = 0
@@ -179,21 +179,26 @@ class QwenVL(nn.Module):
 
 
 def get_model_config(
+    kv_cache_max_len: int = 1024,
     image_size: Tuple[int, int] = (34 * 14, 46 * 14),
 ) -> QwenVLConfig:
-  """Returns the model config for a PaliGemma 3B-224 model."""
+  """Returns the model config for a PaliGemma 3B-224 model.
+
+  Returns:
+    The model config for a PaliGemma 3B model.
+  """
   return QwenVLConfig(
       image_encoder_config=image_encoder.get_image_encoder_config(image_size),
-      decoder_config=decoder.get_decoder_config(),
+      decoder_config=decoder.get_decoder_config(kv_cache_max_len),
       image_token_id=151655,
       mrope_section=[16, 24, 24],
   )
 
 
-def get_fake_model_config() -> QwenVLConfig:
+def get_fake_model_config(**kwargs) -> QwenVLConfig:
   return QwenVLConfig(
       image_encoder_config=image_encoder.get_fake_image_encoder_config(),
-      decoder_config=decoder.get_fake_decoder_config(),
+      decoder_config=decoder.get_fake_decoder_config(**kwargs),
       image_token_id=127,
       mrope_section=[16, 24, 24],
   )
@@ -202,11 +207,10 @@ def get_fake_model_config() -> QwenVLConfig:
 def build_model(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    mask_cache_size: int = 0,
     **kwargs
 ) -> QwenVL:
   config = get_model_config(**kwargs)
-  model = QwenVL(config, mask_cache_size)
+  model = QwenVL(config)
   image_encoder.load_image_encoder(
       checkpoint_path, model.image_encoder, custom_loader
   )

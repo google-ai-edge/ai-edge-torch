@@ -42,11 +42,20 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
 
 class Qwen3(model_builder.DecoderOnlyModel):
   """A Qwen3 model built from the Edge Generative API layers."""
+
   pass
 
 
-def get_4b_model_config() -> cfg.ModelConfig:
-  """Returns the model config for a Qwen 3.0 4B model."""
+def get_4b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+  """Returns the model config for a Qwen 3.0 4B model.
+
+  Args:
+    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
+      is 1024.
+
+  Returns:
+    The model config for a SmolLM model.
+  """
   norm_config = cfg.NormalizationConfig(
       type=cfg.NormalizationType.RMS_NORM, epsilon=1e-06
   )
@@ -78,15 +87,16 @@ def get_4b_model_config() -> cfg.ModelConfig:
       num_layers=36,
       max_seq_len=40960,
       embedding_dim=2560,
+      kv_cache_max_len=kv_cache_max_len,
       block_configs=block_config,
       final_norm_config=norm_config,
   )
   return config
 
 
-def get_1_7b_model_config() -> cfg.ModelConfig:
+def get_1_7b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   """Returns the model config for a Qwen 3.0 1.7B model."""
-  config = get_4b_model_config()
+  config = get_4b_model_config(kv_cache_max_len)
   # Qwen has only one block config.
   block_config = config.block_config(0)
   block_config.attn_config.num_heads = 16
@@ -97,9 +107,9 @@ def get_1_7b_model_config() -> cfg.ModelConfig:
   return config
 
 
-def get_0_6b_model_config() -> cfg.ModelConfig:
+def get_0_6b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   """Returns the model config for a Qwen 3.0 0.6B model."""
-  config = get_4b_model_config()
+  config = get_4b_model_config(kv_cache_max_len)
   # Qwen has only one block config.
   block_config = config.block_config(0)
   block_config.attn_config.num_heads = 16
@@ -110,8 +120,8 @@ def get_0_6b_model_config() -> cfg.ModelConfig:
   return config
 
 
-def get_fake_model_config() -> cfg.ModelConfig:
-  config = get_4b_model_config()
+def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
+  config = get_4b_model_config(**kwargs)
   config.vocab_size = 128
   config.num_layers = 2
   # Qwen has only one block config.
@@ -119,47 +129,43 @@ def get_fake_model_config() -> cfg.ModelConfig:
   return config
 
 
-def _build_model(
-    checkpoint_path: str,
-    config: cfg.ModelConfig,
-    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    mask_cache_size: int = 0,
-) -> nn.Module:
-  return model_builder.build_decoder_only_model(
-      checkpoint_path=checkpoint_path,
-      config=config,
-      tensor_names=TENSOR_NAMES,
-      model_class=Qwen3,
-      custom_loader=custom_loader,
-      mask_cache_size=mask_cache_size,
-  )
-
-
 def build_4b_model(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    mask_cache_size: int = 0,
+    **kwargs
 ) -> nn.Module:
-  return _build_model(
-      checkpoint_path, get_4b_model_config(), custom_loader, mask_cache_size
+  return model_builder.build_decoder_only_model(
+      checkpoint_path=checkpoint_path,
+      config=get_4b_model_config(**kwargs),
+      tensor_names=TENSOR_NAMES,
+      model_class=Qwen3,
+      custom_loader=custom_loader,
   )
 
 
 def build_1_7b_model(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    mask_cache_size: int = 0,
+    **kwargs
 ) -> nn.Module:
-  return _build_model(
-      checkpoint_path, get_1_7b_model_config(), custom_loader, mask_cache_size
+  return model_builder.build_decoder_only_model(
+      checkpoint_path=checkpoint_path,
+      config=get_1_7b_model_config(**kwargs),
+      tensor_names=TENSOR_NAMES,
+      model_class=Qwen3,
+      custom_loader=custom_loader,
   )
 
 
 def build_0_6b_model(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    mask_cache_size: int = 0,
+    **kwargs
 ) -> nn.Module:
-  return _build_model(
-      checkpoint_path, get_0_6b_model_config(), custom_loader, mask_cache_size
+  return model_builder.build_decoder_only_model(
+      checkpoint_path=checkpoint_path,
+      config=get_0_6b_model_config(**kwargs),
+      tensor_names=TENSOR_NAMES,
+      model_class=Qwen3,
+      custom_loader=custom_loader,
   )

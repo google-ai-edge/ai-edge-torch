@@ -47,9 +47,7 @@ class TestModelConversion(googletest.TestCase):
     tokens, input_pos = torch.tensor([[1]], dtype=torch.int), torch.tensor(
         [10], dtype=torch.int
     )
-    kv = kv_cache.KVCache.from_model_config(
-        kv_cache_max=config.max_seq_len, config=config, kv_layout=kv_layout
-    )
+    kv = kv_cache.KVCache.from_model_config(config, kv_layout=kv_layout)
     kwargs = {
         "tokens": tokens,
         "input_pos": input_pos,
@@ -124,9 +122,7 @@ class TestModelConversion(googletest.TestCase):
     decode_token = torch.tensor([[1]], dtype=torch.int)
     decode_input_pos = torch.tensor([5], dtype=torch.int)
 
-    kv = kv_cache.KVCache.from_model_config(
-        kv_cache_max=128, config=config, kv_layout=kv_layout
-    )
+    kv = kv_cache.KVCache.from_model_config(config, kv_layout=kv_layout)
 
     edge_model = (
         ai_edge_torch.signature(
@@ -181,12 +177,12 @@ class TestModelConversion(googletest.TestCase):
 
   def test_tiny_llama_multisig(self):
     config = tiny_llama.get_fake_model_config()
-    pytorch_model = tiny_llama.TinyLlama(config, mask_cache_size=128).eval()
+    pytorch_model = tiny_llama.TinyLlama(config).eval()
     self._test_multisig_model(config, pytorch_model, atol=1e-5, rtol=1e-5)
 
   def test_tiny_llama_multisig_kv_layout_transposed(self):
     config = tiny_llama.get_fake_model_config()
-    pytorch_model = tiny_llama.TinyLlama(config, mask_cache_size=128).eval()
+    pytorch_model = tiny_llama.TinyLlama(config).eval()
     self._test_multisig_model(
         config,
         pytorch_model,

@@ -74,7 +74,6 @@ TENSOR_NAMES_DICT = {
 
 
 class DecoderBlock(attention.TransformerBlock):
-  """A Gemma3 decoder block built from the Edge Generative API layers."""
 
   def forward(
       self,
@@ -112,7 +111,7 @@ class DecoderBlock(attention.TransformerBlock):
 class Decoder(nn.Module):
   """A Gemma3 decoder model built from the Edge Generative API layers."""
 
-  def __init__(self, config: cfg.ModelConfig, mask_cache_size: int = 0):
+  def __init__(self, config: cfg.ModelConfig):
     super().__init__()
 
     # Construct model layers.
@@ -131,17 +130,10 @@ class Decoder(nn.Module):
     self.final_norm = builder.build_norm(
         config.embedding_dim, config.final_norm_config
     )
+    self.mask_cache = attn_utils.build_causal_mask_cache(
+        size=config.kv_cache_max,
+    )
     self.config = config
-    self.build_mask_cache(mask_cache_size)
-
-  def build_mask_cache(self, mask_cache_size: int):
-    assert (
-        mask_cache_size <= self.config.max_seq_len
-    ), "Mask cache size must be less than or equal to the max seq length."
-    if mask_cache_size <= 0:
-      self.mask_cache = None
-    else:
-      self.mask_cache = attn_utils.build_causal_mask_cache(mask_cache_size)
 
   def get_local_global_attention_mask(
       self,
@@ -213,8 +205,9 @@ class Decoder(nn.Module):
     mask = torch.where(mask, 0, self.config.causal_mask_value)
     return mask
 
-  def build_pixel_mask(self, image_indices: torch.Tensor, max_seq_len: int):
+  def build_pixel_mask(self, image_indices: torch.Tensor):
     pixel_mask = image_indices >= 0
+    max_seq_len = self.config.kv_cache_max
     if pixel_mask.size(1) < max_seq_len:
       pixel_mask = torch.cat(
           [
@@ -241,12 +234,14 @@ class Decoder(nn.Module):
       image_indices: Optional[torch.Tensor] = None,
       export_config: Optional[export_cfg.ExportConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
+    pixel_mask = None
     if input_embeds is None:
       # token embeddings of shape (b, t, n_embd)
       input_embeds = self.tok_embedding(tokens)
       if self.config.embedding_scale is not None:
         input_embeds = input_embeds * self.config.embedding_scale
-
+    if image_indices is not None:
+      pixel_mask = self.build_pixel_mask(image_indices)
     # RoPE parameters are the same for all blocks. Use the first layer.
     attn_config = self.config.block_config(0).attn_config
     # Different rotary base for global and local attention
@@ -259,19 +254,9 @@ class Decoder(nn.Module):
         )
         for i in range(self.config.num_layers)
     ]
-
     if mask is None:
-      assert self.mask_cache is not None, "Mask cache must be built."
-      assert kv_cache is not None, "KV cache must be provided."
-      kv_cache_max_len = kv_cache.get_max_seq_len()
       mask = self.mask_cache.index_select(2, input_pos)
-      mask = mask[:, :, :, :kv_cache_max_len]
-    else:
-      kv_cache_max_len = mask.size(3)
-
-    pixel_mask = None
-    if image_indices is not None:
-      pixel_mask = self.build_pixel_mask(image_indices, kv_cache_max_len)
+      mask = mask[:, :, :, : self.config.kv_cache_max]
 
     return self._forward_with_embeds(
         input_embeds, rope, mask, input_pos, kv_cache, pixel_mask, export_config
@@ -337,8 +322,16 @@ class Decoder(nn.Module):
     return {"logits": res, "kv_cache": updated_kv_cache}
 
 
-def get_decoder_config_1b() -> cfg.ModelConfig:
-  """Returns the model config for a Gemma3 1B model."""
+def get_decoder_config_1b(kv_cache_max_len: int = 2048) -> cfg.ModelConfig:
+  """Returns the model config for a Gemma3 1B model.
+
+  Args:
+    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
+      is 2048.
+
+  Returns:
+    The model config for a Gemma 1B model.
+  """
   norm_config = cfg.NormalizationConfig(
       type=cfg.NormalizationType.RMS_NORM, epsilon=1e-6, zero_centered=True,
   )
@@ -383,6 +376,7 @@ def get_decoder_config_1b() -> cfg.ModelConfig:
       max_seq_len=32_768,
       embedding_dim=embedding_dim,
       embedding_scale=embedding_dim**0.5,
+      kv_cache_max_len=kv_cache_max_len,
       block_configs=[get_block_config(i) for i in range(num_layers)],
       final_norm_config=norm_config,
       lm_head_use_bias=False,
@@ -391,12 +385,20 @@ def get_decoder_config_1b() -> cfg.ModelConfig:
   return config
 
 
-def get_fake_decoder_config_1b() -> cfg.ModelConfig:
-  """Returns a fake model config for a Gemma3 1B model."""
-  config = get_decoder_config_1b()
+def get_fake_decoder_config_1b(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
+  """Returns a fake model config for a Gemma3 1B model.
+
+  Args:
+    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
+      is 128.
+
+  Returns:
+    A fake model config for a Gemma 1B model.
+  """
+  config = get_decoder_config_1b(kv_cache_max_len)
   config.vocab_size = 128
   config.num_layers = 2
-  config.max_seq_len = 256
+  config.max_seq_len = 2 * kv_cache_max_len
   config.embedding_dim = 128
   config.embedding_scale = config.embedding_dim**0.5
   config.block_configs = config.block_configs[: config.num_layers]
@@ -411,7 +413,7 @@ def get_fake_decoder_config_1b() -> cfg.ModelConfig:
 def build_model_1b(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    mask_cache_size: int = 0,
+    **kwargs,
 ) -> nn.Module:
   # TODO(b/403644647): Better error handling for loading checkpoints with
   # different tensor names.
@@ -419,11 +421,10 @@ def build_model_1b(
     try:
       return model_builder.build_decoder_only_model(
           checkpoint_path=checkpoint_path,
-          config=get_decoder_config_1b(),
+          config=get_decoder_config_1b(**kwargs),
           tensor_names=tensor_names,
           model_class=Decoder,
           custom_loader=custom_loader,
-          mask_cache_size=mask_cache_size,
       )
     except KeyError as ke:
       continue

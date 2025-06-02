@@ -42,7 +42,7 @@ def main(_):
       custom_loader=loader.maybe_get_custom_loader(
           checkpoint_path, flags.FLAGS.custom_checkpoint_loader
       ),
-      mask_cache_size=converter.get_mask_cache_size_from_flags(),
+      kv_cache_max_len=flags.FLAGS.kv_cache_max_len,
       image_size=(_IMAGE_HEIGHT.value, _IMAGE_WIDTH.value),
   )
 
@@ -55,7 +55,6 @@ def main(_):
       output_path=flags.FLAGS.output_path,
       output_name_prefix=flags.FLAGS.output_name_prefix,
       prefill_seq_len=flags.FLAGS.prefill_seq_lens,
-      kv_cache_max_len=flags.FLAGS.kv_cache_max_len,
       pixel_values_size=(
           pytorch_model.image_encoder.get_pixel_values_size(grid_thw)
       ),

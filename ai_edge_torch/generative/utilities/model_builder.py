@@ -59,7 +59,7 @@ class DecoderOnlyModel(nn.Module):
   and rotary_percentage are the same for all layers.
   """
 
-  def __init__(self, config: cfg.ModelConfig, mask_cache_size: int = 0):
+  def __init__(self, config: cfg.ModelConfig):
     super().__init__()
 
     # Construct model layers.
@@ -78,17 +78,10 @@ class DecoderOnlyModel(nn.Module):
     self.final_norm = builder.build_norm(
         config.embedding_dim, config.final_norm_config
     )
+    self.mask_cache = attn_utils.build_causal_mask_cache(
+        size=config.kv_cache_max,
+    )
     self.config = config
-    self.build_mask_cache(mask_cache_size)
-
-  def build_mask_cache(self, mask_cache_size: int):
-    assert (
-        mask_cache_size <= self.config.max_seq_len
-    ), "Mask cache size must be less than or equal to the max seq length."
-    if mask_cache_size <= 0:
-      self.mask_cache = None
-    else:
-      self.mask_cache = attn_utils.build_causal_mask_cache(mask_cache_size)
 
   @torch.inference_mode
   def forward(
@@ -115,10 +108,8 @@ class DecoderOnlyModel(nn.Module):
     rope = self.config.build_rope(input_pos, n_elem, attn_config.rotary_base)
 
     if mask is None:
-      assert self.mask_cache is not None, "Mask cache must be built."
-      assert kv_cache is not None, "KV cache must be provided."
       mask = self.mask_cache.index_select(2, input_pos)
-      mask = mask[:, :, :, :kv_cache.get_max_seq_len()]
+      mask = mask[:, :, :, : self.config.kv_cache_max]
 
     return self._forward_with_embeds(
         input_embeds, rope, mask, input_pos, kv_cache, lora, export_config
@@ -171,9 +162,8 @@ def build_decoder_only_model(
     tensor_names: loading_utils.ModelLoader.TensorNames,
     model_class: type[nn.Module] = DecoderOnlyModel,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    mask_cache_size: int = 0,
 ) -> nn.Module:
-  transformer = model_class(config, mask_cache_size)
+  transformer = model_class(config)
   loader = loading_utils.ModelLoader(
       checkpoint_path, tensor_names, custom_loader
   )

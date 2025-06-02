@@ -60,9 +60,8 @@ class Decoder(model_builder.DecoderOnlyModel):
       rope = self.config.build_rope(input_pos, n_elem, attn_config.rotary_base)
 
     if mask is None:
-      assert kv_cache is not None, "KV cache must be provided."
       mask = self.mask_cache.index_select(2, input_pos)
-      mask = mask[:, :, :, :kv_cache.get_max_seq_len()]
+      mask = mask[:, :, :, : self.config.kv_cache_max]
 
     return self._forward_with_embeds(
         input_embeds,
@@ -74,8 +73,16 @@ class Decoder(model_builder.DecoderOnlyModel):
     )
 
 
-def get_decoder_config() -> cfg.ModelConfig:
-  """Returns the model config for a Qwen 2.5 VL 3B model."""
+def get_decoder_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+  """Returns the model config for a Qwen 2.5 VL 3B model.
+
+  Args:
+    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
+      is 1024.
+
+  Returns:
+    The model config for a Qwen 2.5 VL 3B model.
+  """
   attn_config = cfg.AttentionConfig(
       num_heads=16,
       head_dim=128,
@@ -103,14 +110,15 @@ def get_decoder_config() -> cfg.ModelConfig:
       num_layers=36,
       max_seq_len=32768,
       embedding_dim=2048,
+      kv_cache_max_len=kv_cache_max_len,
       block_configs=block_config,
       final_norm_config=norm_config,
   )
   return config
 
 
-def get_fake_decoder_config() -> cfg.ModelConfig:
-  config = get_decoder_config()
+def get_fake_decoder_config(**kwargs) -> cfg.ModelConfig:
+  config = get_decoder_config(**kwargs)
   config.vocab_size = 128
   config.num_layers = 2
   # Decoder has only one block config.
@@ -118,13 +126,10 @@ def get_fake_decoder_config() -> cfg.ModelConfig:
   return config
 
 
-def build_decoder(
-    checkpoint_path: str, mask_cache_size: int = 0
-) -> torch.nn.Module:
+def build_decoder(checkpoint_path: str, **kwargs) -> torch.nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
-      config=get_decoder_config(),
+      config=get_decoder_config(**kwargs),
       tensor_names=TENSOR_NAMES,
       model_class=Decoder,
-      mask_cache_size=mask_cache_size,
   )

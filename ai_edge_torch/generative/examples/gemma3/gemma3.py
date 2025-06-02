@@ -48,13 +48,13 @@ class Gemma3MMConfig:
 class Gemma3MM(nn.Module):
   """A Gemma3 multimodal model built from the Edge Generative API layers."""
 
-  def __init__(self, config: Gemma3MMConfig, mask_cache_size: int = 0):
+  def __init__(self, config: Gemma3MMConfig):
     super().__init__()
 
     self.image_encoder = image_encoder.SiglipVisionEncoderWithExit(
         config.image_encoder_config
     )
-    self.decoder = decoder.Decoder(config.decoder_config, mask_cache_size)
+    self.decoder = decoder.Decoder(config.decoder_config)
     self.mm_norm = builder.build_norm(
         config.image_encoder_config.embedding_dim,
         config.mm_norm_config,
@@ -150,10 +150,10 @@ class Gemma3MM(nn.Module):
     )
 
 
-def get_fake_model_config() -> Gemma3MMConfig:
+def get_fake_model_config(**kwargs) -> Gemma3MMConfig:
   return Gemma3MMConfig(
       image_encoder_config=image_encoder.get_fake_image_encoder_config(),
-      decoder_config=decoder.get_fake_decoder_config_1b(),
+      decoder_config=decoder.get_fake_decoder_config_1b(**kwargs),
       image_token_id=127,
       image_projection_scale=128**0.5,
       image_projection_use_bias=False,
@@ -167,15 +167,13 @@ def get_fake_model_config() -> Gemma3MMConfig:
 def build_model_1b(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    mask_cache_size: int = 0,
+    **kwargs,
 ) -> decoder.Decoder:
   if checkpoint_path:
-    model = decoder.build_model_1b(
-        checkpoint_path, custom_loader, mask_cache_size
-    )
+    model = decoder.build_model_1b(checkpoint_path, custom_loader, **kwargs)
   else:
-    config = decoder.get_decoder_config_1b()
-    model = decoder.Decoder(config, mask_cache_size)
+    config = decoder.get_decoder_config_1b(**kwargs)
+    model = decoder.Decoder(config)
   # TODO: Load the parameters of decoder from checkpoint.
   model.eval()
   return model

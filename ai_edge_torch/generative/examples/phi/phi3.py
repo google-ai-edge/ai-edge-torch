@@ -139,8 +139,16 @@ class Phi3_5Mini(model_builder.DecoderOnlyModel):
   pass
 
 
-def get_model_config() -> cfg.ModelConfig:
-  """Returns the model config for a Phi-3.5 model."""
+def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+  """Returns the model config for a Phi-3.5 model.
+
+  Args:
+    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
+      is 1024.
+
+  Returns:
+    The model config for a Phi-3.5 model.
+  """
   attn_config = cfg.AttentionConfig(
       num_heads=32,
       head_dim=96,
@@ -177,6 +185,7 @@ def get_model_config() -> cfg.ModelConfig:
       vocab_size=32064,
       num_layers=32,
       max_seq_len=max_seq_len,
+      kv_cache_max_len=kv_cache_max_len,
       embedding_dim=3072,
       block_configs=block_config,
       final_norm_config=norm_config,
@@ -186,11 +195,11 @@ def get_model_config() -> cfg.ModelConfig:
   return config
 
 
-def get_fake_model_config() -> cfg.ModelConfig:
-  config = get_model_config()
+def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
+  config = get_model_config(kv_cache_max_len)
   config.vocab_size = 128
   config.num_layers = 2
-  config.max_seq_len = 256
+  config.max_seq_len = 2 * kv_cache_max_len
   # Phi-3.5 has only one block config.
   config.block_config(0).ff_config.intermediate_size = 128
   return config
@@ -199,14 +208,13 @@ def get_fake_model_config() -> cfg.ModelConfig:
 def build_model(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    mask_cache_size: int = 0,
+    **kwargs
 ) -> torch.nn.Module:
   """Instantiates the model instance and load checkpoint if provided."""
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
-      config=get_model_config(),
+      config=get_model_config(**kwargs),
       tensor_names=TENSOR_NAMES,
       model_class=Phi3_5Mini,
       custom_loader=custom_loader,
-      mask_cache_size=mask_cache_size,
   )

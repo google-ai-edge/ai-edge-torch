@@ -128,7 +128,7 @@ class T5(nn.Module):
 
     self.enc_attn_mask_cache = (
         torch.zeros(
-            (config.max_seq_len, config.max_seq_len),
+            (config.kv_cache_max, config.kv_cache_max),
             dtype=torch.float32,
             device=torch.device("cpu"),
         )
@@ -137,7 +137,7 @@ class T5(nn.Module):
     )
 
     self.dec_attn_mask_cache = attn_utils.build_causal_mask_cache(
-        size=config.max_seq_len,
+        size=config.kv_cache_max,
         dtype=torch.float32,
         device=torch.device("cpu"),
     )
@@ -146,16 +146,16 @@ class T5(nn.Module):
     attn_config = config.block_config(0).attn_config
     self.enc_rel_pos_mask = attn_utils.build_relative_position_buckets(
         bidirectional=True,
-        query_length=config.max_seq_len,
-        key_length=config.max_seq_len,
+        query_length=config.kv_cache_max,
+        key_length=config.kv_cache_max,
         num_buckets=attn_config.relative_attention_num_buckets,
         max_distance=attn_config.relative_attention_max_distance,
     )
 
     self.dec_rel_pos_mask = attn_utils.build_relative_position_buckets(
         bidirectional=False,
-        query_length=config.max_seq_len,
-        key_length=config.max_seq_len,
+        query_length=config.kv_cache_max,
+        key_length=config.kv_cache_max,
         num_buckets=attn_config.relative_attention_num_buckets,
         max_distance=attn_config.relative_attention_max_distance,
     )
@@ -176,20 +176,20 @@ class T5(nn.Module):
     )
 
     enc_mask = self.enc_attn_mask_cache.index_select(2, input_pos)
-    enc_mask = enc_mask[:, :, :, : self.config.max_seq_len]
+    enc_mask = enc_mask[:, :, :, : self.config.kv_cache_max]
     # Mask off any "pad" tokens that shouldn't contribute to self-attention
     enc_mask[:, :, :, :] += pad_mask
     dec_mask = self.dec_attn_mask_cache.index_select(2, decoder_input_pos)
-    dec_mask = dec_mask[:, :, :, : self.config.max_seq_len]
+    dec_mask = dec_mask[:, :, :, : self.config.kv_cache_max]
     enc_relative_position = self.enc_rel_pos_mask.index_select(2, input_pos)
     enc_relative_position = enc_relative_position[
-        :, :, :, : self.config.max_seq_len
+        :, :, :, : self.config.kv_cache_max
     ]
     dec_relative_position = self.enc_rel_pos_mask.index_select(
         2, decoder_input_pos
     )
     dec_relative_position = dec_relative_position[
-        :, :, :, : self.config.max_seq_len
+        :, :, :, : self.config.kv_cache_max
     ]
     enc_attention_mask = self.enc_attn_mask_cache.index_select(
         2, decoder_input_pos
@@ -243,7 +243,7 @@ class T5Encoder(nn.Module):
 
     self.enc_attn_mask_cache = (
         torch.zeros(
-            (config.max_seq_len, config.max_seq_len),
+            (config.kv_cache_max, config.kv_cache_max),
             dtype=torch.float32,
             device=torch.device("cpu"),
         )
@@ -255,8 +255,8 @@ class T5Encoder(nn.Module):
     attn_config = config.block_config(0).attn_config
     self.enc_rel_pos_mask = attn_utils.build_relative_position_buckets(
         bidirectional=True,
-        query_length=config.max_seq_len,
-        key_length=config.max_seq_len,
+        query_length=config.kv_cache_max,
+        key_length=config.kv_cache_max,
         num_buckets=attn_config.relative_attention_num_buckets,
         max_distance=attn_config.relative_attention_max_distance,
     )
@@ -275,12 +275,12 @@ class T5Encoder(nn.Module):
     )
 
     enc_mask = self.enc_attn_mask_cache.index_select(2, input_pos)
-    enc_mask = enc_mask[:, :, :, : self.config.max_seq_len]
+    enc_mask = enc_mask[:, :, :, : self.config.kv_cache_max]
     # Mask off any "pad" tokens that shouldn't contribute to self-attention
     enc_mask[:, :, :, :] += pad_mask
     enc_relative_position = self.enc_rel_pos_mask.index_select(2, input_pos)
     enc_relative_position = enc_relative_position[
-        :, :, :, : self.config.max_seq_len
+        :, :, :, : self.config.kv_cache_max
     ]
 
     # Convert encoder inputs in embeddings if needed
@@ -315,7 +315,7 @@ class T5Decoder(nn.Module):
 
     self.enc_attn_mask_cache = (
         torch.zeros(
-            (config.max_seq_len, config.max_seq_len),
+            (config.kv_cache_max, config.kv_cache_max),
             dtype=torch.float32,
             device=torch.device("cpu"),
         )
@@ -327,14 +327,14 @@ class T5Decoder(nn.Module):
     attn_config = config.block_config(0).attn_config
     self.enc_rel_pos_mask = attn_utils.build_relative_position_buckets(
         bidirectional=True,
-        query_length=config.max_seq_len,
-        key_length=config.max_seq_len,
+        query_length=config.kv_cache_max,
+        key_length=config.kv_cache_max,
         num_buckets=attn_config.relative_attention_num_buckets,
         max_distance=attn_config.relative_attention_max_distance,
     )
 
     self.dec_attn_mask_cache = attn_utils.build_causal_mask_cache(
-        size=config.max_seq_len,
+        size=config.kv_cache_max,
     )
 
   @torch.inference_mode
@@ -346,12 +346,12 @@ class T5Decoder(nn.Module):
       pad_mask: torch.Tensor,
   ) -> torch.Tensor:
     dec_mask = self.dec_attn_mask_cache.index_select(2, decoder_input_pos)
-    dec_mask = dec_mask[:, :, :, : self.config.max_seq_len]
+    dec_mask = dec_mask[:, :, :, : self.config.kv_cache_max]
     dec_relative_position = self.enc_rel_pos_mask.index_select(
         2, decoder_input_pos
     )
     dec_relative_position = dec_relative_position[
-        :, :, :, : self.config.max_seq_len
+        :, :, :, : self.config.kv_cache_max
     ]
     enc_attention_mask = self.enc_attn_mask_cache.index_select(
         2, decoder_input_pos
@@ -603,7 +603,7 @@ def define_and_run_t5(checkpoint_path: str) -> None:
 
   decode_d_token = torch.tensor([[0]], dtype=torch.int)
   decode_d_input_pos = torch.tensor([0], dtype=torch.int)
-  pad_mask = torch.zeros([model.config.max_seq_len], dtype=torch.float32)
+  pad_mask = torch.zeros([model.config.kv_cache_max], dtype=torch.float32)
   pad_mask[77:] = float("-inf")
   lm_logits = model.forward(
       tokens, input_pos, decode_d_token, decode_d_input_pos, pad_mask
@@ -636,7 +636,7 @@ def define_and_run_t5_split(checkpoint_path: str) -> None:
   decode_d_token = torch.tensor([[0]], dtype=torch.int)
   decode_d_input_pos = torch.tensor([0], dtype=torch.int)
   pad_mask = torch.zeros(
-      [t5_encoder_model.config.max_seq_len], dtype=torch.float32
+      [t5_encoder_model.config.kv_cache_max], dtype=torch.float32
   )
   pad_mask[77:] = float("-inf")
   hidden_states = t5_encoder_model.forward(tokens, input_pos, pad_mask)

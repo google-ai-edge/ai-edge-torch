@@ -53,7 +53,6 @@ class ModelWrapper(torch.nn.Module):
     Args:
       tokens (torch.Tensor): The input tokens to forward. Its dimension is
         expected to be (batch_size=1, kv_cache_max_len).
-      pixel_values (torch.Tensor): Optional input pixel values to forward.
 
     Returns:
       The output logits.
@@ -75,7 +74,6 @@ class ModelWrapper(torch.nn.Module):
         expected to be (batch_size=1, input_ids_len).
       max_new_tokens (int): The maximum number of response token IDs to
         generate.
-      pixel_values (torch.Tensor): Optional input pixel values to generate with.
 
     Returns:
       The tensor of response token IDs with shape of (batch_size=1,
@@ -92,18 +90,16 @@ class ReauthoredModelWrapper(ModelWrapper):
       model: torch.nn.Module,
       mask_as_input: bool = False,
       kv_layout: kv_utils.KVLayout = kv_utils.KV_LAYOUT_DEFAULT,
-      kv_cache_max_len: int = 1280,
   ):
     """Wraps a reauthored model with some options."""
     super().__init__(model)
     self.mask_as_input = mask_as_input
     self.kv_layout = kv_layout
-    self.kv_cache_max_len = kv_cache_max_len
 
   def _init_kv_cache(self):
     """Returns an initialized KV cache."""
     return kv_utils.KVCache.from_model_config(
-        self.kv_cache_max_len, self.model.config, kv_layout=self.kv_layout
+        self.model.config, kv_layout=self.kv_layout
     )
 
   def _get_extra_args_for_forward(self) -> dict[str, Any]:
@@ -112,10 +108,9 @@ class ReauthoredModelWrapper(ModelWrapper):
 
   def _build_mask(self, input_pos: torch.Tensor) -> torch.Tensor:
     """Builds a mask for the model."""
+    kv_cache_max_len = self.model.config.kv_cache_max_len
     mask = torch.full(
-        (len(input_pos), self.kv_cache_max_len),
-        float("-inf"),
-        dtype=torch.float32,
+        (len(input_pos), kv_cache_max_len), float("-inf"), dtype=torch.float32
     )
     return torch.triu(mask, diagonal=input_pos[0] + 1).unsqueeze(0).unsqueeze(0)
 
@@ -209,7 +204,7 @@ def verify_with_input_ids(
     original_model: ModelWrapper,
     reauthored_model: ReauthoredModelWrapper,
     input_ids: List[int],
-    total_seq_len: int = 128,
+    kv_cache_max_len: int = 128,
     rtol: float = 1e-05,
     atol: float = 1e-05,
 ):
@@ -222,7 +217,7 @@ def verify_with_input_ids(
     reauthored_model (ReauthoredModelWrapper): The model reauthored with
       ai_edge_torch Generative API.
     input_ids (List[int]): The input token IDs to forward with.
-    total_seq_len (int): The total sequence length of the input.
+    kv_cache_max_len (int): The maximum sequence length of the KV cache.
     rtol (float): The relative tolerance for the comparison.
     atol (float): The absolute tolerance for the comparison.
 
@@ -230,7 +225,7 @@ def verify_with_input_ids(
     AssertError if the model reauthored fails to generate the same output of the
       original.
   """
-  tokens = torch.full((1, total_seq_len), 0, dtype=torch.int, device="cpu")
+  tokens = torch.full((1, kv_cache_max_len), 0, dtype=torch.int, device="cpu")
   tokens[0, : len(input_ids)] = torch.tensor([input_ids]).int()
 
   logging.info("Forwarding the original model...")
@@ -328,11 +323,6 @@ def verify_reauthored_model(
     atol (float): The absolute tolerance for the comparison.
     continue_on_failure (bool): If True, it continues to verify the next prompt
       or input IDs even if a previous one fails.
-    verify_inputs (bool): If True, it verifies the model with forward_input_ids.
-    verify_prompts (bool): If True, it verifies the model with generate_prompts.
-
-  Returns:
-    True if all verification passes, False otherwise.
   """
   failure_count = 0
 
