@@ -43,13 +43,14 @@ def main(_):
       custom_loader=loader.maybe_get_custom_loader(
           checkpoint_path, flags.FLAGS.custom_checkpoint_loader
       ),
-      kv_cache_max_len=flags.FLAGS.kv_cache_max_len,
+      mask_cache_size=converter.get_mask_cache_size_from_flags(),
   )
   converter.convert_to_tflite(
       pytorch_model,
       output_path=flags.FLAGS.output_path,
       output_name_prefix=flags.FLAGS.output_name_prefix,
       prefill_seq_len=flags.FLAGS.prefill_seq_lens,
+      kv_cache_max_len=flags.FLAGS.kv_cache_max_len,
       quantize=flags.FLAGS.quantize,
       lora_ranks=flags.FLAGS.lora_ranks,
       export_config=export_config.get_from_flags(),

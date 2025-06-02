@@ -93,22 +93,12 @@ class Llama(model_builder.DecoderOnlyModel):
 
   Llama 3.2 shares the same architecture as TinyLlama except ROPE calculation.
   """
-
-  def __init__(self, config: cfg.ModelConfig):
-    super().__init__(config)
-    attn_config = self.config.block_config(0).attn_config
+  pass
 
 
-def get_1b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
-  """Returns the model config for a Llama 3.2-1B model.
+def get_1b_model_config() -> cfg.ModelConfig:
+  """Returns the model config for a Llama 3.2-1B model."""
 
-  Args:
-    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
-      is 1024.
-
-  Returns:
-    The model config for a SmolLM model.
-  """
   attn_config = cfg.AttentionConfig(
       num_heads=32,
       head_dim=64,
@@ -147,7 +137,6 @@ def get_1b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       num_layers=16,
       max_seq_len=max_seq_len,
       embedding_dim=2048,
-      kv_cache_max_len=kv_cache_max_len,
       block_configs=block_config,
       final_norm_config=norm_config,
       build_rope=build_rope,
@@ -155,9 +144,9 @@ def get_1b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
-def get_3b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+def get_3b_model_config() -> cfg.ModelConfig:
   """Returns the model config for a Llama 3.2-3B model."""
-  config = get_1b_model_config(kv_cache_max_len)
+  config = get_1b_model_config()
   # Llama 3.2 has only one block config.
   attn_config = config.block_config(0).attn_config
   attn_config.num_heads = 24
@@ -167,8 +156,8 @@ def get_3b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
-def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
-  config = get_1b_model_config(**kwargs)
+def get_fake_model_config() -> cfg.ModelConfig:
+  config = get_1b_model_config()
   config.vocab_size = 128
   config.num_layers = 2
   # SmolLM has only one block config.
@@ -180,6 +169,7 @@ def _build_model(
     checkpoint_path: str,
     config: cfg.ModelConfig,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+    mask_cache_size: int = 0,
 ) -> torch.nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
@@ -187,28 +177,25 @@ def _build_model(
       tensor_names=TENSOR_NAMES,
       model_class=Llama,
       custom_loader=custom_loader,
+      mask_cache_size=mask_cache_size,
   )
 
 
 def build_1b_model(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    **kwargs
+    mask_cache_size: int = 0,
 ) -> torch.nn.Module:
   return _build_model(
-      checkpoint_path,
-      get_1b_model_config(**kwargs),
-      custom_loader=custom_loader,
+      checkpoint_path, get_1b_model_config(), custom_loader, mask_cache_size
   )
 
 
 def build_3b_model(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    **kwargs
+    mask_cache_size: int = 0,
 ) -> torch.nn.Module:
   return _build_model(
-      checkpoint_path,
-      get_3b_model_config(**kwargs),
-      custom_loader=custom_loader,
+      checkpoint_path, get_3b_model_config(), custom_loader, mask_cache_size
   )

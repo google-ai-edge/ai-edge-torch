@@ -29,16 +29,8 @@ class Qwen(model_builder.DecoderOnlyModel):
   pass
 
 
-def get_3b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
-  """Returns the model config for a Qwen 2.5 3B model.
-
-  Args:
-    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
-      is 1024.
-
-  Returns:
-    The model config for a SmolLM model.
-  """
+def get_3b_model_config() -> cfg.ModelConfig:
+  """Returns the model config for a Qwen 2.5 3B model."""
   attn_config = cfg.AttentionConfig(
       num_heads=16,
       head_dim=128,
@@ -66,16 +58,15 @@ def get_3b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       num_layers=36,
       max_seq_len=32768,
       embedding_dim=2048,
-      kv_cache_max_len=kv_cache_max_len,
       block_configs=block_config,
       final_norm_config=norm_config,
   )
   return config
 
 
-def get_1_5b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+def get_1_5b_model_config() -> cfg.ModelConfig:
   """Returns the model config for a Qwen 2.5 1B model."""
-  config = get_3b_model_config(kv_cache_max_len)
+  config = get_3b_model_config()
   # Qwen has only one block config.
   block_config = config.block_config(0)
   block_config.attn_config.num_heads = 12
@@ -85,9 +76,9 @@ def get_1_5b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
-def get_0_5b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+def get_0_5b_model_config() -> cfg.ModelConfig:
   """Returns the model config for a Qwen 2.5 0.5B model."""
-  config = get_3b_model_config(kv_cache_max_len)
+  config = get_3b_model_config()
   # Qwen has only one block config.
   block_config = config.block_config(0)
   block_config.attn_config.num_heads = 14
@@ -98,8 +89,8 @@ def get_0_5b_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
-def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
-  config = get_3b_model_config(**kwargs)
+def get_fake_model_config() -> cfg.ModelConfig:
+  config = get_3b_model_config()
   config.vocab_size = 128
   config.num_layers = 2
   # Qwen has only one block config.
@@ -107,43 +98,47 @@ def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
   return config
 
 
-def build_3b_model(
+def _build_model(
     checkpoint_path: str,
+    config: cfg.ModelConfig,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    **kwargs
+    mask_cache_size: int = 0,
 ) -> nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
-      config=get_3b_model_config(**kwargs),
+      config=config,
       tensor_names=TENSOR_NAMES,
       model_class=Qwen,
       custom_loader=custom_loader,
+      mask_cache_size=mask_cache_size,
+  )
+
+
+def build_3b_model(
+    checkpoint_path: str,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+    mask_cache_size: int = 0,
+) -> nn.Module:
+  return _build_model(
+      checkpoint_path, get_3b_model_config(), custom_loader, mask_cache_size
   )
 
 
 def build_1_5b_model(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    **kwargs
+    mask_cache_size: int = 0,
 ) -> nn.Module:
-  return model_builder.build_decoder_only_model(
-      checkpoint_path=checkpoint_path,
-      config=get_1_5b_model_config(**kwargs),
-      tensor_names=TENSOR_NAMES,
-      model_class=Qwen,
-      custom_loader=custom_loader,
+  return _build_model(
+      checkpoint_path, get_1_5b_model_config(), custom_loader, mask_cache_size
   )
 
 
 def build_0_5b_model(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    **kwargs
+    mask_cache_size: int = 0,
 ) -> nn.Module:
-  return model_builder.build_decoder_only_model(
-      checkpoint_path=checkpoint_path,
-      config=get_0_5b_model_config(**kwargs),
-      tensor_names=TENSOR_NAMES,
-      model_class=Qwen,
-      custom_loader=custom_loader,
+  return _build_model(
+      checkpoint_path, get_0_5b_model_config(), custom_loader, mask_cache_size
   )

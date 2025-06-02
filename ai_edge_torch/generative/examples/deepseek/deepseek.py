@@ -29,16 +29,8 @@ class DeepSeekDistillQwen(model_builder.DecoderOnlyModel):
   pass
 
 
-def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
-  """Returns the model config for a Qwen 2.5 3B model.
-
-  Args:
-    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
-      is 1024.
-
-  Returns:
-    The model config for a SmolLM model.
-  """
+def get_model_config() -> cfg.ModelConfig:
+  """Returns the model config for a Qwen 2.5 3B model."""
   attn_config = cfg.AttentionConfig(
       num_heads=12,
       head_dim=128,
@@ -66,7 +58,6 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       num_layers=28,
       max_seq_len=4096,
       embedding_dim=1536,
-      kv_cache_max_len=kv_cache_max_len,
       block_configs=block_config,
       final_norm_config=norm_config,
       lm_head_share_weight_with_embedding=False,
@@ -74,8 +65,8 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
-def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
-  config = get_model_config(**kwargs)
+def get_fake_model_config() -> cfg.ModelConfig:
+  config = get_model_config()
   config.vocab_size = 128
   config.num_layers = 2
   # DeepSeek-R1-Distill-Qwen has only one block config.
@@ -86,12 +77,13 @@ def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
 def build_model(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    **kwargs
+    mask_cache_size: int = 0,
 ) -> nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
-      config=get_model_config(**kwargs),
+      config=get_model_config(),
       tensor_names=TENSOR_NAMES,
       model_class=DeepSeekDistillQwen,
       custom_loader=custom_loader,
+      mask_cache_size=mask_cache_size,
   )

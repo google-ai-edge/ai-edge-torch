@@ -129,6 +129,11 @@ def define_conversion_flags(
   return flags
 
 
+def get_mask_cache_size_from_flags() -> int:
+  """Returns the mask cache size according to the flags."""
+  return 0 if flags.FLAGS.mask_as_input else flags.FLAGS.kv_cache_max_len
+
+
 def get_quant_recipe_from_flag(
     quantize: str,
     model_config: cfg.ModelConfig,
@@ -211,6 +216,7 @@ def convert_to_tflite(
     output_path: str,
     output_name_prefix: str,
     prefill_seq_len: Union[int, list[int]],
+    kv_cache_max_len: int,
     pixel_values_size: torch.Size = None,
     pixel_seq_len: int = 0,
     quantize: str = 'dynamic_int8',
@@ -253,6 +259,8 @@ def convert_to_tflite(
       output_name_prefix (str): The prefix of the tflite model name.
       prefill_seq_len (Union[int, list[int]]): The prefill sequence length to
         use. If a list, the model will have multiple prefill signatures.
+      kv_cache_max_len (int): The maximum size of KV cache buffer, including
+        both prefill and decode.
       pixel_values_size (torch.Size, optional): The size of pixel values to pass
         to the model. If None, the model is not expected to take pixel values.
       pixel_seq_len (int, optional): The length of pixel tokens, or pixel
@@ -282,7 +290,7 @@ def convert_to_tflite(
       loras.append(lora)
 
   quant_suffix = create_quantize_suffix(quantize)
-  kv_size = config.kv_cache_max_len
+  kv_size = kv_cache_max_len
   lora_suffix = (
       '' if not lora_ranks else f'_lora{",".join(map(str, lora_ranks))}'
   )
@@ -309,6 +317,7 @@ def convert_to_tflite(
       pytorch_model,
       output_file,
       prefill_seq_lens,
+      kv_cache_max_len,
       pixel_values_size,
       pixel_seq_len,
       quantize,
@@ -322,6 +331,7 @@ def _export_helper(
     pytorch_model: torch.nn.Module,
     output_file: str,
     prefill_seq_lens: list[int],
+    kv_cache_max_len: int,
     pixel_values_size: torch.Size,
     pixel_seq_len: int,
     quantize: str,
@@ -352,9 +362,7 @@ def _export_helper(
   prefill_masks = None
   if export_config.mask_as_input:
     prefill_masks = _build_mask(
-        prefill_seq_lens,
-        config.kv_cache_max_len,
-        config.causal_mask_value,
+        prefill_seq_lens, kv_cache_max_len, config.causal_mask_value
     )
     if not isinstance(prefill_masks, list):
       prefill_masks = [prefill_masks]
@@ -365,9 +373,10 @@ def _export_helper(
   )
   decode_input_pos = torch.tensor([0], dtype=torch.int)
   prefill_kv = kv_utils.KVCache.from_model_config(
-      config, kv_layout=export_config.kvcache_layout
+      kv_cache_max_len, config, kv_layout=export_config.kvcache_layout
   )
   decode_kv = kv_utils.KVCache.from_model_config(
+      kv_cache_max_len,
       config,
       batch_size=export_config.decode_batch_size,
       kv_layout=export_config.kvcache_layout,
@@ -433,7 +442,7 @@ def _export_helper(
       #  torch.triu(mask, diagonal=decode_position).unsqueeze(0).unsqueeze(0)
       #
       sample_kwargs['mask'] = _build_mask(
-          1, config.kv_cache_max_len, config.causal_mask_value
+          1, kv_cache_max_len, config.causal_mask_value
       )
     if lora is not None:
       sample_kwargs['lora'] = lora

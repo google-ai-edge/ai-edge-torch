@@ -29,16 +29,8 @@ class AmdLlama(model_builder.DecoderOnlyModel):
   pass
 
 
-def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
-  """Returns the model config for an AMD-Llama-135m model.
-
-  Args:
-    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
-      is 1024.
-
-  Returns:
-    The model config for an AMD-Llama-135m model.
-  """
+def get_model_config() -> cfg.ModelConfig:
+  """Returns the model config for an AMD-Llama-135m model."""
   attn_config = cfg.AttentionConfig(
       num_heads=12,
       head_dim=64,
@@ -63,7 +55,6 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       num_layers=12,
       max_seq_len=2048,
       embedding_dim=768,
-      kv_cache_max_len=kv_cache_max_len,
       block_configs=block_config,
       final_norm_config=norm_config,
       lm_head_share_weight_with_embedding=False,
@@ -71,8 +62,8 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
-def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
-  config = get_model_config(**kwargs)
+def get_fake_model_config() -> cfg.ModelConfig:
+  config = get_model_config()
   config.vocab_size = 128
   config.num_layers = 2
   config.block_config(0).ff_config.intermediate_size = 64
@@ -82,12 +73,13 @@ def get_fake_model_config(**kwargs) -> cfg.ModelConfig:
 def build_model(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] | None = None,
-    **kwargs
+    mask_cache_size: int = 0,
 ) -> nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
-      config=get_model_config(**kwargs),
+      config=get_model_config(),
       tensor_names=TENSOR_NAMES,
       model_class=AmdLlama,
       custom_loader=custom_loader,
+      mask_cache_size=mask_cache_size,
   )
