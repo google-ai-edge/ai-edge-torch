@@ -68,6 +68,13 @@ def tfl_logical_and(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
   return torch.logical_and(x, y)
 
 
+@custom_op_with_fake(
+    "tfl::mean", schema="(Tensor x, Any dims, bool keepdim) -> Tensor"
+)
+def tfl_mean(x: torch.Tensor, dims: Any, keepdim: bool = False) -> torch.Tensor:
+  return torch.mean(x, dims, keepdim)
+
+
 @custom_op_with_fake("tfl::greater")
 def tfl_greater(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
   return torch.gt(x, y)
@@ -114,6 +121,18 @@ def tfl_transpose(input: torch.Tensor, perm: Sequence[int]) -> torch.Tensor:
   assert len(perm) == input.ndim
 
   return torch.permute(input, perm).clone()
+
+
+@custom_op_with_fake("tfl::concatenation")
+def tfl_concatenation(
+    tensors: Sequence[torch.Tensor], dim: int
+) -> torch.Tensor:
+  return torch.cat(tensors, dim=dim)
+
+
+@custom_op_with_fake("tfl::fill", schema="(int[] x, Any y) -> Tensor")
+def tfl_fill(dims: Sequence[int], fill_value: Any) -> torch.Tensor:
+  return torch.full(dims, fill_value)
 
 
 def _normalize_shape(
@@ -187,6 +206,69 @@ def tfl_reshape(input: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
 def tfl_reshape_fake(input: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
   inferred_shape = _normalize_shape(input, shape)
   return torch.empty(inferred_shape, dtype=input.dtype)
+
+
+@custom_op_with_fake(
+    "tfl::split_v", schema="(Tensor x, int[] y, int z) -> Tensor[]"
+)
+def tfl_split_v(
+    input: torch.Tensor, size_splits: Sequence[int], split_dim: int
+) -> Sequence[torch.Tensor]:
+  # Clone the output tensors to avoid aliasing issues.
+  return [t.clone() for t in torch.split(input, size_splits, dim=split_dim)]
+
+
+@custom_op_with_fake("tfl::expand_dims")
+def tfl_expand_dims(x: torch.Tensor, dim: int) -> torch.Tensor:
+  return torch.unsqueeze(x, dim).clone()
+
+
+@custom_op_with_fake("tfl::broadcast_to")
+def tfl_broadcast_to(x: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
+  return x.expand(shape).clone()
+
+
+@custom_op_with_fake("tfl::squeeze")
+def tfl_squeeze(x: torch.Tensor, squeeze_dims: Sequence[int]) -> torch.Tensor:
+  return torch.squeeze(x, squeeze_dims).clone()
+
+
+@custom_op_with_fake("tfl::strided_slice")
+def tfl_strided_slice(
+    input: torch.Tensor,
+    begin: Sequence[int],
+    end: Sequence[int],
+    strides: Sequence[int],
+) -> torch.Tensor:
+  assert (
+      len(begin) == len(end) == len(strides) == input.ndim
+  ), "Dimension mismatch"
+
+  slices = []
+
+  for i in range(input.ndim):
+    b = begin[i]
+    e = end[i]
+    s = strides[i]
+    slices.append(slice(b, e, s))
+
+  result = input[tuple(slices)].clone()
+
+  return result
+
+
+@custom_op_with_fake("tfl::select_v2")
+def tfl_select_v2(
+    condition: torch.Tensor, x: torch.Tensor, y: torch.Tensor
+) -> torch.Tensor:
+  return torch.where(condition, x, y)
+
+
+@custom_op_with_fake("tfl::gather")
+def tfl_gather(
+    input: torch.Tensor, indices: torch.Tensor, axis: int
+) -> torch.Tensor:
+  return torch.index_select(input, axis, indices)
 
 
 @custom_op_with_fake("tfl::softmax")
