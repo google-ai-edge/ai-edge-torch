@@ -15,7 +15,6 @@
 """Utils for verifying the Phi model."""
 
 import logging
-import os
 import pathlib
 from typing import Callable, Dict
 
@@ -39,7 +38,6 @@ _BUILDER = {
 def verify_phi(
     version: str,
     checkpoint_dir: str,
-    weight_filename: str = "model.safetensors",
     max_new_tokens: int = 30,
     prompts: list[str] | None = None,
     atol: float = 1e-04,
@@ -63,7 +61,7 @@ def verify_phi(
     )
     reauthored_checkpoint = pathlib.Path(cached_config_file).parent
   else:
-    reauthored_checkpoint = os.path.join(checkpoint_dir, weight_filename)
+    reauthored_checkpoint = checkpoint_dir
 
   logging.info("Building the reauthored model from: %s", reauthored_checkpoint)
   reauthored_model = _BUILDER[version](
