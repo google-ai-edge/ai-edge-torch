@@ -271,7 +271,7 @@ def convert_models(conversion_configs: Sequence[ConversionConfig]) -> None:
     )
     config.print_config()
     pytorch_model = config.model_builder(
-        config.input_checkpoint, kv_cache_max_len=config.kv_cache_max_len
+        config.input_checkpoint, mask_cache_size=config.kv_cache_max_len
     )
     for precision in config.export_precision:
       output_filename = get_output_filename(
@@ -285,6 +285,7 @@ def convert_models(conversion_configs: Sequence[ConversionConfig]) -> None:
           output_path=config.tflite_output_path,
           output_name_prefix=output_filename,
           prefill_seq_len=config.prefill_seq_lens,
+          kv_cache_max_len=config.kv_cache_max_len,
           quantize=converter.QuantizationName.DYNAMIC_INT8
           if precision == ExportPrecision.INT8
           else converter.QuantizationName.NONE,

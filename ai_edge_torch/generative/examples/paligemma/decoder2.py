@@ -73,8 +73,9 @@ class Decoder2(gemma2.Gemma2):
 
     if mask is None:
       # By default, don't mask image embeds with a diagonal causal mask.
+      assert kv_cache is not None, "KV cache must be provided."
       embeds_len = input_embeds.shape[1]
-      mask = torch.zeros(embeds_len, self.config.kv_cache_max)
+      mask = torch.zeros(embeds_len, kv_cache.get_max_seq_len())
       mask[:, embeds_len:] = attn_config.causal_mask_value
 
     return self._forward_with_embeds(
@@ -82,16 +83,8 @@ class Decoder2(gemma2.Gemma2):
     )
 
 
-def get_decoder2_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
-  """Returns the model config for the decoder of a PaliGemma 3B model.
-
-  Args:
-    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
-      is 1024.
-
-  Returns:
-    The model config for the decoder of a PaliGemma 3B model.
-  """
+def get_decoder2_config() -> cfg.ModelConfig:
+  """Returns the model config for the decoder of a PaliGemma 3B model."""
   norm_config = cfg.NormalizationConfig(
       type=cfg.NormalizationType.RMS_NORM, epsilon=1e-6, zero_centered=True
   )
@@ -133,7 +126,6 @@ def get_decoder2_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       max_seq_len=8192,
       embedding_dim=embedding_dim,
       embedding_scale=embedding_dim**0.5,
-      kv_cache_max_len=kv_cache_max_len,
       block_configs=[get_block_config(i) for i in range(num_layers)],
       final_norm_config=norm_config,
       lm_head_use_bias=False,
@@ -142,22 +134,25 @@ def get_decoder2_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
-def get_fake_decoder2_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
-  config = get_decoder2_config(kv_cache_max_len)
+def get_fake_decoder2_config() -> cfg.ModelConfig:
+  config = get_decoder2_config()
   # PaliGemma2 decoder has only one block config.
   config.block_config(0).ff_config.intermediate_size = 128
   config.vocab_size = 128
   config.num_layers = 2
-  config.max_seq_len = 2 * kv_cache_max_len
+  config.max_seq_len = 256
   config.embedding_dim = 128
   config.embedding_scale = 128**0.5
   return config
 
 
-def build_decoder2(checkpoint_path: str, **kwargs) -> torch.nn.Module:
+def build_decoder2(
+    checkpoint_path: str, mask_cache_size: int = 0
+) -> torch.nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
-      config=get_decoder2_config(**kwargs),
+      config=get_decoder2_config(),
       tensor_names=TENSOR_NAMES,
       model_class=Decoder2,
+      mask_cache_size=mask_cache_size,
   )

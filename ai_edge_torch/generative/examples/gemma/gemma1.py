@@ -42,16 +42,8 @@ class Gemma1(model_builder.DecoderOnlyModel):
   pass
 
 
-def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
-  """Returns the model config for a Gemma 2B model.
-
-  Args:
-    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
-      is 1024.
-
-  Returns:
-    The model config for a Gemma 2B model.
-  """
+def get_model_config_2b() -> cfg.ModelConfig:
+  """Returns the model config for a Gemma 2B model."""
   attn_config = cfg.AttentionConfig(
       num_heads=8,
       head_dim=256,
@@ -80,7 +72,6 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       max_seq_len=8192,
       embedding_dim=embedding_dim,
       embedding_scale=embedding_dim**0.5,
-      kv_cache_max_len=kv_cache_max_len,
       block_configs=block_config,
       final_norm_config=norm_config,
       lm_head_use_bias=False,
@@ -88,25 +79,26 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
-def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
-  config = get_model_config_2b(kv_cache_max_len)
+def get_fake_model_config() -> cfg.ModelConfig:
+  config = get_model_config_2b()
   # Gemma has only one block config.
   config.block_config(0).ff_config.intermediate_size = 128
   config.vocab_size = 128
   config.num_layers = 2
-  config.max_seq_len = 2 * kv_cache_max_len
+  config.max_seq_len = 256
   return config
 
 
 def build_2b_model(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    **kwargs
+    mask_cache_size: int = 0,
 ) -> nn.Module:
   return model_builder.build_decoder_only_model(
       checkpoint_path=checkpoint_path,
-      config=get_model_config_2b(**kwargs),
+      config=get_model_config_2b(),
       tensor_names=TENSOR_NAMES,
       model_class=Gemma1,
       custom_loader=custom_loader,
+      mask_cache_size=mask_cache_size,
   )

@@ -88,6 +88,12 @@ class KVCacheEntry:
     obj = cls(k_cache=k, v_cache=v, kv_layout=kv_layout)
     return obj
 
+  def get_max_seq_len(self) -> int:
+    """Get the maximum sequence length in the KV cache."""
+    return self.k_cache.size(
+        self.kv_layout[0].dimensions.index(types.TensorDims.SEQUENCE)
+    )
+
 
 @dataclasses.dataclass
 class KVCache:
@@ -98,6 +104,7 @@ class KVCache:
   @classmethod
   def from_model_config(
       cls,
+      kv_cache_max: int,
       config: model_config.ModelConfig,
       dtype: torch.dtype = torch.float32,
       device: torch.device | None = None,
@@ -107,6 +114,7 @@ class KVCache:
     """Build an instance of the class based on model config.
 
     Args:
+        kv_cache_max (int): The maximum sequence length in the KV cache.
         config (ModelConfig): Model config used for building the cache.
         dtype (torch.dtype, optional): The data type of the cache tensor.
           Defaults to torch.float32.
@@ -120,7 +128,7 @@ class KVCache:
     """
     caches = [
         KVCacheEntry.from_model_config(
-            config.kv_cache_max
+            kv_cache_max
             if not config.block_config(idx).kv_cache_max_len
             else config.block_config(idx).kv_cache_max_len,
             config.block_config(idx).attn_config,
@@ -138,6 +146,10 @@ class KVCache:
     """Flatten the cache entries into a list of tensors with order k_i, v_i."""
     flattened, _ = _flatten_kvc(self)
     return flattened
+
+  def get_max_seq_len(self) -> int:
+    """Get the maximum sequence length in the KV cache."""
+    return self.caches[0].get_max_seq_len()
 
 
 def _flatten_kvc(kvc: KVCache) -> Tuple[List[str], List[str]]:

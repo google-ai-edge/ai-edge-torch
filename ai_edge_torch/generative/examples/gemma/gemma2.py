@@ -104,7 +104,7 @@ class Gemma2Block(attention.TransformerBlock):
 class Gemma2(nn.Module):
   """A Gemma2 model built from the Edge Generative API layers."""
 
-  def __init__(self, config: cfg.ModelConfig):
+  def __init__(self, config: cfg.ModelConfig, mask_cache_size: int = 0):
     super().__init__()
 
     # Construct model layers.
@@ -126,17 +126,24 @@ class Gemma2(nn.Module):
         config.embedding_dim,
         config.final_norm_config,
     )
-    self.mask_cache = attn_utils.build_causal_mask_cache(
-        size=config.kv_cache_max,
-    )
+    self.config = config
+    self.build_mask_cache(mask_cache_size)
+
+  def build_mask_cache(self, mask_cache_size: int):
+    assert (
+        mask_cache_size <= self.config.max_seq_len
+    ), "Mask cache size must be less than or equal to the max seq length."
+    if mask_cache_size <= 0:
+      self.mask_cache = None
+      self.sliding_window_mask_cache = None
+      return
+    self.mask_cache = attn_utils.build_causal_mask_cache(mask_cache_size)
     # Gemma2 has same hyper parameters for each layer except for attention
     # types. Use the first layer.
-    attn_config = config.block_config(0).attn_config
     self.sliding_window_mask_cache = attn_utils.build_sliding_window_mask_cache(
-        size=config.kv_cache_max,
-        window_size=attn_config.sliding_window_size,
+        size=mask_cache_size,
+        window_size=self.config.block_config(0).attn_config.sliding_window_size,
     )
-    self.config = config
 
   def get_attention_mask(
       self, attn_type: cfg.AttentionType, input_pos: torch.Tensor
@@ -167,6 +174,7 @@ class Gemma2(nn.Module):
     n_elem = int(attn_config.rotary_percentage * attn_config.head_dim)
     rope = rotary_pos_emb.build_rope(input_pos, n_elem, attn_config.rotary_base)
     if mask is None:
+      assert self.mask_cache is not None, "Mask cache must be built."
       mask = [
           self.get_attention_mask(
               self.config.block_config(i).attn_config.attn_type, input_pos
@@ -222,16 +230,8 @@ class Gemma2(nn.Module):
     return {"logits": res, "kv_cache": updated_kv_cache}
 
 
-def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
-  """Returns the model config for a Gemma2 2B model.
-
-  Args:
-    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
-      is 1024.
-
-  Returns:
-    The model config for a Gemma 2B model.
-  """
+def get_model_config_2b() -> cfg.ModelConfig:
+  """Returns the model config for a Gemma2 2B model."""
   norm_config = cfg.NormalizationConfig(
       type=cfg.NormalizationType.RMS_NORM, epsilon=1e-6, zero_centered=True
   )
@@ -277,7 +277,6 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       max_seq_len=8192,
       embedding_dim=embedding_dim,
       embedding_scale=embedding_dim**0.5,
-      kv_cache_max_len=kv_cache_max_len,
       block_configs=[get_block_config(i) for i in range(num_layers)],
       final_norm_config=norm_config,
       lm_head_use_bias=False,
@@ -286,11 +285,11 @@ def get_model_config_2b(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
   return config
 
 
-def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
-  config = get_model_config_2b(kv_cache_max_len)
+def get_fake_model_config() -> cfg.ModelConfig:
+  config = get_model_config_2b()
   config.vocab_size = 128
   config.num_layers = 2
-  config.max_seq_len = 2 * kv_cache_max_len
+  config.max_seq_len = 256
   config.embedding_dim = 128
   config.embedding_scale = config.embedding_dim**0.5
   config.block_configs = config.block_configs[: config.num_layers]
@@ -305,16 +304,17 @@ def get_fake_model_config(kv_cache_max_len: int = 128) -> cfg.ModelConfig:
 def build_2b_model(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    **kwargs,
+    mask_cache_size: int = 0,
 ) -> nn.Module:
   for tensor_names in TENSOR_NAMES_DICT.values():
     try:
       return model_builder.build_decoder_only_model(
           checkpoint_path=checkpoint_path,
-          config=get_model_config_2b(**kwargs),
+          config=get_model_config_2b(),
           tensor_names=tensor_names,
           model_class=Gemma2,
           custom_loader=custom_loader,
+          mask_cache_size=mask_cache_size,
       )
     except KeyError as _:
       continue

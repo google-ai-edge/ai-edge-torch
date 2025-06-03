@@ -55,6 +55,7 @@ class TestModelConversion(googletest.TestCase):
             experimental_default_delegate_latest_features=True,
         )
     )
+    self._kv_cache_max = 128
     # Default cache_size_limit, 8 is hit and aborts often when the tests are
     # running all together. Doubles it to avoid abortion.
     torch._dynamo.config.cache_size_limit = 16
@@ -64,7 +65,7 @@ class TestModelConversion(googletest.TestCase):
     seq_len = 10
     tokens = torch.zeros((1, seq_len), dtype=torch.int, device="cpu")
     input_pos = torch.arange(0, seq_len, dtype=torch.int)
-    kv = kv_cache.KVCache.from_model_config(config)
+    kv = kv_cache.KVCache.from_model_config(self._kv_cache_max, config)
 
     edge_model = ai_edge_torch.signature(
         signature_name,
@@ -95,74 +96,77 @@ class TestModelConversion(googletest.TestCase):
 
   def test_gemma1(self):
     config = gemma1.get_fake_model_config()
-    pytorch_model = gemma1.Gemma1(config).eval()
+    pytorch_model = gemma1.Gemma1(config, self._kv_cache_max).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
 
   def test_gemma2(self):
     config = gemma2.get_fake_model_config()
-    pytorch_model = gemma2.Gemma2(config).eval()
+    pytorch_model = gemma2.Gemma2(config, self._kv_cache_max).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
 
   def test_llama(self):
     config = llama.get_fake_model_config()
-    pytorch_model = llama.Llama(config).eval()
+    pytorch_model = llama.Llama(config, self._kv_cache_max).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
 
   def test_phi2(self):
     config = phi2.get_fake_model_config()
-    pytorch_model = phi2.Phi2(config).eval()
+    pytorch_model = phi2.Phi2(config, self._kv_cache_max).eval()
     # Phi-2 logits are very big, so we need a larger absolute tolerance.
     self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
 
   def test_phi3(self):
     config = phi3.get_fake_model_config()
-    pytorch_model = phi3.Phi3_5Mini(config).eval()
+    pytorch_model = phi3.Phi3_5Mini(config, self._kv_cache_max).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-5, rtol=1e-5)
 
   def test_phi4(self):
     config = phi4.get_fake_model_config()
-    pytorch_model = phi4.Phi4Mini(config).eval()
+    pytorch_model = phi4.Phi4Mini(config, self._kv_cache_max).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
 
   def test_smollm(self):
     config = smollm.get_fake_model_config()
-    pytorch_model = smollm.SmolLM(config).eval()
+    pytorch_model = smollm.SmolLM(config, self._kv_cache_max).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
 
   def test_smollm2(self):
     config = smollm.get_fake_model_config_v2()
-    pytorch_model = smollm.SmolLM2(config).eval()
+    pytorch_model = smollm.SmolLM2(config, self._kv_cache_max).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
 
   def test_openelm(self):
     config = openelm.get_fake_model_config()
-    pytorch_model = openelm.OpenELM(config).eval()
+    pytorch_model = openelm.OpenELM(config, self._kv_cache_max).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-4, rtol=1e-5)
 
   def test_qwen(self):
     config = qwen.get_fake_model_config()
-    pytorch_model = qwen.Qwen(config).eval()
+    pytorch_model = qwen.Qwen(config, self._kv_cache_max).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-3, rtol=1e-5)
 
   def test_deepseek(self):
     config = deepseek.get_fake_model_config()
-    pytorch_model = deepseek.DeepSeekDistillQwen(config).eval()
+    pytorch_model = deepseek.DeepSeekDistillQwen(
+        config, self._kv_cache_max
+    ).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-5, rtol=1e-5)
 
   def test_hammer(self):
     config = hammer.get_fake_model_config()
-    pytorch_model = hammer.Hammer(config).eval()
+    pytorch_model = hammer.Hammer(config, self._kv_cache_max).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-5, rtol=1e-5)
-
 
   def test_amd_llama_135m(self):
     config = amd_llama_135m.get_fake_model_config()
-    pytorch_model = amd_llama_135m.AmdLlama(config).eval()
+    pytorch_model = amd_llama_135m.AmdLlama(config, self._kv_cache_max).eval()
     self._test_model(config, pytorch_model, "prefill", atol=1e-5, rtol=1e-5)
 
   def _test_paligemma_model(self, decoder_class, decoder_config, atol, rtol):
     config = paligemma.get_fake_model_config(decoder_config)
-    pytorch_model = paligemma.PaliGemma(config, decoder_class).eval()
+    pytorch_model = paligemma.PaliGemma(
+        config, decoder_class, mask_cache_size=self._kv_cache_max
+    ).eval()
 
     image_config = config.image_encoder_config.image_embedding
     num_patches = (image_config.image_size // image_config.patch_size) ** 2
@@ -171,7 +175,9 @@ class TestModelConversion(googletest.TestCase):
     seq_len = num_patches + 10
     tokens = torch.zeros((1, seq_len), dtype=torch.int)
     input_pos = torch.arange(0, seq_len, dtype=torch.int)
-    kv = kv_cache.KVCache.from_model_config(config.decoder_config)
+    kv = kv_cache.KVCache.from_model_config(
+        self._kv_cache_max, config.decoder_config
+    )
     pixel_values = torch.zeros((1, 3, 8, 8), dtype=torch.float32)
 
     edge_model = ai_edge_torch.signature(
@@ -218,7 +224,7 @@ class TestModelConversion(googletest.TestCase):
 
   def test_qwen_vl_model(self):
     config = qwen_vl.get_fake_model_config()
-    pytorch_model = qwen_vl.QwenVL(config).eval()
+    pytorch_model = qwen_vl.QwenVL(config, self._kv_cache_max).eval()
 
     grid_thw = pytorch_model.image_encoder.get_grid_thw()
     pixel_values_size = pytorch_model.image_encoder.get_pixel_values_size(
@@ -229,7 +235,9 @@ class TestModelConversion(googletest.TestCase):
     seq_len = pixel_values_size[0] + 10
     tokens = torch.zeros((1, seq_len), dtype=torch.int)
     input_pos = torch.arange(0, seq_len, dtype=torch.int)
-    kv = kv_cache.KVCache.from_model_config(config.decoder_config)
+    kv = kv_cache.KVCache.from_model_config(
+        self._kv_cache_max, config.decoder_config
+    )
     pixel_values = torch.zeros(pixel_values_size, dtype=torch.float32)
 
     edge_model = ai_edge_torch.signature(
