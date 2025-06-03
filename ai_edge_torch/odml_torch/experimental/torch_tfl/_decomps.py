@@ -160,6 +160,13 @@ def _aten_view_decomp(x, shape: Sequence[int]):
   return torch.ops.tfl.reshape(x, shape)
 
 
+@register_decomp(torch.ops.aten.arange.start_step)
+def _aten_arange_start_step_decomp(
+    start, end, step=1, dtype=None, layout=None, device=None, pin_memory=None
+):
+  return torch.ops.tfl.range(start, end, step)
+
+
 @register_decomp(torch.ops.aten._softmax.default)
 def _aten__softmax_decomp(
     x, dim: int, half_to_float: bool  # pylint: disable=unused-argument

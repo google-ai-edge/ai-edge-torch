@@ -189,6 +189,15 @@ def tfl_reshape_fake(input: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
   return torch.empty(inferred_shape, dtype=input.dtype)
 
 
+@custom_op_with_fake(
+    "tfl::range", schema="(Scalar start, Scalar limit, Scalar delta) -> Tensor"
+)
+def tfl_range(
+    start: int | float, limit: int | float, delta: int | float
+) -> torch.Tensor:
+  return torch.arange(start, limit, delta)
+
+
 @custom_op_with_fake("tfl::softmax")
 def tfl_softmax(x: torch.Tensor) -> torch.Tensor:
   return torch.nn.functional.softmax(x, dim=-1)
