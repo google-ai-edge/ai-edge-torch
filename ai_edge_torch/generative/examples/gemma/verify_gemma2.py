@@ -42,12 +42,18 @@ _TRANSPOSE_KV_CACHE = flags.DEFINE_bool(
     True,
     "Transpose the KV cache to reduce memory usage.",
 )
+_WEIGHT_FILENAME = flags.DEFINE_string(
+    "weight_filename",
+    "model.ckpt",
+    "Name of the weight file in the checkpoint directory.",
+)
 
 def main(_):
   checkpoint = kagglehub.model_download("google/gemma-2/pyTorch/gemma-2-2b-it")
 
   verify_util.verify_gemma2(
       checkpoint,
+      _WEIGHT_FILENAME.value,
       _PROMPTS.value,
       _MAX_NEW_TOKENS.value,
       _MASK_AS_INPUT.value,
