@@ -177,6 +177,27 @@ def _tfl_logical_and_lowering(
   )
 
 
+@lower(torch.ops.tfl.mean.default)
+def _tfl_mean_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    dims: int | ir.Value | Sequence[int | ir.Value],
+    keepdim: bool = False,
+) -> ir.Value:
+  if isinstance(dims, int) or isinstance(dims, ir.Value):
+    dims_ir_value = lowering_utils.convert_to_ir_value(dims)
+  else:
+    dims_ir_value = lowering_utils.convert_shape_to_ir_value(dims)
+  return _ir_operation(
+      "tfl.mean",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x, dims_ir_value],
+      attributes={
+          "keep_dims": ir.BoolAttr.get(keepdim),
+      },
+  )
+
+
 @lower(torch.ops.tfl.greater.default)
 def _tfl_greater_lowering(
     lctx: LoweringContext,
@@ -297,45 +318,213 @@ def _tfl_transpose_lowering(
   )
 
 
+@lower(torch.ops.tfl.concatenation.default)
+def _tfl_concatenation_lowering(
+    lctx: LoweringContext,
+    tensors: Sequence[ir.Value],
+    axis: int,
+    fused_activation_function: str = "NONE",
+) -> ir.Value:
+  max_rank = 0
+  # First pass: determine max_rank among all input tensors
+  for t_val_rank_check in tensors:
+    if isinstance(t_val_rank_check.type, ir.RankedTensorType):
+      max_rank = max(max_rank, t_val_rank_check.type.rank)
+
+  ref_tensor_for_shape_inference = None
+  # If max_rank > 1, we might need to reshape. Find a reference tensor.
+  if max_rank > 1:
+    for t_val_ref_check in tensors:
+      if (
+          isinstance(t_val_ref_check.type, ir.RankedTensorType)
+          and t_val_ref_check.type.rank == max_rank
+      ):
+        ref_tensor_for_shape_inference = t_val_ref_check
+        break
+
+  processed_operands = []
+  # Perform reshaping of 1D (0,) tensors only if concatenating multi-dimensional
+  # tensors and a valid reference tensor was found.
+  perform_reshaping = (
+      max_rank > 1 and ref_tensor_for_shape_inference is not None
+  )
+
+  if perform_reshaping:
+    ref_shape = ref_tensor_for_shape_inference.type.shape
+    for t_val in tensors:
+      current_val = t_val
+      if isinstance(t_val.type, ir.RankedTensorType):
+        current_type = t_val.type
+        current_rank = current_type.rank
+        current_shape = current_type.shape
+
+        # Check if this tensor is 1D, shape (0,), and we are in a context
+        # where reshaping to max_rank is needed.
+        if current_rank == 1 and list(current_shape) == [0]:
+          new_shape_dims = []
+          for i in range(max_rank):  # Loop up to max_rank
+            if i == axis:
+              new_shape_dims.append(0)
+            else:
+              # ref_shape has length max_rank, so ref_shape[i] is safe.
+              new_shape_dims.append(ref_shape[i])
+
+          new_mlir_type = ir.RankedTensorType.get(
+              new_shape_dims, current_type.element_type
+          )
+          current_val = stablehlo.reshape(new_mlir_type, t_val)
+      processed_operands.append(current_val)
+  else:
+    # No reshaping needed, use tensors as they are.
+    processed_operands = list(tensors)
+
+  return _ir_operation(
+      "tfl.concatenation",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=processed_operands,
+      attributes={
+          "axis": ir.IntegerAttr.get(ir.IntegerType.get_signless(32), axis),
+          "fused_activation_function": ir.StringAttr.get(
+              fused_activation_function
+          ),
+      },
+  )
+
+
+@lower(torch.ops.tfl.fill.default)
+def _tfl_fill_lowering(
+    lctx: LoweringContext,
+    dims: Sequence[int | ir.Value],
+    fill_value: ir.Value,
+) -> ir.Value:
+  dims_ir_value = lowering_utils.convert_shape_to_ir_value(dims)
+  fill_value_ir_value = lowering_utils.convert_to_ir_value(fill_value)
+
+  # Ensure fill_value_ir_value is a scalar (0-D tensor) for TFLite Fill op.
+  # The TFLite Fill kernel expects the value to be a 0-D tensor.
+  if isinstance(fill_value_ir_value.type, ir.RankedTensorType):
+    tensor_type = fill_value_ir_value.type
+    # If it's a 1-D tensor with a single element, reshape to 0-D.
+    if tensor_type.rank == 1 and list(tensor_type.shape) == [1]:
+      scalar_type = ir.RankedTensorType.get([], tensor_type.element_type)
+      fill_value_ir_value = stablehlo.reshape(scalar_type, fill_value_ir_value)
+
+  # Determine the target element type from the node's output definition.
+  result_types = lowering_utils.node_meta_to_ir_types(lctx.node)
+  if not result_types or not isinstance(result_types[0], ir.RankedTensorType):
+    raise ValueError(
+        "tfl.fill: Unable to determine result tensor type or result is not a"
+        " ranked tensor."
+    )
+  target_element_type = result_types[0].element_type
+
+  # Ensure fill_value_ir_value is a RankedTensorType to access its properties.
+  if not isinstance(fill_value_ir_value.type, ir.RankedTensorType):
+    raise TypeError(
+        "tfl.fill: fill_value_ir_value expected to be RankedTensorType, got"
+        f" {fill_value_ir_value.type}"
+    )
+
+  current_fill_tensor_type = fill_value_ir_value.type
+  current_element_type = current_fill_tensor_type.element_type
+
+  # If the element type of the (scalar) fill_value doesn't match the target
+  # output element type, cast fill_value_ir_value to the target_element_type
+  # while maintaining its current shape (which should be scalar).
+  if current_element_type != target_element_type:
+    cast_to_type = ir.RankedTensorType.get(
+        current_fill_tensor_type.shape, target_element_type
+    )
+    fill_value_ir_value = stablehlo.convert(cast_to_type, fill_value_ir_value)
+
+  return _ir_operation(
+      "tfl.fill",
+      results=result_types,
+      operands=[dims_ir_value, fill_value_ir_value],
+  )
+
+
 @lower(torch.ops.tfl.reshape.default)
 def _tfl_reshape_lowering(
     lctx: LoweringContext,
     x: ir.Value,
     shape: Sequence[int | ir.Value],
 ) -> ir.Value:
-  # Check if all elements in the shape sequence are integers.
-  if not shape or all(isinstance(dim, int) for dim in shape):
-    # If all are integers, create a constant numpy array.
-    # Assuming int32 is the required type for TFLite shape tensors.
-    shape_ir_value = lowering_utils.numpy_array_constant(
-        np.array(shape, dtype=np.int32)
-    )
-  else:
-    # Handle mixed int and ir.Value shape sequence
-    processed_dims = []
-    for dim in shape:
-      if isinstance(dim, int):
-        # Convert int to a constant 1D tensor
-        shape_ir_value = lowering_utils.numpy_array_constant(
-            np.array([dim], dtype=np.int32)
-        )
-        processed_dims.append(shape_ir_value)
-      else:
-        assert isinstance(dim, ir.Value)
-        # Convert ir.Value to a constant 1D tensor
-        new_type = ir.RankedTensorType.get([1], dim.type.element_type)
-        reshape_dim = stablehlo.reshape(new_type, dim)
-        processed_dims.append(reshape_dim)
-
-    shape_ir_value = stablehlo.concatenate(
-        processed_dims,
-        dimension=0,
-    )
-
   return _ir_operation(
       "tfl.reshape",
       results=lowering_utils.node_meta_to_ir_types(lctx.node),
-      operands=[x, shape_ir_value],
+      operands=[x, lowering_utils.convert_shape_to_ir_value(shape)],
+  )
+
+
+@lower(torch.ops.tfl.split_v.default)
+def _tfl_split_v_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    size_splits: Sequence[int | ir.Value],
+    dim: int | ir.Value,
+) -> ir.Value:
+  size_splits_ir_value = lowering_utils.convert_shape_to_ir_value(size_splits)
+  dim_ir_value = lowering_utils.numpy_array_constant(
+      np.array(dim, dtype=np.int32)
+  )
+  return _ir_operation(
+      "tfl.split_v",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x, size_splits_ir_value, dim_ir_value],
+      attributes={
+          "num_splits": ir.IntegerAttr.get(
+              ir.IntegerType.get_signless(32), len(size_splits)
+          ),
+      },
+  )
+
+
+@lower(torch.ops.tfl.expand_dims.default)
+def _tfl_expand_dims_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    dim: int | ir.Value,
+) -> ir.Value:
+  dim_ir_value = lowering_utils.numpy_array_constant(
+      np.array(dim, dtype=np.int32)
+  )
+  return _ir_operation(
+      "tfl.expand_dims",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x, dim_ir_value],
+  )
+
+
+@lower(torch.ops.tfl.broadcast_to.default)
+def _tfl_broadcast_to_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    shape: Sequence[int | ir.Value],
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.broadcast_to",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x, lowering_utils.convert_shape_to_ir_value(shape)],
+  )
+
+
+@lower(torch.ops.tfl.squeeze.default)
+def _tfl_squeeze_to_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    squeeze_dims: Sequence[int | ir.Value],
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.squeeze",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x],
+      attributes={
+          "squeeze_dims": ir.ArrayAttr.get([
+              ir.IntegerAttr.get(ir.IntegerType.get_signless(64), int(d))
+              for d in squeeze_dims
+          ]),
+      },
   )
 
 
