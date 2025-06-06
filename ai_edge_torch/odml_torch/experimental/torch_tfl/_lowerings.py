@@ -297,6 +297,26 @@ def _tfl_transpose_lowering(
   )
 
 
+@lower(torch.ops.tfl.concatenation.default)
+def _tfl_concatenation_lowering(
+    lctx: LoweringContext,
+    tensors: Sequence[ir.Value],
+    axis: int,
+    fused_activation_function: str = "NONE",
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.concatenation",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=tensors,
+      attributes={
+          "axis": ir.IntegerAttr.get(ir.IntegerType.get_signless(32), axis),
+          "fused_activation_function": ir.StringAttr.get(
+              fused_activation_function
+          ),
+      },
+  )
+
+
 @lower(torch.ops.tfl.reshape.default)
 def _tfl_reshape_lowering(
     lctx: LoweringContext,

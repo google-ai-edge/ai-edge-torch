@@ -116,6 +116,13 @@ def tfl_transpose(input: torch.Tensor, perm: Sequence[int]) -> torch.Tensor:
   return torch.permute(input, perm).clone()
 
 
+@custom_op_with_fake("tfl::concatenation")
+def tfl_concatenation(
+    tensors: Sequence[torch.Tensor], dim: int
+) -> torch.Tensor:
+  return torch.cat(tensors, dim=dim)
+
+
 def _normalize_shape(
     tensor_input: torch.Tensor, shape: Sequence[int]
 ) -> Sequence[int]:

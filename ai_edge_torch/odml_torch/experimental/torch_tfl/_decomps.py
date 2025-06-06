@@ -155,6 +155,54 @@ def _aten_permute_decomp(x, dims: Sequence[int]):
   return torch.ops.tfl.transpose(x, dims)
 
 
+def _prepare_tensors_for_concatenation(
+    tensors: Sequence[torch.Tensor], axis: int
+) -> Sequence[torch.Tensor]:
+  """Prepares PyTorch tensors for concatenation by reshaping 1D (0,) tensors if needed."""
+  max_rank = 0
+  # First pass: determine max_rank among all input tensors
+  for t_val_rank_check in tensors:
+    max_rank = max(max_rank, t_val_rank_check.dim())
+
+  ref_tensor_for_shape_inference = None
+  # If max_rank > 1, we might need to reshape. Find a reference tensor.
+  if max_rank > 1:
+    for t_val_ref_check in tensors:
+      if t_val_ref_check.dim() == max_rank:
+        ref_tensor_for_shape_inference = t_val_ref_check
+        break
+
+  processed_operands = []
+  # Perform reshaping of 1D (0,) tensors only if concatenating multi-dimensional
+  # tensors and a valid reference tensor was found.
+  perform_reshaping = (
+      max_rank > 1 and ref_tensor_for_shape_inference is not None
+  )
+
+  if perform_reshaping:
+    ref_shape = list(ref_tensor_for_shape_inference.shape)
+    for t_val in tensors:
+      current_val = t_val
+
+      # Check if this tensor is 1D, shape (0,), and we are in a context
+      # where reshaping to max_rank is needed.
+      if torch.numel(t_val) == 0:
+        new_shape = list(ref_shape)
+        new_shape[axis] = 0
+        current_val = torch.ops.tfl.reshape(t_val, new_shape)
+      processed_operands.append(current_val)
+  else:
+    # No reshaping needed, use tensors as they are.
+    processed_operands = list(tensors)
+  return processed_operands
+
+
+@register_decomp(torch.ops.aten.cat.default)
+def _aten_cat_decomp(tensors, dim=0):
+  processed_tensors = _prepare_tensors_for_concatenation(tensors, dim)
+  return torch.ops.tfl.concatenation(processed_tensors, dim)
+
+
 @register_decomp(torch.ops.aten.view.default)
 def _aten_view_decomp(x, shape: Sequence[int]):
   return torch.ops.tfl.reshape(x, shape)
