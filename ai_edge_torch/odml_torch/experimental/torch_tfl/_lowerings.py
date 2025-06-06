@@ -317,45 +317,69 @@ def _tfl_concatenation_lowering(
   )
 
 
+@lower(torch.ops.tfl.fill.default)
+def _tfl_fill_lowering(
+    lctx: LoweringContext,
+    dims: Sequence[int | ir.Value],
+    fill_value: ir.Value,
+) -> ir.Value:
+  dims_ir_value = lowering_utils.convert_shape_to_ir_value(dims)
+  fill_value_ir_value = lowering_utils.convert_to_ir_value(fill_value)
+
+  # Ensure fill_value_ir_value is a scalar (0-D tensor) for TFLite Fill op.
+  # The TFLite Fill kernel expects the value to be a 0-D tensor.
+  if isinstance(fill_value_ir_value.type, ir.RankedTensorType):
+    tensor_type = fill_value_ir_value.type
+    # If it's a 1-D tensor with a single element, reshape to 0-D.
+    if list(tensor_type.shape) == [1]:
+      scalar_type = ir.RankedTensorType.get([], tensor_type.element_type)
+      fill_value_ir_value = stablehlo.reshape(scalar_type, fill_value_ir_value)
+
+  # Determine the target element type from the node's output definition.
+  result_types = lowering_utils.node_meta_to_ir_types(lctx.node)
+  if not result_types or not isinstance(result_types[0], ir.RankedTensorType):
+    raise ValueError(
+        "tfl.fill: Unable to determine result tensor type or result is not a"
+        " ranked tensor."
+    )
+  target_element_type = result_types[0].element_type
+
+  # Ensure fill_value_ir_value is a RankedTensorType to access its properties.
+  if not isinstance(fill_value_ir_value.type, ir.RankedTensorType):
+    raise TypeError(
+        "tfl.fill: fill_value_ir_value expected to be RankedTensorType, got"
+        f" {fill_value_ir_value.type}"
+    )
+
+  current_fill_tensor_type = fill_value_ir_value.type
+  current_element_type = current_fill_tensor_type.element_type
+
+  # If the element type of the (scalar) fill_value doesn't match the target
+  # output element type, cast fill_value_ir_value to the target_element_type
+  # while maintaining its current shape (which should be scalar).
+  if current_element_type != target_element_type:
+    cast_to_type = ir.RankedTensorType.get(
+        current_fill_tensor_type.shape, target_element_type
+    )
+    fill_value_ir_value = stablehlo.convert(cast_to_type, fill_value_ir_value)
+
+  return _ir_operation(
+      "tfl.fill",
+      results=result_types,
+      operands=[dims_ir_value, fill_value_ir_value],
+  )
+
+
 @lower(torch.ops.tfl.reshape.default)
 def _tfl_reshape_lowering(
     lctx: LoweringContext,
     x: ir.Value,
     shape: Sequence[int | ir.Value],
 ) -> ir.Value:
-  # Check if all elements in the shape sequence are integers.
-  if not shape or all(isinstance(dim, int) for dim in shape):
-    # If all are integers, create a constant numpy array.
-    # Assuming int32 is the required type for TFLite shape tensors.
-    shape_ir_value = lowering_utils.numpy_array_constant(
-        np.array(shape, dtype=np.int32)
-    )
-  else:
-    # Handle mixed int and ir.Value shape sequence
-    processed_dims = []
-    for dim in shape:
-      if isinstance(dim, int):
-        # Convert int to a constant 1D tensor
-        shape_ir_value = lowering_utils.numpy_array_constant(
-            np.array([dim], dtype=np.int32)
-        )
-        processed_dims.append(shape_ir_value)
-      else:
-        assert isinstance(dim, ir.Value)
-        # Convert ir.Value to a constant 1D tensor
-        new_type = ir.RankedTensorType.get([1], dim.type.element_type)
-        reshape_dim = stablehlo.reshape(new_type, dim)
-        processed_dims.append(reshape_dim)
-
-    shape_ir_value = stablehlo.concatenate(
-        processed_dims,
-        dimension=0,
-    )
-
   return _ir_operation(
       "tfl.reshape",
       results=lowering_utils.node_meta_to_ir_types(lctx.node),
-      operands=[x, shape_ir_value],
+      operands=[x, lowering_utils.convert_shape_to_ir_value(shape)],
   )
 
 
