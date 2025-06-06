@@ -110,6 +110,11 @@ def _aten_bitwise_and_tensor_decomp(x, y):
   return torch.ops.tfl.logical_and(x, y)
 
 
+@register_decomp(torch.ops.aten.mean.dim)
+def _aten_mean_dim_decomp(x, dim, keepdim=False):
+  return torch.ops.tfl.mean(x, dim, keepdim)
+
+
 @register_decomp(torch.ops.aten.gt.Tensor)
 def _aten_gt_tensor_decomp(x, y):
   return torch.ops.tfl.greater(x, y)

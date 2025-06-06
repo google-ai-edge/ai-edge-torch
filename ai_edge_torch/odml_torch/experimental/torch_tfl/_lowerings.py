@@ -177,6 +177,27 @@ def _tfl_logical_and_lowering(
   )
 
 
+@lower(torch.ops.tfl.mean.default)
+def _tfl_mean_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    dims: int | ir.Value | Sequence[int | ir.Value],
+    keepdim: bool = False,
+) -> ir.Value:
+  if isinstance(dims, int) or isinstance(dims, ir.Value):
+    dims_ir_value = lowering_utils.convert_to_ir_value(dims)
+  else:
+    dims_ir_value = lowering_utils.convert_shape_to_ir_value(dims)
+  return _ir_operation(
+      "tfl.mean",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x, dims_ir_value],
+      attributes={
+          "keep_dims": ir.BoolAttr.get(keepdim),
+      },
+  )
+
+
 @lower(torch.ops.tfl.greater.default)
 def _tfl_greater_lowering(
     lctx: LoweringContext,

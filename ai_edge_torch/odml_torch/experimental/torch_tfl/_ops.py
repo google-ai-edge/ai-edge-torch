@@ -68,6 +68,13 @@ def tfl_logical_and(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
   return torch.logical_and(x, y)
 
 
+@custom_op_with_fake(
+    "tfl::mean", schema="(Tensor x, Any dims, bool keepdim) -> Tensor"
+)
+def tfl_mean(x: torch.Tensor, dims: Any, keepdim: bool = False) -> torch.Tensor:
+  return torch.mean(x, dims, keepdim)
+
+
 @custom_op_with_fake("tfl::greater")
 def tfl_greater(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
   return torch.gt(x, y)
