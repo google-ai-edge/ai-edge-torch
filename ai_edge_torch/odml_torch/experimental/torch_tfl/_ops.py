@@ -43,8 +43,8 @@ def tfl_add(x: torch.Tensor, y: Any) -> torch.Tensor:
   return torch.add(x, y)
 
 
-@custom_op_with_fake("tfl::sub", schema="(Tensor x, Any y) -> Tensor")
-def tfl_sub(x: torch.Tensor, y: Any) -> torch.Tensor:
+@custom_op_with_fake("tfl::sub", schema="(Any x, Any y) -> Tensor")
+def tfl_sub(x: Any, y: Any) -> torch.Tensor:
   return torch.sub(x, y)
 
 
@@ -215,6 +215,76 @@ def tfl_range(
     start: int | float, limit: int | float, delta: int | float
 ) -> torch.Tensor:
   return torch.arange(start, limit, delta)
+
+
+@custom_op_with_fake(
+    "tfl::split_v", schema="(Tensor x, SymInt[] y, int z) -> Tensor[]"
+)
+def tfl_split_v(
+    input: torch.Tensor, size_splits: Sequence[torch.SymInt], split_dim: int
+) -> Sequence[torch.Tensor]:
+  # Clone the output tensors to avoid aliasing issues.
+  return [t.clone() for t in torch.split(input, size_splits, dim=split_dim)]
+
+
+@custom_op_with_fake("tfl::expand_dims")
+def tfl_expand_dims(x: torch.Tensor, dim: int) -> torch.Tensor:
+  return torch.unsqueeze(x, dim).clone()
+
+
+@custom_op_with_fake("tfl::broadcast_to")
+def tfl_broadcast_to(x: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
+  return x.expand(shape).clone()
+
+
+@custom_op_with_fake("tfl::squeeze")
+def tfl_squeeze(x: torch.Tensor, squeeze_dims: Sequence[int]) -> torch.Tensor:
+  return torch.squeeze(x, squeeze_dims).clone()
+
+
+@custom_op_with_fake("tfl::strided_slice")
+def tfl_strided_slice(
+    input: torch.Tensor,
+    begin: Sequence[int],
+    end: Sequence[int],
+    strides: Sequence[int],
+) -> torch.Tensor:
+  assert (
+      len(begin) == len(end) == len(strides) == input.ndim
+  ), "Dimension mismatch"
+
+  slices = []
+
+  for i in range(input.ndim):
+    b = begin[i]
+    e = end[i]
+    s = strides[i]
+    slices.append(slice(b, e, s))
+
+  result = input[tuple(slices)].clone()
+
+  return result
+
+
+@custom_op_with_fake("tfl::select_v2")
+def tfl_select_v2(
+    condition: torch.Tensor, x: torch.Tensor, y: torch.Tensor
+) -> torch.Tensor:
+  return torch.where(condition, x, y)
+
+
+@custom_op_with_fake("tfl::embedding_lookup")
+def tfl_embedding_lookup(
+    indices: torch.Tensor, weight: torch.Tensor
+) -> torch.Tensor:
+  return torch.nn.functional.embedding(indices, weight)
+
+
+@custom_op_with_fake("tfl::gather")
+def tfl_gather(
+    input: torch.Tensor, indices: torch.Tensor, axis: int
+) -> torch.Tensor:
+  return torch.index_select(input, axis, indices)
 
 
 @custom_op_with_fake("tfl::softmax")
