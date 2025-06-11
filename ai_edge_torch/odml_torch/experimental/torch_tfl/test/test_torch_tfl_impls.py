@@ -174,6 +174,8 @@ class TestTorchTFLImpls(parameterized.TestCase):
       ("aten_view_3", torch.ops.aten.view.default, (rnd(torch.float32, (10, 10)), [1, -1],), dict()),
       ("aten_view_4", torch.ops.aten.view.default, (rnd(torch.float32, (10, 10)), [2, -1, 10],), dict()),
       ("aten_view_5", torch.ops.aten.view.default, (rnd(torch.float32, (10, 10)), [-1, 2, 10],), dict()),
+      ("aten_split_with_sizes_0", torch.ops.aten.split_with_sizes.default, (rnd(torch.float32, (10, 10)), [1, 2, 3, 4],), dict()),
+      ("aten_split_with_sizes_1", torch.ops.aten.split_with_sizes.default, (rnd(torch.float32, (10, 10)), [1, 2, 3, 4], 1), dict()),
       ("aten__softmax_0", torch.ops.aten._softmax.default, (rnd(torch.float32, (10, 10)), -1, False), dict()),
       ("aten__softmax_1", torch.ops.aten._softmax.default, (rnd(torch.float32, (1, 10)), -1, False), dict()),
       ("aten__softmax_2", torch.ops.aten._softmax.default, (rnd(torch.float32, (10, 10)), 0, False), dict()),
@@ -217,6 +219,34 @@ class TestTorchTFLImpls(parameterized.TestCase):
         return x
 
     self._assert_export_and_close(ReshapeModel(), args, kwargs, dynamic_shapes)
+
+  @parameterized.named_parameters(
+      # fmt: off
+      # pyformat: disabledef
+      ("split_with_sizes_without_dynamic_shape_0", (rnd(torch.float32, (10, 10)),), dict(), None),
+      ("split_with_sizes_with_dynamic_shape_1", (rnd(torch.float32, (10, 10)),), dict(), ({1: torch.export.Dim("batch", min=10)},)),
+      # fmt: on
+      # pyformat: enable
+  )
+  def test_split_with_sizes_op(
+      self,
+      args,
+      kwargs,
+      dynamic_shapes: Dict[str, Any] | Sequence[Any] | None = None,
+  ):
+
+    class SplitWithSizesModel(torch.nn.Module):
+
+      def forward(self, x):
+        variable_split_size = x.shape[-1] - 8
+        y = torch.ops.aten.split_with_sizes(
+            x, [1, variable_split_size, 3, 4], dim=-1
+        )
+        return y
+
+    self._assert_export_and_close(
+        SplitWithSizesModel(), args, kwargs, dynamic_shapes
+    )
 
 
 if __name__ == "__main__":

@@ -473,6 +473,29 @@ def _tfl_range_lowering(
   return final_output_val
 
 
+@lower(torch.ops.tfl.split_v.default)
+def _tfl_split_v_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    size_splits: Sequence[int | ir.Value],
+    dim: int | ir.Value,
+) -> ir.Value:
+  size_splits_ir_value = lowering_utils.convert_shape_to_ir_value(size_splits)
+  dim_ir_value = lowering_utils.numpy_array_constant(
+      np.array(dim, dtype=np.int32)
+  )
+  return _ir_operation(
+      "tfl.split_v",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x, size_splits_ir_value, dim_ir_value],
+      attributes={
+          "num_splits": ir.IntegerAttr.get(
+              ir.IntegerType.get_signless(32), len(size_splits)
+          ),
+      },
+  )
+
+
 @lower(torch.ops.tfl.softmax.default)
 def _tfl_softmax_lowering(
     lctx: LoweringContext,

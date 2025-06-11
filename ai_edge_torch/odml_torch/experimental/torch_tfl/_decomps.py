@@ -233,6 +233,11 @@ def _aten_arange_start_step_decomp(
   return torch.ops.tfl.range(start, end, step)
 
 
+@register_decomp(torch.ops.aten.split_with_sizes.default)
+def _aten_split_with_sizes_decomp(x, split_sizes, dim=0):
+  return torch.ops.tfl.split_v(x, split_sizes, dim)
+
+
 @register_decomp(torch.ops.aten._softmax.default)
 def _aten__softmax_decomp(
     x, dim: int, half_to_float: bool  # pylint: disable=unused-argument

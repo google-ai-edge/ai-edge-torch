@@ -217,6 +217,16 @@ def tfl_range(
   return torch.arange(start, limit, delta)
 
 
+@custom_op_with_fake(
+    "tfl::split_v", schema="(Tensor x, SymInt[] y, int z) -> Tensor[]"
+)
+def tfl_split_v(
+    input: torch.Tensor, size_splits: Sequence[torch.SymInt], split_dim: int
+) -> Sequence[torch.Tensor]:
+  # Clone the output tensors to avoid aliasing issues.
+  return [t.clone() for t in torch.split(input, size_splits, dim=split_dim)]
+
+
 @custom_op_with_fake("tfl::softmax")
 def tfl_softmax(x: torch.Tensor) -> torch.Tensor:
   return torch.nn.functional.softmax(x, dim=-1)
