@@ -48,7 +48,9 @@ def main(_):
   original_language_model = original_full_model.eval().language_model
 
   logging.info("Building the reauthored model from: %s", checkpoint)
-  reauthored_model = decoder2.build_decoder2(checkpoint)
+  reauthored_model = decoder2.build_decoder2(
+      checkpoint, mask_cache_size=verifier.DEFAULT_KV_CACHE_MAX_LEN
+  )
 
   logging.info("Loading the tokenizer from: %s", checkpoint)
   # It works only when GemmaTokenizerFast is available. In some environments,

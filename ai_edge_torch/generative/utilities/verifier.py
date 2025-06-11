@@ -24,6 +24,10 @@ import torch
 
 ExportConfig = export_config.ExportConfig
 
+# The default KV cache maximum length for the reauthored model for verification.
+# If desired, each model can override it when a model is initialized.
+DEFAULT_KV_CACHE_MAX_LEN = 256
+
 
 class ModelWrapper(torch.nn.Module):
   """A wrapper for the model to be verified.
@@ -92,7 +96,7 @@ class ReauthoredModelWrapper(ModelWrapper):
       model: torch.nn.Module,
       mask_as_input: bool = False,
       kv_layout: kv_utils.KVLayout = kv_utils.KV_LAYOUT_DEFAULT,
-      kv_cache_max_len: int = 1280,
+      kv_cache_max_len: int = DEFAULT_KV_CACHE_MAX_LEN,
   ):
     """Wraps a reauthored model with some options."""
     super().__init__(model)

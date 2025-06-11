@@ -65,6 +65,7 @@ def verify_llama_3_2(
   reauthored_model = _BUILDER[model_size](
       checkpoint_path=reauthored_checkpoint,
       custom_loader=custom_loader,
+      mask_cache_size=verifier.DEFAULT_KV_CACHE_MAX_LEN,
   )
 
   logging.info("Loading the tokenizer from: %s", checkpoint_dir)

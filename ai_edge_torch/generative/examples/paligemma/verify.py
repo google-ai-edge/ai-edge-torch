@@ -66,7 +66,9 @@ class ReauthoredPaliGemmaWrapper(verifier.ReauthoredModelWrapper):
   """Reauthored PaliGemma model wrapper."""
 
   def _init_kv_cache(self):
-    return kv_cache.KVCache.from_model_config(self.model.config.decoder_config)
+    return kv_cache.KVCache.from_model_config(
+        self.kv_cache_max_len, self.model.config.decoder_config
+    )
 
 
 def main(_):
@@ -88,7 +90,9 @@ def main(_):
 
   logging.info("Building the reauthored model from: %s", reauthored_checkpoint)
   reauthored_model = paligemma.build_model(
-      reauthored_checkpoint, version=int(_VERSION.value)
+      reauthored_checkpoint,
+      version=int(_VERSION.value),
+      mask_cache_size=verifier.DEFAULT_KV_CACHE_MAX_LEN,
   )
   wrapped_reauthored_model = ReauthoredPaliGemmaWrapper(reauthored_model)
 

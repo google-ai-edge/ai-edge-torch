@@ -61,6 +61,7 @@ def verify_tiny_llama(
   reauthored_model = tiny_llama.build_model(
       checkpoint_path=reauthored_checkpoint,
       custom_loader=custom_loader,
+      mask_cache_size=verifier.DEFAULT_KV_CACHE_MAX_LEN,
   )
 
   logging.info("Loading the tokenizer from: %s", checkpoint_dir)

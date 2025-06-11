@@ -93,21 +93,27 @@ class GemmaWrapper(verifier.ModelWrapper):
 class UnifiedGemma3Wrapper(verifier.ReauthoredModelWrapper):
   """Unified Gemma3 model wrapper for verification."""
 
-  def __init__(self, model: torch.nn.Module):
-    super().__init__(model, kv_layout=kv_utils.KV_LAYOUT_TRANSPOSED)
+  def __init__(
+      self,
+      model: torch.nn.Module,
+      kv_cache_max_len: int = verifier.DEFAULT_KV_CACHE_MAX_LEN,
+  ):
+    super().__init__(
+        model,
+        kv_layout=kv_utils.KV_LAYOUT_TRANSPOSED,
+        kv_cache_max_len=kv_cache_max_len,
+    )
 
   def _init_kv_cache(self):
     return kv_utils.KVCache.from_model_config(
-        self.model.model.config, kv_layout=self.kv_layout
+        self.kv_cache_max_len, self.model.model.config, kv_layout=self.kv_layout
     )
 
   def forward(
       self, tokens: torch.Tensor, pixel_values: torch.Tensor = None
   ) -> torch.Tensor:
     """Forwards the model."""
-    mask = attn_utils.build_causal_mask_cache(
-        self.model.model.config.kv_cache_max_len
-    )
+    mask = attn_utils.build_causal_mask_cache(self.kv_cache_max_len)
     input_pos = torch.arange(0, tokens.shape[1], dtype=torch.int)
     mask = mask.index_select(2, input_pos)
     output = self.model.model.forward(
@@ -127,9 +133,7 @@ class UnifiedGemma3Wrapper(verifier.ReauthoredModelWrapper):
     tokens = torch.tensor([input_ids])
     input_pos = torch.arange(0, tokens.shape[1], dtype=torch.int)
     kv_cache = self._init_kv_cache()
-    mask_cache = attn_utils.build_causal_mask_cache(
-        self.model.model.config.kv_cache_max_len
-    )
+    mask_cache = attn_utils.build_causal_mask_cache(self.kv_cache_max_len)
     for _ in range(max_new_tokens):
       mask = mask_cache.index_select(2, input_pos)
       output = self.model.model.forward(
@@ -245,7 +249,11 @@ def verify_gemma3(
 
   if variant == "1b":
     reauthored_model = UnifiedGemma3Wrapper(
-        gemma3.build_model_1b(gemma3_model_path, custom_loader)
+        gemma3.build_model_1b(
+            gemma3_model_path,
+            custom_loader,
+            mask_cache_size=verifier.DEFAULT_KV_CACHE_MAX_LEN,
+        )
     )
   else:
     raise ValueError(f"Unsupported Gemma3 variant: {variant}")

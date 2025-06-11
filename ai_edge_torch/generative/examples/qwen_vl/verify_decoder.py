@@ -52,7 +52,9 @@ def main(_):
   )
   reauthored_checkpoint = pathlib.Path(cached_config_file).parent
   logging.info("Building the reauthored model from: %s", reauthored_checkpoint)
-  reauthored_model = decoder.build_decoder(reauthored_checkpoint)
+  reauthored_model = decoder.build_decoder(
+      reauthored_checkpoint, mask_cache_size=verifier.DEFAULT_KV_CACHE_MAX_LEN
+  )
 
   # Verify the reauthored model only with input IDs because the original decoder
   # does not support generate() with prompts.

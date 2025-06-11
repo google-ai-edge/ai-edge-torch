@@ -143,9 +143,7 @@ def verify_reauthored_gemma_model(
   return verifier.verify_reauthored_model(
       original_model=GemmaWrapper(original_model),
       reauthored_model=verifier.ReauthoredModelWrapper(
-          reauthored_model,
-          mask_as_input=mask_as_input,
-          kv_layout=kv_layout,
+          reauthored_model, mask_as_input, kv_layout
       ),
       tokenizer=GemmaTokenizerWrapper(original_model.tokenizer),
       generate_prompts=generate_prompts,
@@ -171,7 +169,11 @@ def verify_gemma2(
   """
   checkpoint_path = os.path.join(checkpoint_dir, weight_filename)
   logging.info("Building the reauthored model from: %s", checkpoint_path)
-  reauthored_model = gemma2.build_2b_model(checkpoint_path, custom_loader)
+  reauthored_model = gemma2.build_2b_model(
+      checkpoint_path,
+      custom_loader,
+      mask_cache_size=verifier.DEFAULT_KV_CACHE_MAX_LEN,
+  )
 
   return verify_reauthored_gemma_model(
       checkpoint=checkpoint_dir,
@@ -193,7 +195,11 @@ def verify_gemma1_with_custom_loader(checkpoint_dir: str) -> bool:
   weight_filename = "gemma-2b-it.ckpt"
   checkpoint_path = os.path.join(checkpoint_dir, weight_filename)
   custom_loader = loader.get_custom_loader(checkpoint_path)
-  reauthored_model = gemma1.build_2b_model(checkpoint_path, custom_loader)
+  reauthored_model = gemma1.build_2b_model(
+      checkpoint_path,
+      custom_loader,
+      mask_cache_size=verifier.DEFAULT_KV_CACHE_MAX_LEN,
+  )
   return verify_reauthored_gemma_model(
       checkpoint=checkpoint_dir,
       variant="2b",
