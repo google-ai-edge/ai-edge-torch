@@ -351,6 +351,7 @@ def verify_reauthored_model(
         )
       except AssertionError as e:
         logging.error("*** FAILED *** verify with input IDs: %s", input_ids)
+        logging.error("*** Assertion Error: %s", e)
         failure_count += 1
         if not continue_on_failure:
           return False
@@ -366,6 +367,7 @@ def verify_reauthored_model(
         )
       except AssertionError as e:
         logging.error("*** FAILED *** verify with prompts: %s", prompts)
+        logging.error("*** Assertion Error: %s", e)
         failure_count += 1
         if not continue_on_failure:
           return False
