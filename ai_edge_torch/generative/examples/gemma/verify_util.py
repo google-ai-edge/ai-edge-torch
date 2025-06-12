@@ -62,8 +62,13 @@ class GemmaWrapper(verifier.ModelWrapper):
     actual_input_len = self._get_actual_input_len(tokens)
     input_pos = torch.arange(0, actual_input_len, dtype=torch.long)
     mask_cache = attn_utils.build_causal_mask_cache(tokens.shape[1])
-    local_mask_cache = attn_utils.build_sliding_window_mask_cache(
-        tokens.shape[1], self.model.config.sliding_window_size)
+    local_mask_cache = (
+        attn_utils.build_sliding_window_mask_cache(
+            tokens.shape[1], self.model.config.sliding_window_size
+        )
+        if self.model.config.sliding_window_size
+        else None  # Do not use local mask cache if sliding window size is None.
+    )
     _, logits = self.model.forward(
         input_token_ids=tokens[0, :actual_input_len].unsqueeze(0),
         input_positions=input_pos,
@@ -75,6 +80,8 @@ class GemmaWrapper(verifier.ModelWrapper):
         top_ps=torch.tensor([1.0], dtype=torch.float),
         top_ks=torch.tensor([1], dtype=torch.long),
         local_mask=local_mask_cache.index_select(2, input_pos)
+        if local_mask_cache
+        else None,
     )
     return logits
 
