@@ -20,6 +20,7 @@ from absl import app
 from absl import flags
 from ai_edge_torch.generative.examples.gemma import gemma1
 from ai_edge_torch.generative.examples.gemma import verify_util
+from ai_edge_torch.generative.utilities import verifier
 import kagglehub
 
 
@@ -39,7 +40,9 @@ def main(_):
   checkpoint = kagglehub.model_download("google/gemma/pyTorch/2b-it")
 
   logging.info("Building the reauthored model from: %s", checkpoint)
-  reauthored_model = gemma1.build_2b_model(checkpoint)
+  reauthored_model = gemma1.build_2b_model(
+      checkpoint, mask_cache_size=verifier.DEFAULT_KV_CACHE_MAX_LEN
+  )
 
   verify_util.verify_reauthored_gemma_model(
       checkpoint=checkpoint,
