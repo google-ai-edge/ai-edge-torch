@@ -496,6 +496,22 @@ def _tfl_split_v_lowering(
   )
 
 
+@lower(torch.ops.tfl.expand_dims.default)
+def _tfl_expand_dims_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    dim: int | ir.Value,
+) -> ir.Value:
+  dim_ir_value = lowering_utils.numpy_array_constant(
+      np.array(dim, dtype=np.int32)
+  )
+  return _ir_operation(
+      "tfl.expand_dims",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x, dim_ir_value],
+  )
+
+
 @lower(torch.ops.tfl.softmax.default)
 def _tfl_softmax_lowering(
     lctx: LoweringContext,

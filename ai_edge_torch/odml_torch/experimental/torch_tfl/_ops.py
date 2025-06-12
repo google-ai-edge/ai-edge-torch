@@ -227,6 +227,11 @@ def tfl_split_v(
   return [t.clone() for t in torch.split(input, size_splits, dim=split_dim)]
 
 
+@custom_op_with_fake("tfl::expand_dims")
+def tfl_expand_dims(x: torch.Tensor, dim: int) -> torch.Tensor:
+  return torch.unsqueeze(x, dim).clone()
+
+
 @custom_op_with_fake("tfl::softmax")
 def tfl_softmax(x: torch.Tensor) -> torch.Tensor:
   return torch.nn.functional.softmax(x, dim=-1)

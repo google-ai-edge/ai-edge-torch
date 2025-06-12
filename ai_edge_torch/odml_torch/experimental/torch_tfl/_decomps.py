@@ -238,6 +238,11 @@ def _aten_split_with_sizes_decomp(x, split_sizes, dim=0):
   return torch.ops.tfl.split_v(x, split_sizes, dim)
 
 
+@register_decomp(torch.ops.aten.unsqueeze.default)
+def _aten_unsqueeze_decomp(x, dim):
+  return torch.ops.tfl.expand_dims(x, dim)
+
+
 @register_decomp(torch.ops.aten._softmax.default)
 def _aten__softmax_decomp(
     x, dim: int, half_to_float: bool  # pylint: disable=unused-argument
