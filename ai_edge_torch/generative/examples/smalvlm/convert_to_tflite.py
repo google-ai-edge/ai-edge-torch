@@ -1,23 +1,21 @@
 from absl import app
 from ai_edge_torch.generative.utilities import converter
 from ai_edge_torch.generative.utilities import export_config
+from ai_edge_torch.generative.utilities import loader
 import torch
-
-import smalvlm
+from ai_edge_torch.generative.examples.smalvlm import smalvlm
 
 flags = converter.define_conversion_flags('smalvlm-256m-instruct')
 
 
 def main(_):
-
-  prefill_seq_lens = 256
-  kv_cache_max_len = 2048
-  checkpoint_path="/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct"
-
+  checkpoint_path = flags.FLAGS.checkpoint_path
   pytorch_model = smalvlm.build_model(
     checkpoint_path=checkpoint_path,
-    custom_loader=None,
-    mask_cache_size=kv_cache_max_len,
+    custom_loader=loader.maybe_get_custom_loader(
+          checkpoint_path, flags.FLAGS.custom_checkpoint_loader
+      ),
+    mask_cache_size=flags.FLAGS.kv_cache_max_len,
   )
 
   config = pytorch_model.image_encoder.config.image_embedding
@@ -25,8 +23,8 @@ def main(_):
       pytorch_model,
       output_path=flags.FLAGS.output_path,
       output_name_prefix=f'{flags.FLAGS.output_name_prefix}',
-      prefill_seq_len=prefill_seq_lens,
-      kv_cache_max_len=kv_cache_max_len,
+      prefill_seq_len=flags.FLAGS.prefill_seq_lens,
+      kv_cache_max_len=flags.FLAGS.kv_cache_max_len,
       pixel_values_size=torch.Size(
           [1, config.channels, config.image_size, config.image_size]
       ),
