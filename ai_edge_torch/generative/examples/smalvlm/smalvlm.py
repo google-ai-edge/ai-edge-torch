@@ -115,22 +115,6 @@ class SmalVLM(nn.Module):
       result = torch.where(mask_expanded, selected_embeddings, inputs_embeds)
       
       return result
-  
-  def _get_rope(self, position_ids: torch.Tensor):
-
-    base = 100000.0
-    dim = float(64.0)
-
-    timescale = 1.0 / (base ** (torch.arange(0, dim, 2, dtype=torch.float32) / dim))
-
-    radians = position_ids.clone().unsqueeze(0).unsqueeze(-1) * timescale.unsqueeze(
-        0
-    ).unsqueeze(0)
-    radians = torch.cat((radians, radians), dim=-1).squeeze(0)
-    cos = torch.cos(radians)
-    sin = torch.sin(radians)
-    return cos, sin
-
 
   @torch.inference_mode
   def forward(
@@ -158,7 +142,7 @@ class SmalVLM(nn.Module):
     image_hidden_states = image_hidden_states.view(-1, image_hidden_states.shape[-1])
 
     input_embeds = self.inputs_merger(tokens, input_embeds, image_hidden_states)
-    position_embeddings = self._get_rope(input_pos.view(1, -1))
+    position_embeddings = self.decoder.get_rope(input_pos.view(1, -1))
 
     return self.decoder.forward_embeds(
         tokens=tokens,

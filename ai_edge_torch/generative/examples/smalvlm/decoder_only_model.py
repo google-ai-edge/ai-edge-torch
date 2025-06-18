@@ -164,7 +164,7 @@ class DecoderOnlyModel(model_builder.DecoderOnlyModel):
     )
 
 
-  def _get_rope(self, position_ids: torch.Tensor):
+  def get_rope(self, position_ids: torch.Tensor):
 
     base = 100000.0
     dim = float(64.0)
@@ -199,7 +199,7 @@ class DecoderOnlyModel(model_builder.DecoderOnlyModel):
     # token embeddings of shape (b, t, n_embd)
     input_embeds = self.tok_embedding(tokens)
 
-    rope = self._get_rope(input_pos.view(1, -1))
+    rope = self.get_rope(input_pos.view(1, -1))
 
     if mask is None:
       assert self.mask_cache is not None, "Mask cache must be built."
