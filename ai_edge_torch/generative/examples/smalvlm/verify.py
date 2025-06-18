@@ -45,7 +45,7 @@ class ReauthoredSmalVLMWrapper(verifier.ReauthoredModelWrapper):
 
 def main(_):
   
-  checkpoint_path = "/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct"
+  checkpoint_path = "HuggingFaceTB/SmolVLM-256M-Instruct"
 
   logging.info("Loading the original model from: %s", checkpoint_path)
   original_model = (
@@ -80,8 +80,7 @@ def main(_):
 
   logging.info("Verifying with image input...")
   logging.info("Loading the image from: %s", _IMAGE_URL.value)
-  # image = Image.open(requests.get(_IMAGE_URL.value, stream=True).raw)
-  image = Image.open("/home/dragynir/ai_vlm/car.jpg") # TODO remove!!!
+  image = Image.open(requests.get(_IMAGE_URL.value, stream=True).raw)
   inputs = processor(
       text=_PROMPTS_WITH_IMAGE.value, images=image, return_tensors="pt"
   ) # [1, 1, 3, 512, 512]
