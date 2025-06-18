@@ -8,7 +8,9 @@ import requests
 import torch
 import transformers
 from transformers import AutoModelForVision2Seq
-from mobile.smalvlm.image_encoder import build_image_encoder
+
+
+from image_encoder import build_image_encoder
 
 
 _IMAGE_URL = flags.DEFINE_string(
@@ -18,7 +20,7 @@ _IMAGE_URL = flags.DEFINE_string(
 )
 
 
-_CHECKPOINT = "/data/usr/dmitry.korostelev/models/SmolVLM-256M-Instruct"
+_CHECKPOINT = "/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct"
 
 
 def main(_):
@@ -42,7 +44,8 @@ def main(_):
     )
 
     logging.info("Loading the image from: %s", _IMAGE_URL.value)
-    image = Image.open(requests.get(_IMAGE_URL.value, stream=True).raw)
+    # image = Image.open(requests.get(_IMAGE_URL.value, stream=True).raw)
+    image = Image.open("/home/dragynir/ai_vlm/car.jpg") # TODO remove!!!
     pixel_values = processor(images=image, return_tensors="pt")["pixel_values"]
     pixel_values = pixel_values.squeeze(dim=0)
 

@@ -7,7 +7,7 @@ from torch import nn
 
 TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.vision_model.encoder.layers.{}.mlp.fc1",
-    ff_down_proj="encoder.layers.{}.mlp.fc2",
+    ff_down_proj="model.vision_model.encoder.layers.{}.mlp.fc2",
     attn_query_proj=(
         "model.vision_model.encoder.layers.{}.self_attn.q_proj"
     ),
@@ -126,11 +126,11 @@ def build_image_encoder(checkpoint_path: str) -> SiglipVisionEncoder:
   config = get_image_encoder_config()
   encoder = SiglipVisionEncoder(config)
   loader = loading_utils.ModelLoader(checkpoint_path, TENSOR_NAMES)
-  loader.load(encoder, strict=True)
+  loader.load(encoder, strict=False)
   encoder.eval()
   return encoder
 
 
 if __name__ == "__main__":
-  model = build_image_encoder("/data/usr/dmitry.korostelev/models/SmolVLM-256M-Instruct")
+  model = build_image_encoder("/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct")
   print(model)
