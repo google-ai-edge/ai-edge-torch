@@ -51,14 +51,14 @@ def apply_rope_inline(
     return q_roped.type_as(q), k_roped.type_as(k)
 
 
-class CustomTransformerBlock(nn.Module):
+class CustomTransformerBlock(attention.TransformerBlock):
 
   def __init__(
       self,
       config: cfg.TransformerBlockConfig,
       model_config: cfg.ModelConfig,
   ) -> None:
-    super().__init__()
+    super().__init__(config, model_config)
     self.atten_func = CustomCausalSelfAttention(
         model_config.embedding_dim,
         config.attn_config,
@@ -178,6 +178,7 @@ class DecoderOnlyModel(model_builder.DecoderOnlyModel):
     cos = torch.cos(radians)
     sin = torch.sin(radians)
     return cos, sin
+  
 
   @torch.inference_mode
   def forward(
@@ -201,8 +202,10 @@ class DecoderOnlyModel(model_builder.DecoderOnlyModel):
     rope = self._get_rope(input_pos.view(1, -1))
 
     if mask is None:
+      assert self.mask_cache is not None, "Mask cache must be built."
+      assert kv_cache is not None, "KV cache must be provided."
       mask = self.mask_cache.index_select(2, input_pos)
-      mask = mask[:, :, :, : self.config.kv_cache_max]
+      mask = mask[:, :, :, :kv_cache.get_max_seq_len()]
 
     return self._forward_with_embeds(
         input_embeds, rope, mask, input_pos, kv_cache, lora, export_config

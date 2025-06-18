@@ -7,7 +7,9 @@ from ai_edge_torch.generative.utilities import loader
 from ai_edge_torch.generative.utilities import transformers_verifier
 from ai_edge_torch.generative.utilities import verifier
 import transformers
-from mobile.smalvlm.text_model import build_model
+
+
+from text_model import build_model
 
 
 DEFAULT_PROMPTS = ["What is the meaning of life?"]
@@ -22,7 +24,7 @@ def verify_smolvlm_text(
 ) -> bool:
   """Verifies the reauthored SmoLLM model with a custom loader."""
   logging.info("Loading the original model from: %s", checkpoint_dir)
-  original_model = transformers.AutoModelForCausalLM.from_pretrained(
+  original_model = transformers.AutoModelForVision2Seq.from_pretrained(
       checkpoint_dir
   )
 
@@ -46,6 +48,7 @@ def verify_smolvlm_text(
   reauthored_model = build_model(
       checkpoint_path=reauthored_checkpoint,
       custom_loader=custom_loader,
+      mask_cache_size=1024,
   )
 
   logging.info("Loading the tokenizer from: %s", checkpoint_dir)
@@ -79,7 +82,7 @@ _MAX_NEW_TOKENS = flags.DEFINE_integer(
 def main(_):
 
   verify_smolvlm_text(
-      checkpoint_dir="/data/usr/dmitry.korostelev/models/SmolVLM-256M-Instruct",
+      checkpoint_dir="/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct",
       max_new_tokens=_MAX_NEW_TOKENS.value,
       prompts=_PROMPTS.value,
   )

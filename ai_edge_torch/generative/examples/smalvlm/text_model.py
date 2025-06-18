@@ -63,12 +63,8 @@ class SmolVLMText(DecoderOnlyModel):
     )
 
 
-def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
+def get_model_config() -> cfg.ModelConfig:
   """Returns the model config for a SmolVLM 256M model.
-
-  Args:
-    kv_cache_max_len (int): The maximum sequence length of the KV cache. Default
-      is 1024.
 
   Returns:
     The model config for a SmolVLM model.
@@ -97,7 +93,6 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
       num_layers=30,
       max_seq_len=8192,
       embedding_dim=576,
-      # kv_cache_max_len=kv_cache_max_len, # TODO why new ai_edge version remove this???
       block_configs=block_config,
       final_norm_config=norm_config,
       lm_head_share_weight_with_embedding=False,
@@ -108,10 +103,10 @@ def get_model_config(kv_cache_max_len: int = 1024) -> cfg.ModelConfig:
 def build_model(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    **kwargs
+    mask_cache_size: int = 0,
 ) -> nn.Module:
 
-  transformer = SmolVLMText(get_model_config(**kwargs), mask_cache_size=0)
+  transformer = SmolVLMText(get_model_config(), mask_cache_size=mask_cache_size)
   loader = loading_utils.ModelLoader(
       checkpoint_path, TENSOR_NAMES, custom_loader
   )
@@ -123,6 +118,6 @@ def build_model(
 
 
 if __name__ == "__main__": # TODO delete
-  model = build_model("/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct")
+  model = build_model("/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct", mask_cache_size=1024)
   print(model)
 
