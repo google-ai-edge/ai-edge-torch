@@ -237,6 +237,11 @@ def tfl_broadcast_to(x: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
   return x.expand(shape).clone()
 
 
+@custom_op_with_fake("tfl::squeeze")
+def tfl_squeeze(x: torch.Tensor, squeeze_dims: Sequence[int]) -> torch.Tensor:
+  return torch.squeeze(x, squeeze_dims).clone()
+
+
 @custom_op_with_fake("tfl::softmax")
 def tfl_softmax(x: torch.Tensor) -> torch.Tensor:
   return torch.nn.functional.softmax(x, dim=-1)

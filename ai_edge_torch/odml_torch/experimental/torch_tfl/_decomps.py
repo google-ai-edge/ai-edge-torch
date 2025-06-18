@@ -248,6 +248,16 @@ def _aten_expand_decomp(x, shape: Sequence[int]):
   return torch.ops.tfl.broadcast_to(x, shape)
 
 
+@register_decomp(torch.ops.aten.squeeze.dims)
+def _aten_squeeze_dims_decomp(x, squeeze_dims: Sequence[int]):
+  if len(squeeze_dims) > 8:
+    raise ValueError(
+        "torch.ops.tfl.squeeze supports squeezing at most 8 dimensions, but got"
+        f" {len(squeeze_dims)} dimensions."
+    )
+  return torch.ops.tfl.squeeze(x, squeeze_dims)
+
+
 @register_decomp(torch.ops.aten._softmax.default)
 def _aten__softmax_decomp(
     x, dim: int, half_to_float: bool  # pylint: disable=unused-argument

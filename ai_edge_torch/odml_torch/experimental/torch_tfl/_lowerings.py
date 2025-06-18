@@ -525,6 +525,25 @@ def _tfl_broadcast_to_lowering(
   )
 
 
+@lower(torch.ops.tfl.squeeze.default)
+def _tfl_squeeze_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    squeeze_dims: Sequence[int | ir.Value],
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.squeeze",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x],
+      attributes={
+          "squeeze_dims": ir.ArrayAttr.get([
+              ir.IntegerAttr.get(ir.IntegerType.get_signless(64), int(d))
+              for d in squeeze_dims
+          ]),
+      },
+  )
+
+
 @lower(torch.ops.tfl.softmax.default)
 def _tfl_softmax_lowering(
     lctx: LoweringContext,
