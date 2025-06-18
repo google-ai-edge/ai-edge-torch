@@ -11,7 +11,7 @@ import transformers
 from transformers import AutoModelForVision2Seq
 
 
-from mobile.smalvlm import smalvlm # TODO reimport
+import smalvlm
 
 
 _IMAGE_URL = flags.DEFINE_string(
@@ -40,12 +40,12 @@ class ReauthoredSmalVLMWrapper(verifier.ReauthoredModelWrapper):
   """Reauthored SmalVLM model wrapper."""
 
   def _init_kv_cache(self):
-    return kv_cache.KVCache.from_model_config(self.model.config.decoder_config)
+    return kv_cache.KVCache.from_model_config(self.kv_cache_max_len, self.model.config.decoder_config)
 
 
 def main(_):
   
-  checkpoint_path = "/data/usr/dmitry.korostelev/models/SmolVLM-256M-Instruct"
+  checkpoint_path = "/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct"
 
   logging.info("Loading the original model from: %s", checkpoint_path)
   original_model = (
@@ -55,6 +55,7 @@ def main(_):
   logging.info("Building the reauthored model from: %s", checkpoint_path)
   reauthored_model = smalvlm.build_model(
       checkpoint_path=checkpoint_path,
+      mask_cache_size=1024,
   )
   wrapped_reauthored_model = ReauthoredSmalVLMWrapper(reauthored_model)
 
@@ -79,7 +80,8 @@ def main(_):
 
   logging.info("Verifying with image input...")
   logging.info("Loading the image from: %s", _IMAGE_URL.value)
-  image = Image.open(requests.get(_IMAGE_URL.value, stream=True).raw)
+  # image = Image.open(requests.get(_IMAGE_URL.value, stream=True).raw)
+  image = Image.open("/home/dragynir/ai_vlm/car.jpg") # TODO remove!!!
   inputs = processor(
       text=_PROMPTS_WITH_IMAGE.value, images=image, return_tensors="pt"
   ) # [1, 1, 3, 512, 512]
@@ -120,7 +122,7 @@ def main(_):
   logging.info("Generating answer with the reauthored model...")
   outputs_reauthored = wrapped_reauthored_model.generate(
       prompts=inputs["input_ids"],
-      pixel_values=inputs["pixel_values"],
+      pixel_values=inputs["pixel_values"].squeeze(1),
       max_new_tokens=_MAX_NEW_TOKENS.value,
   )
   response_reauthored = processor.decode(

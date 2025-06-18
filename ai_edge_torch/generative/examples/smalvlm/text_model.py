@@ -48,10 +48,11 @@ class SmolVLMText(DecoderOnlyModel):
       )
       # token embeddings of shape (b, t, n_embd)
       input_embeds = self.tok_embedding(tokens)
-
+    
     if mask is None:
+      assert kv_cache is not None, "KV cache must be provided."
       mask = self.mask_cache.index_select(2, input_pos)
-      mask = mask[:, :, :, : self.config.kv_cache_max]
+      mask = mask[:, :, :, :kv_cache.get_max_seq_len()]
 
     return self._forward_with_embeds(
         input_embeds,

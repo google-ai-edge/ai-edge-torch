@@ -4,7 +4,7 @@
 # Конвертация модели в tflite
 
 ```bash
-source venv/bin activate
+source venv/bin/activate
 cd /home/dragynir/ai_vlm/ai-edge-torch-smalvlm/ai_edge_torch/generative/examples/smalvlm
 
 huggingface-cli download HuggingFaceTB/SmolVLM-256M-Instruct --repo-type model --local-dir ./models/SmolVLM-256M-Instruct

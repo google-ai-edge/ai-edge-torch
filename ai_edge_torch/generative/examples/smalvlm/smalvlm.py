@@ -8,8 +8,8 @@ import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
 from torch import nn
 
-from mobile.smalvlm import image_encoder # TODO reimport
-from mobile.smalvlm import text_model # TODO reimport
+import image_encoder
+import text_model
 
 PROJECTION_TENSOR_NAME = "model.connector.modality_projection.proj"
 
@@ -28,7 +28,12 @@ class SmalVLMConfig:
 class SmalVLM(nn.Module):
   """SmalVLM 256M model from the Edge Generative API."""
 
-  def __init__(self, config: SmalVLMConfig, decoder_class: nn.Module):
+  def __init__(
+      self,
+      config: SmalVLMConfig,
+      decoder_class: nn.Module,
+      mask_cache_size: int = 0,
+  ):
     super().__init__()
 
     self.image_encoder = image_encoder.SiglipVisionEncoder(
@@ -39,7 +44,7 @@ class SmalVLM(nn.Module):
         576,
         bias=False,
     )
-    self.decoder = decoder_class(config.decoder_config)
+    self.decoder = decoder_class(config.decoder_config, mask_cache_size)
     image_embedding_config = config.image_encoder_config.image_embedding
     self.num_patches = (
         image_embedding_config.image_size // image_embedding_config.patch_size
@@ -165,7 +170,7 @@ class SmalVLM(nn.Module):
         export_config=export_config,
     )
 
-def get_model_config(get_decoder_config, **kwargs) -> SmalVLMConfig:
+def get_model_config(get_decoder_config) -> SmalVLMConfig:
   """Returns the model config for a SmalVLM model.
 
   Returns:
@@ -173,7 +178,7 @@ def get_model_config(get_decoder_config, **kwargs) -> SmalVLMConfig:
   """
   return SmalVLMConfig(
       image_encoder_config=image_encoder.get_image_encoder_config(),
-      decoder_config=get_decoder_config(**kwargs),
+      decoder_config=get_decoder_config(),
       image_token_id=49190,
       image_projection_use_bias=False,
   )
@@ -182,7 +187,7 @@ def get_model_config(get_decoder_config, **kwargs) -> SmalVLMConfig:
 def build_model(
     checkpoint_path: str,
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
-    **kwargs,
+    mask_cache_size: int = 0,
 ) -> SmalVLM:
 
     decoder_class = text_model.SmolVLMText
@@ -191,20 +196,20 @@ def build_model(
 
     image_encoder_tensor_names = image_encoder.TENSOR_NAMES
 
-    config = get_model_config(get_decoder_config, **kwargs)
-    model = SmalVLM(config, decoder_class) 
+    config = get_model_config(get_decoder_config)
+    model = SmalVLM(config, decoder_class, mask_cache_size) 
 
     # Load the parameters of image encoder.
     loader = loading_utils.ModelLoader(
         checkpoint_path, image_encoder_tensor_names, custom_loader
     )
-    loader.load(model.image_encoder, strict=True)
+    loader.load(model.image_encoder, strict=False)
 
     # Load the parameters of decoder.
     loader = loading_utils.ModelLoader(
         checkpoint_path, decoder_tensor_names, custom_loader
     )
-    loader.load(model.decoder, strict=True)
+    loader.load(model.decoder, strict=False)
 
     # Load the parameters of image projection.
     loader = loading_utils.ModelLoader(checkpoint_path, None, custom_loader)
@@ -221,6 +226,7 @@ def build_model(
 
 if __name__ == "__main__":
   model = build_model(
-    checkpoint_path="/data/usr/dmitry.korostelev/models/SmolVLM-256M-Instruct",
+    checkpoint_path="/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct",
+    mask_cache_size=1024,
   )
   print(model)
