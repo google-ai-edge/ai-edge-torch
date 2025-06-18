@@ -270,6 +270,7 @@ if __name__ == "__main__":
     processor = AutoProcessor.from_pretrained(model_id, do_image_splitting=False)
     # image_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/car.jpg?download=true"
     # image = Image.open(requests.get(image_url, stream=True).raw)
+    # image = Image.open("/home/dragynir/ai_vlm/cats.jpg") # TODO remove!!!
     image = Image.open("/home/dragynir/ai_vlm/car.jpg") # TODO remove!!!
 
     messages = [
@@ -296,7 +297,7 @@ if __name__ == "__main__":
       torch_dtype=torch.bfloat16,
       _attn_implementation="eager",
     ).to(DEVICE)
-    generated_ids = model.generate(**inputs, num_beams=1, do_sample=False)
+    generated_ids = model.generate(**inputs, do_sample=False, max_new_tokens=100)
     generated_texts = processor.batch_decode(
         generated_ids,
         skip_special_tokens=True,
