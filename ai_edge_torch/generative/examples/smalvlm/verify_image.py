@@ -44,8 +44,7 @@ def main(_):
     )
 
     logging.info("Loading the image from: %s", _IMAGE_URL.value)
-    # image = Image.open(requests.get(_IMAGE_URL.value, stream=True).raw)
-    image = Image.open("/home/dragynir/ai_vlm/car.jpg") # TODO remove!!!
+    image = Image.open(requests.get(_IMAGE_URL.value, stream=True).raw)
     pixel_values = processor(images=image, return_tensors="pt")["pixel_values"]
     pixel_values = pixel_values.squeeze(dim=0)
 
