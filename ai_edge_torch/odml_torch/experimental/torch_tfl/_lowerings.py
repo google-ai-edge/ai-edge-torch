@@ -512,6 +512,19 @@ def _tfl_expand_dims_lowering(
   )
 
 
+@lower(torch.ops.tfl.broadcast_to.default)
+def _tfl_broadcast_to_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    shape: Sequence[int | ir.Value],
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.broadcast_to",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x, lowering_utils.convert_shape_to_ir_value(shape)],
+  )
+
+
 @lower(torch.ops.tfl.softmax.default)
 def _tfl_softmax_lowering(
     lctx: LoweringContext,

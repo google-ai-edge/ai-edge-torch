@@ -243,6 +243,11 @@ def _aten_unsqueeze_decomp(x, dim):
   return torch.ops.tfl.expand_dims(x, dim)
 
 
+@register_decomp(torch.ops.aten.expand.default)
+def _aten_expand_decomp(x, shape: Sequence[int]):
+  return torch.ops.tfl.broadcast_to(x, shape)
+
+
 @register_decomp(torch.ops.aten._softmax.default)
 def _aten__softmax_decomp(
     x, dim: int, half_to_float: bool  # pylint: disable=unused-argument
