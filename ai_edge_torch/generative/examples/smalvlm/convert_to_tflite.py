@@ -3,10 +3,7 @@ from ai_edge_torch.generative.utilities import converter
 from ai_edge_torch.generative.utilities import export_config
 import torch
 
-import sys
-sys.path.append('/data/usr/dmitry.korostelev/ml-vlms/')
-
-from mobile.smalvlm import smalvlm
+import smalvlm
 
 flags = converter.define_conversion_flags('smalvlm-256m-instruct')
 
@@ -15,12 +12,12 @@ def main(_):
 
   prefill_seq_lens = 256
   kv_cache_max_len = 2048
-  checkpoint_path="/data/usr/dmitry.korostelev/models/SmolVLM-256M-Instruct"
+  checkpoint_path="/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct"
 
   pytorch_model = smalvlm.build_model(
     checkpoint_path=checkpoint_path,
     custom_loader=None,
-    kv_cache_max_len=kv_cache_max_len,
+    mask_cache_size=kv_cache_max_len,
   )
 
   config = pytorch_model.image_encoder.config.image_embedding
@@ -29,6 +26,7 @@ def main(_):
       output_path=flags.FLAGS.output_path,
       output_name_prefix=f'{flags.FLAGS.output_name_prefix}',
       prefill_seq_len=prefill_seq_lens,
+      kv_cache_max_len=kv_cache_max_len,
       pixel_values_size=torch.Size(
           [1, config.channels, config.image_size, config.image_size]
       ),

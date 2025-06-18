@@ -1,8 +1,15 @@
+from typing import Dict
 from ai_edge_litert import interpreter as interpreter_lib
 import numpy as np
 import sys
 from collections.abc import Sequence
 from transformers import AutoProcessor
+from PIL import Image
+import requests
+
+
+import torch
+from transformers import AutoModelForVision2Seq
 
 
 def _get_mask(shape: Sequence[int], k: int):
@@ -220,18 +227,8 @@ class LiteRTLlmPipeline:
     print() # print a new line at the end.
     return ''.join(decode_text)
 
-  def generate(self, prompt: str, image: np.ndarray, max_decode_steps: int | None = None) -> str:
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "image"},
-                {"type": "text", "text": prompt}
-            ]
-        },
-    ]
-    prompt = self._processor.apply_chat_template(messages, add_generation_prompt=True)
-    inputs = self._processor(text=prompt, images=[image], return_tensors="pt")
+  def generate(self, inputs: Dict, max_decode_steps: int | None = None) -> str:
+  
     token_ids = inputs["input_ids"][0]
     pixel_values = inputs["pixel_values"][0]
 
@@ -261,8 +258,8 @@ class LiteRTLlmPipeline:
 
 if __name__ == "__main__":
     
-    model_id = '/data/usr/dmitry.korostelev/models/SmolVLM-256M-Instruct'
-    tflite_model_path = '/data/usr/dmitry.korostelev/models/SmolVLM-256M-Instruct-tflite/smalvlm-256m-instruct_q8_ekv2048.tflite'
+    model_id = '/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct'
+    tflite_model_path = '/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct-tflite/smalvlm-256m-instruct_q8_ekv2048.tflite'
 
     interpreter = interpreter_lib.InterpreterWithCustomOps(
         custom_op_registerers=["pywrap_genai_ops.GenAIOpsRegisterer"],
@@ -271,12 +268,41 @@ if __name__ == "__main__":
         experimental_default_delegate_latest_features=True)
     
     processor = AutoProcessor.from_pretrained(model_id, do_image_splitting=False)
+    # image_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/car.jpg?download=true"
+    # image = Image.open(requests.get(image_url, stream=True).raw)
+    image = Image.open("/home/dragynir/ai_vlm/car.jpg") # TODO remove!!!
 
-    from PIL import Image
-    import requests
-    image_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/car.jpg?download=true"
-    image = Image.open(requests.get(image_url, stream=True).raw)
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "image"},
+                {"type": "text", "text": "What in the image?"}
+            ]
+        },
+    ]
+    prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
+    inputs = processor(text=prompt, images=[image], return_tensors="pt")
 
-
+    # Tflite model inference
     pipeline = LiteRTLlmPipeline(interpreter, processor)
-    text = pipeline.generate("What in the image?", image, max_decode_steps=100)
+    tflite_text = pipeline.generate(inputs, max_decode_steps=100)
+
+    # HuggingFace model inference
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    inputs = inputs.to(DEVICE)
+    model = AutoModelForVision2Seq.from_pretrained(
+      model_id,
+      torch_dtype=torch.bfloat16,
+      _attn_implementation="eager",
+    ).to(DEVICE)
+    generated_ids = model.generate(**inputs, num_beams=1, do_sample=False)
+    generated_texts = processor.batch_decode(
+        generated_ids,
+        skip_special_tokens=True,
+    )
+
+    hf_text = generated_texts[0]
+
+    print("Tflite:\n", tflite_text)
+    print("HF:\n", hf_text)

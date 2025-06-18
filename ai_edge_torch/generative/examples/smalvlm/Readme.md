@@ -11,10 +11,9 @@ huggingface-cli download HuggingFaceTB/SmolVLM-256M-Instruct --repo-type model -
 
 
 python convert_to_tflite.py --quantize="dynamic_int8"\
- --checkpoint_path='none' --output_path="/data/usr/dmitry.korostelev/models/SmolVLM-256M-Instruct-tflite"\
+ --checkpoint_path='none' --output_path="/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct-tflite"\
  --mask_as_input=True
 ```
-
 
 # Конвертация токенайзера
 ```bash
