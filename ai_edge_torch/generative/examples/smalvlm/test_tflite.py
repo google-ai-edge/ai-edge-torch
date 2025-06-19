@@ -267,7 +267,7 @@ if __name__ == "__main__":
         num_threads=2,
         experimental_default_delegate_latest_features=True)
     
-    processor = AutoProcessor.from_pretrained(model_id, do_image_splitting=False)
+    processor = AutoProcessor.from_pretrained(model_id, do_image_splitting=True)
     image_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/car.jpg?download=true"
     image = Image.open(requests.get(image_url, stream=True).raw)
     # image = Image.open("/home/dragynir/ai_vlm/cats.jpg")

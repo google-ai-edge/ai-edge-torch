@@ -53,10 +53,9 @@ class SmalVLM(nn.Module):
     self.scale_factor = 4
 
   def get_image_features(self, pixel_values: torch.FloatTensor):
-    batch_size, num_channels, height, width = pixel_values.shape
-    num_images = 1
+    batch_size, num_patches, num_channels, height, width = pixel_values.shape
     
-    pixel_values = pixel_values.view(batch_size * num_images, num_channels, height, width)
+    pixel_values = pixel_values.view(batch_size * num_patches, num_channels, height, width)
     image_encoded = self.image_encoder(pixel_values=pixel_values)
     return image_encoded
   

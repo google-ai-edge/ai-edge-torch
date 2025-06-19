@@ -26,7 +26,7 @@ def main(_):
       prefill_seq_len=flags.FLAGS.prefill_seq_lens,
       kv_cache_max_len=flags.FLAGS.kv_cache_max_len,
       pixel_values_size=torch.Size(
-          [1, config.channels, config.image_size, config.image_size]
+          [1, 1, config.channels, config.image_size, config.image_size]
       ),
       pixel_seq_len=(config.image_size // config.patch_size) ** 2,
       quantize=flags.FLAGS.quantize,

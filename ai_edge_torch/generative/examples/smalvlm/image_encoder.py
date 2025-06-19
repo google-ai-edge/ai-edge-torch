@@ -66,11 +66,13 @@ class SiglipVisionEncoder(nn.Module):
   @torch.inference_mode
   def forward(self, pixel_values: torch.Tensor) -> torch.Tensor:
     # Embed the image according to SiplipVisionEmbeddings.
+    
     x = self.tok_embedding(pixel_values)
     x = x.flatten(2).transpose(1, 2) + self.tok_embedding_position
-
+    
     # Pass a dummy mask because SDPA attention impl expects non-None mask.
-    mask = torch.zeros(x.shape[:2])
+    mask = torch.zeros(x.shape[:2]).unsqueeze(1).unsqueeze(2)
+    
     for _, block in enumerate(self.transformer_blocks):
       x = block(x, mask=mask)
     return self.final_norm(x)

@@ -21,7 +21,7 @@ _IMAGE_URL = flags.DEFINE_string(
 )
 _PROMPTS_WITH_IMAGE = flags.DEFINE_string(
     "prompts_with_image",
-    "What in the image?",
+    "Explain the image in details",
     "The input prompts to generate answers with an image.",
 )
 _PROMPTS_TEXT_ONLY = flags.DEFINE_multi_string(
@@ -46,23 +46,27 @@ class ReauthoredSmalVLMWrapper(verifier.ReauthoredModelWrapper):
 def main(_):
   
   checkpoint_path = "./models/SmolVLM-256M-Instruct"
+  kv_cache_max_len = 2048
 
   logging.info("Loading the original model from: %s", checkpoint_path)
   original_model = (
       AutoModelForVision2Seq.from_pretrained(checkpoint_path)
   )
-
+  
   logging.info("Building the reauthored model from: %s", checkpoint_path)
   reauthored_model = smalvlm.build_model(
       checkpoint_path=checkpoint_path,
-      mask_cache_size=2048,
+      mask_cache_size=kv_cache_max_len,
   )
-  wrapped_reauthored_model = ReauthoredSmalVLMWrapper(reauthored_model)
+  wrapped_reauthored_model = ReauthoredSmalVLMWrapper(
+    reauthored_model,
+    kv_cache_max_len=kv_cache_max_len,
+  )
 
   logging.info("Loading the processor from: %s", checkpoint_path)
   processor = transformers.AutoProcessor.from_pretrained(
     checkpoint_path,
-    do_image_splitting=False,
+    do_image_splitting=True,
   )
 
   logging.info("Verifying with text-only prompts...")
@@ -93,9 +97,7 @@ def main(_):
         },
     ]
   prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
-  print(prompt)
   inputs = processor(text=prompt, images=[image], return_tensors="pt")
-  # [1, 1, 3, 512, 512]
 
   logging.info("Verifying the reauthored model with model.forward()...")
   logging.info("Forwarding the original model...")
@@ -108,7 +110,7 @@ def main(_):
   logging.info("Forwarding the reauthored model...")
   outputs_reauthored = wrapped_reauthored_model.forward(
       tokens=inputs["input_ids"],
-      pixel_values=inputs["pixel_values"].squeeze(1),
+      pixel_values=inputs["pixel_values"],
   )
   logging.info("outputs_reauthored: %s", outputs_reauthored)
 
@@ -133,7 +135,7 @@ def main(_):
   logging.info("Generating answer with the reauthored model...")
   outputs_reauthored = wrapped_reauthored_model.generate(
       prompts=inputs["input_ids"],
-      pixel_values=inputs["pixel_values"].squeeze(1),
+      pixel_values=inputs["pixel_values"],
       max_new_tokens=_MAX_NEW_TOKENS.value,
       eos_token_id=processor.tokenizer.eos_token_id,
   )
