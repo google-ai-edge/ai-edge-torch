@@ -283,6 +283,7 @@ if __name__ == "__main__":
         },
     ]
     prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
+    print(prompt)
     inputs = processor(text=prompt, images=[image], return_tensors="pt")
 
     # Tflite model inference

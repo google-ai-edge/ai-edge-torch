@@ -21,7 +21,7 @@ _IMAGE_URL = flags.DEFINE_string(
 )
 _PROMPTS_WITH_IMAGE = flags.DEFINE_string(
     "prompts_with_image",
-    "<image><bos>describe en",
+    "Describe image in detail",
     "The input prompts to generate answers with an image.",
 )
 _PROMPTS_TEXT_ONLY = flags.DEFINE_multi_string(
@@ -31,7 +31,7 @@ _PROMPTS_TEXT_ONLY = flags.DEFINE_multi_string(
 )
 _MAX_NEW_TOKENS = flags.DEFINE_integer(
     "max_new_tokens",
-    30,
+    100,
     "The maximum size of the generated tokens.",
 )
 
@@ -55,7 +55,7 @@ def main(_):
   logging.info("Building the reauthored model from: %s", checkpoint_path)
   reauthored_model = smalvlm.build_model(
       checkpoint_path=checkpoint_path,
-      mask_cache_size=1024,
+      mask_cache_size=2048,
   )
   wrapped_reauthored_model = ReauthoredSmalVLMWrapper(reauthored_model)
 
@@ -81,9 +81,21 @@ def main(_):
   logging.info("Verifying with image input...")
   logging.info("Loading the image from: %s", _IMAGE_URL.value)
   image = Image.open(requests.get(_IMAGE_URL.value, stream=True).raw)
-  inputs = processor(
-      text=_PROMPTS_WITH_IMAGE.value, images=image, return_tensors="pt"
-  ) # [1, 1, 3, 512, 512]
+
+
+  messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "image"},
+                {"type": "text", "text": _PROMPTS_WITH_IMAGE.value}
+            ]
+        },
+    ]
+  prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
+  print(prompt)
+  inputs = processor(text=prompt, images=[image], return_tensors="pt")
+  # [1, 1, 3, 512, 512]
 
   logging.info("Verifying the reauthored model with model.forward()...")
   logging.info("Forwarding the original model...")
