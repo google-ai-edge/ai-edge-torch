@@ -24,26 +24,27 @@ import torch.nn.functional as F
 
 
 TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
-    ff_up_proj="vision_tower.vision_model.encoder.layers.{}.mlp.fc1",
-    ff_down_proj="vision_tower.vision_model.encoder.layers.{}.mlp.fc2",
+    ff_up_proj="siglip_vision_model.encoder_blocks.{}.mlp.fc1",
+    ff_down_proj="siglip_vision_model.encoder_blocks.{}.mlp.fc2",
     attn_query_proj=(
-        "vision_tower.vision_model.encoder.layers.{}.self_attn.q_proj"
+        "siglip_vision_model.encoder_blocks.{}.self_attn.q_proj"
     ),
     attn_key_proj=(
-        "vision_tower.vision_model.encoder.layers.{}.self_attn.k_proj"
+        "siglip_vision_model.encoder_blocks.{}.self_attn.k_proj"
     ),
     attn_value_proj=(
-        "vision_tower.vision_model.encoder.layers.{}.self_attn.v_proj"
+        "siglip_vision_model.encoder_blocks.{}.self_attn.v_proj"
     ),
     attn_output_proj=(
-        "vision_tower.vision_model.encoder.layers.{}.self_attn.out_proj"
+        "siglip_vision_model.encoder_blocks.{}.self_attn.o_proj"
     ),
-    pre_attn_norm="vision_tower.vision_model.encoder.layers.{}.layer_norm1",
-    embedding="vision_tower.vision_model.embeddings.patch_embedding",
+    pre_attn_norm="siglip_vision_model.encoder_blocks.{}.layer_norm1",
+    pre_ff_norm="siglip_vision_model.encoder_blocks.{}.layer_norm2",
+    embedding="siglip_vision_model.patch_embedding",
     embedding_position=(
-        "vision_tower.vision_model.embeddings.position_embedding.weight"
+        "siglip_vision_model.position_embedding.weight"
     ),
-    final_norm="vision_tower.vision_model.post_layernorm",
+    final_norm="siglip_vision_model.final_norm",
 )
 
 
