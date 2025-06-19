@@ -45,7 +45,7 @@ class ReauthoredSmalVLMWrapper(verifier.ReauthoredModelWrapper):
 
 def main(_):
   
-  checkpoint_path = "HuggingFaceTB/SmolVLM-256M-Instruct"
+  checkpoint_path = "./models/SmolVLM-256M-Instruct"
 
   logging.info("Loading the original model from: %s", checkpoint_path)
   original_model = (

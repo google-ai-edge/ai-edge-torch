@@ -20,7 +20,7 @@ _IMAGE_URL = flags.DEFINE_string(
 )
 
 
-_CHECKPOINT = "/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct"
+_CHECKPOINT = "./models/SmolVLM-256M-Instruct"
 
 
 def main(_):

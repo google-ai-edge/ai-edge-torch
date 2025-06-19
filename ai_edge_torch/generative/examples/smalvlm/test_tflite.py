@@ -258,8 +258,8 @@ class LiteRTLlmPipeline:
 
 if __name__ == "__main__":
     
-    model_id = '/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct'
-    tflite_model_path = '/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct-tflite/smalvlm-256m-instruct_q8_ekv2048.tflite'
+    model_id = './models/SmolVLM-256M-Instruct'
+    tflite_model_path = './models/SmolVLM-256M-Instruct-tflite/smalvlm-256m-instruct_q8_ekv2048.tflite'
 
     interpreter = interpreter_lib.InterpreterWithCustomOps(
         custom_op_registerers=["pywrap_genai_ops.GenAIOpsRegisterer"],

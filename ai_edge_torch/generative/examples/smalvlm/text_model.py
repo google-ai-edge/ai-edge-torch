@@ -119,6 +119,6 @@ def build_model(
 
 
 if __name__ == "__main__": # TODO delete
-  model = build_model("/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct", mask_cache_size=1024)
+  model = build_model("./models/SmolVLM-256M-Instruct", mask_cache_size=1024)
   print(model)
 

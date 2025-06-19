@@ -132,5 +132,5 @@ def build_image_encoder(checkpoint_path: str) -> SiglipVisionEncoder:
 
 
 if __name__ == "__main__":
-  model = build_image_encoder("/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct")
+  model = build_image_encoder("./models/SmolVLM-256M-Instruct")
   print(model)

@@ -210,7 +210,7 @@ def build_model(
 
 if __name__ == "__main__":
   model = build_model(
-    checkpoint_path="/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct",
+    checkpoint_path="./models/SmolVLM-256M-Instruct",
     mask_cache_size=1024,
   )
   print(model)

@@ -82,7 +82,7 @@ _MAX_NEW_TOKENS = flags.DEFINE_integer(
 def main(_):
 
   verify_smolvlm_text(
-      checkpoint_dir="/home/dragynir/ai_vlm/models/SmolVLM-256M-Instruct",
+      checkpoint_dir="./models/SmolVLM-256M-Instruct",
       max_new_tokens=_MAX_NEW_TOKENS.value,
       prompts=_PROMPTS.value,
   )
