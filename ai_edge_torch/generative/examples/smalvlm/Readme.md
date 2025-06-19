@@ -1,3 +1,9 @@
+# SmolVLM-256M-Instruct
+SmolVLM model with image support.
+
+NOTE: This example supports only SmolVLM-256M-Instruct model with single image input with processor(do_image_splitting=False).  
+Original pipeline uses processor(do_image_splitting=True) to split image into patches.
+
 
 # Convert model to tflite
 
@@ -35,7 +41,7 @@ Not matched strictly 22/1000 pairs: 2.20%, loosely 6/1000 pairs: 0.60%
 ```
 
 # Verify model
-You can also run verify scripts, before converting model to tflite, to check reauthored model
+You can verify scripts to check reauthored model
 
 ```bash
 python verify.py
