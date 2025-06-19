@@ -304,6 +304,6 @@ if __name__ == "__main__":
     )
 
     hf_text = generated_texts[0]
-
+    print("-"*100)
     print("Tflite:\n", tflite_text)
     print("HF:\n", hf_text)
