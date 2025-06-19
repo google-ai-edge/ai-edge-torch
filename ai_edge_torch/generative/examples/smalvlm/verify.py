@@ -21,7 +21,7 @@ _IMAGE_URL = flags.DEFINE_string(
 )
 _PROMPTS_WITH_IMAGE = flags.DEFINE_string(
     "prompts_with_image",
-    "Describe image in detail",
+    "What in the image?",
     "The input prompts to generate answers with an image.",
 )
 _PROMPTS_TEXT_ONLY = flags.DEFINE_multi_string(
@@ -135,6 +135,7 @@ def main(_):
       prompts=inputs["input_ids"],
       pixel_values=inputs["pixel_values"].squeeze(1),
       max_new_tokens=_MAX_NEW_TOKENS.value,
+      eos_token_id=processor.tokenizer.eos_token_id,
   )
   response_reauthored = processor.decode(
       outputs_reauthored[0], skip_special_tokens=True
