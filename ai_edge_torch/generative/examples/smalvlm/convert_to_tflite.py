@@ -7,6 +7,11 @@ from ai_edge_torch.generative.examples.smalvlm import smalvlm
 
 flags = converter.define_conversion_flags('smalvlm-256m-instruct')
 
+flags.DEFINE_bool(
+      'do_image_splitting',
+      True,
+      'If true, model will expect image in pixel_values as [1, 13, 3, 512, 512]. Otherwise, as [1, 1, 3, 512, 512].',
+  )
 
 def main(_):
   checkpoint_path = flags.FLAGS.checkpoint_path
@@ -26,7 +31,7 @@ def main(_):
       prefill_seq_len=flags.FLAGS.prefill_seq_lens,
       kv_cache_max_len=flags.FLAGS.kv_cache_max_len,
       pixel_values_size=torch.Size(
-          [1, 1, config.channels, config.image_size, config.image_size]
+          [1, 13 if flags.FLAGS.do_image_splitting else 1, config.channels, config.image_size, config.image_size]
       ),
       pixel_seq_len=(config.image_size // config.patch_size) ** 2,
       quantize=flags.FLAGS.quantize,
