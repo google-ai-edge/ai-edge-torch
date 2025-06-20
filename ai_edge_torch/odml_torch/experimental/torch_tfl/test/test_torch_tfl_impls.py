@@ -183,6 +183,8 @@ class TestTorchTFLImpls(parameterized.TestCase):
       ("aten_expand_0", torch.ops.aten.expand.default, (rnd(torch.float32, (10, 1)), [10, 10],), dict()),
       ("aten_expand_1", torch.ops.aten.expand.default, (rnd(torch.float32, (1, 10)), [10, 10],), dict()),
       ("aten_squeeze_dims_0", torch.ops.aten.squeeze.dims, (rnd(torch.float32, (2, 1, 2, 1, 2)), [1, 2, 3],), dict()),
+      ("aten_select_int_0", torch.ops.aten.select.int, (rnd(torch.float32, (2, 3, 4)), 0, 1,), dict()),
+      ("aten_select_int_1", torch.ops.aten.select.int, (rnd(torch.float32, (2, 3, 4)), 1, 1,), dict()),
       ("aten__softmax_0", torch.ops.aten._softmax.default, (rnd(torch.float32, (10, 10)), -1, False), dict()),
       ("aten__softmax_1", torch.ops.aten._softmax.default, (rnd(torch.float32, (1, 10)), -1, False), dict()),
       ("aten__softmax_2", torch.ops.aten._softmax.default, (rnd(torch.float32, (10, 10)), 0, False), dict()),

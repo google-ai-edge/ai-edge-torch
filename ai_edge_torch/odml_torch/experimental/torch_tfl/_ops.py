@@ -242,6 +242,30 @@ def tfl_squeeze(x: torch.Tensor, squeeze_dims: Sequence[int]) -> torch.Tensor:
   return torch.squeeze(x, squeeze_dims).clone()
 
 
+@custom_op_with_fake("tfl::strided_slice")
+def tfl_strided_slice(
+    input: torch.Tensor,
+    begin: Sequence[int],
+    end: Sequence[int],
+    strides: Sequence[int],
+) -> torch.Tensor:
+  assert (
+      len(begin) == len(end) == len(strides) == input.ndim
+  ), "Dimension mismatch"
+
+  slices = []
+
+  for i in range(input.ndim):
+    b = begin[i]
+    e = end[i]
+    s = strides[i]
+    slices.append(slice(b, e, s))
+
+  result = input[tuple(slices)].clone()
+
+  return result
+
+
 @custom_op_with_fake("tfl::softmax")
 def tfl_softmax(x: torch.Tensor) -> torch.Tensor:
   return torch.nn.functional.softmax(x, dim=-1)

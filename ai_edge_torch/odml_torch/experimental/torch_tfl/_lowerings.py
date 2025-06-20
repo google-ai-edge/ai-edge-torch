@@ -544,6 +544,48 @@ def _tfl_squeeze_lowering(
   )
 
 
+@lower(torch.ops.tfl.strided_slice.default)
+def _tfl_strided_slice_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    begin: Sequence[int | ir.Value],
+    end: Sequence[int | ir.Value],
+    strides: Sequence[int | ir.Value],
+    begin_mask: int = 0,
+    end_mask: int = 0,
+    ellipsis_mask: int = 0,
+    new_axis_mask: int = 0,
+    shrink_axis_mask: int = 0,
+    offset: bool = False,
+) -> ir.Value:
+  begin_ir_value = lowering_utils.convert_shape_to_ir_value(begin)
+  end_ir_value = lowering_utils.convert_shape_to_ir_value(end)
+  strides_ir_value = lowering_utils.convert_shape_to_ir_value(strides)
+  return _ir_operation(
+      "tfl.strided_slice",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x, begin_ir_value, end_ir_value, strides_ir_value],
+      attributes={
+          "begin_mask": ir.IntegerAttr.get(
+              ir.IntegerType.get_signless(32), begin_mask
+          ),
+          "end_mask": ir.IntegerAttr.get(
+              ir.IntegerType.get_signless(32), end_mask
+          ),
+          "ellipsis_mask": ir.IntegerAttr.get(
+              ir.IntegerType.get_signless(32), ellipsis_mask
+          ),
+          "new_axis_mask": ir.IntegerAttr.get(
+              ir.IntegerType.get_signless(32), new_axis_mask
+          ),
+          "shrink_axis_mask": ir.IntegerAttr.get(
+              ir.IntegerType.get_signless(32), shrink_axis_mask
+          ),
+          "offset": ir.BoolAttr.get(offset),
+      },
+  )
+
+
 @lower(torch.ops.tfl.softmax.default)
 def _tfl_softmax_lowering(
     lctx: LoweringContext,

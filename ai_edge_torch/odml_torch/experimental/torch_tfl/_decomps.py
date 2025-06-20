@@ -258,6 +258,26 @@ def _aten_squeeze_dims_decomp(x, squeeze_dims: Sequence[int]):
   return torch.ops.tfl.squeeze(x, squeeze_dims)
 
 
+@register_decomp(torch.ops.aten.select.int)
+def _aten_select_int_decomp(x, dim, index):
+  rank = len(x.shape)
+
+  # Initialize begin, end, strides
+  begin = [0] * rank
+  end = list(x.shape)
+  strides = [1] * rank
+
+  # Select the index on the given dim
+  begin[dim] = index
+  end[dim] = index + 1
+
+  # Perform the strided slice
+  sliced = torch.ops.tfl.strided_slice(x, begin, end, strides)
+
+  # Remove the selected dimension
+  return torch.ops.tfl.squeeze(sliced, [dim])
+
+
 @register_decomp(torch.ops.aten._softmax.default)
 def _aten__softmax_decomp(
     x, dim: int, half_to_float: bool  # pylint: disable=unused-argument
