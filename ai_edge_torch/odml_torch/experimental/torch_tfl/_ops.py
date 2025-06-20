@@ -273,6 +273,20 @@ def tfl_select_v2(
   return torch.where(condition, x, y)
 
 
+@custom_op_with_fake("tfl::embedding_lookup")
+def tfl_embedding_lookup(
+    indices: torch.Tensor, weight: torch.Tensor
+) -> torch.Tensor:
+  return torch.nn.functional.embedding(indices, weight)
+
+
+@custom_op_with_fake("tfl::gather")
+def tfl_gather(
+    input: torch.Tensor, indices: torch.Tensor, axis: int
+) -> torch.Tensor:
+  return torch.index_select(input, axis, indices)
+
+
 @custom_op_with_fake("tfl::softmax")
 def tfl_softmax(x: torch.Tensor) -> torch.Tensor:
   return torch.nn.functional.softmax(x, dim=-1)

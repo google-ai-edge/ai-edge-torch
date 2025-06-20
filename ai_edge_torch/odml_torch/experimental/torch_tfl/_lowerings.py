@@ -600,6 +600,40 @@ def _tfl_select_v2_lowering(
   )
 
 
+@lower(torch.ops.tfl.embedding_lookup.default)
+def _tfl_embedding_lookup_lowering(
+    lctx: LoweringContext,
+    indices: ir.Value,
+    weight: ir.Value,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.embedding_lookup",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[indices, weight],
+  )
+
+
+@lower(torch.ops.tfl.gather.default)
+def _tfl_gather_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    indices: ir.Value,
+    axis: int,
+    batch_dims: int = 0,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.gather",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x, indices],
+      attributes={
+          "axis": ir.IntegerAttr.get(ir.IntegerType.get_signless(32), axis),
+          "batch_dims": ir.IntegerAttr.get(
+              ir.IntegerType.get_signless(32), batch_dims
+          ),
+      },
+  )
+
+
 @lower(torch.ops.tfl.softmax.default)
 def _tfl_softmax_lowering(
     lctx: LoweringContext,

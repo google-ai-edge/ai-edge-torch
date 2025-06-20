@@ -283,6 +283,12 @@ def _aten_where_self_decomp(condition, x, y):
   return torch.ops.tfl.select_v2(condition, x, y)
 
 
+@register_decomp(torch.ops.aten.embedding.default)
+def _aten_embedding_decomp(weight, indices, padding_idx=-1):
+  # TODO: b/425747317 - Decomp to tfl.embedding_lookup once it's ready.
+  return torch.ops.tfl.gather(weight, indices, axis=0)
+
+
 @register_decomp(torch.ops.aten._softmax.default)
 def _aten__softmax_decomp(
     x, dim: int, half_to_float: bool  # pylint: disable=unused-argument
