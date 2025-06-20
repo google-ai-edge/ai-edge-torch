@@ -266,6 +266,13 @@ def tfl_strided_slice(
   return result
 
 
+@custom_op_with_fake("tfl::select_v2")
+def tfl_select_v2(
+    condition: torch.Tensor, x: torch.Tensor, y: torch.Tensor
+) -> torch.Tensor:
+  return torch.where(condition, x, y)
+
+
 @custom_op_with_fake("tfl::softmax")
 def tfl_softmax(x: torch.Tensor) -> torch.Tensor:
   return torch.nn.functional.softmax(x, dim=-1)

@@ -586,6 +586,20 @@ def _tfl_strided_slice_lowering(
   )
 
 
+@lower(torch.ops.tfl.select_v2.default)
+def _tfl_select_v2_lowering(
+    lctx: LoweringContext,
+    condition: ir.Value,
+    x: ir.Value,
+    y: ir.Value,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.select_v2",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[condition, x, y],
+  )
+
+
 @lower(torch.ops.tfl.softmax.default)
 def _tfl_softmax_lowering(
     lctx: LoweringContext,

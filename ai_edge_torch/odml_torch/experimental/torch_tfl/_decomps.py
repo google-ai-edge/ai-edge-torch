@@ -278,6 +278,11 @@ def _aten_select_int_decomp(x, dim, index):
   return torch.ops.tfl.squeeze(sliced, [dim])
 
 
+@register_decomp(torch.ops.aten.where.self)
+def _aten_where_self_decomp(condition, x, y):
+  return torch.ops.tfl.select_v2(condition, x, y)
+
+
 @register_decomp(torch.ops.aten._softmax.default)
 def _aten__softmax_decomp(
     x, dim: int, half_to_float: bool  # pylint: disable=unused-argument
