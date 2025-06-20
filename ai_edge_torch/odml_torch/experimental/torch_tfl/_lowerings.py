@@ -429,22 +429,32 @@ def _tfl_range_lowering(
       lowering_utils.torch_dtype_to_ir_element_type(output_torch_dtype)
   )
 
+  # All operands and the output of tfl.range must have the same element type.
+  # We cast all operands to the expected output element type.
   operands = []
-  for val_py_scalar in [
-      start,
-      limit,
-      delta,
-  ]:
-    if isinstance(val_py_scalar, ir.Value):
-      operands.append(val_py_scalar)
-    else:
+  for operand in [start, limit, delta]:
+    if not isinstance(operand, ir.Value):
+      # Convert python scalars to ir.Value.
       numpy_scalar_0d = (
-          torch.tensor(val_py_scalar, dtype=output_torch_dtype)
-          .detach()
-          .numpy()
+          torch.tensor(operand, dtype=output_torch_dtype).detach().numpy()
       )
-      scalar_tensor_val = lowering_utils.numpy_array_constant(numpy_scalar_0d)
-      operands.append(scalar_tensor_val)
+      operand = lowering_utils.numpy_array_constant(numpy_scalar_0d)
+
+    # `operand` is now an ir.Value.
+    # Cast its element type to the output element type if they don't match.
+    operand_type = operand.type
+    if not isinstance(operand_type, ir.RankedTensorType):
+      raise TypeError(
+          "tfl.range operand expected to be RankedTensorType, got"
+          f" {operand_type}"
+      )
+
+    if operand_type.element_type != tflite_op_internal_element_type:
+      cast_to_type = ir.RankedTensorType.get(
+          operand_type.shape, tflite_op_internal_element_type
+      )
+      operand = stablehlo.convert(cast_to_type, operand)
+    operands.append(operand)
 
   # Define the result type that the tfl.range *kernel* (the custom op) will
   # produce.

@@ -66,33 +66,60 @@ def _aten_sub_tensor_decomp(x, y, alpha=1):
   return out
 
 
+def _promote_types_for_binary_op(x, y):
+  """Promotes operand types for a binary op."""
+  # TFLite's binary ops require operands to have the same element type.
+  # We promote the types before calling the op.
+  if not isinstance(x, torch.Tensor):
+    # x is a scalar, y must be a tensor.
+    x = torch.scalar_tensor(x, dtype=y.dtype)
+  elif not isinstance(y, torch.Tensor):
+    # y is a scalar, x is a tensor.
+    # Handle scalar operand by converting scalar to a tensor.
+    # The dtype of the new tensor should match x's dtype for promotion.
+    y = torch.scalar_tensor(y, dtype=x.dtype)
+
+  target_dtype = torch.promote_types(x.dtype, y.dtype)
+  if x.dtype != target_dtype:
+    x = x.to(target_dtype)
+  if y.dtype != target_dtype:
+    y = y.to(target_dtype)
+  return x, y
+
+
 @register_decomp(torch.ops.aten.mul.Tensor)
 def _aten_mul_tensor_decomp(x, y):
+  x, y = _promote_types_for_binary_op(x, y)
   return torch.ops.tfl.mul(x, y)
 
 
 @register_decomp(torch.ops.aten.mul.Scalar)
 def _aten_mul_scalar_decomp(x, y):
+  x, y = _promote_types_for_binary_op(x, y)
   return torch.ops.tfl.mul(x, y)
 
 
 @register_decomp(torch.ops.aten.div.Tensor)
 def _aten_div_tensor_decomp(x, y):
+  x, y = _promote_types_for_binary_op(x, y)
   return torch.ops.tfl.div(x, y)
 
 
 @register_decomp(torch.ops.aten.pow.Scalar)
 def _aten_pow_scalar_decomp(x, y):
+  x, y = _promote_types_for_binary_op(x, y)
   return torch.ops.tfl.pow(x, y)
 
 
 @register_decomp(torch.ops.aten.pow.Tensor_Scalar)
 def _aten_pow_tensor_scalar_decomp(x, y):
+  x, y = _promote_types_for_binary_op(x, y)
   return torch.ops.tfl.pow(x, y)
 
 
 @register_decomp(torch.ops.aten.pow.Tensor_Tensor)
 def _aten_pow_tensor_tensor_decomp(x, y):
+  x, y = _promote_types_for_binary_op(x, y)
   return torch.ops.tfl.pow(x, y)
 
 
@@ -117,11 +144,13 @@ def _aten_mean_dim_decomp(x, dim, keepdim=False):
 
 @register_decomp(torch.ops.aten.gt.Tensor)
 def _aten_gt_tensor_decomp(x, y):
+  x, y = _promote_types_for_binary_op(x, y)
   return torch.ops.tfl.greater(x, y)
 
 
 @register_decomp(torch.ops.aten.lt.Tensor)
 def _aten_lt_tensor_decomp(x, y):
+  x, y = _promote_types_for_binary_op(x, y)
   return torch.ops.tfl.less(x, y)
 
 
@@ -280,6 +309,7 @@ def _aten_select_int_decomp(x, dim, index):
 
 @register_decomp(torch.ops.aten.where.self)
 def _aten_where_self_decomp(condition, x, y):
+  x, y = _promote_types_for_binary_op(x, y)
   return torch.ops.tfl.select_v2(condition, x, y)
 
 
