@@ -262,6 +262,9 @@ def _convert_i64_to_i32(exported_program: torch.export.ExportedProgram):
 
   Args:
     exported_program: The exported program to apply the pass.
+
+  Returns:
+    True if the exported program is modified, False otherwise.
   """
 
   is_modified = False
@@ -292,6 +295,55 @@ def _convert_i64_to_i32(exported_program: torch.export.ExportedProgram):
 
     if node.target == torch.ops.aten.arange.start_step:
       rewrite_arange(node)
+  return is_modified
+
+
+# TODO(b/331481564) Make this a ai_edge_torch FX pass.
+def _convert_gemma3_tfl_i64_to_i32(
+    exported_program: torch.export.ExportedProgram,
+):
+  """Convert Gemma3 internal constant TFL ops' output from int64 to int32.
+
+  Int32 generally has better performance and compatibility than int64 in
+  runtime. This pass converts aten op where the output(s) are int64 constant
+  tensors to return int32 constant tensors.
+
+  Args:
+    exported_program: The exported program to apply the pass.
+
+  Returns:
+    True if the exported program is modified, False otherwise.
+  """
+
+  is_modified = False
+
+  def in_i32(x: int):
+    return -2147483648 <= x <= 2147483647
+
+  def to_int32(x: torch.Tensor):
+    return torch.ops.aten._to_copy.default(x, dtype=torch.int32)
+
+  def rewrite_range(node: torch.fx.Node):
+    nonlocal is_modified
+    tensor_meta = node.meta.get("tensor_meta", None)
+    if not tensor_meta:
+      return
+
+    start, limit = node.args[:2]
+    if tensor_meta.dtype != torch.int64:
+      return
+    if not isinstance(start, int) or not isinstance(limit, int):
+      return
+    if not (in_i32(start) and in_i32(limit)):
+      return
+    op = node.target
+    node.target = lambda *args, **kwargs: to_int32(op(*args, **kwargs))
+    is_modified = True
+
+  graph_module = exported_program.graph_module
+  for node in graph_module.graph.nodes:
+    if node.target == torch.ops.tfl.range.default:
+      rewrite_range(node)
   return is_modified
 
 
