@@ -164,6 +164,24 @@ def _add_token(
   sp_model.pieces.add(piece=normalized, score=-id_, type=type_)
   counts[count_type] = counts.get(count_type, 0) + 1
 
+  # Fill special meta token info. One token can be used for multiple purposes.
+  if token == tokenizer.unk_token:
+    sp_model.trainer_spec.unk_id = id_
+    sp_model.trainer_spec.unk_piece = normalized
+    logging.info("Found unk_id: %d, unk_piece: %s", id_, normalized)
+  if token == tokenizer.bos_token:
+    sp_model.trainer_spec.bos_id = id_
+    sp_model.trainer_spec.bos_piece = normalized
+    logging.info("Found bos_id: %d, bos_piece: %s", id_, normalized)
+  if token == tokenizer.eos_token:
+    sp_model.trainer_spec.eos_id = id_
+    sp_model.trainer_spec.eos_piece = normalized
+    logging.info("Found eos_id: %d, eos_piece: %s", id_, normalized)
+  if token == tokenizer.pad_token:
+    sp_model.trainer_spec.pad_id = id_
+    sp_model.trainer_spec.pad_piece = normalized
+    logging.info("Found pad_id: %d, pad_piece: %s", id_, normalized)
+
 
 def _build_spm_model_from_tokenizer(
     tokenizer: transformers.PreTrainedTokenizer,
