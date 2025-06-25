@@ -44,40 +44,15 @@ def _aten_bmm_decomp(x, y):
   return torch.ops.tfl.batch_matmul(x, y)
 
 
-@register_decomp(torch.ops.aten.add.Tensor)
-def _aten_add_tensor_decomp(x, y, alpha=1):
-  out = torch.ops.tfl.add(x, y)
-
-  if alpha != 1:
-    alpha = torch.scalar_tensor(alpha, dtype=out.dtype)
-    out = torch.ops.tfl.add(x, torch.ops.tfl.mul(y, alpha))
-
-  return out
-
-
-@register_decomp(torch.ops.aten.sub.Tensor)
-def _aten_sub_tensor_decomp(x, y, alpha=1):
-  out = torch.ops.tfl.sub(x, y)
-
-  if alpha != 1:
-    alpha = torch.scalar_tensor(alpha, dtype=out.dtype)
-    out = torch.ops.tfl.sub(x, torch.ops.tfl.mul(y, alpha))
-
-  return out
-
-
 def _promote_types_for_binary_op(x, y):
   """Promotes operand types for a binary op."""
   # TFLite's binary ops require operands to have the same element type.
   # We promote the types before calling the op.
+  # Handle scalar operand by converting scalar to a tensor.
   if not isinstance(x, torch.Tensor):
-    # x is a scalar, y must be a tensor.
-    x = torch.scalar_tensor(x, dtype=y.dtype)
+    x = torch.scalar_tensor(x)
   elif not isinstance(y, torch.Tensor):
-    # y is a scalar, x is a tensor.
-    # Handle scalar operand by converting scalar to a tensor.
-    # The dtype of the new tensor should match x's dtype for promotion.
-    y = torch.scalar_tensor(y, dtype=x.dtype)
+    y = torch.scalar_tensor(y)
 
   target_dtype = torch.promote_types(x.dtype, y.dtype)
   if x.dtype != target_dtype:
@@ -85,6 +60,32 @@ def _promote_types_for_binary_op(x, y):
   if y.dtype != target_dtype:
     y = y.to(target_dtype)
   return x, y
+
+
+@register_decomp(torch.ops.aten.add.Tensor)
+def _aten_add_tensor_decomp(x, y, alpha=1):
+  if alpha == 1:
+    x, y = _promote_types_for_binary_op(x, y)
+    return torch.ops.tfl.add(x, y)
+
+  # The op is add(x, mul(y, alpha))
+  y, alpha = _promote_types_for_binary_op(y, alpha)
+  mul_out = torch.ops.tfl.mul(y, alpha)
+  x, mul_out = _promote_types_for_binary_op(x, mul_out)
+  return torch.ops.tfl.add(x, mul_out)
+
+
+@register_decomp(torch.ops.aten.sub.Tensor)
+def _aten_sub_tensor_decomp(x, y, alpha=1):
+  if alpha == 1:
+    x, y = _promote_types_for_binary_op(x, y)
+    return torch.ops.tfl.sub(x, y)
+
+  # The op is sub(x, mul(y, alpha))
+  y, alpha = _promote_types_for_binary_op(y, alpha)
+  mul_out = torch.ops.tfl.mul(y, alpha)
+  x, mul_out = _promote_types_for_binary_op(x, mul_out)
+  return torch.ops.tfl.sub(x, mul_out)
 
 
 @register_decomp(torch.ops.aten.mul.Tensor)
