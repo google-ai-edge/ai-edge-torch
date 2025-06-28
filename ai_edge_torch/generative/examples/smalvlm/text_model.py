@@ -28,6 +28,7 @@ from decoder_only_model import DecoderOnlyModel
 
 class SmolVLMText(DecoderOnlyModel):
   """A SmolVLMText model built from the Edge Generative API layers."""
+
   @torch.inference_mode
   def forward_embeds(
       self,
@@ -39,7 +40,7 @@ class SmolVLMText(DecoderOnlyModel):
       mask: Optional[torch.Tensor] = None,
       export_config: Optional[export_cfg.ExportConfig] = None,
   ) -> dict[torch.Tensor, kv_utils.KVCache]:
-    
+
     if input_embeds is None:
       _, seq_len = tokens.size()
       assert self.config.max_seq_len >= seq_len, (
@@ -48,11 +49,11 @@ class SmolVLMText(DecoderOnlyModel):
       )
       # token embeddings of shape (b, t, n_embd)
       input_embeds = self.tok_embedding(tokens)
-    
+
     if mask is None:
       assert kv_cache is not None, "KV cache must be provided."
       mask = self.mask_cache.index_select(2, input_pos)
-      mask = mask[:, :, :, :kv_cache.get_max_seq_len()]
+      mask = mask[:, :, :, : kv_cache.get_max_seq_len()]
 
     return self._forward_with_embeds(
         input_embeds,
@@ -112,13 +113,13 @@ def build_model(
       checkpoint_path, TENSOR_NAMES, custom_loader
   )
   loader.load(
-      transformer, strict=False,
+      transformer,
+      strict=False,
   )
   transformer.eval()
   return transformer
 
 
-if __name__ == "__main__": # TODO delete
+if __name__ == "__main__":  # TODO delete
   model = build_model("./models/SmolVLM-256M-Instruct", mask_cache_size=1024)
   print(model)
-

@@ -13,19 +13,19 @@ from transformers import AutoModelForVision2Seq
 
 
 def _get_mask(shape: Sequence[int], k: int):
-    """Gets the mask for the input to the model.
+  """Gets the mask for the input to the model.
 
-    Args:
-    shape: The shape of the mask input to the model.
-    k: all elements below the k-th diagonal are set to 0.
+  Args:
+  shape: The shape of the mask input to the model.
+  k: all elements below the k-th diagonal are set to 0.
 
-    Returns:
-    The mask for the input to the model. All the elements in the mask are set
-    to -inf except that all the elements below the k-th diagonal are set to 0.
-    """
-    mask = np.ones(shape, dtype=np.float32) * float("-inf")
-    mask = np.triu(mask, k=k)
-    return mask
+  Returns:
+  The mask for the input to the model. All the elements in the mask are set
+  to -inf except that all the elements below the k-th diagonal are set to 0.
+  """
+  mask = np.ones(shape, dtype=np.float32) * float("-inf")
+  mask = np.triu(mask, k=k)
+  return mask
 
 
 class LiteRTLlmPipeline:
@@ -85,7 +85,7 @@ class LiteRTLlmPipeline:
         )
     return kv_cache
 
-  def _get_prefill_runner(self, num_input_tokens: int) :
+  def _get_prefill_runner(self, num_input_tokens: int):
     """Gets the prefill runner with the best suitable input size.
 
     Args:
@@ -98,11 +98,11 @@ class LiteRTLlmPipeline:
     delta = sys.maxsize
     max_prefill_len = -1
     for key in self._interpreter.get_signature_list().keys():
-      if "prefill" not in key or 'pixel' not in key:
+      if "prefill" not in key or "pixel" not in key:
         continue
-      input_pos = self._interpreter.get_signature_runner(key).get_input_details()[
-          "input_pos"
-      ]
+      input_pos = self._interpreter.get_signature_runner(
+          key
+      ).get_input_details()["input_pos"]
       # input_pos["shape"] has shape (max_seq_len, )
       seq_size = input_pos["shape"][0]
       max_prefill_len = max(max_prefill_len, seq_size)
@@ -111,13 +111,15 @@ class LiteRTLlmPipeline:
         best_signature = key
     if best_signature is None:
       raise ValueError(
-          "The largest prefill length supported is %d, but we have %d number of input tokens"
-          %(max_prefill_len, num_input_tokens)
+          "The largest prefill length supported is %d, but we have %d number of"
+          " input tokens" % (max_prefill_len, num_input_tokens)
       )
     return self._interpreter.get_signature_runner(best_signature)
 
   def _run_prefill(
-      self, prefill_token_ids: Sequence[int], pixel_values: np.ndarray,
+      self,
+      prefill_token_ids: Sequence[int],
+      pixel_values: np.ndarray,
   ) -> dict[str, np.ndarray]:
     """Runs prefill and returns the kv cache.
 
@@ -169,7 +171,6 @@ class LiteRTLlmPipeline:
   def _greedy_sampler(self, logits: np.ndarray) -> int:
     return int(np.argmax(logits))
 
-
   def _run_decode(
       self,
       start_pos: int,
@@ -212,23 +213,25 @@ class LiteRTLlmPipeline:
       next_token = self._greedy_sampler(logits)
       if next_token == self._processor.tokenizer.eos_token_id:
         break
-      decode_text.append(self._processor.tokenizer.decode(next_token, skip_special_tokens=True))
+      decode_text.append(
+          self._processor.tokenizer.decode(next_token, skip_special_tokens=True)
+      )
       if len(decode_text[-1]) == 0:
         # Break out the loop if we hit the special token.
         break
 
-      print(decode_text[-1], end='', flush=True)
+      print(decode_text[-1], end="", flush=True)
       # Decode outputs includes logits and kv cache. We already poped out
       # logits, so the rest is kv cache. We pass the updated kv cache as input
       # to the next decode step.
       decode_inputs = decode_outputs
       next_pos += 1
 
-    print() # print a new line at the end.
-    return ''.join(decode_text)
+    print()  # print a new line at the end.
+    return "".join(decode_text)
 
   def generate(self, inputs: Dict, max_decode_steps: int | None = None) -> str:
-  
+
     token_ids = inputs["input_ids"][0]
     pixel_values = inputs["pixel_values"][0]
 
@@ -240,11 +243,13 @@ class LiteRTLlmPipeline:
     # token of the prompt will be used to bootstrap decode.
     prefill_token_length = len(token_ids) - 1
 
-    print('Running prefill')
+    print("Running prefill")
     kv_cache = self._run_prefill(token_ids[:prefill_token_length], pixel_values)
     # Run decode.
-    print('Running decode')
-    actual_max_decode_steps = self._max_kv_cache_seq_len - prefill_token_length - 1
+    print("Running decode")
+    actual_max_decode_steps = (
+        self._max_kv_cache_seq_len - prefill_token_length - 1
+    )
     if max_decode_steps is not None:
       actual_max_decode_steps = min(actual_max_decode_steps, max_decode_steps)
     decode_text = self._run_decode(
@@ -257,54 +262,55 @@ class LiteRTLlmPipeline:
 
 
 if __name__ == "__main__":
-    
-    model_id = './models/SmolVLM-256M-Instruct'
-    tflite_model_path = './models/SmolVLM-256M-Instruct-tflite/smalvlm-256m-instruct_q8_ekv2048.tflite'
 
-    interpreter = interpreter_lib.InterpreterWithCustomOps(
-        custom_op_registerers=["pywrap_genai_ops.GenAIOpsRegisterer"],
-        model_path=tflite_model_path,
-        num_threads=2,
-        experimental_default_delegate_latest_features=True)
-    
-    processor = AutoProcessor.from_pretrained(model_id, do_image_splitting=True)
-    image_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/car.jpg?download=true"
-    image = Image.open(requests.get(image_url, stream=True).raw)
-    # image = Image.open("/home/dragynir/ai_vlm/cats.jpg")
-    # image = Image.open("/home/dragynir/ai_vlm/car.jpg")
+  model_id = "./models/SmolVLM-256M-Instruct"
+  tflite_model_path = "./models/SmolVLM-256M-Instruct-tflite/smalvlm-256m-instruct_q8_ekv2048.tflite"
 
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "image"},
-                {"type": "text", "text": "What in the image?"}
-            ]
-        },
-    ]
-    prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
-    print(prompt)
-    inputs = processor(text=prompt, images=[image], return_tensors="pt")
+  interpreter = interpreter_lib.InterpreterWithCustomOps(
+      custom_op_registerers=["pywrap_genai_ops.GenAIOpsRegisterer"],
+      model_path=tflite_model_path,
+      num_threads=2,
+      experimental_default_delegate_latest_features=True,
+  )
 
-    # Tflite model inference
-    pipeline = LiteRTLlmPipeline(interpreter, processor)
-    tflite_text = pipeline.generate(inputs, max_decode_steps=100)
+  processor = AutoProcessor.from_pretrained(model_id, do_image_splitting=True)
+  image_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/car.jpg?download=true"
+  image = Image.open(requests.get(image_url, stream=True).raw)
+  # image = Image.open("/home/dragynir/ai_vlm/cats.jpg")
+  # image = Image.open("/home/dragynir/ai_vlm/car.jpg")
 
-    # HuggingFace model inference
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    inputs = inputs.to(DEVICE)
-    model = AutoModelForVision2Seq.from_pretrained(
+  messages = [
+      {
+          "role": "user",
+          "content": [
+              {"type": "image"},
+              {"type": "text", "text": "What in the image?"},
+          ],
+      },
+  ]
+  prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
+  print(prompt)
+  inputs = processor(text=prompt, images=[image], return_tensors="pt")
+
+  # Tflite model inference
+  pipeline = LiteRTLlmPipeline(interpreter, processor)
+  tflite_text = pipeline.generate(inputs, max_decode_steps=100)
+
+  # HuggingFace model inference
+  DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+  inputs = inputs.to(DEVICE)
+  model = AutoModelForVision2Seq.from_pretrained(
       model_id,
       torch_dtype=torch.bfloat16,
       _attn_implementation="eager",
-    ).to(DEVICE)
-    generated_ids = model.generate(**inputs, do_sample=False, max_new_tokens=100)
-    generated_texts = processor.batch_decode(
-        generated_ids,
-        skip_special_tokens=True,
-    )
+  ).to(DEVICE)
+  generated_ids = model.generate(**inputs, do_sample=False, max_new_tokens=100)
+  generated_texts = processor.batch_decode(
+      generated_ids,
+      skip_special_tokens=True,
+  )
 
-    hf_text = generated_texts[0]
-    print("-"*100)
-    print("Tflite:\n", tflite_text)
-    print("HF:\n", hf_text)
+  hf_text = generated_texts[0]
+  print("-" * 100)
+  print("Tflite:\n", tflite_text)
+  print("HF:\n", hf_text)

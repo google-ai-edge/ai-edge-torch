@@ -40,33 +40,33 @@ class ReauthoredSmalVLMWrapper(verifier.ReauthoredModelWrapper):
   """Reauthored SmalVLM model wrapper."""
 
   def _init_kv_cache(self):
-    return kv_cache.KVCache.from_model_config(self.kv_cache_max_len, self.model.config.decoder_config)
+    return kv_cache.KVCache.from_model_config(
+        self.kv_cache_max_len, self.model.config.decoder_config
+    )
 
 
 def main(_):
-  
+
   checkpoint_path = "./models/SmolVLM-256M-Instruct"
   kv_cache_max_len = 2048
 
   logging.info("Loading the original model from: %s", checkpoint_path)
-  original_model = (
-      AutoModelForVision2Seq.from_pretrained(checkpoint_path)
-  )
-  
+  original_model = AutoModelForVision2Seq.from_pretrained(checkpoint_path)
+
   logging.info("Building the reauthored model from: %s", checkpoint_path)
   reauthored_model = smalvlm.build_model(
       checkpoint_path=checkpoint_path,
       mask_cache_size=kv_cache_max_len,
   )
   wrapped_reauthored_model = ReauthoredSmalVLMWrapper(
-    reauthored_model,
-    kv_cache_max_len=kv_cache_max_len,
+      reauthored_model,
+      kv_cache_max_len=kv_cache_max_len,
   )
 
   logging.info("Loading the processor from: %s", checkpoint_path)
   processor = transformers.AutoProcessor.from_pretrained(
-    checkpoint_path,
-    do_image_splitting=True,
+      checkpoint_path,
+      do_image_splitting=True,
   )
 
   logging.info("Verifying with text-only prompts...")
@@ -86,16 +86,15 @@ def main(_):
   logging.info("Loading the image from: %s", _IMAGE_URL.value)
   image = Image.open(requests.get(_IMAGE_URL.value, stream=True).raw)
 
-
   messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "image"},
-                {"type": "text", "text": _PROMPTS_WITH_IMAGE.value}
-            ]
-        },
-    ]
+      {
+          "role": "user",
+          "content": [
+              {"type": "image"},
+              {"type": "text", "text": _PROMPTS_WITH_IMAGE.value},
+          ],
+      },
+  ]
   prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
   inputs = processor(text=prompt, images=[image], return_tensors="pt")
 

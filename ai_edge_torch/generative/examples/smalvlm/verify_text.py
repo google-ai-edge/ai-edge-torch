@@ -1,4 +1,5 @@
 """Utils for verifying the SmolVLM model."""
+
 import logging
 import os
 import pathlib
@@ -63,6 +64,7 @@ def verify_smolvlm_text(
       max_new_tokens=max_new_tokens,
       atol=1e-04,
   )
+
 
 from absl import app
 from absl import flags

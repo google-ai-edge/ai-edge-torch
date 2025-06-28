@@ -8,18 +8,10 @@ from torch import nn
 TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.vision_model.encoder.layers.{}.mlp.fc1",
     ff_down_proj="model.vision_model.encoder.layers.{}.mlp.fc2",
-    attn_query_proj=(
-        "model.vision_model.encoder.layers.{}.self_attn.q_proj"
-    ),
-    attn_key_proj=(
-        "model.vision_model.encoder.layers.{}.self_attn.k_proj"
-    ),
-    attn_value_proj=(
-        "model.vision_model.encoder.layers.{}.self_attn.v_proj"
-    ),
-    attn_output_proj=(
-        "model.vision_model.encoder.layers.{}.self_attn.out_proj"
-    ),
+    attn_query_proj="model.vision_model.encoder.layers.{}.self_attn.q_proj",
+    attn_key_proj="model.vision_model.encoder.layers.{}.self_attn.k_proj",
+    attn_value_proj="model.vision_model.encoder.layers.{}.self_attn.v_proj",
+    attn_output_proj="model.vision_model.encoder.layers.{}.self_attn.out_proj",
     pre_attn_norm="model.vision_model.encoder.layers.{}.layer_norm1",
     post_attn_norm="model.vision_model.encoder.layers.{}.layer_norm2",
     embedding="model.vision_model.embeddings.patch_embedding",
@@ -66,13 +58,13 @@ class SiglipVisionEncoder(nn.Module):
   @torch.inference_mode
   def forward(self, pixel_values: torch.Tensor) -> torch.Tensor:
     # Embed the image according to SiplipVisionEmbeddings.
-    
+
     x = self.tok_embedding(pixel_values)
     x = x.flatten(2).transpose(1, 2) + self.tok_embedding_position
-    
+
     # Pass a dummy mask because SDPA attention impl expects non-None mask.
     mask = torch.zeros(x.shape[:2]).unsqueeze(1).unsqueeze(2)
-    
+
     for _, block in enumerate(self.transformer_blocks):
       x = block(x, mask=mask)
     return self.final_norm(x)

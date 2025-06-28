@@ -10,20 +10,21 @@ from torch import nn
 from ai_edge_torch.generative.layers import sdpa_with_kv_update
 
 
-
 def rotate_half(x):
-    """Rotates half the hidden dims of the input."""
-    x1 = x[..., : x.shape[-1] // 2]
-    x2 = x[..., x.shape[-1] // 2 :]
-    return torch.cat((-x2, x1), dim=-1)
+  """Rotates half the hidden dims of the input."""
+  x1 = x[..., : x.shape[-1] // 2]
+  x2 = x[..., x.shape[-1] // 2 :]
+  return torch.cat((-x2, x1), dim=-1)
 
 
 def apply_rope(
-    x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor,
+    x: torch.Tensor,
+    cos: torch.Tensor,
+    sin: torch.Tensor,
 ) -> torch.Tensor:
-    x = x.transpose(1, 2)
-    x = (x * cos) + (rotate_half(x) * sin)
-    return x.transpose(1, 2)
+  x = x.transpose(1, 2)
+  x = (x * cos) + (rotate_half(x) * sin)
+  return x.transpose(1, 2)
 
 
 def apply_rope_inline(
@@ -33,22 +34,22 @@ def apply_rope_inline(
     sin: torch.Tensor,
     unsqueeze_dim: int = 1,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    """Computes rotary positional embedding inline for a query and key.
+  """Computes rotary positional embedding inline for a query and key.
 
-    Args:
-    q: the query tensor.
-    k: the key tensor.
-    cos: the cosine tensor.
-    sin: the sine tensor.
+  Args:
+  q: the query tensor.
+  k: the key tensor.
+  cos: the cosine tensor.
+  sin: the sine tensor.
 
-    Returns:
-    output the RoPE'd query and key.
-    """
-    cos = cos.unsqueeze(unsqueeze_dim)
-    sin = sin.unsqueeze(unsqueeze_dim)
-    q_roped = apply_rope(q, cos, sin)
-    k_roped = apply_rope(k, cos, sin)
-    return q_roped.type_as(q), k_roped.type_as(k)
+  Returns:
+  output the RoPE'd query and key.
+  """
+  cos = cos.unsqueeze(unsqueeze_dim)
+  sin = sin.unsqueeze(unsqueeze_dim)
+  q_roped = apply_rope(q, cos, sin)
+  k_roped = apply_rope(k, cos, sin)
+  return q_roped.type_as(q), k_roped.type_as(k)
 
 
 class CustomTransformerBlock(attention.TransformerBlock):
@@ -152,7 +153,6 @@ class CustomCausalSelfAttention(attention.CausalSelfAttention):
     return y if kv_cache is None else (y, kv_cache)
 
 
-
 class DecoderOnlyModel(model_builder.DecoderOnlyModel):
 
   def __init__(self, config: cfg.ModelConfig, mask_cache_size: int = 0):
@@ -163,22 +163,22 @@ class DecoderOnlyModel(model_builder.DecoderOnlyModel):
         for idx in range(config.num_layers)
     )
 
-
   def get_rope(self, position_ids: torch.Tensor):
 
     base = 100000.0
     dim = float(64.0)
 
-    timescale = 1.0 / (base ** (torch.arange(0, dim, 2, dtype=torch.float32) / dim))
+    timescale = 1.0 / (
+        base ** (torch.arange(0, dim, 2, dtype=torch.float32) / dim)
+    )
 
-    radians = position_ids.clone().unsqueeze(0).unsqueeze(-1) * timescale.unsqueeze(
-        0
-    ).unsqueeze(0)
+    radians = position_ids.clone().unsqueeze(0).unsqueeze(
+        -1
+    ) * timescale.unsqueeze(0).unsqueeze(0)
     radians = torch.cat((radians, radians), dim=-1).squeeze(0)
     cos = torch.cos(radians)
     sin = torch.sin(radians)
     return cos, sin
-  
 
   @torch.inference_mode
   def forward(
@@ -205,7 +205,7 @@ class DecoderOnlyModel(model_builder.DecoderOnlyModel):
       assert self.mask_cache is not None, "Mask cache must be built."
       assert kv_cache is not None, "KV cache must be provided."
       mask = self.mask_cache.index_select(2, input_pos)
-      mask = mask[:, :, :, :kv_cache.get_max_seq_len()]
+      mask = mask[:, :, :, : kv_cache.get_max_seq_len()]
 
     return self._forward_with_embeds(
         input_embeds, rope, mask, input_pos, kv_cache, lora, export_config
