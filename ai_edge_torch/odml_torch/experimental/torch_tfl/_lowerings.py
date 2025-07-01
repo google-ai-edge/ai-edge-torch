@@ -286,6 +286,18 @@ def _tfl_rsqrt_lowering(
   )
 
 
+@lower(torch.ops.tfl.neg.default)
+def _tfl_neg_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.neg",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x],
+  )
+
+
 @lower(torch.ops.tfl.gelu.default)
 def _tfl_gelu_lowering(
     lctx: LoweringContext,
@@ -673,4 +685,21 @@ def _tfl_softmax_lowering(
       attributes={
           "beta": ir.FloatAttr.get(ir.F32Type.get(), beta),
       },
+  )
+
+
+@lower(torch.ops.tfl.topk_v2.default)
+def _tfl_topk_v2_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    k: int,
+) -> tuple[ir.Value, ir.Value]:
+  return _ir_operation(
+      "tfl.topk_v2",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[
+          x,
+          lowering_utils.numpy_array_constant(np.array(k, dtype=np.int32)),
+      ],
+      attributes={},
   )

@@ -20,7 +20,7 @@ image embeddings for concatenation with text embeddings.
 """
 
 from dataclasses import dataclass
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
 
 from ai_edge_torch.generative.examples.paligemma import image_encoder
 import ai_edge_torch.generative.layers.model_config as cfg
@@ -127,9 +127,20 @@ class FullVisionEncoder(nn.Module):
   def forward(
       self,
       pixel_values: torch.Tensor,
-      export_config: export_cfg.ExportConfig = None,
+      export_config: Optional[export_cfg.ExportConfig] = None,
   ) -> torch.Tensor:
-    x = self.siglip_encoder(pixel_values)
+    # Embed the image according to SiplipVisionEmbeddings.
+    x = self.siglip_encoder.tok_embedding(pixel_values)
+    x = x.flatten(2).transpose(1, 2)
+    x = x + self.siglip_encoder.tok_embedding_position
+
+    # Pass a dummy mask because SDPA attention impl expects non-None mask.
+    mask = torch.zeros(x.shape[0], 1, x.shape[1], x.shape[1])
+    for _, block in enumerate(self.siglip_encoder.transformer_blocks):
+      x = block(x, mask=mask)
+    x = self.siglip_encoder.final_norm(x)
+
+    # Project the image embeddings to text hidden size.
     x = self.connector(x)
     return x
 
@@ -166,7 +177,7 @@ def get_image_encoder_config() -> cfg.ModelConfig:
       output_proj_use_bias=True,
   )
   norm_config = cfg.NormalizationConfig(
-      type=cfg.NormalizationType.LAYER_NORM, epsilon=1e-6
+      type=cfg.NormalizationType.LAYER_NORM, epsilon=1e-6,
   )
   ff_config = cfg.FeedForwardConfig(
       type=cfg.FeedForwardType.SEQUENTIAL,
@@ -189,15 +200,13 @@ def get_image_encoder_config() -> cfg.ModelConfig:
       image_embedding=image_embedding_config,
       block_configs=block_config,
       final_norm_config=norm_config,
-      # num_mm_tokens_per_image=81,
-      # enable_hlfb=False
   )
   return config
 
 
 def build_image_encoder(
     checkpoint_path: str,
-    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+    custom_loader: Optional[Callable[[str], Dict[str, torch.Tensor]]] = None,
 ) -> FullVisionEncoder:
   """Builds a FullVisionEncoder from the checkpoint path."""
   encoder_config = get_image_encoder_config()
@@ -208,7 +217,6 @@ def build_image_encoder(
   )
   loader.load(encoder.siglip_encoder, strict=False)
 
-  loader = loading_utils.ModelLoader(checkpoint_path, None, custom_loader)
   state = loader.get_state()
   converted_state = dict()
   converted_state["modality_projection.weight"] = state.pop(
