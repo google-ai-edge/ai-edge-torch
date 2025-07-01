@@ -21,7 +21,7 @@ import operator
 from typing import Any, Callable, Optional
 
 from ai_edge_torch import fx_infra
-from jax.lib import xla_extension
+import jax.extend
 from jax._src.lib.mlir import ir
 from jax._src.lib.mlir.dialects import func
 from jax._src.lib.mlir.dialects import hlo as stablehlo
@@ -233,7 +233,7 @@ class MlirLowered:
       target_version = stablehlo.get_version_from_compatibility_requirement(
           stablehlo.StablehloCompatibilityRequirement.WEEK_12
       )
-    module_bytecode = xla_extension.mlir.serialize_portable_artifact(
+    module_bytecode = jax.extend.mlir.serialize_portable_artifact(
         self.module_bytecode, target_version
     )
     return module_bytecode

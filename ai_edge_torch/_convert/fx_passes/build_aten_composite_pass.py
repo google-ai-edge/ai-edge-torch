@@ -16,6 +16,7 @@
 from typing import Any, Callable
 from ai_edge_torch import fx_infra
 from ai_edge_torch import lowertools
+from ai_edge_torch.odml_torch import optimization_barrier as optimization_barrier_lib
 import torch
 import torch.utils._pytree as pytree
 
@@ -276,6 +277,7 @@ def _aten_embedding(gm: torch.fx.GraphModule, node: torch.fx.Node):
     # Explicitly reshape back to the original shape. This places the ReshapeOp
     # outside of the HLFB.
     output = torch.reshape(output, (*(original_idx_shape), embedding_dim))
+    output, _ = optimization_barrier_lib.optimization_barrier(output, idx)
     return output
 
   node.target = embedding
