@@ -14,7 +14,7 @@
 # ==============================================================================
 # Einsum layer implementation.
 
-from typing import Sequence
+from typing import Callable, Sequence
 import torch
 from torch import nn
 
@@ -22,7 +22,12 @@ from torch import nn
 class Einsum(nn.Module):
   """Einsum layer wrapping over torch.einsum."""
 
-  def __init__(self, shape: Sequence[int], einsum_str: str):
+  def __init__(
+      self,
+      shape: Sequence[int],
+      einsum_str: str,
+      init_fn: Callable[..., torch.Tensor] = lambda *args, **kwargs: None,
+  ):
     super().__init__()
     self.shape = shape
     self.einsum_str = einsum_str
@@ -30,6 +35,7 @@ class Einsum(nn.Module):
         torch.empty(shape, dtype=torch.float32),
         requires_grad=False,
     )
+    init_fn(self.w)
     self.einsum_fn = lambda x: torch.einsum(einsum_str, x, self.w)
 
   def forward(self, x: torch.Tensor) -> torch.Tensor:
