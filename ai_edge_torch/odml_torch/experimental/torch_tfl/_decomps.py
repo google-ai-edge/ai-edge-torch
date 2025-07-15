@@ -316,8 +316,14 @@ def _aten_where_self_decomp(condition, x, y):
 
 @register_decomp(torch.ops.aten.embedding.default)
 def _aten_embedding_decomp(weight, indices, padding_idx=-1):
+  # The `tfl.gather` op only supports 1D indices, so we need to flatten the
+  # indices and then reshape the output to the correct shape.
+  original_indices_shape = list(indices.shape)
+  flat_indices = torch.ops.tfl.reshape(indices, [-1])
   # TODO: b/425747317 - Decomp to tfl.embedding_lookup once it's ready.
-  return torch.ops.tfl.gather(weight, indices, axis=0)
+  output = torch.ops.tfl.gather(weight, flat_indices, axis=0)
+  output_shape = original_indices_shape + [weight.shape[-1]]
+  return torch.ops.tfl.reshape(output, output_shape)
 
 
 @register_decomp(torch.ops.aten._softmax.default)
