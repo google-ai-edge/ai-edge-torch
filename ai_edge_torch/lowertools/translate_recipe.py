@@ -25,13 +25,13 @@ _OpQuantConfig = quantizer.qtyping.OpQuantizationConfig
 
 _DEFAULT_REGEX_STR = '.*'
 _SINGULAR_TRANSFORMER_BLOCK_REGEX_STR = 'transformer_block'
-_IDX_TRANSFORMER_BLOCKS_REGEX_STR = 'transformer_blocks\[{}\]'
+_IDX_TRANSFORMER_BLOCKS_REGEX_STR = r'transformer_blocks\[{}\]'
 _ATTENTION_REGEX_STR = 'ai_edge_torch.generative.layers.attention'
 _FEEDFORWARD_REGEX_STR = 'ai_edge_torch.generative.layers.feed_forward'
 _EMBEDDING_REGEX_STR = 'Embedding_tok_embedding'
 # TODO: b/415833584 - Improve the regex for pre-softmax layer.
 _DECODE_LOGITS_REGEX_STR = 'StatefulPartitionedCall'
-_ANY_TWO_DIGITS_REGEX_STR = '\d{1,2}'
+_ANY_TWO_DIGITS_REGEX_STR = r'\d{1,2}'
 
 
 def _get_nbits_from_dtype(dtype: quant_attrs.Dtype) -> int:
