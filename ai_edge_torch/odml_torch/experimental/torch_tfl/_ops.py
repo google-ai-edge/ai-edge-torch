@@ -292,9 +292,13 @@ def tfl_softmax(x: torch.Tensor) -> torch.Tensor:
   return torch.nn.functional.softmax(x, dim=-1)
 
 
-@custom_op_with_fake("tfl::slice")
+@custom_op_with_fake(
+    "tfl::slice", schema="(Tensor x, SymInt[] begin, SymInt[] size) -> Tensor"
+)
 def tfl_slice(
-    input: torch.Tensor, begin: Sequence[int], size: Sequence[int]
+    input: torch.Tensor,
+    begin: Sequence[torch.SymInt],
+    size: Sequence[torch.SymInt],
 ) -> torch.Tensor:
   assert len(begin) == len(size) == input.ndim
 

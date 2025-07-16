@@ -331,6 +331,18 @@ def _aten_sym_size_int(lctx, x: ir.Value, dim: int):
   return stablehlo.get_dimension_size(x, dim)
 
 
+# Lowering for the addition operator (`+`).
+# Handles cases where one operand is an integer (scalar) and the other is a
+# tensor, broadcasting the scalar to the tensor's shape before addition.
+@lower(operator.add)
+def _operator_add(lctx, self: int | ir.Value, other: int | ir.Value):
+  if isinstance(self, int) and isinstance(other, ir.Value):
+    self = utils.splat(self, other.type.element_type, other.type.shape)
+  if isinstance(other, int) and isinstance(self, ir.Value):
+    other = utils.splat(other, self.type.element_type, self.type.shape)
+  return stablehlo.add(self, other)
+
+
 # Lowering for the subtraction operator (`-`).
 # Handles cases where one operand is an integer (scalar) and the other is a
 # tensor, broadcasting the scalar to the tensor's shape before subtraction.

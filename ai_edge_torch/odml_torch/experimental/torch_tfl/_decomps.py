@@ -265,7 +265,16 @@ def _aten_arange_start_step_decomp(
 
 @register_decomp(torch.ops.aten.split_with_sizes.default)
 def _aten_split_with_sizes_decomp(x, split_sizes, dim=0):
-  return torch.ops.tfl.split_v(x, split_sizes, dim)
+  outputs = []
+  offset = 0
+  for size in split_sizes:
+    begin = [0] * x.dim()
+    begin[dim] = offset
+    output_size = list(x.shape)
+    output_size[dim] = size
+    outputs.append(torch.ops.tfl.slice(x, begin, output_size))
+    offset += size
+  return tuple(outputs)
 
 
 @register_decomp(torch.ops.aten.unsqueeze.default)

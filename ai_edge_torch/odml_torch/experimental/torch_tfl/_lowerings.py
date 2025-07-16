@@ -342,7 +342,7 @@ def _tfl_concatenation_lowering(
 def _tfl_fill_lowering(
     lctx: LoweringContext,
     dims: Sequence[int | ir.Value],
-    fill_value: ir.Value,
+    fill_value: int | float | ir.Value,
 ) -> ir.Value:
   dims_ir_value = lowering_utils.convert_shape_to_ir_value(dims)
   fill_value_ir_value = lowering_utils.convert_to_ir_value(fill_value)
@@ -503,6 +503,22 @@ def _tfl_split_v_lowering(
               ir.IntegerType.get_signless(32), len(size_splits)
           ),
       },
+  )
+
+
+@lower(torch.ops.tfl.slice.default)
+def _tfl_slice_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+    begin: Sequence[int | ir.Value],
+    size: Sequence[int | ir.Value],
+) -> ir.Value:
+  begin_ir_value = lowering_utils.convert_shape_to_ir_value(begin)
+  size_ir_value = lowering_utils.convert_shape_to_ir_value(size)
+  return _ir_operation(
+      "tfl.slice",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x, begin_ir_value, size_ir_value],
   )
 
 
