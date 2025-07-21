@@ -329,8 +329,9 @@ def _aten_embedding_decomp(weight, indices, padding_idx=-1):
   # indices and then reshape the output to the correct shape.
   original_indices_shape = list(indices.shape)
   flat_indices = torch.ops.tfl.reshape(indices, [-1])
-  # TODO: b/425747317 - Decomp to tfl.embedding_lookup once it's ready.
-  output = torch.ops.tfl.gather(weight, flat_indices, axis=0)
+  # Need to convert indices to int32 for tfl.embedding_lookup.
+  flat_indices = flat_indices.to(torch.int32)
+  output = torch.ops.tfl.embedding_lookup(flat_indices, weight)
   output_shape = original_indices_shape + [weight.shape[-1]]
   return torch.ops.tfl.reshape(output, output_shape)
 
