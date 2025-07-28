@@ -129,7 +129,18 @@ class FullVisionEncoder(nn.Module):
       pixel_values: torch.Tensor,
       export_config: export_cfg.ExportConfig = None,
   ) -> torch.Tensor:
-    x = self.siglip_encoder(pixel_values)
+    # Embed the image according to SiplipVisionEmbeddings.
+    x = self.siglip_encoder.tok_embedding(pixel_values)
+    x = x.flatten(2).transpose(1, 2)
+    x = x + self.siglip_encoder.tok_embedding_position
+
+    # Pass a dummy mask because SDPA attention impl expects non-None mask.
+    mask = torch.zeros(x.shape[0], 1, x.shape[1], x.shape[1])
+    for _, block in enumerate(self.siglip_encoder.transformer_blocks):
+      x = block(x, mask=mask)
+    x = self.siglip_encoder.final_norm(x)
+
+    # Project the image embeddings to text hidden size.
     x = self.connector(x)
     return x
 
@@ -166,7 +177,8 @@ def get_image_encoder_config() -> cfg.ModelConfig:
       output_proj_use_bias=True,
   )
   norm_config = cfg.NormalizationConfig(
-      type=cfg.NormalizationType.LAYER_NORM, epsilon=1e-6
+      type=cfg.NormalizationType.LAYER_NORM, epsilon=1e-6,
+      # enable_hlfb=False
   )
   ff_config = cfg.FeedForwardConfig(
       type=cfg.FeedForwardType.SEQUENTIAL,
