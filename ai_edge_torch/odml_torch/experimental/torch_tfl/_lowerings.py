@@ -286,6 +286,18 @@ def _tfl_rsqrt_lowering(
   )
 
 
+@lower(torch.ops.tfl.neg.default)
+def _tfl_neg_lowering(
+    lctx: LoweringContext,
+    x: ir.Value,
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.neg",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[x],
+  )
+
+
 @lower(torch.ops.tfl.gelu.default)
 def _tfl_gelu_lowering(
     lctx: LoweringContext,
