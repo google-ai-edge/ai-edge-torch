@@ -23,7 +23,7 @@ import ai_edge_torch.generative.utilities.loader as loading_utils
 import torch
 from torch import nn
 
-TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
+TENSOR_NAMES_FUSED_QKV = loading_utils.ModelLoader.TensorNames(
     ff_up_proj="model.layers.{}.mlp.up_proj",
     ff_down_proj="model.layers.{}.mlp.down_proj",
     ff_gate_proj="model.layers.{}.mlp.gate_proj",
@@ -36,6 +36,24 @@ TENSOR_NAMES = loading_utils.ModelLoader.TensorNames(
     lm_head=None,
 )
 
+TENSOR_NAMES_SEP_QKV = loading_utils.ModelLoader.TensorNames(
+    ff_up_proj="model.layers.{}.mlp.up_proj",
+    ff_down_proj="model.layers.{}.mlp.down_proj",
+    ff_gate_proj="model.layers.{}.mlp.gate_proj",
+    attn_query_proj="model.layers.{}.self_attn.q_proj",
+    attn_key_proj="model.layers.{}.self_attn.k_proj",
+    attn_value_proj="model.layers.{}.self_attn.v_proj",
+    attn_output_proj="model.layers.{}.self_attn.o_proj",
+    pre_attn_norm="model.layers.{}.input_layernorm",
+    post_attn_norm="model.layers.{}.post_attention_layernorm",
+    embedding="model.embed_tokens",
+    final_norm="model.norm",
+)
+
+TENSOR_NAMES_DICT = {
+    "safetensors": TENSOR_NAMES_SEP_QKV,
+    "kaggle": TENSOR_NAMES_FUSED_QKV,
+}
 
 class Gemma1(model_builder.DecoderOnlyModel):
   """A Gemma1 model built from the Edge Generative API layers."""
@@ -94,11 +112,28 @@ def build_2b_model(
     custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
     mask_cache_size: int = 0,
 ) -> nn.Module:
-  return model_builder.build_decoder_only_model(
-      checkpoint_path=checkpoint_path,
-      config=get_model_config_2b(),
-      tensor_names=TENSOR_NAMES,
-      model_class=Gemma1,
-      custom_loader=custom_loader,
-      mask_cache_size=mask_cache_size,
+
+  # A list to store the reasons for each failure
+  key_errors = []
+
+  for tensor_names in TENSOR_NAMES_DICT.values():
+    try:
+      return model_builder.build_decoder_only_model(
+          checkpoint_path=checkpoint_path,
+          config=get_model_config_2b(),
+          tensor_names=tensor_names,
+          model_class=Gemma1,
+          custom_loader=custom_loader,
+          mask_cache_size=mask_cache_size,
+      )
+    except KeyError as ke:
+      # Store the specific key that was missing for later
+      key_errors.append(f"Missing key: {ke}")
+      continue
+
+  # If the loop finishes, raise an error with all the collected details
+  error_details = "\n".join(key_errors)
+  raise RuntimeError(
+      "Failed to build model after trying all configurations. "
+      f"Encountered the following errors:\n{error_details}"
   )
