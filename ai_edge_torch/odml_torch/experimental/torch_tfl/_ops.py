@@ -110,6 +110,11 @@ def tfl_rsqrt(x: torch.Tensor) -> torch.Tensor:
   return torch.rsqrt(x)
 
 
+@custom_op_with_fake("tfl::neg")
+def tfl_neg(x: torch.Tensor) -> torch.Tensor:
+  return torch.neg(x)
+
+
 @custom_op_with_fake("tfl::gelu")
 def tfl_gelu(x: torch.Tensor, approximate: bool = False) -> torch.Tensor:
   gelu_approximate = "tanh" if approximate else "none"
