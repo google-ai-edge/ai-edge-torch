@@ -180,6 +180,11 @@ def _aten_rsqrt_decomp(x):
   return torch.ops.tfl.rsqrt(x)
 
 
+@register_decomp(torch.ops.aten.neg.default)
+def _aten_neg_decomp(x):
+  return torch.ops.tfl.neg(x)
+
+
 @register_decomp(torch.ops.aten.gelu.default)
 def _aten_gelu_decomp(x, approximate="none"):
   return torch.ops.tfl.gelu(x, approximate != "none")
@@ -315,6 +320,38 @@ def _aten_select_int_decomp(x, dim, index):
 
   # Remove the selected dimension
   return torch.ops.tfl.squeeze(sliced, [dim])
+
+
+@register_decomp(torch.ops.aten.slice.Tensor)
+def _aten_slice_tensor_decomp(x, dim=0, start=None, end=None, step=1):
+  rank = x.dim()
+  dim_size = x.shape[dim]
+
+  # Initialize begin, end, strides for tfl.strided_slice
+  begin = [0] * rank
+  end_vec = list(x.shape)
+  strides = [1] * rank
+
+  # The logic below is to match PyTorch's `slice` behavior.
+  # `start` and `end` can be negative, which means they count from the end.
+  # `start=None` defaults to 0.
+  # `end=None` or a large number defaults to `dim_size` after clamping.
+
+  start_val = 0 if start is None else start
+  if start_val < 0:
+    start_val += dim_size
+
+  end_val = dim_size if end is None else end
+  if end_val < 0:
+    end_val += dim_size
+
+  # Clamp start and end to be within the dimension size, following PyTorch's
+  # logic.
+  start_val = max(0, min(start_val, dim_size))
+  end_val = max(start_val, min(end_val, dim_size))
+
+  begin[dim], end_vec[dim], strides[dim] = start_val, end_val, step
+  return torch.ops.tfl.strided_slice(x, begin, end_vec, strides)
 
 
 @register_decomp(torch.ops.aten.where.self)
