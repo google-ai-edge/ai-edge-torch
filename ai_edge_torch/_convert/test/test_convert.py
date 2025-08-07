@@ -19,7 +19,9 @@ import os
 from typing import Tuple
 
 import ai_edge_torch
+from ai_edge_torch import fx_infra
 from ai_edge_torch._convert import conversion_utils
+from ai_edge_torch.odml_torch.experimental import torch_tfl
 from ai_edge_torch.quantize import pt2e_quantizer
 from ai_edge_torch.testing import model_coverage
 import numpy as np
@@ -574,6 +576,39 @@ class TestConvert(googletest.TestCase):
       ai_edge_torch.convert(model, args)
     except Exception as err:
       self.fail(f"Conversion failed with bloat16 inputs: {err}")
+    # pylint: enable=broad-except
+
+  def test_convert_model_with_i64_inputs_legalization_error(self):
+    """Test converting a simple model with torch.int64 input.
+
+    i64 inputs would remain in converted model signature but be casted to i32
+    right after the model inputs.
+    """
+
+    class SampleModel(nn.Module):
+
+      def forward(self, x: torch.Tensor):
+        return torch.linspace(0.5, 10.5, steps=x.shape[0], dtype=torch.float64)
+
+    model = SampleModel().eval()
+    args = (torch.randint(0, 100, (10, 10), dtype=torch.int64),)
+
+    # pylint: disable=broad-except
+    try:
+      # Expect this to potentially raise an error during conversion
+      ai_edge_torch.convert(model, args, cast_i64_inputs_to_i32=False)
+      self.fail("Conversion succeeded unexpectedly")
+    except Exception as err:
+      print(f"Conversion failed as expected: {err}")
+      expected_error_message = "failed to legalize operation 'tfl.less'"
+      if expected_error_message not in str(err):
+        self.fail(f"Unexpected error message: {err}")
+
+    try:
+      # Expect this to fix the error during conversion
+      ai_edge_torch.convert(model, args, cast_i64_inputs_to_i32=True)
+    except Exception as err:
+      self.fail(f"Conversion failed with int64 inputs: {err}")
     # pylint: enable=broad-except
 
   def test_compile_model(self):

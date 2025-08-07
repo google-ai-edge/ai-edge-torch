@@ -132,6 +132,7 @@ class Converter:
       sample_kwargs=None,
       *,
       strict_export: Union[Literal["auto"], bool] = True,
+      cast_i64_inputs_to_i32: bool = False,
       quant_config: Optional[qcfg.QuantConfig] = None,
       dynamic_shapes: Optional[Union[dict[str, Any], Tuple[Any, ...]]] = None,
       _ai_edge_converter_flags: Optional[dict[str, Any]] = None,
@@ -159,6 +160,8 @@ class Converter:
         and ensure the soundness of the exported graph. When
         strict_export="auto", the function will try to export module in both
         modes and use the first one succeeds for downstream conversion.
+      cast_i64_inputs_to_i32: If true, casts all inputs with torch.int64 type to
+        torch.int32.
       quant_config: User-defined quantization method and scheme of the model.
       dynamic_shapes: Optional dict or tuple that specify dynamic shape
         specifications for each input in original order. See
@@ -203,6 +206,7 @@ class Converter:
     converted_model = conversion.convert_signatures(
         self._signatures,
         strict_export=strict_export,
+        cast_i64_inputs_to_i32=cast_i64_inputs_to_i32,
         quant_config=quant_config,
         _tfl_converter_flags=_ai_edge_converter_flags,
         _saved_model_dir=_saved_model_dir,
@@ -271,6 +275,7 @@ def convert(
     sample_kwargs=None,
     *,
     strict_export: Union[Literal["auto"], bool] = True,
+    cast_i64_inputs_to_i32: bool = False,
     quant_config: Optional[qcfg.QuantConfig] = None,
     dynamic_shapes: Optional[Union[dict[str, Any], Tuple[Any, ...]]] = None,
     _ai_edge_converter_flags: Optional[dict[str, Any]] = None,
@@ -289,6 +294,8 @@ def convert(
       and ensure the soundness of the exported graph. When strict_export="auto",
       the function will try to export module in both modes and use the first one
       succeeds for downstream conversion.
+    cast_i64_inputs_to_i32: If true, casts all inputs with torch.int64 type to
+      torch.int32.
     quant_config: User-defined quantization method and scheme of the model.
     dynamic_shapes: Optional dict or tuple that specify dynamic shape
       specifications for each input in original order. See
@@ -317,6 +324,7 @@ def convert(
       sample_args,
       sample_kwargs,
       strict_export=strict_export,
+      cast_i64_inputs_to_i32=cast_i64_inputs_to_i32,
       quant_config=quant_config,
       dynamic_shapes=dynamic_shapes,
       _ai_edge_converter_flags=_ai_edge_converter_flags,

@@ -32,6 +32,7 @@ from ai_edge_litert.aot.core import types as litert_types
 
 def _run_convert_passes(
     exported_program: torch.export.ExportedProgram,
+    cast_i64_inputs_to_i32: bool,
 ) -> torch.export.ExportedProgram:
   exported_program = generative_fx_passes.run_generative_passes(
       exported_program
@@ -45,6 +46,10 @@ def _run_convert_passes(
       fx_passes.RemoveNonUserOutputsPass(),
       fx_passes.CastInputsBf16ToF32Pass(),
   ]
+
+  if cast_i64_inputs_to_i32:
+    print("---------------> Casting i64 inputs to i32")
+    passes += [fx_passes.CastInputsI64ToI32Pass()]
 
   # Debuginfo is not injected automatically by odml_torch. Only inject
   # debuginfo via fx pass when using torch_xla.
@@ -82,6 +87,7 @@ def convert_signatures(
     signatures: list[signature.Signature],
     *,
     strict_export: Union[Literal["auto"], bool] = True,
+    cast_i64_inputs_to_i32: bool = False,
     quant_config: Optional[qcfg.QuantConfig] = None,
     _tfl_converter_flags: Optional[dict[str, Any]] = None,
     _saved_model_dir: Optional[str] = None,
@@ -96,6 +102,8 @@ def convert_signatures(
         and ensure the soundness of the exported graph. When
         strict_export="auto", the function will try to export module in both
         modes and use the first one succeeds for downstream conversion.
+      cast_i64_inputs_to_i32: If true, casts all inputs with torch.int64 type to
+        torch.int32.
       quant_config: User-defined quantization method and scheme of the model.
       _tfl_converter_flags: A nested dictionary allowing setting flags for the
         underlying tflite converter.
@@ -147,7 +155,10 @@ def convert_signatures(
   ]
 
   # Apply default fx passes
-  exported_programs = list(map(_run_convert_passes, exported_programs))
+  exported_programs = [
+      _run_convert_passes(ep, cast_i64_inputs_to_i32)
+      for ep in exported_programs
+  ]
   tflite_model = lowertools.exported_programs_to_tflite(
       exported_programs,
       signatures,
