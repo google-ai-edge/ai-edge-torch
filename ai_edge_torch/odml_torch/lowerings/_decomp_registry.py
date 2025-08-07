@@ -14,6 +14,7 @@
 # ==============================================================================
 """Torch export decompositions to run before lowering."""
 
+import functools
 from ai_edge_torch import fx_infra
 import torch
 
@@ -65,3 +66,71 @@ if hasattr(torch.ops.aten, "_safe_softmax"):
       torch.ops.aten._safe_softmax.default,
       torch.softmax,
   )
+
+
+# Decomp torch.scatter into one_hot, broadcasting, mul, and selects.
+# This is a more GPU-friendly implementation than default
+# lowering via stablehlo.scatter or tfl.scatter_nd.
+@functools.partial(
+    fx_infra.decomp.add_pre_convert_decomp, torch.ops.aten.scatter.src
+)
+def _scatter_impl(
+    self: torch.Tensor, dim: int, index: torch.Tensor, src: torch.Tensor
+) -> torch.Tensor:
+  if dim < 0:
+    dim = self.dim() + dim
+
+  # --- 1. Slice `src` to match the shape of `index` ---
+  slicing_idx_for_src = tuple(slice(s) for s in index.shape)
+  src_sliced = src[slicing_idx_for_src]
+
+  # --- 2. Compute updates for the relevant slice using one_hot ---
+  num_classes = self.shape[dim]
+  one_hot_indices = torch.nn.functional.one_hot(index, num_classes)
+  slice_updates_unaggregated = src_sliced.unsqueeze(-1) * one_hot_indices
+  slice_updates_summed = slice_updates_unaggregated.sum(dim=dim)
+  slice_condition_summed = one_hot_indices.any(dim=dim)
+
+  # --- 3. Permute the computed slice to the correct dimension order ---
+  n_dims = self.dim()
+  slice_updates = slice_updates_summed
+  slice_condition = slice_condition_summed
+  if n_dims > 1:
+    permute_order = list(range(n_dims - 1))
+    permute_order.insert(dim, n_dims - 1)
+    slice_updates = slice_updates_summed.permute(permute_order)
+    slice_condition = slice_condition_summed.permute(permute_order)
+
+  # Pad the smaller tensors to match the shape of `self`.
+  require_padding = True
+  try:
+    shape = torch.broadcast_shapes(slice_updates.shape, self.shape)
+    if shape == self.shape:
+      require_padding = False
+  except RuntimeError:
+    # Shapes are not broadcastable.
+    require_padding = True
+    pass
+
+  if require_padding:
+    pad_amounts = []
+    for i in range(n_dims - 1, -1, -1):
+      padding_needed = self.shape[i] - slice_updates.shape[i]
+      # Add 0 for the "start" and the needed amount for the "end"
+      pad_amounts.extend([0, padding_needed])
+    updates_tensor = torch.nn.functional.pad(
+        slice_updates, pad_amounts, "constant", 0
+    )
+    condition_mask = torch.nn.functional.pad(
+        slice_condition, pad_amounts, "constant", 0
+    )
+  else:
+    updates_tensor = slice_updates
+    condition_mask = slice_condition
+
+  # --- 5. Use `torch.where` on correctly-sized tensors ---
+  # IMPORTANT NOTE: When indices are not unique, the behavior of torch scatter
+  # is non-deterministic (one of the values from src will be picked
+  # arbitrarily)
+  result = torch.where(condition_mask, updates_tensor, self)
+  return result
