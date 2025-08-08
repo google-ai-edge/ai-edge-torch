@@ -342,7 +342,7 @@ class TestCoreAtenOps(parameterized.TestCase):
       ("aten_rsub_Scalar_0", torch.ops.aten.rsub.Scalar, (rnd(torch.float32, (10, 10)), 0.123,), dict()),
       ("aten_scatter_add_0", torch.ops.aten.scatter_add, (rnd(torch.float32, (10, 10)), 1, rnd(torch.int64, (2, 2)), rnd(torch.float32, (10, 10)),), dict()),
       ("aten_scatter_reduce_two_0", torch.ops.aten.scatter_reduce.two, (rnd(torch.float32, (10, 10)), 1, rnd(torch.int64, (10, 10)), rnd(torch.float32, (10, 10)), "sum",), dict()),
-      ("aten_scatter_src_0", torch.ops.aten.scatter.src, (rnd(torch.float32, (10, 10)), 1, rnd(torch.int64, (10, 10)), rnd(torch.float32, (10, 10)),), dict()),
+      ("aten_scatter_src_0", torch.ops.aten.scatter.src, (rnd(torch.float32, (3, 5)), 0, torch.tensor([[0, 1, 2, 0]]), rnd(torch.float32, (2, 5)),), dict()),
       ("aten_scatter_value_0", torch.ops.aten.scatter.value, (rnd(torch.float32, (10, 10)), 1, rnd(torch.int64, (10, 10)), 1,), dict()),
       ("aten_select_copy_int_0", torch.ops.aten.select_copy.int, (rnd(torch.float32, (10, 10)), 1, 0,), dict()),
       ("aten_select_int_0", torch.ops.aten.select.int, (rnd(torch.float32, (10, 10)), 1, 1,), dict()),
