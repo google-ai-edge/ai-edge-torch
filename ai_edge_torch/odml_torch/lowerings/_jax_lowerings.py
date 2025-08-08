@@ -78,8 +78,6 @@ lower_by_torch_xla2(torch.ops.aten._unsafe_index)
 lower_by_torch_xla2(torch.ops.aten._unsafe_view)
 lower_by_torch_xla2(torch.ops.aten.acos)
 lower_by_torch_xla2(torch.ops.aten.acosh)
-lower_by_torch_xla2(torch.ops.aten.add.Scalar)
-lower_by_torch_xla2(torch.ops.aten.add.Tensor)
 lower_by_torch_xla2(torch.ops.aten.addbmm.default)
 lower_by_torch_xla2(torch.ops.aten.addmm)
 lower_by_torch_xla2(torch.ops.aten.addmv)
@@ -159,7 +157,6 @@ lower_by_torch_xla2(torch.ops.aten.logical_and)
 lower_by_torch_xla2(torch.ops.aten.logical_not)
 lower_by_torch_xla2(torch.ops.aten.logical_or)
 lower_by_torch_xla2(torch.ops.aten.logical_xor)
-lower_by_torch_xla2(torch.ops.aten.lt)
 lower_by_torch_xla2(torch.ops.aten.max)
 lower_by_torch_xla2(torch.ops.aten.max_pool2d_with_indices)
 lower_by_torch_xla2(torch.ops.aten.max_pool2d_with_indices_backward)
@@ -170,8 +167,6 @@ lower_by_torch_xla2(torch.ops.aten.mean)
 lower_by_torch_xla2(torch.ops.aten.min)
 lower_by_torch_xla2(torch.ops.aten.minimum)
 lower_by_torch_xla2(torch.ops.aten.mm)
-lower_by_torch_xla2(torch.ops.aten.mul.Scalar)
-lower_by_torch_xla2(torch.ops.aten.mul.Tensor)
 lower_by_torch_xla2(torch.ops.aten.native_batch_norm)
 lower_by_torch_xla2(torch.ops.aten.native_layer_norm_backward)
 lower_by_torch_xla2(torch.ops.aten.ne)
@@ -215,8 +210,6 @@ lower_by_torch_xla2(torch.ops.aten.sqrt)
 lower_by_torch_xla2(torch.ops.aten.squeeze)
 lower_by_torch_xla2(torch.ops.aten.squeeze_copy)
 lower_by_torch_xla2(torch.ops.aten.stack)
-lower_by_torch_xla2(torch.ops.aten.sub.Scalar)
-lower_by_torch_xla2(torch.ops.aten.sub.Tensor)
 lower_by_torch_xla2(torch.ops.aten.sum)
 lower_by_torch_xla2(torch.ops.aten.t)
 lower_by_torch_xla2(torch.ops.aten.tan)
@@ -244,7 +237,6 @@ lower_by_torch_xla2(torch.ops.aten.view_as_real)
 lower_by_torch_xla2(torch.ops.aten.view_copy)
 lower_by_torch_xla2(torch.ops.aten.where.ScalarOther)
 lower_by_torch_xla2(torch.ops.aten.where.ScalarSelf)
-lower_by_torch_xla2(torch.ops.aten.where.self)
 lower_by_torch_xla2(torch.ops.prims.broadcast_in_dim)
 lower_by_torch_xla2(torch.ops.prims.var)
 
@@ -257,6 +249,149 @@ def _aten_copy(self, *args, **kwargs):
 @lower_by_jax(torch.ops.aten.copy, ir_input_names=["src"])
 def _aten_copy(self, src, **kwargs):
   return _TORCH_XLA2_IMPLS[torch.ops.aten.copy](self, src)
+
+
+@registry.lower(torch.ops.aten.add.Scalar)
+def _aten_add_scalar(lctx: LoweringContext, self, other):
+  _log_usage(torch.ops.aten.add.Scalar)
+
+  @jax_bridge.wrap
+  def jax_lowering(self, other):
+    other_dtype = jnp.result_type(other)
+    promoted_type = jnp.promote_types(self.dtype, other_dtype)
+    if promoted_type == jnp.float64:
+      promoted_type = jnp.float32
+    return jnp.add(
+        self.astype(promoted_type), jnp.array(other, dtype=promoted_type)
+    )
+
+  return jax_lowering(lctx, self, other)
+
+
+@registry.lower(torch.ops.aten.add.Tensor)
+def _aten_add_tensor(lctx: LoweringContext, self, other):
+  _log_usage(torch.ops.aten.add.Tensor)
+
+  @jax_bridge.wrap
+  def jax_lowering(self, other):
+    promoted_type = jnp.promote_types(self.dtype, other.dtype)
+    if promoted_type == jnp.float64:
+      promoted_type = jnp.float32
+    return jnp.add(self.astype(promoted_type), other.astype(promoted_type))
+
+  return jax_lowering(lctx, self, other)
+
+
+@registry.lower(torch.ops.aten.sub.Scalar)
+def _aten_sub_scalar(lctx: LoweringContext, self, other):
+  _log_usage(torch.ops.aten.sub.Scalar)
+
+  @jax_bridge.wrap
+  def jax_lowering(self, other):
+    other_dtype = jnp.result_type(other)
+    promoted_type = jnp.promote_types(self.dtype, other_dtype)
+    if promoted_type == jnp.float64:
+      promoted_type = jnp.float32
+    return jnp.subtract(
+        self.astype(promoted_type), jnp.array(other, dtype=promoted_type)
+    )
+
+  return jax_lowering(lctx, self, other)
+
+
+@registry.lower(torch.ops.aten.sub.Tensor)
+def _aten_sub_tensor(lctx: LoweringContext, self, other):
+  _log_usage(torch.ops.aten.sub.Tensor)
+
+  @jax_bridge.wrap
+  def jax_lowering(self, other):
+    promoted_type = jnp.promote_types(self.dtype, other.dtype)
+    if promoted_type == jnp.float64:
+      promoted_type = jnp.float32
+    return jnp.subtract(self.astype(promoted_type), other.astype(promoted_type))
+
+  return jax_lowering(lctx, self, other)
+
+
+@registry.lower(torch.ops.aten.lt.Scalar)
+def _aten_lt_scalar(lctx: LoweringContext, self, other):
+  _log_usage(torch.ops.aten.lt.Scalar)
+
+  @jax_bridge.wrap
+  def jax_lowering(self, other):
+    other_dtype = jnp.result_type(other)
+    promoted_type = jnp.promote_types(self.dtype, other_dtype)
+    if promoted_type == jnp.float64:
+      promoted_type = jnp.float32
+    return jnp.less(
+        self.astype(promoted_type), jnp.array(other, dtype=promoted_type)
+    )
+
+  return jax_lowering(lctx, self, other)
+
+
+@registry.lower(torch.ops.aten.lt.Tensor)
+def _aten_lt_tensor(lctx: LoweringContext, self, other):
+  _log_usage(torch.ops.aten.lt.Tensor)
+
+  @jax_bridge.wrap
+  def jax_lowering(self, other):
+    promoted_type = jnp.promote_types(self.dtype, other.dtype)
+    return jnp.less(self.astype(promoted_type), other.astype(promoted_type))
+
+  return jax_lowering(lctx, self, other)
+
+
+@registry.lower(torch.ops.aten.mul.Scalar)
+def _aten_mul_scalar(lctx: LoweringContext, self, other):
+  _log_usage(torch.ops.aten.mul.Scalar)
+
+  @jax_bridge.wrap
+  def jax_lowering(self, other):
+    other_dtype = jnp.result_type(other)
+    promoted_type = jnp.promote_types(self.dtype, other_dtype)
+    if promoted_type == jnp.float64:
+      promoted_type = jnp.float32
+    return jnp.multiply(
+        self.astype(promoted_type), jnp.array(other, dtype=promoted_type)
+    )
+
+  return jax_lowering(lctx, self, other)
+
+
+@registry.lower(torch.ops.aten.mul.Tensor)
+def _aten_mul_tensor(lctx: LoweringContext, self, other):
+  _log_usage(torch.ops.aten.mul.Tensor)
+
+  @jax_bridge.wrap
+  def jax_lowering(self, other):
+    other_dtype = jnp.result_type(other)
+    promoted_type = jnp.promote_types(self.dtype, other_dtype)
+    if promoted_type == jnp.float64:
+      promoted_type = jnp.float32
+    return jnp.multiply(
+        self.astype(promoted_type), jnp.array(other, dtype=promoted_type)
+    )
+
+  return jax_lowering(lctx, self, other)
+
+
+@registry.lower(torch.ops.aten.where.self)
+def _aten_where_self(lctx: LoweringContext, condition, self, other):
+  _log_usage(torch.ops.aten.where.self)
+
+  @jax_bridge.wrap
+  def jax_lowering(condition, self, other):
+    promoted_type = jnp.promote_types(self.dtype, other.dtype)
+    if promoted_type == jnp.float64:
+      promoted_type = jnp.float32
+    return jnp.where(
+        condition,
+        self.astype(promoted_type),
+        other.astype(promoted_type),
+    )
+
+  return jax_lowering(lctx, condition, self, other)
 
 
 # Schema:
