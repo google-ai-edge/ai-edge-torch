@@ -30,6 +30,14 @@ from absl.testing import parameterized
 export_with_tensor_inputs_only = testing.export_with_tensor_inputs_only
 
 
+def tree_map_list_to_tuple(x):
+  if isinstance(x, (list, tuple)):
+    return tuple(tree_map_list_to_tuple(y) for y in x)
+  if isinstance(x, dict):
+    return {k: tree_map_list_to_tuple(v) for k, v in x.items()}
+  return x
+
+
 def rnd(dtype, shape, min_v=None, max_v=None):
   """Shortcut for creating a random torch tensor."""
   if dtype in (torch.int32, torch.int64, torch.bool):
@@ -98,6 +106,9 @@ class TestTorchTFLImpls(parameterized.TestCase):
           actual = edge_model(*args, **kwargs)
 
           with self.subTest("torch_convert_eval_diff:" + str(atol)):
+            expected = tree_map_list_to_tuple(expected)
+            actual = tree_map_list_to_tuple(actual)
+
             expected_flat, expected_spec = pytree.tree_flatten(expected)
             actual_flat, actual_spec = pytree.tree_flatten(actual)
 
@@ -152,6 +163,7 @@ class TestTorchTFLImpls(parameterized.TestCase):
       ("aten_cos_1", torch.ops.aten.cos.default, (rnd(torch.float32, (1, 10)),), dict()),
       ("aten_rsqrt_0", torch.ops.aten.rsqrt.default, (rnd(torch.float32, (10, 10)),), dict()),
       ("aten_rsqrt_1", torch.ops.aten.rsqrt.default, (rnd(torch.float32, (1, 10)),), dict()),
+      ("aten_neg_0", torch.ops.aten.neg.default, (rnd(torch.float32, (10, 10)),), dict()),
       ("aten_gelu_0", torch.ops.aten.gelu.default, (rnd(torch.float32, (10, 10)),), dict()),
       ("aten_gelu_1", torch.ops.aten.gelu.default, (rnd(torch.float32, (10, 10)),), dict(approximate="tanh")),
       ("aten_gelu_2", torch.ops.aten.gelu.default, (rnd(torch.float32, (1, 10)),), dict()),
@@ -186,6 +198,14 @@ class TestTorchTFLImpls(parameterized.TestCase):
       ("aten_squeeze_dims_0", torch.ops.aten.squeeze.dims, (rnd(torch.float32, (2, 1, 2, 1, 2)), [1, 2, 3],), dict()),
       ("aten_select_int_0", torch.ops.aten.select.int, (rnd(torch.float32, (2, 3, 4)), 0, 1,), dict()),
       ("aten_select_int_1", torch.ops.aten.select.int, (rnd(torch.float32, (2, 3, 4)), 1, 1,), dict()),
+      ("aten_slice_tensor_0", torch.ops.aten.slice.Tensor, (rnd(torch.float32, (10, 10)),), dict(dim=0, start=1, end=3)),
+      ("aten_slice_tensor_1", torch.ops.aten.slice.Tensor, (rnd(torch.float32, (10, 10)),), dict(dim=1, start=2, end=5)),
+      ("aten_slice_tensor_2", torch.ops.aten.slice.Tensor, (rnd(torch.float32, (10, 10)),), dict(dim=0, start=None, end=5)),
+      ("aten_slice_tensor_3", torch.ops.aten.slice.Tensor, (rnd(torch.float32, (10, 10)),), dict(dim=0, start=2, end=None)),
+      ("aten_slice_tensor_4", torch.ops.aten.slice.Tensor, (rnd(torch.float32, (10, 10)),), dict(dim=0, start=-5, end=-2)),
+      ("aten_slice_tensor_5", torch.ops.aten.slice.Tensor, (rnd(torch.float32, (10, 10)),), dict(dim=0, start=1, end=8, step=2)),
+      ("aten_slice_tensor_6", torch.ops.aten.slice.Tensor, (rnd(torch.float32, (10, 10)),), dict(dim=1, start=2, end=100)),
+      ("aten_slice_tensor_7", torch.ops.aten.slice.Tensor, (rnd(torch.float32, (10, 10)),), dict(dim=0, start=None, end=None)),
       ("aten_where_self_0", torch.ops.aten.where.self, (rnd(torch.bool, (10, 10)), rnd(torch.float32, (10, 10)), rnd(torch.float32, (10, 10)),), dict()),
       ("aten_embedding_0", torch.ops.aten.embedding.default, (rnd(torch.float32, (10, 10)), torch.tensor([[0, 2, 4, 6, 8], [1, 3, 5, 7, 9]]),), dict()),
       ("aten__softmax_0", torch.ops.aten._softmax.default, (rnd(torch.float32, (10, 10)), -1, False), dict()),
@@ -194,6 +214,8 @@ class TestTorchTFLImpls(parameterized.TestCase):
       ("aten__softmax_3", torch.ops.aten._softmax.default, (rnd(torch.float32, (1, 10)), 0, False), dict()),
       ("aten__softmax_4", torch.ops.aten._softmax.default, (rnd(torch.float32, (10, 10)), 1, False), dict()),
       ("aten__softmax_5", torch.ops.aten._softmax.default, (rnd(torch.float32, (1, 10)), 1, False), dict()),
+      ("aten_topk_0", torch.ops.aten.topk.default, (rnd(torch.float32, (4, 10)), 3), dict()),
+      ("aten_topk_1", torch.ops.aten.topk.default, (rnd(torch.float32, (4, 10)), 3), dict(dim=0)),
       # fmt: on
       # pyformat: enable
   )
