@@ -110,6 +110,11 @@ def tfl_rsqrt(x: torch.Tensor) -> torch.Tensor:
   return torch.rsqrt(x)
 
 
+@custom_op_with_fake("tfl::neg")
+def tfl_neg(x: torch.Tensor) -> torch.Tensor:
+  return torch.neg(x)
+
+
 @custom_op_with_fake("tfl::gelu")
 def tfl_gelu(x: torch.Tensor, approximate: bool = False) -> torch.Tensor:
   gelu_approximate = "tanh" if approximate else "none"
@@ -290,6 +295,13 @@ def tfl_gather(
 @custom_op_with_fake("tfl::softmax")
 def tfl_softmax(x: torch.Tensor) -> torch.Tensor:
   return torch.nn.functional.softmax(x, dim=-1)
+
+
+@custom_op_with_fake("tfl::topk_v2")
+def tfl_topk_v2(x: torch.Tensor, k: int) -> tuple[torch.Tensor, torch.Tensor]:
+  out, indices = torch.topk(x, k, dim=-1, largest=True, sorted=True)
+  indices = indices.to(torch.int32)
+  return out, indices
 
 
 @custom_op_with_fake(
