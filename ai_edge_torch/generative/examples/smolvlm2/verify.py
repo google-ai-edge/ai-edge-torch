@@ -45,6 +45,11 @@ _CHECKPOINT = flags.DEFINE_string(
     "The checkpoint to verify.",
 )
 
+_REAUTHORTHED_CHECKPOINT = flags.DEFINE_string(
+    "pretrained_weights",
+    None,
+    "The path to the model's pretrained weights.",
+)
 
 class ReauthoredSmolVLM2Wrapper(verifier.ReauthoredModelWrapper):
   """Reauthored SmolVLM2 Gemma model wrapper."""
@@ -82,7 +87,7 @@ def verify_smolvlm2(
   if custom_loader is None:
     custom_loader = loader.get_custom_loader("", "safetensors")
 
-  reauthored_checkpoint = "/google/data/rw/users/ay/ayqzhang/smolvlm2_merged.safetensors"
+  reauthored_checkpoint = _REAUTHORTHED_CHECKPOINT.value
 
   logging.info("Building the reauthored model from: %s", reauthored_checkpoint)
   reauthored_model = smolvlm2.build_model(
@@ -103,7 +108,6 @@ def verify_smolvlm2(
       generate_prompts=prompts,
       max_new_tokens=max_new_tokens,
       continue_on_failure=False,
-      verify_inputs=False,
       atol=0.5e-02,
   )
 
