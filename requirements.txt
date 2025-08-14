@@ -3,8 +3,7 @@ torch==2.6.0
 torchvision==0.21.0
 torchaudio==2.6.0
 --pre
-# TODO(cnchan): Use tf-nightly once tf-nightly release is up again for linux and macos.
-tf-nightly-cpu>=2.21.0.dev20250810
+tf-nightly<=2.20.0.dev20250615
 ai-edge-litert-nightly
 ai-edge-quantizer-nightly
 jax[cpu]

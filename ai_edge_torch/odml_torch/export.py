@@ -21,7 +21,6 @@ import operator
 from typing import Any, Callable, Optional
 
 from ai_edge_torch import fx_infra
-import jax.extend
 from jax._src.lib.mlir import ir
 from jax._src.lib.mlir.dialects import func
 from jax._src.lib.mlir.dialects import hlo as stablehlo
@@ -34,6 +33,8 @@ from . import export_utils
 from . import lowerings
 
 LoweringContext = lowerings.context.LoweringContext
+
+from jaxlib._jax.mlir import serialize_portable_artifact
 
 
 def _build_flat_inputs(exported_program: torch.export.ExportedProgram):
@@ -233,7 +234,7 @@ class MlirLowered:
       target_version = stablehlo.get_version_from_compatibility_requirement(
           stablehlo.StablehloCompatibilityRequirement.WEEK_12
       )
-    module_bytecode = jax.extend.mlir.serialize_portable_artifact(
+    module_bytecode = serialize_portable_artifact(
         self.module_bytecode, target_version
     )
     return module_bytecode

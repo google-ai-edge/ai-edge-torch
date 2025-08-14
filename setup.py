@@ -90,7 +90,7 @@ setup(
         "kagglehub",
         "tabulate",
         "torch>=2.4.0",
-        "tf-nightly-cpu>=2.21.0.dev20250810",
+        "tf-nightly<=2.20.0.dev20250615",
         "ai-edge-litert-nightly",
         "ai-edge-quantizer-nightly",
         "jax",
