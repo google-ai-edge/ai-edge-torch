@@ -20,7 +20,8 @@ jobs:
     uses: ./.github/workflows/unittests_python.yml
     with:
       trigger-sha: ${{ github.sha }}
-      run-on-macos: true
+      # TODO(cnchan): Re-enable once the tf-nightly pywrap issue is fixed.
+      run-on-macos: false
 
   build-and-release-nightly:
     needs: run-unittests-python

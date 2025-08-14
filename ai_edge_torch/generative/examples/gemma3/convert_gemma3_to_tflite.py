@@ -42,6 +42,14 @@ def main(_):
         ),
         mask_cache_size=converter.get_mask_cache_size_from_flags(),
     )
+  elif _MODEL_SIZE.value == '270m':
+    pytorch_model = gemma3.build_model_270m(
+        checkpoint_path,
+        custom_loader=loader.maybe_get_custom_loader(
+            checkpoint_path, flags.FLAGS.custom_checkpoint_loader
+        ),
+        mask_cache_size=converter.get_mask_cache_size_from_flags(),
+    )
   else:
     raise ValueError(f'Unsupported model size: {_MODEL_SIZE.value}')
 

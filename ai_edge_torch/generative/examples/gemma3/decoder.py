@@ -391,6 +391,60 @@ def get_decoder_config_1b() -> cfg.ModelConfig:
   return config
 
 
+def get_decoder_config_270m() -> cfg.ModelConfig:
+  """Returns the model config for a Gemma3 270M model."""
+  norm_config = cfg.NormalizationConfig(
+      type=cfg.NormalizationType.RMS_NORM, epsilon=1e-6, zero_centered=True,
+  )
+  ff_config = cfg.FeedForwardConfig(
+      type=cfg.FeedForwardType.GATED,
+      activation=cfg.ActivationConfig(cfg.ActivationType.GELU_TANH),
+      intermediate_size=2048,
+      pre_ff_norm_config=norm_config,
+      post_ff_norm_config=norm_config,
+  )
+
+  def get_block_config(idx: int) -> cfg.TransformerBlockConfig:
+    attn_config = cfg.AttentionConfig(
+        num_heads=4,
+        head_dim=256,
+        num_query_groups=1,
+        rotary_base=1_000_000 if (idx + 1) % 6 == 0 else 10_000,
+        rotary_percentage=1.0,
+        qkv_transpose_before_split=True,
+        query_norm_config=norm_config,
+        key_norm_config=norm_config,
+        logit_softcap=None,
+        sliding_window_size=512,
+        attn_type=(
+            cfg.AttentionType.GLOBAL
+            if (idx + 1) % 6 == 0
+            else cfg.AttentionType.LOCAL_SLIDING
+        ),
+    )
+    return cfg.TransformerBlockConfig(
+        attn_config=attn_config,
+        ff_config=ff_config,
+        pre_attention_norm_config=norm_config,
+        post_attention_norm_config=norm_config,
+    )
+
+  num_layers = 18
+  embedding_dim = 640
+  config = cfg.ModelConfig(
+      vocab_size=262_144,
+      num_layers=num_layers,
+      max_seq_len=32_768,
+      embedding_dim=embedding_dim,
+      embedding_scale=embedding_dim**0.5,
+      block_configs=[get_block_config(i) for i in range(num_layers)],
+      final_norm_config=norm_config,
+      lm_head_use_bias=False,
+      final_logit_softcap=None,
+  )
+  return config
+
+
 def get_fake_decoder_config_1b() -> cfg.ModelConfig:
   """Returns a fake model config for a Gemma3 1B model."""
   config = get_decoder_config_1b()
@@ -426,4 +480,26 @@ def build_model_1b(
           mask_cache_size=mask_cache_size,
       )
     except KeyError as ke:
+      continue
+
+
+def build_model_270m(
+    checkpoint_path: str,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+    mask_cache_size: int = 0,
+) -> nn.Module:
+  """Builds a Gemma3 270M model."""
+  # TODO(b/403644647): Better error handling for loading checkpoints with
+  # different tensor names.
+  for tensor_names in TENSOR_NAMES_DICT.values():
+    try:
+      return model_builder.build_decoder_only_model(
+          checkpoint_path=checkpoint_path,
+          config=get_decoder_config_270m(),
+          tensor_names=tensor_names,
+          model_class=Decoder,
+          custom_loader=custom_loader,
+          mask_cache_size=mask_cache_size,
+      )
+    except KeyError as _:
       continue
