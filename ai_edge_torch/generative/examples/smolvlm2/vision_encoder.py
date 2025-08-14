@@ -166,7 +166,7 @@ def get_image_encoder_config() -> cfg.ModelConfig:
   """
   image_embedding_config = cfg.ImageEmbeddingConfig(
       channels=3,
-      image_size=378,
+      image_size=384,
       patch_size=14,
   )
   attn_config = cfg.AttentionConfig(
