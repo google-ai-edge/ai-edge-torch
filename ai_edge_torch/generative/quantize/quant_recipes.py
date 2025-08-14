@@ -76,7 +76,6 @@ def all_supported_int4_dynamic_block_recipe(
           default=quant_recipe_utils.create_layer_quant_int4_dynamic_block(
               block_size
           ),
-          embedding=quant_recipe_utils.create_layer_quant_int8_dynamic(),
           _model_config=mcfg,
       )
   )
