@@ -21,7 +21,9 @@ from ai_edge_torch.generative.utilities import converter
 from ai_edge_torch.generative.utilities import export_config
 from ai_edge_torch.generative.utilities import loader
 
-flags = converter.define_conversion_flags('deepseek')
+flags = converter.define_conversion_flags(
+    'deepseek', default_mask_as_input=True, default_transpose_kv_cache=True
+)
 
 
 def main(_):
