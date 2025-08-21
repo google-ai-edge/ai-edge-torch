@@ -124,9 +124,11 @@ class LoweringInterpreter(torch.fx.Interpreter):
   def run_node(self, node: torch.fx.Node):
     loc = self._build_loc(node)
     with loc:
-      self.lctx = self.lctx.replace(ir_location=loc, node=node)
+      self.lctx.ir_location = loc
+      self.lctx.node = node
       res = super().run_node(node)
-      self.lctx = self.lctx.replace(ir_location=None, node=None)
+      self.lctx.ir_location = None
+      self.lctx.node = None
     return res
 
   def call_function(self, target, args, kwargs):

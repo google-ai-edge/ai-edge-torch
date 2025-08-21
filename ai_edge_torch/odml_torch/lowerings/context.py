@@ -37,6 +37,3 @@ class LoweringContext:
   def loc(self):
     """Shortcut for ir_location."""
     return self.ir_location
-
-  def replace(self, **kwargs):
-    return dataclasses.replace(self, **kwargs)

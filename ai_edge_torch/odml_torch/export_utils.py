@@ -63,7 +63,10 @@ def inline(
   while True:
     is_changed = False
     for op in block.operations:
-      if op.OPERATION_NAME != func.CallOp.OPERATION_NAME:
+      if (
+          not hasattr(op, "OPERATION_NAME")
+          or op.OPERATION_NAME != func.CallOp.OPERATION_NAME
+      ):
         continue
 
       call_op = cast(func.CallOp, op)
@@ -96,7 +99,10 @@ def clone_func_body_ops(func_op: func.FuncOp, ir_inputs: Sequence[ir.Value]):
 
   for op in list(func_op.entry_block.operations):
     cloned_operands = [value_mapping[val] for val in op.operands]
-    if op.OPERATION_NAME == func.ReturnOp.OPERATION_NAME:
+    if (
+        hasattr(op, "OPERATION_NAME")
+        and op.OPERATION_NAME == func.ReturnOp.OPERATION_NAME
+    ):
       return cloned_operands
 
     cloned = cast(ir.Operation, op.operation.clone())
