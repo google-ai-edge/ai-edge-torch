@@ -14,6 +14,8 @@
 # ==============================================================================
 # Common normalization layers.
 
+from typing import Callable
+
 from ai_edge_torch.hlfb import StableHLOCompositeBuilder
 import torch
 from torch import nn
@@ -31,6 +33,7 @@ class RMSNorm(torch.nn.Module):
       with_scale: bool = False,
       scale_shift: float = 1.0,
       enable_hlfb: bool = False,
+      init_fn: Callable[..., torch.Tensor] = lambda *args, **kwargs: None,
   ):
     """Initialize the RMSNorm layer.
 
@@ -42,12 +45,15 @@ class RMSNorm(torch.nn.Module):
       with_scale (bool): Whether or not to use a scale parameter.
       scale_shift (float): The shift to apply to the scale parameter.
       enable_hlfb (bool): use HLFB in the op.
+      init_fn: The initialization function to use for the parameters. This is
+        used to initialize the scale parameter.
     """
     super().__init__()
     self.dim = dim
     self.enable_hlfb = enable_hlfb
     self.eps = eps
     self.weight = torch.nn.Parameter(torch.ones(dim), requires_grad=False)
+    init_fn(self.weight)
     self.zero_centered_gamma = zero_centered_gamma
     self.with_scale = with_scale
     if with_scale:

@@ -54,7 +54,11 @@ class SwiGLU(nn.Module):
     return F.silu(x) * y
 
 
-def build_norm(dim: int, config: cfg.NormalizationConfig):
+def build_norm(
+    dim: int,
+    config: cfg.NormalizationConfig,
+    init_fn: Callable[..., torch.Tensor] = lambda *args, **kwargs: None,
+):
   """Builder function for normalizers.
 
   Args:
@@ -77,6 +81,7 @@ def build_norm(dim: int, config: cfg.NormalizationConfig):
         with_scale=config.with_scale,
         scale_shift=config.scale_shift,
         enable_hlfb=config.enable_hlfb,
+        init_fn=init_fn,
     )
   elif config.type == cfg.NormalizationType.LAYER_NORM:
     return normalization.LayerNorm(dim, config.epsilon, config.enable_hlfb)
