@@ -12,9 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+import torch
 from . import composite
+from . import custom_ops
 from . import debuginfo
 from . import export
 from . import export_utils
 from . import lowerings
 from . import passes
+
+annotate_tensor = torch.ops.odml_torch.annotate_tensor.default
