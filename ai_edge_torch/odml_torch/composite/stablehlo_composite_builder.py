@@ -41,42 +41,31 @@ class StableHLOCompositeBuilder:
     self.attr = attr
     self.name = name
     self.id = _get_uuid()
-    self._input_cnt = 0
-    self._output_cnt = 0
+    self._is_mark_inputs_called = False
+    self._is_mark_outputs_called = False
 
-  def _mark_tensor(self, *tensors: torch.Tensor, is_input: bool):
+  def _mark_tensor(self, tensors: torch.Tensor, is_input: bool):
     """Mark the input/output tensors of the StableHLO Composite."""
-    marked_tensors = []
     serialized_attr = (
         mark_tensor.serialize_composite_attr(self.attr)
         if not is_input
         else None
     )
 
-    def _pos() -> int:
-      if is_input:
-        self._input_cnt += 1
-        return self._input_cnt - 1
-      else:
-        self._output_cnt += 1
-        return self._output_cnt - 1
-
     for tensor in tensors:
       if not isinstance(tensor, torch.Tensor):
-        raise ValueError(f"input must be a torch tensor. Got {type(tensor)}.")
+        raise ValueError(
+            "All composite inputs/outputs must be torch.Tensor. Got"
+            f" {type(tensor)} instead."
+        )
 
-      pos = _pos()
-
-      marked_tensors.append(
-          mark_tensor.mark_tensor_op(
-              tensor,
-              name=self.name,
-              pos=pos,
-              id=self.id,
-              is_input=is_input,
-              attr=serialized_attr,
-          )
-      )
+    marked_tensors = mark_tensor.mark_tensor_combined_op(
+        tuple(tensors),
+        name=self.name,
+        id=self.id,
+        is_input=is_input,
+        attr=serialized_attr,
+    )
 
     if len(marked_tensors) == 1:
       return marked_tensors[0]
@@ -93,11 +82,13 @@ class StableHLOCompositeBuilder:
     Returns:
       marked_tensors (torch.Tensor or Tuple[torch.Tensor]):
         Torch tensors marked as composite inputs. The tensor inputs of this
-        method
-        should be replaced by the marked tensors in later usages.
+        method should be replaced by the marked tensors in later usages.
     """
+    if self._is_mark_inputs_called:
+      raise ValueError("mark_inputs can only be called once per builder.")
 
-    return self._mark_tensor(*tensors, is_input=True)
+    self._is_mark_inputs_called = True
+    return self._mark_tensor(tensors, is_input=True)
 
   def mark_outputs(self, *tensors: torch.Tensor):
     """Mark the output tensors of the StableHLO Composite.
@@ -110,8 +101,10 @@ class StableHLOCompositeBuilder:
     Returns:
       marked_tensors (torch.Tensor or Tuple[torch.Tensor]):
         Torch tensors marked as composite outputs. The tensor inputs of this
-        method
-        should be replaced by the marked tensors in later usages.
+        method should be replaced by the marked tensors in later usages.
     """
+    if self._is_mark_outputs_called:
+      raise ValueError("mark_outputs can only be called once per builder.")
 
-    return self._mark_tensor(*tensors, is_input=False)
+    self._is_mark_outputs_called = True
+    return self._mark_tensor(tensors, is_input=False)
