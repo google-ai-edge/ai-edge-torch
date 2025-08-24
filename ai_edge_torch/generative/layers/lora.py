@@ -268,9 +268,7 @@ class LoRA:
       LoRA weights with random values.
     """
     return cls._from_tensor_generator(
-        tensor_generator=lambda shape, dtype: torch.randint(
-            low=0, high=128, size=shape, dtype=dtype
-        ),
+        tensor_generator=lambda shape, dtype: torch.rand(shape, dtype=dtype),
         rank=rank,
         config=config,
         dtype=dtype,
