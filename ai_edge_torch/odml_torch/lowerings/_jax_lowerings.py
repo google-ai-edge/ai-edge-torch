@@ -116,7 +116,6 @@ lower_by_torch_xla2(torch.ops.aten.cosh)
 lower_by_torch_xla2(torch.ops.aten.cumsum)
 lower_by_torch_xla2(torch.ops.aten.detach)
 lower_by_torch_xla2(torch.ops.aten.diagonal)
-lower_by_torch_xla2(torch.ops.aten.div)
 lower_by_torch_xla2(torch.ops.aten.dot)
 lower_by_torch_xla2(torch.ops.aten.embedding)
 lower_by_torch_xla2(torch.ops.aten.empty)
@@ -352,6 +351,8 @@ def _aten_mul_scalar(lctx: LoweringContext, self, other):
     promoted_type = jnp.promote_types(self.dtype, other_dtype)
     if promoted_type == jnp.float64:
       promoted_type = jnp.float32
+    elif promoted_type == jnp.int64:
+      promoted_type = jnp.int32
     return jnp.multiply(
         self.astype(promoted_type), jnp.array(other, dtype=promoted_type)
     )
@@ -369,9 +370,101 @@ def _aten_mul_tensor(lctx: LoweringContext, self, other):
     promoted_type = jnp.promote_types(self.dtype, other_dtype)
     if promoted_type == jnp.float64:
       promoted_type = jnp.float32
+    elif promoted_type == jnp.int64:
+      promoted_type = jnp.int32
     return jnp.multiply(
         self.astype(promoted_type), jnp.array(other, dtype=promoted_type)
     )
+
+  return jax_lowering(lctx, self, other)
+
+
+@registry.lower(torch.ops.aten.div.Scalar)
+def _aten_div_scalar(lctx: LoweringContext, self, other):
+  _log_usage(torch.ops.aten.div.Scalar)
+
+  @jax_bridge.wrap
+  def jax_lowering(self, other):
+    other_dtype = jnp.result_type(other)
+    promoted_type = jnp.promote_types(self.dtype, other_dtype)
+    if promoted_type == jnp.float64:
+      promoted_type = jnp.float32
+    elif promoted_type == jnp.int64:
+      promoted_type = jnp.int32
+    return jnp.divide(
+        self.astype(promoted_type), jnp.array(other, dtype=promoted_type)
+    )
+
+  return jax_lowering(lctx, self, other)
+
+
+@registry.lower(torch.ops.aten.div.Scalar_mode)
+def _aten_div_scalar_mode(lctx: LoweringContext, self, other, rounding_mode=""):
+  _log_usage(torch.ops.aten.div.Scalar_mode)
+
+  @jax_bridge.wrap
+  def jax_lowering(self, other):
+    other_dtype = jnp.result_type(other)
+    promoted_type = jnp.promote_types(self.dtype, other_dtype)
+    if promoted_type == jnp.float64:
+      promoted_type = jnp.float32
+    elif promoted_type == jnp.int64:
+      promoted_type = jnp.int32
+    if rounding_mode == "floor":
+      return jnp.floor_divide(
+          self.astype(promoted_type), jnp.array(other, dtype=promoted_type)
+      )
+    result = jnp.divide(
+        self.astype(promoted_type), jnp.array(other, dtype=promoted_type)
+    )
+    if rounding_mode == "trunc":
+      result = jnp.trunc(result)
+    return result
+
+  return jax_lowering(lctx, self, other)
+
+
+@registry.lower(torch.ops.aten.div.Tensor)
+def _aten_div_tensor(lctx: LoweringContext, self, other):
+  _log_usage(torch.ops.aten.div.Tensor)
+
+  @jax_bridge.wrap
+  def jax_lowering(self, other):
+    other_dtype = jnp.result_type(other)
+    promoted_type = jnp.promote_types(self.dtype, other_dtype)
+    if promoted_type == jnp.float64:
+      promoted_type = jnp.float32
+    elif promoted_type == jnp.int64:
+      promoted_type = jnp.int32
+    return jnp.divide(
+        self.astype(promoted_type), jnp.array(other, dtype=promoted_type)
+    )
+
+  return jax_lowering(lctx, self, other)
+
+
+@registry.lower(torch.ops.aten.div.Tensor_mode)
+def _aten_div_tensor_mode(lctx: LoweringContext, self, other, rounding_mode=""):
+  _log_usage(torch.ops.aten.div.Tensor_mode)
+
+  @jax_bridge.wrap
+  def jax_lowering(self, other):
+    other_dtype = jnp.result_type(other)
+    promoted_type = jnp.promote_types(self.dtype, other_dtype)
+    if promoted_type == jnp.float64:
+      promoted_type = jnp.float32
+    elif promoted_type == jnp.int64:
+      promoted_type = jnp.int32
+    if rounding_mode == "floor":
+      return jnp.floor_divide(
+          self.astype(promoted_type), jnp.array(other, dtype=promoted_type)
+      )
+    result = jnp.divide(
+        self.astype(promoted_type), jnp.array(other, dtype=promoted_type)
+    )
+    if rounding_mode == "trunc":
+      result = jnp.trunc(result)
+    return result
 
   return jax_lowering(lctx, self, other)
 

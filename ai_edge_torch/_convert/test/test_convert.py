@@ -594,6 +594,27 @@ class TestConvert(googletest.TestCase):
       self.fail(f"Conversion failed with int64 inputs: {err}")
     # pylint: enable=broad-except
 
+  def test_convert_model_with_torch_div_operation(self):
+    """Test converting a simple model with torch.div operation."""
+
+    class SampleModel(nn.Module):
+
+      def forward(self, x: torch.Tensor, y: torch.Tensor):
+        return x / y
+
+    model = SampleModel().eval()
+    args = (
+        torch.randint(0, 100, (10, 10), dtype=torch.int64),
+        torch.randint(0, 100, (10, 10), dtype=torch.int64),
+    )
+
+    try:
+      # Expect this to fix the error during conversion
+      ai_edge_torch.convert(model, args)
+    except Exception as err:
+      self.fail(f"Conversion failed with int64 inputs: {err}")
+    # pylint: enable=broad-except
+
   def test_compile_model(self):
     """Tests AOT compilation of a simple Add module."""
 
