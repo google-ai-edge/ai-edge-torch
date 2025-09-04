@@ -55,6 +55,12 @@ def _build_flat_inputs(exported_program: torch.export.ExportedProgram):
           f"{type(arg)} (for {node.name}) does not have tensor meta"
       )
 
+    if dataclasses.is_dataclass(tensor_meta):
+      if tensor_meta.dtype == torch.int64:
+        tensor_meta = dataclasses.replace(tensor_meta, dtype=torch.int32)
+      elif tensor_meta.dtype == torch.float64:
+        tensor_meta = dataclasses.replace(tensor_meta, dtype=torch.float32)
+
     tensor_metas.append(tensor_meta)
     # Assume all dynamic dimensions are unbounded.
     # TODO: Add checks for ep.range_constraints in MLIR.
@@ -429,11 +435,17 @@ def exported_program_to_mlir(
     # Assumption:
     # All states comes first in the list of args, and user provided inputs
     # comes later. Also there is no kwargs.
+    dtype = tensor_meta.dtype
+    if dtype == torch.int64:
+      dtype = torch.int32
+    elif dtype == torch.float64:
+      dtype = torch.float32
+
     if input_spec.kind == torch.export.graph_signature.InputKind.USER_INPUT:
       input_signature.append(
           VariableSignature(
               tensor_meta.shape,
-              tensor_meta.dtype,
+              dtype,
               input_spec=InputSpec.user_input(user_inputs_cnt),
           )
       )
@@ -444,7 +456,7 @@ def exported_program_to_mlir(
       input_signature.append(
           VariableSignature(
               tensor_meta.shape,
-              tensor_meta.dtype,
+              dtype,
               input_spec=InputSpec.parameter(input_spec.target),
           )
       )

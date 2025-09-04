@@ -128,6 +128,10 @@ def gather_state_dict(
 
   for _, tensor, _ in _get_states(exported_programs, signatures):
     unique_id = _tensor_unique_id(tensor)
+    if tensor.dtype == torch.int64:
+      tensor = tensor.to(torch.int32)
+    elif tensor.dtype == torch.float64:
+      tensor = tensor.to(torch.float32)
     deduped_tensor_map[unique_id] = _torch_to_tf_variable(tensor)
 
   state_dict = {}
