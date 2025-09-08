@@ -20,6 +20,7 @@ import numbers
 from typing import Any, Optional, Sequence, Union
 from ai_edge_torch.odml_torch import export_utils
 from jax._src.lib.mlir import ir
+from jax._src.lib.mlir.dialects import arith
 from jax._src.lib.mlir.dialects import hlo as stablehlo
 import numpy as np
 import torch
@@ -74,13 +75,9 @@ def splat(val, ty, shape=tuple(), *, loc: Optional[Any] = None):
   else:
     raise ValueError("Unsupported type: %s" % str(ty))
 
-  return stablehlo.constant(
-      ir.DenseElementsAttr.get_splat(
-          ir.RankedTensorType.get(shape, ty),
-          attr,
-      ),
-      loc=loc,
-  )
+  ty = ir.RankedTensorType.get(shape, ty)
+  attr = ir.DenseElementsAttr.get_splat(ty, attr)
+  return arith.constant(ty, attr, loc=loc)
 
 
 def get_common_broadcast_shape(
@@ -267,7 +264,7 @@ def numpy_array_constant(x: np.ndarray | np.generic) -> IrValues:
     x = np.packbits(x, bitorder="little")  # type: ignore
   x = np.ascontiguousarray(x)
   attr = ir.DenseElementsAttr.get(x, type=element_type, shape=shape)  # type: ignore
-  return stablehlo.constant(attr)
+  return arith.constant(ir.RankedTensorType.get(shape, element_type), attr)
 
 
 def convert_to_ir_value(
