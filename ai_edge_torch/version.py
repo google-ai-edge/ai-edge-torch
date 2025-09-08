@@ -15,4 +15,4 @@
 
 # The next version of ai-edge-torch.
 # The minor version code should be bumped after every release.
-__version__ = "0.6.0"
+__version__ = "0.7.0"
