@@ -45,10 +45,12 @@ class MergedBundle:
 
 def torch_dtype_to_tf(dtype):
   return {
-      torch.double: tf.float64,
+      # torch.double: tf.float64,
+      torch.double: tf.float32,
       torch.float32: tf.float32,
       torch.half: tf.float16,
-      torch.long: tf.int64,
+      # torch.long: tf.int64,
+      torch.long: tf.int32,
       torch.int32: tf.int32,
       torch.int16: tf.int16,
       torch.bool: tf.bool,
@@ -158,10 +160,23 @@ def merged_bundle_to_tfl_model(
   tf_module.f = []
 
   for tf_sig, func in zip(tf_signatures, tf_functions):
+    processed_tf_sig = []
+    for spec in tf_sig:
+      if spec.dtype == tf.int64:
+        processed_tf_sig.append(
+            tf.TensorSpec(shape=spec.shape, dtype=tf.int32, name=spec.name)
+        )
+      elif spec.dtype == tf.float64:
+        processed_tf_sig.append(
+            tf.TensorSpec(shape=spec.shape, dtype=tf.float32, name=spec.name)
+        )
+      else:
+        processed_tf_sig.append(spec)
+
     tf_module.f.append(
         tf.function(
             func,
-            input_signature=tf_sig,
+            input_signature=processed_tf_sig,
         )
     )
 

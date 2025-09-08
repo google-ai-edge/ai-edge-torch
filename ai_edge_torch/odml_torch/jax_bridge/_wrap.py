@@ -31,7 +31,8 @@ import torch.utils._pytree as pytree
 # i64/f64 tensors from Jax bridged lowerings. If not set properly, all the
 # 64bit tensors would be truncated to 32bit dtype and potentially break the
 # lowering.
-jax.config.update("jax_enable_x64", True)
+# jax.config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", False)
 
 
 def _lower_to_ir_text(

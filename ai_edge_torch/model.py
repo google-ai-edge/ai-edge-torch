@@ -27,6 +27,7 @@ from typing import Callable
 
 import numpy.typing as npt
 import tensorflow as tf
+import torch
 
 from ai_edge_litert import interpreter as tfl_interpreter  # pylint: disable=g-direct-tensorflow-import
 
@@ -132,7 +133,19 @@ class TfLiteModel(Model):
       )
 
     # Gather the input dictionary based on the signature.
-    inputs = {f'args_{idx}': args[idx] for idx in range(len(args))}
+    inputs = {}
+    for idx in range(len(args)):
+      arg = args[idx]
+      arg_name = f'args_{idx}'
+      if hasattr(arg, 'dtype'):
+        print(f"Input '{arg_name}' has dtype: {arg.dtype}")
+        if arg.dtype == torch.int64:
+          arg = arg.to(torch.int32)
+          print(f"Converted '{arg_name}' to dtype: {arg.dtype}")
+        elif arg.dtype == torch.float64:
+          arg = arg.to(torch.float32)
+          print(f"Converted '{arg_name}' to dtype: {arg.dtype}")
+      inputs[arg_name] = arg
     inputs = {**inputs, **kwargs}
     outputs = runner(**inputs)
 

@@ -29,10 +29,12 @@ import torch.utils._pytree as pytree
 def torch_dtype_to_ir_element_type(dtype) -> ir.Type:
   """Builds ir.Type from torch dtype."""
   ty_get = {
-      torch.double: ir.F64Type.get,
+      # torch.double: ir.F64Type.get,
+      torch.double: ir.F32Type.get,
       torch.float32: ir.F32Type.get,
       torch.half: ir.F16Type.get,
-      torch.long: functools.partial(ir.IntegerType.get_signless, 64),
+      # torch.long: functools.partial(ir.IntegerType.get_signless, 64),
+      torch.long: functools.partial(ir.IntegerType.get_signless, 32),
       torch.int32: functools.partial(ir.IntegerType.get_signless, 32),
       torch.int16: functools.partial(ir.IntegerType.get_signless, 16),
       torch.int8: functools.partial(ir.IntegerType.get_signless, 8),
@@ -122,6 +124,7 @@ def get_broadcast_dimensions(
   for val in range(len(shape_to) - len(shape_from), len(shape_to)):
     ret.append(val)
 
+  # check?
   return ir.DenseI64ArrayAttr.get(np.asarray(ret, np.int64))
 
 
@@ -221,7 +224,8 @@ def convert_int_to_float(t: ir.Value) -> ir.Value:
     )
   elif elty.width == 64:
     return stablehlo.convert(
-        ir.RankedTensorType.get(t.type.shape, ir.F64Type.get()), t
+        # ir.RankedTensorType.get(t.type.shape, ir.F64Type.get()), t
+        ir.RankedTensorType.get(t.type.shape, ir.F32Type.get()), t
     )
 
 
@@ -235,14 +239,17 @@ _numpy_dtype_to_ir_type: dict[np.dtype, Callable[[], ir.Type]] = {
     np.dtype(np.int8): functools.partial(ir.IntegerType.get_signless, 8),
     np.dtype(np.int16): functools.partial(ir.IntegerType.get_signless, 16),
     np.dtype(np.int32): functools.partial(ir.IntegerType.get_signless, 32),
-    np.dtype(np.int64): functools.partial(ir.IntegerType.get_signless, 64),
+    # np.dtype(np.int64): functools.partial(ir.IntegerType.get_signless, 64),
+    np.dtype(np.int64): functools.partial(ir.IntegerType.get_signless, 32),
     np.dtype(np.uint8): functools.partial(ir.IntegerType.get_unsigned, 8),
     np.dtype(np.uint16): functools.partial(ir.IntegerType.get_unsigned, 16),
     np.dtype(np.uint32): functools.partial(ir.IntegerType.get_unsigned, 32),
-    np.dtype(np.uint64): functools.partial(ir.IntegerType.get_unsigned, 64),
+    # np.dtype(np.uint64): functools.partial(ir.IntegerType.get_unsigned, 64),
+    np.dtype(np.uint64): functools.partial(ir.IntegerType.get_unsigned, 32),
     np.dtype(np.float16): ir.F16Type.get,
     np.dtype(np.float32): ir.F32Type.get,
-    np.dtype(np.float64): ir.F64Type.get,
+    # np.dtype(np.float64): ir.F64Type.get,
+    np.dtype(np.float64): ir.F32Type.get,
     np.dtype(np.complex64): lambda: ir.ComplexType.get(ir.F32Type.get()),
     np.dtype(np.complex128): lambda: ir.ComplexType.get(ir.F64Type.get()),
 }
