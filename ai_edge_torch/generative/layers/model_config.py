@@ -75,6 +75,8 @@ class NormalizationConfig:
   scale_shift: float = 0.0
   # Number of groups used in group normalization.
   group_num: Optional[float] = None
+  enable_scale: bool = True
+  disable_eps: bool = False
 
 
 # Exprimental feature and may subject to change.
