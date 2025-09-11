@@ -636,6 +636,50 @@ class TestConvert(googletest.TestCase):
       self.fail(f"Conversion failed with 6d inputs: {err}")
     # pylint: enable=broad-except
 
+  @googletest.skipIf(
+      ai_edge_torch.config.in_oss,
+      reason="wait until dependencies are released to tf-nightly",
+  )
+  def test_convert_model_with_slice_6d_inputs(self):
+    """Test converting a simple model with slice and 6d inputs."""
+
+    class SampleModel(nn.Module):
+
+      def forward(self, x: torch.Tensor):
+        return x[0:1, 0:2, 0:3, 0:4, 0:5, 0:1]
+
+    model = SampleModel().eval()
+    args = (torch.randn((1, 2, 3, 4, 5, 6)),)
+
+    try:
+      # Expect this to fix the error during conversion
+      ai_edge_torch.convert(model, args)
+    except Exception as err:
+      self.fail(f"Conversion failed with 6d inputs for slice: {err}")
+    # pylint: enable=broad-except
+
+  @googletest.skipIf(
+      ai_edge_torch.config.in_oss,
+      reason="wait until dependencies are released to tf-nightly",
+  )
+  def test_convert_model_with_strided_slice_6d_inputs(self):
+    """Test converting a simple model with strided_slice and 6d inputs."""
+
+    class SampleModel(nn.Module):
+
+      def forward(self, x: torch.Tensor):
+        return x[:, :, :, :, :, ::2]
+
+    model = SampleModel().eval()
+    args = (torch.randn((1, 2, 3, 4, 5, 6)),)
+
+    try:
+      # Expect this to fix the error during conversion
+      ai_edge_torch.convert(model, args)
+    except Exception as err:
+      self.fail(f"Conversion failed with 6d inputs for strided_slice: {err}")
+    # pylint: enable=broad-except
+
   def test_compile_model(self):
     """Tests AOT compilation of a simple Add module."""
 
