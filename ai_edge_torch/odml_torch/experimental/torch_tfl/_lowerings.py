@@ -72,10 +72,11 @@ def _tfl_batch_matmul_lowering(
 @lower(torch.ops.tfl.add.default)
 def _tfl_add_lowering(
     lctx: LoweringContext,
-    lhs: ir.Value,
+    lhs: ir.Value | int | float,
     rhs: ir.Value | int | float,
     fused_activation_function: str = "NONE",
 ) -> ir.Value:
+  lhs = lowering_utils.convert_to_ir_value(lhs)
   rhs = lowering_utils.convert_to_ir_value(rhs)
   return _ir_operation(
       "tfl.add",

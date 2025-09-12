@@ -243,6 +243,18 @@ def _aten_cat_decomp(tensors, dim=0):
   return torch.ops.tfl.concatenation(processed_tensors, dim)
 
 
+@register_decomp(torch.ops.aten.full.default)
+def _aten_full_decomp(
+    size,
+    fill_value,
+    dtype=None,
+    layout=None,
+    device=None,
+    pin_memory=None,
+):
+  return torch.ops.tfl.fill(tuple(size), fill_value)
+
+
 @register_decomp(torch.ops.aten.full_like.default)
 def _aten_full_like_decomp(
     x,
