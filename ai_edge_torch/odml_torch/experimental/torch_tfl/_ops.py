@@ -19,6 +19,7 @@ from typing import Any, Sequence
 
 from ai_edge_torch.odml_torch.experimental.torch_tfl import torch_library_utils
 import numpy as np
+import tensorflow as tf
 import torch
 
 
@@ -316,6 +317,28 @@ def tfl_slice(
 
   slices = [slice(i, i + l) for i, l in zip(begin, size)]
   return input[tuple(slices)].clone()
+
+
+@torch.library.custom_op("tfl::scatter_nd", mutates_args=())
+def tfl_scatter_nd(
+    indices: torch.Tensor,
+    updates: torch.Tensor,
+    shape: Sequence[int],
+) -> torch.Tensor:
+  # TODO: Implement this in native torch.
+  indices = indices.detach().numpy()
+  updates = updates.detach().numpy()
+  out = tf.scatter_nd(indices, updates, shape)
+  return torch.tensor(out)
+
+
+@torch.library.register_fake("tfl::scatter_nd")
+def tfl_scatter_nd(
+    indices: torch.Tensor,
+    updates: torch.Tensor,
+    shape: Sequence[int],
+) -> torch.Tensor:
+  return torch.empty(shape, dtype=updates.dtype)
 
 
 @torch.library.custom_op("tfl::slice.tensor", mutates_args=())
