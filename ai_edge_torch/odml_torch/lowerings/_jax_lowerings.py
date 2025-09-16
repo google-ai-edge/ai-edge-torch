@@ -18,6 +18,7 @@ import logging
 from ai_edge_torch.odml_torch import jax_bridge
 from ai_edge_torch.odml_torch.lowerings import context
 from ai_edge_torch.odml_torch.lowerings import registry
+import jax
 import jax.numpy as jnp
 from jax._src.lib.mlir import ir
 import torch
@@ -218,7 +219,6 @@ lower_by_torch_xla2(torch.ops.aten.tensor_split.sections)
 lower_by_torch_xla2(torch.ops.aten.to.device)
 lower_by_torch_xla2(torch.ops.aten.to.device)
 lower_by_torch_xla2(torch.ops.aten.to.dtype)
-lower_by_torch_xla2(torch.ops.aten.topk)
 lower_by_torch_xla2(torch.ops.aten.transpose)
 lower_by_torch_xla2(torch.ops.aten.transpose_copy)
 lower_by_torch_xla2(torch.ops.aten.triu)
@@ -508,3 +508,36 @@ def _aten_einsum_default(
     return jnp.einsum(equation, *operands, optimize="optimal")
 
   return jax_lowering(lctx, tuple(tensors))
+
+
+@registry.lower(torch.ops.aten.topk)
+def _aten_topk(
+    lctx: LoweringContext, self, k, dim=-1, largest=True, sorted=True
+):
+  _log_usage(torch.ops.aten.topk)
+
+  if not sorted:
+    logging.warning(
+        "aten.topk lowering ignores `sorted=False` and always returns sorted"
+        " results."
+    )
+
+  @jax_bridge.wrap
+  def jax_lowering(self, k):
+    if not largest:
+      self = -self
+    # jax.lax.top_k always sorts and operates on the last dimension.
+    move_dim_to_last = dim != -1 and dim != self.ndim - 1
+    if move_dim_to_last:
+      input_tensor = jnp.moveaxis(self, dim, -1)
+    else:
+      input_tensor = self
+    values, indices = jax.lax.top_k(input_tensor, k)
+    if move_dim_to_last:
+      values = jnp.moveaxis(values, -1, dim)
+      indices = jnp.moveaxis(indices, -1, dim)
+    if not largest:
+      values = -values
+    return values, indices
+
+  return jax_lowering(lctx, self, k)
