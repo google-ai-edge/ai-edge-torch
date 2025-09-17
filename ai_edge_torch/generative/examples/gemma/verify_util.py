@@ -80,7 +80,7 @@ class GemmaWrapper(verifier.ModelWrapper):
         top_ps=torch.tensor([1.0], dtype=torch.float),
         top_ks=torch.tensor([1], dtype=torch.long),
         local_mask=local_mask_cache.index_select(2, input_pos)
-        if local_mask_cache
+        if local_mask_cache is not None
         else None,
     )
     return logits
