@@ -31,13 +31,14 @@ def apply_rope(
   Returns:
     output tensor of RoPE.
   """
-  x = x.transpose(1, 2)
   rope_size = cos.size(-1)
   x_splited = torch.split(x, rope_size, dim=-1)
+  cos = cos.unsqueeze(2)
+  sin = sin.unsqueeze(2)
   left = x_splited[0] * cos - x_splited[1] * sin
   right = x_splited[1] * cos + x_splited[0] * sin
   roped = torch.cat((left, right) + x_splited[2:], dim=-1)
-  return roped.transpose(1, 2).type_as(x)
+  return roped.type_as(x)
 
 
 def build_rope(
