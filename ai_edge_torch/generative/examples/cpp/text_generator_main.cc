@@ -53,6 +53,12 @@ limitations under the License.
 //    --start_token="<bos>" \
 //    --stop_token="<eos>"  \
 //    --num_threads=4
+//
+//
+// NOTES: This example assumes *internal attenion mask* and *untransposed KV*
+// in the model. This requires setting `--mask_as_input=False` and
+// `--transpose_kv_cache=False` in the conversion.
+//
 
 ABSL_FLAG(std::string, tflite_model, "",
           "Two-signature tflite model prepared for text generation using ODML "
