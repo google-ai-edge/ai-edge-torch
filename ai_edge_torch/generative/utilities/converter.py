@@ -18,18 +18,20 @@
 import enum
 import os
 import pathlib
-from typing import Optional, Union
+import tempfile
+from typing import Any, Optional, Union
 from absl import flags
 from ai_edge_torch._convert import converter as converter_utils
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.layers import lora as lora_utils
 import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.quantize import quant_recipes
-from ai_edge_torch.generative.utilities import export_config
+from ai_edge_torch.generative.utilities import export_config as export_config_lib
+from ai_edge_torch.generative.utilities import litertlm_builder
 from ai_edge_torch.quantize import quant_config as qcfg
 import torch
 
-ExportConfig = export_config.ExportConfig
+ExportConfig = export_config_lib.ExportConfig
 
 
 class ExportableModule(torch.nn.Module):
@@ -325,6 +327,7 @@ def convert_to_tflite(
       loras,
       export_config,
   )
+  return output_file
 
 
 def _export_helper(
@@ -457,3 +460,51 @@ def _export_helper(
       quant_config=quant_config,
   )
   edge_model.export(output_file)
+
+
+def convert_to_litert(
+    pytorch_model: torch.nn.Module,
+    output_path: str,
+    output_name_prefix: str,
+    prefill_seq_len: Union[int, list[int]],
+    kv_cache_max_len: int,
+    pixel_values_size: torch.Size = None,
+    pixel_seq_len: int = 0,
+    quantize: str = 'dynamic_int8',
+    config: cfg.ModelConfig = None,
+    lora_ranks: Optional[list[int]] = None,
+    export_config: ExportConfig = None,
+    output_format: str = 'tflite',
+    **kwargs,
+):
+  """Converts a nn.Module model to multi-signature tflite model and pack it."""
+  with tempfile.TemporaryDirectory() as workdir:
+    if output_format == 'litertlm':
+      tflite_model_output_path = workdir
+    else:
+      tflite_model_output_path = output_path
+    tflite_model_path = convert_to_tflite(
+        pytorch_model,
+        tflite_model_output_path,
+        output_name_prefix,
+        prefill_seq_len,
+        kv_cache_max_len,
+        pixel_values_size,
+        pixel_seq_len,
+        quantize,
+        config,
+        lora_ranks,
+        export_config,
+    )
+    if output_format == 'litertlm':
+      tokenizer_model_path = kwargs.pop('tokenizer_model_path', None)
+      hf_tokenizer_model_path = kwargs.pop('hf_tokenizer_model_path', None)
+      litertlm_builder.build_litertlm(
+          tflite_model_path=tflite_model_path,
+          workdir=workdir,
+          output_path=output_path,
+          context_length=kv_cache_max_len,
+          tokenizer_model_path=tokenizer_model_path,
+          hf_tokenizer_model_path=hf_tokenizer_model_path,
+          **kwargs,
+      )
