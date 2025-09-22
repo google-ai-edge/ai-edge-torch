@@ -1,6 +1,6 @@
 # AI Edge Torch Generative API
 
-Our Generative API library provides PyTorch native building blocks for composing Transformer models such as [Gemma](examples/gemma), [TinyLlama](examples/tiny_llama) and [others](examples/) using mobile-friendly abstractions, through which we can guarantee conversion, and performant execution on our mobile runtime, [TensorFlow Lite](https://ai.google.dev/edge/lite).
+Our Generative API library provides PyTorch native building blocks for composing Transformer models such as [Gemma](examples/gemma), [TinyLlama](examples/tiny_llama) and [others](examples/) using mobile-friendly abstractions, through which we can guarantee conversion, and performant execution on our mobile runtime, [LiteRT](https://ai.google.dev/edge/litert).
 
 Before proceeding, please note:
 * This is only v0.1 of the API, an early developer preview in the interest of developing openly in the community.
@@ -9,13 +9,13 @@ Before proceeding, please note:
 
 ## System Overview
 
-The system is designed to help ML practitioners deploy their trained Large Language Models on mobile devices using the TFLite runtime. It assumes the user already has a trained model they are happy with, and is optimized for mobile inference.
+The system is designed to help ML practitioners deploy their trained Large Language Models on mobile devices using the LiteRT runtime. It assumes the user already has a trained model they are happy with, and is optimized for mobile inference.
 
 * Start with a trained PyTorch Large Language Model. You can choose any off the shelf model from huggingface.co, kaggle.com, or bring your own PyTorch model.
 * [Re-author](#model-authoring-using-edge-generative-api) the model using the Edge Generative API. If our [examples](examples/) already contain it, it can save you time.
 * [Quantize](#quantization) the model using our Quantization APIs. This is critical for reducing model size, and achieving reasonable performance.
 * Verify the model implementation, and quality using your model evaluation pipeline, including pre/post-processing steps for the LLM pipeline.
-* [Convert](#convert-pytorch-llm-to-a-tflite-model) the model, and get a TFLite Flatbuffer representing the mobile model.
+* [Convert](#convert-pytorch-llm-to-a-litert-model) the model, and get a LiteRT Flatbuffer representing the mobile model.
 * Choose either approach below to deploy the end to end [LLM Inference Pipeline](#end-to-end-inference-pipeline).
 
 For a more detailed explanation of how the system works, please refer to the [System Overview](doc/system_overview.md).
@@ -44,9 +44,9 @@ Once converted, you will get a quantized `.tflite` model which will be ready for
 
 Please refer to [quantization documentation](quantize/README.md) for more details.
 
-### Convert PyTorch LLM to a TFLite model
+### Convert PyTorch LLM to a LiteRT model
 
-Once you re-author the model and validate its numerical accuracy, you can convert the `nn.Module` to TFLite format. Usually for LLMs, there are two entry functions (signatures) we can export: `prefill` and `decode`. Those two signatures only differ in the shape of arguments.
+Once you re-author the model and validate its numerical accuracy, you can convert the `nn.Module` to LiteRT format. Usually for LLMs, there are two entry functions (signatures) we can export: `prefill` and `decode`. Those two signatures only differ in the shape of arguments.
 
 For example, in the `generative/examples/test_models/toy_model_with_kv_cache.py`, you can define inputs for both signatures:
 
@@ -56,7 +56,7 @@ https://github.com/google-ai-edge/ai-edge-torch/blob/853301630f2b2455bd2e2f73d8a
 Sample inputs for the `decode` signature:
 https://github.com/google-ai-edge/ai-edge-torch/blob/853301630f2b2455bd2e2f73d8a47e1a1534c91c/ai_edge_torch/generative/examples/test_models/toy_model_with_kv_cache.py#L111-L114
 
-Then export the model to TFLite with:
+Then export the model to LiteRT with:
 https://github.com/google-ai-edge/ai-edge-torch/blob/853301630f2b2455bd2e2f73d8a47e1a1534c91c/ai_edge_torch/generative/examples/test_models/toy_model_with_kv_cache.py#L133-L139
 
 Please note that using the `prefill_{SEQ-LEN}` and `decode` method conventions are required for easy integration into the Mediapipe LLM Inference API.
@@ -69,9 +69,9 @@ To further optimize the on-device execution, a model can be exported with more t
 
 The model files typically only perform the core ML computation in the LLM pipeline. Deploying the full pipeline requires handling tokenization, sampling and any other pre or post-processing steps required by your system. There are two ways to deploy the converted LLMs on device as part of a full LLM Inference Pipeline.
 
-#### Use TFLite Runtime APIs
+#### Use LiteRT Runtime APIs
 
-The user needs to implement the entire LLM Pipeline themselves, and call TFLite Runtime APIs directly to invoke the model. A text generation pipeline typically requires a tokenizer/detokenizer and a sampler, in addition to model inference. The tokenizer converts the input text from a string to a list of integers. The `prefill` signature ingests the sequence of input tokens, and the `decode` signature is invoked to obtain a tensor of logits. The sampler selects a token based on the provided logits, and the decode loop is repeated autoregressively. Ultimately, the detokenizer maps the generated tokens back into human-readable text.
+The user needs to implement the entire LLM Pipeline themselves, and call LiteRT Runtime APIs directly to invoke the model. A text generation pipeline typically requires a tokenizer/detokenizer and a sampler, in addition to model inference. The tokenizer converts the input text from a string to a list of integers. The `prefill` signature ingests the sequence of input tokens, and the `decode` signature is invoked to obtain a tensor of logits. The sampler selects a token based on the provided logits, and the decode loop is repeated autoregressively. Ultimately, the detokenizer maps the generated tokens back into human-readable text.
 
 This approach provides users with the most control. For example, they can implement streaming, get more control over system memory or implement advanced features such as constrained grammar decoding, speculative decoding etc.
 
@@ -83,7 +83,7 @@ The [MediaPipe LLM Inference API](http://ai.google.dev/edge/mediapipe/solutions/
 
 To deploy using the MP LLM Inference API, you need to
 * Ensure you convert models using the expected convention of `prefill`, and `decode` functions in the examples. The pipeline only supports `SentencePiece` tokenizer, but it can support a wide variety of models.
-* Bundle the converted TFLite files along with some other configurations such as start/stop tokens, tokenizer model etc. See [here](http://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference#ai_edge_model_conversion)
+* Bundle the converted LiteRT files along with some other configurations such as start/stop tokens, tokenizer model etc. See [here](http://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference#ai_edge_model_conversion)
 * Once the bundle is created, you can easily invoke the pipeline using the mobile APIs [here](https://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference/android#create_the_task).
 
 #### Tokenizer
@@ -138,4 +138,4 @@ For an end-to-end example showing how to author, convert, quantize and execute, 
 The following are known product issues we are actively working to fix.
 
 * The conversion, and serialization process is unoptimized for LLMs. It requires keeping multiple copies of the weights in memory for transformations, and serialization/deserialization. For an optimal conversion flow, use Colab Pro or a powerful Linux workstation (or cloud instance) with at least 32GB of RAM.
-* Runtime execution of the LLM in TFLite is missing some memory optimizations, and inefficient during memory unpacking on XNNPack.
+* Runtime execution of the LLM in LiteRT is missing some memory optimizations, and inefficient during memory unpacking on XNNPack.
