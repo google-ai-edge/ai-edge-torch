@@ -102,7 +102,11 @@ class DecoderBlock(attention.TransformerBlock):
     """
 
     x_norm = self.pre_atten_norm(x)
-    attn_out, kv = self.atten_func(x_norm, rope, mask, input_pos, kv_cache)
+    attn_out = self.atten_func(x_norm, rope, mask, input_pos, kv_cache)
+    if isinstance(attn_out, tuple):
+      attn_out, kv = attn_out
+    else:
+      kv = None
     attn_out_norm = self.post_atten_norm(attn_out)
     x = x + attn_out_norm
     output = x + self.ff(x)
