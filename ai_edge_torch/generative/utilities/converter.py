@@ -19,7 +19,7 @@ import enum
 import os
 import pathlib
 import tempfile
-from typing import Any, Optional, Union
+from typing import Callable, Dict, Optional, Union
 from absl import flags
 from ai_edge_torch._convert import converter as converter_utils
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
@@ -28,6 +28,7 @@ import ai_edge_torch.generative.layers.model_config as cfg
 from ai_edge_torch.generative.quantize import quant_recipes
 from ai_edge_torch.generative.utilities import export_config as export_config_lib
 from ai_edge_torch.generative.utilities import litertlm_builder
+from ai_edge_torch.generative.utilities import loader
 from ai_edge_torch.quantize import quant_config as qcfg
 import torch
 
@@ -95,6 +96,11 @@ def define_conversion_flags(
       'List of the maximum sizes of prefill input tensors.',
   )
   flags.DEFINE_integer(
+      'decode_batch_size',
+      1,
+      'The batch size for the decode signature.',
+  )
+  flags.DEFINE_integer(
       'kv_cache_max_len',
       1280,
       'The maximum size of KV cache buffer, including both prefill and decode.',
@@ -128,12 +134,43 @@ def define_conversion_flags(
       'If true, the conversion script will use a custom checkpoint loader which'
       ' will read a checkpoint from a remote source.',
   )
+  flags.DEFINE_bool(
+      'gpu_dynamic_shapes',
+      False,
+      'It is to support dynamic shapes on GPU effectively. If true, the graph '
+      'sets the actual kv_cache size and prefill length when the graph is '
+      'initialized for inference based on `kv_cache_max_len` and the last '
+      '`prefill_seq_lens` as the maximum of kv_cache size and prefill length.',
+  )
   return flags
+
+
+def is_magic_number_(num: int) -> bool:
+  """Returns true if the number is a magic number, i.e. prime number > 10."""
+  if num < 10:
+    return False
+  if num % 2 == 0:
+    return False
+  for i in range(3, int(num / 2), 2):
+    if num % i == 0:
+      return False
+  return True
+
+
+def get_magic_number_for(org_number: int) -> int:
+  """Returns the magic number for the given original number."""
+  while not is_magic_number_(org_number):
+    org_number += 1
+  return org_number
 
 
 def get_mask_cache_size_from_flags() -> int:
   """Returns the mask cache size according to the flags."""
-  return 0 if flags.FLAGS.mask_as_input else flags.FLAGS.kv_cache_max_len
+  if flags.FLAGS.mask_as_input:
+    return 0
+  if flags.FLAGS.gpu_dynamic_shapes:
+    return get_magic_number_for(flags.FLAGS.kv_cache_max_len)
+  return flags.FLAGS.kv_cache_max_len
 
 
 def get_quant_recipe_from_flag(
@@ -460,6 +497,46 @@ def _export_helper(
       quant_config=quant_config,
   )
   edge_model.export(output_file)
+
+
+def build_and_convert_to_tflite_from_flags(
+    model_builder: Callable[
+        [str, Callable[[str], Dict[str, torch.Tensor]], int], torch.nn.Module
+    ],
+    checkpoint_path: str = None,
+    output_name_prefix: str = None,
+):
+  """Builds a nn.Module model and converts it according to the flags."""
+  if checkpoint_path is None:
+    checkpoint_path = flags.FLAGS.checkpoint_path
+  if output_name_prefix is None:
+    output_name_prefix = flags.FLAGS.output_name_prefix
+
+  pytorch_model = model_builder(
+      checkpoint_path,
+      loader.maybe_get_custom_loader(
+          checkpoint_path, flags.FLAGS.custom_checkpoint_loader
+      ),
+      get_mask_cache_size_from_flags(),
+  )
+
+  if flags.FLAGS.gpu_dynamic_shapes:
+    prefill_seq_len = get_magic_number_for(flags.FLAGS.prefill_seq_lens[-1])
+    kv_cache_max_len = get_magic_number_for(flags.FLAGS.kv_cache_max_len)
+  else:
+    prefill_seq_len = flags.FLAGS.prefill_seq_lens
+    kv_cache_max_len = flags.FLAGS.kv_cache_max_len
+
+  convert_to_tflite(
+      pytorch_model,
+      output_path=flags.FLAGS.output_path,
+      output_name_prefix=output_name_prefix,
+      prefill_seq_len=prefill_seq_len,
+      kv_cache_max_len=kv_cache_max_len,
+      quantize=flags.FLAGS.quantize,
+      lora_ranks=flags.FLAGS.lora_ranks,
+      export_config=export_config_lib.get_from_flags(),
+  )
 
 
 def convert_to_litert(
