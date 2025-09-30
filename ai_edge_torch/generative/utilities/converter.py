@@ -108,14 +108,14 @@ def define_conversion_flags(
   flags.DEFINE_string(
       'quantize',
       'dynamic_int8',
-      'How the model should be quantized. Set to "none" to disable'
-      ' quantization. See `QuantizationName` for supported quantization types.',
+      'How the model should be quantized. Set to "none" to disable '
+      'quantization. See `QuantizationName` for supported quantization types.',
   )
   flags.DEFINE_multi_integer(
       'lora_ranks',
       None,
-      'If set, the model will be converted with the provided list of LoRA'
-      ' ranks.',
+      'If set, the model will be converted with the provided list of LoRA '
+      'ranks.',
   )
   flags.DEFINE_bool(
       'mask_as_input',
@@ -131,16 +131,17 @@ def define_conversion_flags(
   flags.DEFINE_bool(
       'custom_checkpoint_loader',
       False,
-      'If true, the conversion script will use a custom checkpoint loader which'
-      ' will read a checkpoint from a remote source.',
+      'If true, the conversion script will use a custom checkpoint loader '
+      'which will read a checkpoint from a remote source.',
   )
   flags.DEFINE_bool(
       'gpu_dynamic_shapes',
       False,
       'It is to support dynamic shapes on GPU effectively. If true, the graph '
-      'sets the actual kv_cache size and prefill length when the graph is '
-      'initialized for inference based on `kv_cache_max_len` and the last '
-      '`prefill_seq_lens` as the maximum of kv_cache size and prefill length.',
+      'sets the actual kv_cache size and prefill lengths when the graph is '
+      'initialized for inference based on the flags, `kv_cache_max_len` and '
+      '`prefill_seq_lens` as the maximum of kv_cache size and prefill lengths '
+      'in the graph.',
   )
   return flags
 
@@ -521,17 +522,19 @@ def build_and_convert_to_tflite_from_flags(
   )
 
   if flags.FLAGS.gpu_dynamic_shapes:
-    prefill_seq_len = get_magic_number_for(flags.FLAGS.prefill_seq_lens[-1])
+    prefill_seq_lens = [
+        get_magic_number_for(l) for l in flags.FLAGS.prefill_seq_lens
+    ]
     kv_cache_max_len = get_magic_number_for(flags.FLAGS.kv_cache_max_len)
   else:
-    prefill_seq_len = flags.FLAGS.prefill_seq_lens
+    prefill_seq_lens = flags.FLAGS.prefill_seq_lens
     kv_cache_max_len = flags.FLAGS.kv_cache_max_len
 
   convert_to_tflite(
       pytorch_model,
       output_path=flags.FLAGS.output_path,
       output_name_prefix=output_name_prefix,
-      prefill_seq_len=prefill_seq_len,
+      prefill_seq_len=prefill_seq_lens,
       kv_cache_max_len=kv_cache_max_len,
       quantize=flags.FLAGS.quantize,
       lora_ranks=flags.FLAGS.lora_ranks,
