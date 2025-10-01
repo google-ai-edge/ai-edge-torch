@@ -15,6 +15,7 @@
 """Torch ops to Torch-TFL decompositions."""
 from typing import Sequence
 from ai_edge_torch.odml_torch.experimental.torch_tfl import _ops
+import numpy as np
 import torch
 
 decomps = {}
@@ -424,3 +425,54 @@ def _aten_topk_decomp(self, k, dim=-1, largest=True, sorted=True):
   # torch.topk returns int64 indices, but tfl.topk_v2 returns indices in int32.
   indices = indices.to(torch.int64)
   return out, indices
+
+
+@register_decomp(torch.ops.aten.scatter.src)
+def _aten_scatter_src_decomp(self, dim, index, src):
+  index = index.to(torch.int32)
+
+  # --- 1. PREPARE THE `UPDATES` TENSOR ---
+  # The number of updates is determined by the shape of the `index` tensor.
+  # The `src` tensor must be reshaped to match `index`.
+  if src.dim() == 0:
+    # If `src` is a scalar, expand it to the shape of `index`.
+    updates = src.expand(index.shape)
+  else:
+    # If `src` is a tensor, slice its top-left corner to match `index`.
+    slicing_tuple = tuple(slice(s) for s in index.shape)
+    updates = src[slicing_tuple]
+
+  # --- 2. CREATE FULL COORDINATE INDICES FOR TENSORFLOW ---
+  # The coordinate grid must match the shape of the `index` tensor, as this
+  # defines the number of updates to perform.
+  grid_ranges = [torch.arange(s, dtype=torch.int32) for s in index.shape]
+  grid = list(torch.meshgrid(*grid_ranges, indexing="ij"))
+
+  # Handle negative dimension indexing
+  if dim < 0:
+    dim = self.dim() + dim
+
+  # Replace the coordinates for the scatter dimension with the `index` values.
+  grid[dim] = index
+
+  # Stack the coordinates along the *last* dimension to create the final
+  # indices tensor. This is the format required by TensorFlow's scatter ops.
+  # Final shape: (*index.shape, rank_of_input)
+  indices = torch.stack(grid, dim=-1)
+
+  # 3. PERFORM THE SCATTER OPERATION
+  # `tf.tensor_scatter_nd_update` replaces values at specified indices.
+  # This matches the behavior of `torch.scatter_`. If you need the behavior
+  # of `torch.scatter_add_`, you would use `tf.tensor_scatter_nd_add`.
+  update_tensor = torch.ops.tfl.scatter_nd(indices, updates, self.shape)
+
+  # Step 2b: Create a boolean mask of the updated locations. We do this by
+  # scattering `True` values to the same indices.
+  mask_updates = torch.full_like(updates, True, dtype=torch.bool)
+  scatter_mask = torch.ops.tfl.scatter_nd(indices, mask_updates, self.shape)
+
+  # --- 3. COMBINE ORIGINAL TENSOR WITH SCATTERED UPDATES ---
+  # Use the mask to take values from `update_tensor` where updates occurred,
+  # and from the original `input_tensor` everywhere else.
+  result = torch.where(scatter_mask, update_tensor, self)
+  return result
