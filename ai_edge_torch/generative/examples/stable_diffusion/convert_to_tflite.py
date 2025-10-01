@@ -138,9 +138,7 @@ def convert_stable_diffusion_to_tflite(
   if not os.path.exists(output_dir):
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-  quant_config = (
-      quant_recipes.full_int8_weight_only_recipe() if quantize else None
-  )
+  quant_config = quant_recipes.full_weight_only_recipe() if quantize else None
 
   # TODO(yichunk): convert to multi signature tflite model.
   # CLIP text encoder
