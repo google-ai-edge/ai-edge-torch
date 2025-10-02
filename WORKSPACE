@@ -30,6 +30,13 @@ bazel_skylib_workspace()
 load("@bazel_skylib//lib:versions.bzl", "versions")
 versions.check(minimum_bazel_version = "3.7.2")
 
+http_archive(
+    name = "rules_cc",
+    sha256 = "b8b918a85f9144c01f6cfe0f45e4f2838c7413961a8ff23bc0c6cdf8bb07a3b6",
+    strip_prefix = "rules_cc-0.1.5",
+    url = "https://github.com/bazelbuild/rules_cc/releases/download/0.1.5/rules_cc-0.1.5.tar.gz",
+)
+
 # ABSL on 2023-10-18
 http_archive(
     name = "com_google_absl",
