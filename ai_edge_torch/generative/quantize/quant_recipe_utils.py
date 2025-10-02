@@ -32,23 +32,29 @@ from ai_edge_torch.generative.quantize import quant_attrs
 from ai_edge_torch.generative.quantize import quant_recipe
 
 
-def create_layer_quant_int8_dynamic() -> quant_recipe.LayerQuantRecipe:
+def create_layer_quant_dynamic(
+    weight_dtype: quant_attrs.Dtype = quant_attrs.Dtype.INT8,
+    granularity: quant_attrs.Granularity = quant_attrs.Granularity.CHANNELWISE,
+) -> quant_recipe.LayerQuantRecipe:
   return quant_recipe.LayerQuantRecipe(
       activation_dtype=quant_attrs.Dtype.FP32,
-      weight_dtype=quant_attrs.Dtype.INT8,
+      weight_dtype=weight_dtype,
       mode=quant_attrs.Mode.DYNAMIC_RANGE,
       algorithm=quant_attrs.Algorithm.MIN_MAX,
-      granularity=quant_attrs.Granularity.CHANNELWISE,
+      granularity=granularity,
   )
 
 
-def create_layer_quant_int8_weight_only() -> quant_recipe.LayerQuantRecipe:
+def create_layer_quant_weight_only(
+    weight_dtype: quant_attrs.Dtype = quant_attrs.Dtype.INT8,
+    granularity: quant_attrs.Granularity = quant_attrs.Granularity.CHANNELWISE,
+) -> quant_recipe.LayerQuantRecipe:
   return quant_recipe.LayerQuantRecipe(
       activation_dtype=quant_attrs.Dtype.FP32,
-      weight_dtype=quant_attrs.Dtype.INT8,
+      weight_dtype=weight_dtype,
       mode=quant_attrs.Mode.WEIGHT_ONLY,
       algorithm=quant_attrs.Algorithm.MIN_MAX,
-      granularity=quant_attrs.Granularity.CHANNELWISE,
+      granularity=granularity,
   )
 
 
@@ -59,17 +65,4 @@ def create_layer_quant_fp16() -> quant_recipe.LayerQuantRecipe:
       mode=quant_attrs.Mode.WEIGHT_ONLY,
       algorithm=quant_attrs.Algorithm.FLOAT_CAST,
       granularity=quant_attrs.Granularity.NONE,
-  )
-
-
-def create_layer_quant_int4_dynamic_block(
-    block_size: int,
-) -> quant_recipe.LayerQuantRecipe:
-  return quant_recipe.LayerQuantRecipe(
-      activation_dtype=quant_attrs.Dtype.FP32,
-      weight_dtype=quant_attrs.Dtype.INT4,
-      mode=quant_attrs.Mode.DYNAMIC_RANGE,
-      algorithm=quant_attrs.Algorithm.MIN_MAX,
-      granularity=quant_attrs.Granularity.BLOCKWISE,
-      block_size=block_size,
   )
