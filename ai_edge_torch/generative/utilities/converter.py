@@ -143,7 +143,21 @@ def define_conversion_flags(
       '`prefill_seq_lens` as the maximum of kv_cache size and prefill lengths '
       'in the graph.',
   )
+  flags.DEFINE_bool(
+      'export_gpu_dynamic_shape_verifications',
+      False,
+      'If true, the conversion script will export signatures used only for '
+      'verification of GPU dynamic shapes.',
+  )
   return flags
+
+
+# Context length for verifying GPU dynamic shapes.
+_CONTEXT_LENGTH_TO_VERIFY_MAGIC_NUMBERS = 1280
+# Long prefill length for verifying GPU dynamic shapes.
+_LONG_PREFILL_LENGTH_TO_VERIFY_MAGIC_NUMBERS = 1024
+# Short prefill length for verifying GPU dynamic shapes.
+_SHORT_PREFILL_LENGTH_TO_VERIFY_MAGIC_NUMBERS = 64
 
 
 def is_magic_number_(num: int) -> bool:
@@ -263,6 +277,10 @@ def convert_to_tflite(
     config: cfg.ModelConfig = None,
     lora_ranks: Optional[list[int]] = None,
     export_config: ExportConfig = None,
+    extra_model: torch.nn.Module = None,
+    extra_prefill_seq_lens: list[int] = None,
+    extra_kv_cache_max_len: int = 0,
+    extra_signature_prefix: str = '',
 ):
   """Converts a nn.Module model to multi-signature tflite model.
 
@@ -315,6 +333,15 @@ def convert_to_tflite(
         no LoRA signatures will be added.
       export_config (ExportConfig, optional): The export configuration. If None,
         it uses the default export configuration.
+      extra_model (torch.nn.Module, optional): PyTorch model to export in
+        addition to the pytorch_model. This model can have different
+        prefill_seq_lens and kv_cache_max_len.
+      extra_prefill_seq_lens (list[int], optional): The prefill sequence
+        lengths for extra_model. Meaningful only when extra_model is not None.
+      extra_kv_cache_max_len (int, optional): The maximum size of KV cache
+        buffer for extra_model. Meaningful only when extra_model is not None.
+      extra_signature_prefix (str, optional): The prefix of the extra model
+        signatures. Meaningful only when extra_model is not None.
   """
   # pylint: disable=protected-access
   torch._dynamo.config.cache_size_limit = 64
@@ -353,32 +380,51 @@ def convert_to_tflite(
   )
   output_file = os.path.join(output_path, output_filename)
 
-  _export_helper(
+  converter = converter_utils.Converter()
+  _add_signatures(
+      converter,
       pytorch_model,
-      output_file,
       prefill_seq_lens,
       kv_cache_max_len,
       pixel_values_size,
       pixel_seq_len,
-      quantize,
       config,
       loras,
       export_config,
   )
+
+  if extra_model is not None and extra_prefill_seq_lens:
+    _add_signatures(
+        converter,
+        extra_model,
+        extra_prefill_seq_lens,
+        extra_kv_cache_max_len,
+        pixel_values_size,
+        pixel_seq_len,
+        config,
+        loras,
+        export_config,
+        signature_prefix=extra_signature_prefix,
+    )
+
+  edge_model = converter.convert(
+      quant_config=get_quant_recipe_from_flag(quantize, config),
+  )
+  edge_model.export(output_file)
   return output_file
 
 
-def _export_helper(
+def _add_signatures(
+    converter: converter_utils.Converter,
     pytorch_model: torch.nn.Module,
-    output_file: str,
     prefill_seq_lens: list[int],
     kv_cache_max_len: int,
     pixel_values_size: torch.Size,
     pixel_seq_len: int,
-    quantize: str,
     config: cfg.ModelConfig,
     loras: list[None | lora_utils.LoRA],
     export_config: ExportConfig,
+    signature_prefix: str = '',
 ):
   """Helper function to export a model to tflite."""
   prefill_tokens_list = []
@@ -423,17 +469,14 @@ def _export_helper(
       kv_layout=export_config.kvcache_layout,
   )
 
-  quant_config = get_quant_recipe_from_flag(quantize, config)
-
   # For export, we create a module that captures any non-exportable,
   # arugments, e.g. the generation config object.
   mod = ExportableModule(pytorch_model, export_config=export_config).eval()
 
-  converter = converter_utils.Converter()
   for lora in loras:
     for i in range(len(prefill_seq_lens)):
       prefill_seq_len = prefill_seq_lens[i]
-      prefill_signature_name = f'prefill_{prefill_seq_len}'
+      prefill_signature_name = f'{signature_prefix}prefill_{prefill_seq_len}'
 
       sample_kwargs = {
           'tokens': prefill_tokens_list[i],
@@ -488,16 +531,14 @@ def _export_helper(
     if lora is not None:
       sample_kwargs['lora'] = lora
 
+    decode_signature_name = f'{signature_prefix}decode'
+    if lora is not None:
+      decode_signature_name += f'_lora_r{lora.get_rank()}'
     converter.add_signature(
-        'decode' if lora is None else f'decode_lora_r{lora.get_rank()}',
+        decode_signature_name,
         mod,
         sample_kwargs=sample_kwargs,
     )
-
-  edge_model = converter.convert(
-      quant_config=quant_config,
-  )
-  edge_model.export(output_file)
 
 
 def build_and_convert_to_tflite_from_flags(
@@ -521,11 +562,36 @@ def build_and_convert_to_tflite_from_flags(
       get_mask_cache_size_from_flags(),
   )
 
+  # Extra model for GPU dynamic shape verification if needed.
+  extra_model = None
+  extra_prefill_seq_lens = None
+  extra_kv_cache_max_len = 0
   if flags.FLAGS.gpu_dynamic_shapes:
     prefill_seq_lens = [
         get_magic_number_for(l) for l in flags.FLAGS.prefill_seq_lens
     ]
     kv_cache_max_len = get_magic_number_for(flags.FLAGS.kv_cache_max_len)
+
+    if flags.FLAGS.export_gpu_dynamic_shape_verifications:
+      extra_kv_cache_max_len = _CONTEXT_LENGTH_TO_VERIFY_MAGIC_NUMBERS
+      if extra_kv_cache_max_len > flags.FLAGS.kv_cache_max_len:
+        extra_kv_cache_max_len = flags.FLAGS.kv_cache_max_len
+      extra_model = model_builder(
+          checkpoint_path,
+          loader.maybe_get_custom_loader(
+              checkpoint_path, flags.FLAGS.custom_checkpoint_loader
+          ),
+          extra_kv_cache_max_len,
+      )
+      extra_prefill_seq_lens = []
+      if extra_kv_cache_max_len > _SHORT_PREFILL_LENGTH_TO_VERIFY_MAGIC_NUMBERS:
+        extra_prefill_seq_lens.append(
+            _SHORT_PREFILL_LENGTH_TO_VERIFY_MAGIC_NUMBERS
+        )
+      if extra_kv_cache_max_len > _LONG_PREFILL_LENGTH_TO_VERIFY_MAGIC_NUMBERS:
+        extra_prefill_seq_lens.append(
+            _LONG_PREFILL_LENGTH_TO_VERIFY_MAGIC_NUMBERS
+        )
   else:
     prefill_seq_lens = flags.FLAGS.prefill_seq_lens
     kv_cache_max_len = flags.FLAGS.kv_cache_max_len
@@ -539,6 +605,10 @@ def build_and_convert_to_tflite_from_flags(
       quantize=flags.FLAGS.quantize,
       lora_ranks=flags.FLAGS.lora_ranks,
       export_config=export_config_lib.get_from_flags(),
+      extra_model=extra_model,
+      extra_prefill_seq_lens=extra_prefill_seq_lens,
+      extra_kv_cache_max_len=extra_kv_cache_max_len,
+      extra_signature_prefix='test_' if extra_model is not None else '',
   )
 
 
