@@ -48,11 +48,15 @@ def get_custom_loader(
     if checkpoint_format == "safetensors":
       return load_file
     if checkpoint_format == "pt":
-      return lambda path: torch.load(path, weights_only=True)
+      return lambda path: torch.load(
+          path, weights_only=True, map_location=torch.device("cpu")
+      )
     raise ValueError(f"Unsupported checkpoint format: {checkpoint_format}")
 
   if os.path.splitext(checkpoint_path)[1] in [".bin", ".pt", ".ckpt"]:
-    return lambda path: torch.load(path, weights_only=True)
+    return lambda path: torch.load(
+        path, weights_only=True, map_location=torch.device("cpu")
+    )
   if checkpoint_path.endswith(".safetensors"):
     return load_file
   raise ValueError(f"Unsupported checkpoint format: {checkpoint_path}")
@@ -126,7 +130,7 @@ def load_pytorch_statedict(full_path: str):
   patterns = []
   if os.path.isdir(full_path):
     patterns.append(os.path.join(full_path, "*.bin"))
-    patterns.append(os.path.join(full_path, "*pt"))
+    patterns.append(os.path.join(full_path, "*.pt"))
   else:
     patterns.append(full_path)
   for pattern in patterns:
@@ -135,7 +139,9 @@ def load_pytorch_statedict(full_path: str):
 
   tensors = {}
   for file in files:
-    this_file_tensors = torch.load(file)
+    this_file_tensors = torch.load(
+        file, map_location=torch.device("cpu"), weights_only=True
+    )
     for k in this_file_tensors:
       assert k not in tensors
     tensors.update(this_file_tensors)
@@ -279,14 +285,14 @@ class ModelLoader:
       if glob.glob(os.path.join(self._file_name, "*.safetensors")):
         return load_safetensors
       if glob.glob(os.path.join(self._file_name, "*.bin")) or glob.glob(
-          os.path.join(self._file_name, "*pt")
+          os.path.join(self._file_name, "*.pt")
       ):
         return load_pytorch_statedict
 
     if self._file_name.endswith(".safetensors"):
       return load_safetensors
 
-    if self._file_name.endswith(".bin") or self._file_name.endswith("pt"):
+    if self._file_name.endswith(".bin") or self._file_name.endswith(".pt"):
       return load_pytorch_statedict
 
     raise ValueError("File format not supported.")
