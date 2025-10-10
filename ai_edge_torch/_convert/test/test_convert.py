@@ -636,10 +636,6 @@ class TestConvert(googletest.TestCase):
       self.fail(f"Conversion failed with 6d inputs: {err}")
     # pylint: enable=broad-except
 
-  @googletest.skipIf(
-      ai_edge_torch.config.in_oss,
-      reason="wait until dependencies are released to tf-nightly",
-  )
   def test_convert_model_with_slice_6d_inputs(self):
     """Test converting a simple model with slice and 6d inputs."""
 
@@ -658,10 +654,6 @@ class TestConvert(googletest.TestCase):
       self.fail(f"Conversion failed with 6d inputs for slice: {err}")
     # pylint: enable=broad-except
 
-  @googletest.skipIf(
-      ai_edge_torch.config.in_oss,
-      reason="wait until dependencies are released to tf-nightly",
-  )
   def test_convert_model_with_strided_slice_6d_inputs(self):
     """Test converting a simple model with strided_slice and 6d inputs."""
 

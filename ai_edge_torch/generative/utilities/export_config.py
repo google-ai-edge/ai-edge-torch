@@ -56,5 +56,7 @@ def get_from_flags() -> ExportConfig:
     export_config.kvcache_layout = kv_utils.KV_LAYOUT_TRANSPOSED
   if flags.FLAGS.mask_as_input:
     export_config.mask_as_input = flags.FLAGS.mask_as_input
+  if flags.FLAGS.decode_batch_size:
+    export_config.decode_batch_size = flags.FLAGS.decode_batch_size
 
   return export_config
