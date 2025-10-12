@@ -32,6 +32,7 @@ def scaled_dot_product_attention(
     mask: Optional[torch.Tensor] = None,
     scale: Optional[float] = None,
     softcap: Optional[float] = None,
+    alibi_bias: Optional[torch.Tensor] = None,
 ):
   """Scaled dot product attention.
 
@@ -41,13 +42,22 @@ def scaled_dot_product_attention(
     v (torch.Tensor): Value tensor, with shape [B, T, KV_LEN, H].
     head_size (int): head dimension.
     mask (torch.Tensor): the optional mask tensor.
+    scale (float): the optional scale factor.
+    softcap (float): the optional softcap for the logits.
+    alibi_bias (torch.Tensor): optional alibi bias tensor.
 
   Returns:
     The output tensor of scaled_dot_product_attention.
   """
-
   if scale is None:
     scale = 1.0 / math.sqrt(head_size)
+
+  if alibi_bias is not None:
+    alibi_bias = alibi_bias * scale
+    if mask is None:
+      mask = alibi_bias
+    else:
+      mask = mask + alibi_bias
 
   q = q.transpose(1, 2)
   k = k.transpose(1, 2)
@@ -72,7 +82,8 @@ def scaled_dot_product_attention(
     scores = scores / softcap
     scores = torch.tanh(scores)
     scores = scores * softcap
-    scores = scores + mask
+    if mask is not None:
+      scores = scores + mask
     out = F.softmax(scores.float(), dim=-1).type_as(q)
     y = torch.matmul(out, v)
 
@@ -87,6 +98,7 @@ def scaled_dot_product_attention_with_hlfb(
     mask: Optional[torch.Tensor] = None,
     scale: Optional[float] = None,
     softcap: Optional[float] = None,
+    alibi_bias: Optional[torch.Tensor] = None,
 ):
   """Scaled dot product attention with high-level function boundary enabled.
 
@@ -96,13 +108,22 @@ def scaled_dot_product_attention_with_hlfb(
     v (torch.Tensor): Value tensor, with shape [B, T, KV_LEN, H].
     head_size (int): head dimension.
     mask (torch.Tensor): the optional mask tensor.
+    scale (float): the optional scale factor.
+    softcap (float): the optional softcap for the logits.
+    alibi_bias (torch.Tensor): optional alibi bias tensor.
 
   Returns:
     The output tensor of scaled_dot_product_attention.
   """
-
   if scale is None:
     scale = 1.0 / math.sqrt(head_size)
+
+  if alibi_bias is not None:
+    alibi_bias = alibi_bias * scale
+    if mask is None:
+      mask = alibi_bias
+    else:
+      mask = mask + alibi_bias
 
   attrs = {"scale": scale}
 
@@ -137,7 +158,8 @@ def scaled_dot_product_attention_with_hlfb(
     scores = scores / softcap
     scores = torch.tanh(scores)
     scores = scores * softcap
-    scores = scores + mask
+    if mask is not None:
+      scores = scores + mask
     out = F.softmax(scores.float(), dim=-1).type_as(q)
     y = torch.matmul(out, v)
 
@@ -154,6 +176,7 @@ def scaled_dot_product_attention_transposed(
     mask: Optional[torch.Tensor] = None,
     scale: Optional[float] = None,
     softcap: Optional[float] = None,
+    alibi_bias: Optional[torch.Tensor] = None,
 ):
   """Scaled dot product attention with transposed key and value.
 
@@ -165,13 +188,20 @@ def scaled_dot_product_attention_transposed(
     mask (torch.Tensor): the optional mask tensor.
     scale (float): the optional scale factor.
     softcap (float): the optional softcap for the logits.
+    alibi_bias (torch.Tensor): optional alibi bias tensor.
 
   Returns:
     The output tensor of scaled_dot_product_attention_transposed.
   """
-
   if scale is None:
     scale = 1.0 / math.sqrt(head_size)
+
+  if alibi_bias is not None:
+    alibi_bias = alibi_bias * scale
+    if mask is None:
+      mask = alibi_bias
+    else:
+      mask = mask + alibi_bias
 
   query = query * scale
 

@@ -71,7 +71,7 @@ def build_norm(
   Raises:
     ValueError: If config's `layer_norm_type` is not supported.
   """
-  if config.type == cfg.NormalizationType.NONE:
+  if config is None or config.type == cfg.NormalizationType.NONE:
     return lambda x: x
   elif config.type == cfg.NormalizationType.RMS_NORM:
     return normalization.RMSNorm(
@@ -84,7 +84,9 @@ def build_norm(
         init_fn=init_fn,
     )
   elif config.type == cfg.NormalizationType.LAYER_NORM:
-    return normalization.LayerNorm(dim, config.epsilon, config.enable_hlfb)
+    return normalization.LayerNorm(
+        dim, config.epsilon, config.use_bias, config.enable_hlfb
+    )
   elif config.type == cfg.NormalizationType.GROUP_NORM:
     return normalization.GroupNorm(
         config.group_num, dim, config.epsilon, config.enable_hlfb
