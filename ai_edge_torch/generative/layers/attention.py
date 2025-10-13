@@ -18,6 +18,7 @@
 import abc
 from typing import Optional, Tuple, Union
 
+from ai_edge_torch.generative.layers import attention_utils
 from ai_edge_torch.generative.layers import builder
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.layers import lora as lora_utils
@@ -240,13 +241,35 @@ class CausalSelfAttention(CausalSelfAttentionBase):
     k = k.reshape(B, T, -1, self.config.head_dim)
     v = v.reshape(B, T, -1, self.config.head_dim)
 
-    if rope is not None:
+    alibi_bias = None
+    if self.config.use_alibi:
+      k_size = T
+      if mask is not None:
+        k_size = mask.shape[-1]
+      elif input_pos is not None:
+        # If mask is not present, assume current sequence length is key length.
+        k_size = input_pos[-1].item() + 1
+      alibi_bias = attention_utils.build_alibi_bias(
+          n_heads=self.config.num_heads,
+          k_size=k_size,
+          dtype=x.dtype,
+          device=x.device,
+      )
+    elif rope is not None:
       # Compute rotary positional embedding for query and key.
       cos, sin = rope
       q, k = rotary_pos_emb.apply_rope_inline(q, k, cos, sin)
 
     sdpa_out, kv_cache = sdpa_with_kv_update.sdpa_with_kv_update(
-        q, k, v, kv_cache, input_pos, mask, self.config, self.enable_hlfb
+        q,
+        k,
+        v,
+        kv_cache,
+        input_pos,
+        mask,
+        self.config,
+        self.enable_hlfb,
+        alibi_bias=alibi_bias,
     )
 
     # Compute the output projection.

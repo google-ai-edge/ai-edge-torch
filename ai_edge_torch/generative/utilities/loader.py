@@ -135,7 +135,8 @@ def load_pytorch_statedict(full_path: str):
 
   tensors = {}
   for file in files:
-    this_file_tensors = torch.load(file)
+    map_location = "cpu" if not torch.cuda.is_available() else None
+    this_file_tensors = torch.load(file, map_location=map_location)
     for k in this_file_tensors:
       assert k not in tensors
     tensors.update(this_file_tensors)

@@ -75,6 +75,8 @@ class NormalizationConfig:
   scale_shift: float = 0.0
   # Number of groups used in group normalization.
   group_num: Optional[float] = None
+  # Whether to use bias in norm.
+  use_bias: bool = True
 
 
 # Exprimental feature and may subject to change.
@@ -108,6 +110,8 @@ class AttentionConfig:
   rotary_base: int = 10_000
   # Percentage of Rotary Positional Embedding added Q and K projections.
   rotary_percentage: Optional[float] = None
+  # Whether to use ALiBi positional encoding.
+  use_alibi: bool = False
   # Whether to transpose the query groups of qkv bundled tensor before
   # splitting into separated tensors.
   qkv_transpose_before_split: bool = False

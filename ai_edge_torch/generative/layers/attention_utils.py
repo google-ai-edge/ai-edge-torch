@@ -15,9 +15,70 @@
 # Common utility functions used with attention module.
 
 import math
-from typing import Tuple
+from typing import List, Tuple
 
 import torch
+
+
+def _get_alibi_slopes(n_heads: int) -> List[float]:
+  """Returns slopes for ALiBi implementation.
+
+  The slopes are taken from the ALiBi paper
+  [https://arxiv.org/abs/2108.12409].
+  The slopes are later used to calculate the bias which is added to the
+  attention scores.
+
+  Args:
+      n_heads (int): The number of attention heads.
+  """
+
+  def get_slopes_power_of_2(n):
+    start = 2 ** (-(2 ** -(math.log2(n) - 3)))
+    return [start**i for i in range(1, n + 1)]
+
+  if math.log2(n_heads).is_integer():
+    return get_slopes_power_of_2(n_heads)
+  else:
+    closest_power_of_2 = 2 ** math.floor(math.log2(n_heads))
+    return (
+        get_slopes_power_of_2(closest_power_of_2)
+        + _get_alibi_slopes(2 * closest_power_of_2)[0::2][
+            : n_heads - closest_power_of_2
+        ]
+    )
+
+
+def build_alibi_bias(
+    n_heads: int,
+    k_size: int,
+    dtype: torch.dtype = torch.float32,
+    device: torch.device = None,
+) -> torch.Tensor:
+  """Builds ALiBi bias tensor based on key position.
+
+  The bias tensor is added to the attention scores before softmax.
+  Replicates HuggingFace Falcon implementation behavior where bias only depends
+  on key position j, not relative position j-i.
+
+  Args:
+      n_heads (int): The number of attention heads.
+      k_size (int): The key size of the bias tensor.
+      dtype (torch.dtype, optional): Output tensor's data type. Defaults to
+        torch.float32.
+      device (torch.device, optional): Output tensor's data type. Defaults to
+        None in which case "cpu" is used.
+
+  Returns:
+      torch.Tensor: The ALiBi bias tensor of shape (1, n_heads, 1, k_size).
+  """
+  if device is None:
+    device = torch.device('cpu')
+  slopes = torch.tensor(_get_alibi_slopes(n_heads), dtype=dtype, device=device)
+  k_pos = torch.arange(k_size, device=device)
+  # According to HF implementation, bias only depends on key position.
+  # slopes[h] * k_pos[j]
+  alibi_bias = slopes.unsqueeze(-1) * k_pos.unsqueeze(0)  # Shape: H, K
+  return alibi_bias[None, :, None, :].to(dtype)
 
 
 def build_rope_cache(

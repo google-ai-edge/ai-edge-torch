@@ -15,7 +15,7 @@
 
 """Common utility functions for data loading etc."""
 
-from typing import Tuple
+from typing import Optional, Tuple
 
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.layers import scaled_dot_product_attention as sdpa
@@ -32,14 +32,15 @@ def sdpa_with_kv_update(
     mask: torch.Tensor,
     config: cfg.AttentionConfig,
     enable_hlfb: bool,
+    alibi_bias: Optional[torch.Tensor] = None,
 ) -> Tuple[torch.Tensor, kv_utils.KVCacheEntry]:
   """Wrapper function for scaled dot product attention with KV cache update."""
   if kv is not None and kv.kv_layout == kv_utils.KV_LAYOUT_TRANSPOSED:
     return _sdpa_with_kv_update_transposed(
-        query, key, value, kv, input_pos, mask, config
+        query, key, value, kv, input_pos, mask, config, alibi_bias
     )
   return _sdpa_with_kv_update_default(
-      query, key, value, kv, input_pos, mask, config, enable_hlfb
+      query, key, value, kv, input_pos, mask, config, enable_hlfb, alibi_bias
   )
 
 
@@ -51,6 +52,7 @@ def _sdpa_with_kv_update_transposed(
     input_pos: torch.Tensor,
     mask: torch.Tensor,
     config: cfg.AttentionConfig,
+    alibi_bias: Optional[torch.Tensor] = None,
 ) -> Tuple[torch.Tensor, kv_utils.KVCacheEntry]:
   # Transpose k/v to specific layout for GPU implementation.
   b, seq_len, n, h = query.shape
@@ -77,6 +79,7 @@ def _sdpa_with_kv_update_transposed(
       config.head_dim,
       mask=mask,
       softcap=config.logit_softcap,
+      alibi_bias=alibi_bias,
   )  # 1, bk, gt, h
   sdpa_out = (
       sdpa_out.reshape(b, -1, seq_len, h)
@@ -95,6 +98,7 @@ def _sdpa_with_kv_update_default(
     mask: torch.Tensor,
     config: cfg.AttentionConfig,
     enable_hlfb: bool,
+    alibi_bias: Optional[torch.Tensor] = None,
 ) -> Tuple[torch.Tensor, kv_utils.KVCacheEntry]:
   b, seq_len, _, _ = query.shape
   if kv is not None:
@@ -112,6 +116,7 @@ def _sdpa_with_kv_update_default(
       config.head_dim,
       mask=mask,
       softcap=config.logit_softcap,
+      alibi_bias=alibi_bias,
   )
   sdpa_out = sdpa_out.reshape(b, seq_len, -1)
   return sdpa_out, kv

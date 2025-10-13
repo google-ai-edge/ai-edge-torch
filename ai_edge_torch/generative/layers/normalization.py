@@ -148,6 +148,7 @@ class LayerNorm(torch.nn.Module):
       self,
       dim: int,
       eps: float = 1e-5,
+      use_bias: bool = True,
       enable_hlfb: bool = False,
   ):
     """Initialize the LayerNorm layer.
@@ -156,6 +157,7 @@ class LayerNorm(torch.nn.Module):
       dim (int): dimension of the input tensor.
       eps (float): A small float value to ensure numerical stability (default:
         1e-5).
+      use_bias (bool): Whether to use bias in LayerNorm.
       enable_hlfb (bool): Whether to convert this normalization into a single
         op.
     """
@@ -164,7 +166,11 @@ class LayerNorm(torch.nn.Module):
     self.normalized_shape = (dim,)
     self.eps = eps
     self.weight = torch.nn.Parameter(torch.empty(dim), requires_grad=False)
-    self.bias = torch.nn.Parameter(torch.empty(dim), requires_grad=False)
+    self.bias = (
+        torch.nn.Parameter(torch.empty(dim), requires_grad=False)
+        if use_bias
+        else None
+    )
 
   def forward(self, x):
     """Running the forward pass of LayerNorm layer.
@@ -175,7 +181,7 @@ class LayerNorm(torch.nn.Module):
     Returns:
       torch.Tensor: output tensor after applying LayerNorm.
     """
-    if self.enable_hlfb:
+    if self.enable_hlfb and self.bias is not None:
       return layer_norm_with_hlfb(
           x, self.normalized_shape, self.weight, self.bias, self.eps
       )

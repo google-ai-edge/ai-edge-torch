@@ -27,16 +27,27 @@ class AttentionTest(parameterized.TestCase):
       dict(
           testcase_name="local_causal_self_attention",
           attn_type=cfg.AttentionType.LOCAL_SLIDING,
+          use_alibi=False,
           expected_shape=(1, 10, 16),
       ),
       dict(
           testcase_name="global_causal_self_attention",
           attn_type=cfg.AttentionType.GLOBAL,
+          use_alibi=False,
+          expected_shape=(1, 10, 16),
+      ),
+      dict(
+          testcase_name="alibi_attention",
+          attn_type=cfg.AttentionType.GLOBAL,
+          use_alibi=True,
           expected_shape=(1, 10, 16),
       ),
   )
   def test_causal_self_attention(
-      self, attn_type: cfg.AttentionType, expected_shape: tuple[int, ...]
+      self,
+      attn_type: cfg.AttentionType,
+      use_alibi: bool,
+      expected_shape: tuple[int, ...],
   ):
     norm_config = cfg.NormalizationConfig(
         type=cfg.NormalizationType.RMS_NORM,
@@ -56,6 +67,7 @@ class AttentionTest(parameterized.TestCase):
         logit_softcap=None,
         sliding_window_size=16,
         attn_type=attn_type,
+        use_alibi=use_alibi,
     )
     self_atten = attention.CausalSelfAttention(
         dim=16,
