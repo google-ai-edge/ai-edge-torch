@@ -51,6 +51,75 @@ def _aten_mul_tensor(lctx, self: ir.Value, other: ir.Value):
   return stablehlo.multiply(self, other)
 
 
+def _hann_window_impl(
+    lctx: LoweringContext,
+    size: int,
+    periodic: bool,
+    dtype: Optional[torch.dtype],
+) -> ir.Value:
+  if dtype is None:
+    ir_dtype = ir.F32Type.get()
+  else:
+    ir_dtype = utils.torch_dtype_to_ir_element_type(dtype)
+
+  if not isinstance(ir_dtype, ir.FloatType):
+    raise ValueError("hann_window only supports float dtypes.")
+
+  if size == 0:
+    return stablehlo.ConstantOp(
+        ir.RankedTensorType.get((0,), ir_dtype),
+        ir.DenseElementsAttr.get_empty(ir.RankedTensorType.get((0,), ir_dtype)),
+    ).result
+  if size == 1:
+    return utils.splat(1.0, ir_dtype, [1])
+
+  denom = size if periodic else size - 1
+
+  i64 = ir.IntegerType.get_signless(64)
+  iota_type = ir.RankedTensorType.get((size,), i64)
+  n_i64 = stablehlo.IotaOp(
+      iota_type, iota_dimension=ir.IntegerAttr.get(i64, 0)
+  ).result
+
+  n_type = ir.RankedTensorType.get((size,), ir_dtype)
+  n = stablehlo.convert(n_type, n_i64)
+
+  pi_val = math.pi
+  scale = 2.0 * pi_val / denom
+
+  scale_splat = utils.splat(scale, ir_dtype, [size])
+  arg_cos = stablehlo.multiply(n, scale_splat)
+  cos_val = stablehlo.cosine(arg_cos)
+
+  half_splat = utils.splat(0.5, ir_dtype, [size])
+  scaled_cos = stablehlo.multiply(half_splat, cos_val)
+  return stablehlo.subtract(half_splat, scaled_cos)
+
+
+# hann_window(int size, *, ScalarType? dtype=None) -> Tensor
+@lower(torch.ops.aten.hann_window.default)
+def _aten_hann_window_default(
+    lctx: LoweringContext,
+    size: int,
+    *,
+    dtype: Optional[torch.dtype] = None,
+) -> ir.Value:
+  return _hann_window_impl(lctx, size, True, dtype)
+
+
+# hann_window.periodic(int size, bool periodic, *, ScalarType? dtype=None) ->
+# Tensor
+@lower(torch.ops.aten.hann_window.periodic)
+def _aten_hann_window_periodic(
+    lctx: LoweringContext,
+    size: int,
+    periodic: bool,
+    *,
+    dtype: Optional[torch.dtype] = None,
+) -> ir.Value:
+  return _hann_window_impl(lctx, size, periodic, dtype)
+
+
 # cat(Tensor[] tensors, int dim=0) -> Tensor
 # @lower(torch.ops.aten.cat)
 def _aten_cat(lctx, tensors: list[ir.Value], dim: int = 1):
