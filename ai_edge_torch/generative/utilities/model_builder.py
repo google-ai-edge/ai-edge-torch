@@ -170,7 +170,7 @@ def build_decoder_only_model(
     config: cfg.ModelConfig,
     tensor_names: loading_utils.ModelLoader.TensorNames,
     model_class: type[nn.Module] = DecoderOnlyModel,
-    custom_loader: Callable[[str], Dict[str, torch.Tensor]] = None,
+    custom_loader: Callable[[str], Dict[str, torch.Tensor]] | None = None,
     mask_cache_size: int = 0,
 ) -> nn.Module:
   transformer = model_class(config, mask_cache_size)

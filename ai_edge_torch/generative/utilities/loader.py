@@ -151,26 +151,27 @@ class ModelLoader:
 
   @dataclass
   class TensorNames:
-    attn_query_proj: str = None
-    attn_key_proj: str = None
-    attn_value_proj: str = None
-    attn_fused_qkv_proj: str = None
-    attn_output_proj: str = None
-    attn_query_norm: str = None
-    attn_key_norm: str = None
+    """Names of the tensors in the checkpoint."""
+    attn_query_proj: str | None = None
+    attn_key_proj: str | None = None
+    attn_value_proj: str | None = None
+    attn_fused_qkv_proj: str | None = None
+    attn_output_proj: str | None = None
+    attn_query_norm: str | None = None
+    attn_key_norm: str | None = None
 
-    ff_up_proj: str = None
-    ff_down_proj: str = None
-    ff_gate_proj: str = None
+    ff_up_proj: str | None = None
+    ff_down_proj: str | None = None
+    ff_gate_proj: str | None = None
 
-    pre_attn_norm: str = None
-    post_attn_norm: str = None
-    pre_ff_norm: str = None
-    post_ff_norm: str = None
-    embedding: str = None
-    embedding_position: str = None
-    final_norm: str = None
-    lm_head: str = None
+    pre_attn_norm: str | None = None
+    post_attn_norm: str | None = None
+    pre_ff_norm: str | None = None
+    post_ff_norm: str | None = None
+    embedding: str | None = None
+    embedding_position: str | None = None
+    final_norm: str | None = None
+    lm_head: str | None = None
 
   def __init__(
       self,
