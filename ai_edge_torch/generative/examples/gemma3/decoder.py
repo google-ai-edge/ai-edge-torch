@@ -340,7 +340,9 @@ class Decoder(nn.Module):
 def get_decoder_config_1b() -> cfg.ModelConfig:
   """Returns the model config for a Gemma3 1B model."""
   norm_config = cfg.NormalizationConfig(
-      type=cfg.NormalizationType.RMS_NORM, epsilon=1e-6, zero_centered=True,
+      type=cfg.NormalizationType.RMS_NORM,
+      epsilon=1e-6,
+      zero_centered=True,
   )
   ff_config = cfg.FeedForwardConfig(
       type=cfg.FeedForwardType.GATED,
