@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+import logging
 import math
 import operator
 from typing import Optional, Union
@@ -101,9 +102,12 @@ def _hann_window_impl(
 def _aten_hann_window_default(
     lctx: LoweringContext,
     size: int,
-    *,
-    dtype: Optional[torch.dtype] = None,
+    **kwargs,
 ) -> ir.Value:
+  dtype = kwargs.pop("dtype", None)
+  layout = kwargs.pop("layout", torch.strided)
+  if layout != torch.strided:
+    logging.warning("hann_window only supports torch.strided layout.")
   return _hann_window_impl(lctx, size, True, dtype)
 
 
@@ -114,9 +118,12 @@ def _aten_hann_window_periodic(
     lctx: LoweringContext,
     size: int,
     periodic: bool,
-    *,
-    dtype: Optional[torch.dtype] = None,
+    **kwargs,
 ) -> ir.Value:
+  dtype = kwargs.pop("dtype", None)
+  layout = kwargs.pop("layout", torch.strided)
+  if layout != torch.strided:
+    logging.warning("hann_window only supports torch.strided layout.")
   return _hann_window_impl(lctx, size, periodic, dtype)
 
 
