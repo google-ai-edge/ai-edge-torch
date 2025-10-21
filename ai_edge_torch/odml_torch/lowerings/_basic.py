@@ -326,6 +326,85 @@ def _aten_cat(lctx: LoweringContext, tensors, dim=0):
 
 
 # Schema:
+#   - aten::unfold(Tensor self, int dim, int size, int step) -> Tensor
+# Torch Reference:
+#   - https://pytorch.org/docs/stable/generated/torch.Tensor.unfold.html
+@lower(torch.ops.aten.unfold.default)
+def _aten_unfold(lctx, x: ir.Value, dim: int, size: int, step: int):
+  x_shape = x.type.shape
+  rank = len(x_shape)
+  if dim < 0:
+    dim += rank
+
+  num_windows = (x_shape[dim] - size) // step + 1
+  batch_shape = list(x_shape[:dim]) + [num_windows] + list(x_shape[dim + 1 :])
+
+  # Create start_indices for gather.
+  # The shape of start_indices will be batch_shape + [rank].
+  # start_indices[b_0,...,b_{rank-1}] will be [p_0,...,p_{rank-1}] where
+  # p_j = b_j for j != dim and p_dim = b_dim * step.
+  indices_parts = []
+  i64 = ir.IntegerType.get_signless(64)
+  for i in range(rank):
+    bshape = [1] * rank
+    bshape[i] = batch_shape[i]
+    dim_len = batch_shape[i]
+
+    iota = stablehlo.IotaOp(
+        ir.RankedTensorType.get([dim_len], i64),
+        iota_dimension=ir.IntegerAttr.get(i64, 0),
+    ).result
+    if i == dim:
+      iota = stablehlo.multiply(iota, utils.splat(step, i64, [dim_len]))
+
+    iota_reshaped = stablehlo.reshape(
+        ir.RankedTensorType.get(bshape, i64), iota
+    )
+    indices_parts.append(
+        stablehlo.broadcast_in_dim(
+            ir.RankedTensorType.get(batch_shape, i64),
+            iota_reshaped,
+            ir.DenseI64ArrayAttr.get(list(range(rank))),
+        )
+    )
+
+  # For each dimension i, indices_parts[i] contains the i-th coordinate
+  # of start_indices. We unsqueeze each part to shape batch_shape + [1]
+  # and concatenate along the new dimension to produce start_indices of
+  # shape batch_shape + [rank].
+  unsqueezed_parts = [
+      stablehlo.reshape(ir.RankedTensorType.get(batch_shape + [1], i64), part)
+      for part in indices_parts
+  ]
+  start_indices = stablehlo.concatenate(
+      unsqueezed_parts, ir.IntegerAttr.get(i64, rank)
+  )
+
+  slice_sizes_list = [1] * rank
+  slice_sizes_list[dim] = size
+  slice_sizes = ir.DenseI64ArrayAttr.get(slice_sizes_list)
+
+  collapsed_slice_dims_list = [i for i in range(rank) if i != dim]
+
+  dnums = stablehlo.GatherDimensionNumbers.get(
+      offset_dims=[rank],
+      collapsed_slice_dims=collapsed_slice_dims_list,
+      operand_batching_dims=[],
+      start_indices_batching_dims=[],
+      start_index_map=list(range(rank)),
+      index_vector_dim=rank,
+  )
+
+  return stablehlo.gather(
+      x,
+      start_indices,
+      dnums,
+      slice_sizes,
+      indices_are_sorted=ir.BoolAttr.get(False),
+  )
+
+
+# Schema:
 #   - aten::slice_scatter(Tensor self, Tensor src, int dim=0, SymInt?
 #       start=None, SymInt? end=None, SymInt step=1) -> Tensor
 # Torch Reference:
