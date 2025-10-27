@@ -41,6 +41,20 @@ class TestKVLayers(googletest.TestCase):
     )
     return config
 
+  def _assert_kv_cache_entry_equal(self, kv1, kv2):
+    self.assertIsInstance(kv1, kv_utils.KVCacheEntry)
+    self.assertIsInstance(kv2, kv_utils.KVCacheEntry)
+    self.assertEqual(kv1.kv_layout, kv2.kv_layout)
+    self.assertTrue(torch.equal(kv1.k_cache, kv2.k_cache))
+    self.assertTrue(torch.equal(kv1.v_cache, kv2.v_cache))
+
+  def _assert_kv_cache_equal(self, kv1, kv2):
+    self.assertIsInstance(kv1, kv_utils.KVCache)
+    self.assertIsInstance(kv2, kv_utils.KVCache)
+    self.assertEqual(len(kv1.caches), len(kv2.caches))
+    for kv1_entry, kv2_entry in zip(kv1.caches, kv2.caches):
+      self._assert_kv_cache_entry_equal(kv1_entry, kv2_entry)
+
   def test_cache_udpate(self):
     N = 1
     HEAD_DIM = 2
@@ -118,7 +132,7 @@ class TestKVLayers(googletest.TestCase):
     flat, treespec = pytree.tree_flatten(kv)
     self.assertLen(flat, NUM_LAYERS * 2)
     kv_unflat = pytree.tree_unflatten(flat, treespec)
-    self.assertEqual(kv, kv_unflat)
+    self._assert_kv_cache_equal(kv, kv_unflat)
 
   def test_pytree_roundtrip_kv_cache_derived(self):
     NUM_LAYERS = 4
@@ -134,7 +148,7 @@ class TestKVLayers(googletest.TestCase):
     flat, treespec = pytree.tree_flatten(kv)
     self.assertLen(flat, NUM_LAYERS * 2)
     kv_unflat = pytree.tree_unflatten(flat, treespec)
-    self.assertEqual(kv, kv_unflat)
+    self._assert_kv_cache_equal(kv, kv_unflat)
 
   def test_pytree_roundtrip_kv_entry(self):
     attn_config = cfg.AttentionConfig(
@@ -144,8 +158,7 @@ class TestKVLayers(googletest.TestCase):
     flat, treespec = pytree.tree_flatten(kv)
     self.assertLen(flat, 2)
     kv_unflat = pytree.tree_unflatten(flat, treespec)
-    self.assertEqual(kv, kv_unflat)
-    self.assertIsInstance(kv_unflat, kv_utils.KVCacheEntry)
+    self._assert_kv_cache_entry_equal(kv, kv_unflat)
 
   def test_pytree_roundtrip_kv_entry_derived(self):
     attn_config = cfg.AttentionConfig(
@@ -157,8 +170,7 @@ class TestKVLayers(googletest.TestCase):
     flat, treespec = pytree.tree_flatten(kv)
     self.assertLen(flat, 2)
     kv_unflat = pytree.tree_unflatten(flat, treespec)
-    self.assertEqual(kv, kv_unflat)
-    self.assertIsInstance(kv_unflat, kv_utils.KVCacheEntry)
+    self._assert_kv_cache_entry_equal(kv, kv_unflat)
 
 
 if __name__ == "__main__":
