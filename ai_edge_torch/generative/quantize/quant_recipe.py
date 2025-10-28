@@ -39,7 +39,6 @@ class LayerQuantRecipe:
     mode: Type of quantization.
     algorithm: Algorithm for calculating quantization parameters.
     granularity: Granularity of quantization.
-    block_size: Size of the block for blockwise quantization.
   """
 
   activation_dtype: quant_attrs.Dtype
@@ -47,7 +46,6 @@ class LayerQuantRecipe:
   mode: quant_attrs.Mode
   algorithm: quant_attrs.Algorithm
   granularity: quant_attrs.Granularity
-  block_size: int = 0
 
   def __str__(self):
     base_str = (
@@ -56,7 +54,6 @@ class LayerQuantRecipe:
         f'{self.mode.name}, '
         f'{self.algorithm.name}, '
         f'{self.granularity.name}, '
-        f'{self.block_size}'
     )
     return f'{base_str})'
 
@@ -77,16 +74,6 @@ class LayerQuantRecipe:
           and self.algorithm == supported[3]
           and self.granularity == supported[4]
       ):
-        if self.block_size > 0:
-          if (
-              self.block_size % 32 == 0
-              and self.granularity == quant_attrs.Granularity.BLOCKWISE
-          ):
-            is_valid = True
-            break
-          else:
-            is_valid = False
-            break
         is_valid = True
         break
 
