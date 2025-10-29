@@ -80,8 +80,14 @@ def _get_granularity(
     return _QuantGranularity.CHANNELWISE
   if granularity == quant_attrs.Granularity.NONE:
     return _QuantGranularity.TENSORWISE
-  if granularity == quant_attrs.Granularity.BLOCKWISE:
-    return _QuantGranularity.BLOCKWISE
+  if granularity == quant_attrs.Granularity.BLOCKWISE_32:
+    return _QuantGranularity.BLOCKWISE_32
+  if granularity == quant_attrs.Granularity.BLOCKWISE_64:
+    return _QuantGranularity.BLOCKWISE_64
+  if granularity == quant_attrs.Granularity.BLOCKWISE_128:
+    return _QuantGranularity.BLOCKWISE_128
+  if granularity == quant_attrs.Granularity.BLOCKWISE_256:
+    return _QuantGranularity.BLOCKWISE_256
   raise ValueError('Unimplemented granularity')
 
 
@@ -108,7 +114,6 @@ def _set_quant_config(
               symmetric=True,
               granularity=_get_granularity(layer_recipe.granularity),
               dtype=_get_dtype_from_dtype(layer_recipe.weight_dtype),
-              block_size=layer_recipe.block_size,
           ),
           compute_precision=_get_compute_precision_from_mode(layer_recipe.mode),
           explicit_dequantize=_get_explicit_dequant_from_mode(
