@@ -71,6 +71,7 @@ class TestTorchTFLImpls(parameterized.TestCase):
       atol=1e-3,
       rtol=1e-5,
       equal_nan=True,
+      check_values=True,
   ):
     """Assert func, args, and kwargs can be lowered and pass numerical validation."""
     with self.subTest("torch_eval"):
@@ -94,9 +95,13 @@ class TestTorchTFLImpls(parameterized.TestCase):
 
             self.assertEqual(expected_spec, actual_spec)
             for v1, v2 in zip(expected_flat, actual_flat):
-              torch.testing.assert_close(
-                  v1, v2, atol=atol, rtol=rtol, equal_nan=equal_nan
-              )
+              if check_values:
+                torch.testing.assert_close(
+                    v1, v2, atol=atol, rtol=rtol, equal_nan=equal_nan
+                )
+              else:
+                self.assertEqual(v1.shape, v2.shape)
+                self.assertEqual(v1.dtype, v2.dtype)
 
         with self.subTest("convert_eval"):
           args, kwargs = exported_program.example_inputs
@@ -117,9 +122,13 @@ class TestTorchTFLImpls(parameterized.TestCase):
               # Convert NumPy arrays to PyTorch tensors if necessary
               if isinstance(v1, torch.Tensor) and isinstance(v2, np.ndarray):
                 v2 = torch.from_numpy(v2)
-              torch.testing.assert_close(
-                  v1, v2, atol=atol, rtol=rtol, equal_nan=equal_nan
-              )
+              if check_values:
+                torch.testing.assert_close(
+                    v1, v2, atol=atol, rtol=rtol, equal_nan=equal_nan
+                )
+              else:
+                self.assertEqual(v1.shape, v2.shape)
+                self.assertEqual(v1.dtype, v2.dtype)
 
   @parameterized.named_parameters(
       # fmt: off
@@ -228,6 +237,22 @@ class TestTorchTFLImpls(parameterized.TestCase):
       kwargs,
   ):
     self._assert_export_and_close(op, args, kwargs)
+
+  @parameterized.named_parameters(
+      # fmt: off
+      # pyformat: disable
+      ("aten_multinomial_0", torch.ops.aten.multinomial.default, (rnd(torch.float32, (10,)), 5, False), dict()),
+      ("aten_multinomial_1", torch.ops.aten.multinomial.default, (rnd(torch.float32, (3, 10)), 5, False), dict()),
+      # fmt: on
+      # pyformat: enable
+  )
+  def test_stochastic_op(
+      self,
+      op,
+      args,
+      kwargs,
+  ):
+    self._assert_export_and_close(op, args, kwargs, check_values=False)
 
   @parameterized.named_parameters(
       # fmt: off

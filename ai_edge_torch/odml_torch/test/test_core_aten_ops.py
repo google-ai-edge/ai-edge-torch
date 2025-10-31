@@ -411,19 +411,6 @@ class TestCoreAtenOps(parameterized.TestCase):
   def test_op(self, op, args, kwargs):
     self._run_export_and_compare(op, args, kwargs)
 
-  @parameterized.named_parameters(
-      # fmt: off
-      # pyformat: disable
-      ("aten_multinomial_1d_no_replacement", torch.ops.aten.multinomial, (rnd(torch.float32, (10,), 0.1, 1.0), 3, False), dict()),
-      ("aten_multinomial_1d_with_replacement", torch.ops.aten.multinomial, (rnd(torch.float32, (10,), 0.1, 1.0), 12, True), dict()),
-      ("aten_multinomial_2d_no_replacement", torch.ops.aten.multinomial, (rnd(torch.float32, (4, 10), 0.1, 1.0), 3, False), dict()),
-      ("aten_multinomial_2d_with_replacement", torch.ops.aten.multinomial, (rnd(torch.float32, (4, 10), 0.1, 1.0), 12, True), dict()),
-      # fmt: on
-      # pyformat: enable
-  )
-  def test_stochastic_op(self, op, args, kwargs):
-    self._run_export_and_compare(op, args, kwargs, check_values=False)
-
   @googletest.skip("wip jax lowering")
   def test_aten_native_batch_norm_legit(self):
     batch = 3

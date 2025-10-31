@@ -16,8 +16,8 @@
 
 from typing import Sequence
 
-from ai_edge_torch import odml_torch
 from ai_edge_torch.odml_torch.experimental.torch_tfl import _ops
+from ai_edge_torch.odml_torch.lowerings import context
 from ai_edge_torch.odml_torch.lowerings import registry
 from ai_edge_torch.odml_torch.lowerings import utils as lowering_utils
 from jax._src.lib.mlir import ir
@@ -27,7 +27,7 @@ import torch
 
 
 lower = registry.lower
-LoweringContext = odml_torch.lowerings.context.LoweringContext
+LoweringContext = context.LoweringContext
 
 
 def _ir_operation(
@@ -701,6 +701,28 @@ def _tfl_topk_v2_lowering(
       operands=[
           x,
           lowering_utils.numpy_array_constant(np.array(k, dtype=np.int32)),
+      ],
+      attributes={},
+  )
+
+
+@lower(torch.ops.tfl.multinomial.default)
+def _tfl_multinomial_lowering(
+    lctx: LoweringContext,
+    logits: ir.Value,
+    num_samples: int,
+    replacement: bool = False,
+) -> ir.Value:
+  if replacement:
+    raise ValueError("tfl.multinomial does not support with_replacement=True.")
+  return _ir_operation(
+      "tfl.multinomial",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[
+          logits,
+          lowering_utils.numpy_array_constant(
+              np.array(num_samples, dtype=np.int32)
+          ),
       ],
       attributes={},
   )

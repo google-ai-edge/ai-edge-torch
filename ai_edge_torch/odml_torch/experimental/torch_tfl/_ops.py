@@ -304,6 +304,18 @@ def tfl_topk_v2(x: torch.Tensor, k: int) -> tuple[torch.Tensor, torch.Tensor]:
   return out, indices
 
 
+@custom_op_with_fake("tfl::multinomial")
+def tfl_multinomial(
+    logits: torch.Tensor, num_samples: int, replacement: bool = False
+) -> torch.Tensor:
+  indices = torch.multinomial(
+      torch.nn.functional.softmax(logits, dim=-1),
+      num_samples,
+      replacement=replacement,
+  )
+  return indices
+
+
 @custom_op_with_fake(
     "tfl::slice", schema="(Tensor x, SymInt[] begin, SymInt[] size) -> Tensor"
 )

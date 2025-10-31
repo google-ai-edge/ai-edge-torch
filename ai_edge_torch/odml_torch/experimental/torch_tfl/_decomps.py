@@ -402,6 +402,18 @@ def _aten__softmax_decomp(
     return torch.ops.tfl.transpose(softmax_result, dims)
 
 
+@register_decomp(torch.ops.aten.multinomial.default)
+def _aten_multinomial_decomp(x, num_samples, replacement=False, generator=None):
+  is_1d = x.dim() == 1
+  if is_1d:
+    x = torch.ops.aten.unsqueeze.default(x, 0)
+  logits = torch.log(x)
+  indices = torch.ops.tfl.multinomial(logits, num_samples, replacement)
+  if is_1d:
+    indices = torch.ops.aten.squeeze.dims(indices, [0])
+  return indices.to(torch.int64)
+
+
 @register_decomp(torch.ops.aten.topk.default)
 def _aten_topk_decomp(self, k, dim=-1, largest=True, sorted=True):
   if not largest:
