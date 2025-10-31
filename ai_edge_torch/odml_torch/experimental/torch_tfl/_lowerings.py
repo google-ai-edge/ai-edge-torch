@@ -16,8 +16,8 @@
 
 from typing import Sequence
 
-from ai_edge_torch import odml_torch
 from ai_edge_torch.odml_torch.experimental.torch_tfl import _ops
+from ai_edge_torch.odml_torch.lowerings import context
 from ai_edge_torch.odml_torch.lowerings import registry
 from ai_edge_torch.odml_torch.lowerings import utils as lowering_utils
 from jax._src.lib.mlir import ir
@@ -27,7 +27,7 @@ import torch
 
 
 lower = registry.lower
-LoweringContext = odml_torch.lowerings.context.LoweringContext
+LoweringContext = context.LoweringContext
 
 
 def _ir_operation(
@@ -701,6 +701,25 @@ def _tfl_topk_v2_lowering(
       operands=[
           x,
           lowering_utils.numpy_array_constant(np.array(k, dtype=np.int32)),
+      ],
+      attributes={},
+  )
+
+
+@lower(torch.ops.tfl.scatter_nd.default)
+def _tfl_scatter_nd_lowering(
+    lctx: LoweringContext,
+    indices: ir.Value,
+    updates: ir.Value,
+    shape: Sequence[int],
+) -> ir.Value:
+  return _ir_operation(
+      "tfl.scatter_nd",
+      results=lowering_utils.node_meta_to_ir_types(lctx.node),
+      operands=[
+          indices,
+          updates,
+          lowering_utils.numpy_array_constant(np.array(shape, dtype=np.int32)),
       ],
       attributes={},
   )
