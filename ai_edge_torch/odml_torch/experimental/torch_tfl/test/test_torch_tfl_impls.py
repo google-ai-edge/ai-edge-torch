@@ -218,6 +218,7 @@ class TestTorchTFLImpls(parameterized.TestCase):
       ("aten__softmax_5", torch.ops.aten._softmax.default, (rnd(torch.float32, (1, 10)), 1, False), dict()),
       ("aten_topk_0", torch.ops.aten.topk.default, (rnd(torch.float32, (4, 10)), 3), dict()),
       ("aten_topk_1", torch.ops.aten.topk.default, (rnd(torch.float32, (4, 10)), 3), dict(dim=0)),
+      ("aten_scatter_src_0", torch.ops.aten.scatter.src, (rnd(torch.float32, (10, 10)), 1, rnd(torch.int64, (10, 10)), rnd(torch.float32, (10, 10)),), dict()),
       # fmt: on
       # pyformat: enable
   )

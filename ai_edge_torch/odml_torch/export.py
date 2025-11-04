@@ -21,6 +21,7 @@ import operator
 from typing import Any, Callable, Optional
 
 from ai_edge_torch import fx_infra
+from ai_edge_torch.odml_torch.experimental import torch_tfl
 from jax._src.lib.mlir import ir
 from jax._src.lib.mlir.dialects import func
 from jax._src.lib.mlir.dialects import hlo as stablehlo
@@ -369,6 +370,20 @@ def exported_program_to_mlir(
 
   if _pre_lower_pass:
     _pre_lower_pass(exported_program)
+
+  # DO NOT SUBMIT: Lower via torch_tfl for specific aten ops.
+  exported_program = fx_infra.safe_run_decompositions(
+      exported_program,
+      fx_infra.decomp.pre_convert_decomp()
+      | fx_infra.decomp.pre_lower_decomp()
+      | {
+          op: torch_tfl.decomps[op]
+          for op in [
+              torch.ops.aten.topk.default,
+              torch.ops.aten.scatter.src,
+          ]
+      },
+  )
 
   if not ir_context:
     ir_context = export_utils.create_ir_context()
