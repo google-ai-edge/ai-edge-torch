@@ -21,6 +21,7 @@ from ai_edge_torch.odml_torch.lowerings import registry
 import jax
 import jax.numpy as jnp
 from jax._src.lib.mlir import ir
+import numpy as np
 import torch
 import torch_xla2.ops.jaten  # Import to load torch_xla2 ops
 import torch_xla2.ops.ops_registry  # Import to load torch_xla2 ops
@@ -71,8 +72,6 @@ lower_by_torch_xla2(torch.ops.aten._cdist_forward)
 lower_by_torch_xla2(torch.ops.aten._local_scalar_dense)
 lower_by_torch_xla2(torch.ops.aten._local_scalar_dense)
 lower_by_torch_xla2(torch.ops.aten._log_softmax)
-lower_by_torch_xla2(torch.ops.aten._native_batch_norm_legit)
-lower_by_torch_xla2(torch.ops.aten._native_batch_norm_legit_no_training)
 lower_by_torch_xla2(torch.ops.aten._pdist_forward)
 lower_by_torch_xla2(torch.ops.aten._softmax)
 lower_by_torch_xla2(torch.ops.aten._unsafe_index)
@@ -158,10 +157,8 @@ lower_by_torch_xla2(torch.ops.aten.logical_not)
 lower_by_torch_xla2(torch.ops.aten.logical_or)
 lower_by_torch_xla2(torch.ops.aten.logical_xor)
 lower_by_torch_xla2(torch.ops.aten.max)
-lower_by_torch_xla2(torch.ops.aten.max_pool2d_with_indices)
 lower_by_torch_xla2(torch.ops.aten.max_pool2d_with_indices_backward)
 lower_by_torch_xla2(torch.ops.aten.max_pool2d_with_indices_backward)
-lower_by_torch_xla2(torch.ops.aten.max_pool3d_with_indices)
 lower_by_torch_xla2(torch.ops.aten.maximum)
 lower_by_torch_xla2(torch.ops.aten.mean)
 lower_by_torch_xla2(torch.ops.aten.min)
@@ -175,7 +172,6 @@ lower_by_torch_xla2(torch.ops.aten.nonzero)
 lower_by_torch_xla2(torch.ops.aten.outer)
 lower_by_torch_xla2(torch.ops.aten.permute)
 lower_by_torch_xla2(torch.ops.aten.permute_copy)
-lower_by_torch_xla2(torch.ops.aten.pixel_shuffle)
 lower_by_torch_xla2(torch.ops.aten.pow)
 lower_by_torch_xla2(torch.ops.aten.prod)
 lower_by_torch_xla2(torch.ops.aten.reciprocal)
@@ -238,6 +234,249 @@ lower_by_torch_xla2(torch.ops.aten.where.ScalarOther)
 lower_by_torch_xla2(torch.ops.aten.where.ScalarSelf)
 lower_by_torch_xla2(torch.ops.prims.broadcast_in_dim)
 lower_by_torch_xla2(torch.ops.prims.var)
+
+
+def _ceil_mode_padding(
+    padding: list[int],
+    input_shape: list[int],
+    kernel_size: list[int],
+    stride: list[int],
+    dilation: list[int],
+    ceil_mode: bool,
+):
+  """Creates low and high padding specification for ceil mode.
+
+  This is for the given padding (which is symmetric). Additional high padding
+  could be required when ceil mode is set.
+  """
+  ceil_mode_padding = []
+  for i in range(len(padding)):
+    left_padding = padding[i]
+    right_padding = left_padding
+
+    input_size = input_shape[2 + i]
+    output_size_rem = (
+        input_size + 2 * left_padding - (kernel_size[i] - 1) * dilation[i] - 1
+    ) % stride[i]
+    if ceil_mode and output_size_rem != 0:
+      extra_padding = stride[i] - output_size_rem
+      new_output_size = (
+          input_size
+          + left_padding
+          + right_padding
+          + extra_padding
+          - (kernel_size[i] - 1) * dilation[i]
+          - 1
+          + stride[i]
+          - 1
+      ) // stride[i] + 1
+      # Ensure that the last pooling starts inside the image.
+      size_to_compare = input_size + left_padding
+
+      if (new_output_size - 1) * stride[i] < size_to_compare:
+        right_padding += extra_padding
+
+    ceil_mode_padding.append((left_padding, right_padding))
+  return ceil_mode_padding
+
+
+def max_pool(
+    inputs,
+    kernel_size,
+    strides=None,
+    padding=0,
+    dilation=1,
+    ceil_mode=False,
+    with_index=False,
+):
+  num_spatial_dims = len(kernel_size)
+  num_batch_dims = inputs.ndim - num_spatial_dims - 1
+  kernel_size_tup = tuple(kernel_size)
+  # Default stride is kernel_size
+  strides_tup = tuple(strides) if strides else kernel_size_tup
+  if isinstance(padding, int):
+    padding_list = [padding for _ in range(num_spatial_dims)]
+  elif not padding:  # padding can be [], meaning all zeros.
+    padding_list = [0 for _ in range(num_spatial_dims)]
+  else:
+    padding_list = padding
+
+  if isinstance(dilation, int):
+    dilation_tup = tuple(dilation for _ in range(num_spatial_dims))
+  elif not dilation:
+    dilation_tup = tuple(1 for _ in range(num_spatial_dims))
+  elif isinstance(dilation, list):
+    dilation_tup = tuple(dilation)
+  else:
+    dilation_tup = dilation
+
+  input_shape_for_ceil = inputs.shape
+  if num_batch_dims == 0:
+    input_shape_for_ceil = [1, *input_shape_for_ceil]
+  padding_pairs = _ceil_mode_padding(
+      padding_list,
+      input_shape_for_ceil,
+      kernel_size_tup,
+      strides_tup,
+      dilation_tup,
+      ceil_mode,
+  )
+
+  assert len(kernel_size_tup) == len(
+      strides_tup
+  ), f"len({kernel_size_tup=}) must equal len({strides_tup=})"
+  assert len(kernel_size_tup) == len(
+      dilation_tup
+  ), f"len({kernel_size_tup=}) must equal len({dilation_tup=})"
+
+  is_single_input = False
+  if num_batch_dims == 0:
+    inputs = inputs[None]
+    is_single_input = True
+
+  reduce_window_strides = (1,) * (inputs.ndim - num_spatial_dims) + strides_tup
+  reduce_window_dims = (1,) * (inputs.ndim - num_spatial_dims) + kernel_size_tup
+  reduce_window_dilation = (1,) * (
+      inputs.ndim - num_spatial_dims
+  ) + dilation_tup
+
+  assert inputs.ndim == len(
+      reduce_window_dims
+  ), f"len({inputs.shape}) != len({reduce_window_dims})"
+  if not isinstance(padding_pairs, str):
+    padding_pairs_tup = tuple(padding_pairs)
+    assert all(
+        [len(x) == 2 for x in padding_pairs_tup]
+    ), f"each entry in padding {padding_pairs_tup} must be length 2"
+    padding_lax = ((0, 0),) * (
+        inputs.ndim - len(padding_pairs_tup)
+    ) + padding_pairs_tup
+  else:
+    padding_lax = padding_pairs
+
+  indices = jnp.arange(
+      np.prod(inputs.shape[-num_spatial_dims:]), dtype=jnp.int64
+  )
+  indices = indices.reshape(inputs.shape[-num_spatial_dims:])
+  indices_shape = (1,) * (inputs.ndim - indices.ndim) + indices.shape
+  indices = jnp.broadcast_to(indices.reshape(indices_shape), inputs.shape)
+
+  return_dtype = inputs.dtype
+  if jnp.issubdtype(inputs.dtype, jnp.integer):
+    init_val = jnp.int32(jnp.iinfo(jnp.int32).min)
+    inputs = inputs.astype(jnp.int32)
+  else:
+    init_val = jnp.float32(-jnp.inf)
+    inputs = inputs.astype(jnp.float32)
+
+  if not with_index:
+    y = jax.lax.reduce_window(
+        inputs,
+        init_val,
+        jax.lax.max,
+        reduce_window_dims,
+        reduce_window_strides,
+        padding_lax,
+        window_dilation=reduce_window_dilation,
+    )
+    if is_single_input:
+      y = jnp.squeeze(y, axis=0)
+    return y.astype(return_dtype)
+  else:
+
+    def reduce_fn(a, b):
+      ai, av = a
+      bi, bv = b
+      which = av >= bv
+      return jnp.where(which, ai, bi), jnp.where(which, av, bv)
+
+    indices, y = jax.lax.reduce_window(
+        (indices, inputs),
+        (jnp.int64(0), init_val),
+        reduce_fn,
+        reduce_window_dims,
+        reduce_window_strides,
+        padding_lax,
+        window_dilation=reduce_window_dilation,
+    )
+    if is_single_input:
+      indices = jnp.squeeze(indices, axis=0)
+      y = jnp.squeeze(y, axis=0)
+    y = y.astype(return_dtype)
+    return y, indices
+
+
+@lower_by_jax(torch.ops.aten.max_pool2d_with_indices)
+def _aten_max_pool2d_with_indices(
+    self, kernel_size, stride=None, padding=0, dilation=1, ceil_mode=False
+):
+  stride = stride if stride is not None else []
+  y = max_pool(
+      self,
+      kernel_size,
+      strides=stride,
+      padding=padding,
+      dilation=dilation,
+      ceil_mode=ceil_mode,
+      with_index=False,
+  )
+  # TFLite's reduce_window kernel doesn't support multiple inputs/outputs,
+  # so we emit reduce_window with a single output and return dummy indices.
+  return y, jnp.zeros_like(y, dtype=jnp.int64)
+
+
+@lower_by_jax(torch.ops.aten.max_pool3d_with_indices.default)
+def _aten_max_pool3d_with_indices(
+    self, kernel_size, stride=None, padding=0, dilation=1, ceil_mode=False
+):
+  stride = stride if stride is not None else []
+  y = max_pool(
+      self,
+      kernel_size,
+      strides=stride,
+      padding=padding,
+      dilation=dilation,
+      ceil_mode=ceil_mode,
+      with_index=False,
+  )
+  # TFLite's reduce_window kernel doesn't support multiple inputs/outputs,
+  # so we emit reduce_window with a single output and return dummy indices.
+  return y, jnp.zeros_like(y, dtype=jnp.int64)
+
+
+@lower_by_jax(torch.ops.aten.pixel_shuffle)
+def _aten_pixel_shuffle(x, upscale_factor):
+  """PixelShuffle implementation in JAX lowering.
+
+  Args:
+    x: Input tensor. Typically a feature map.
+    upscale_factor: Integer by which to upscale the spatial dimensions.
+
+  Returns:
+    Tensor after PixelShuffle operation.
+  """
+
+  batch_size, channels, height, width = x.shape
+
+  if channels % (upscale_factor**2) != 0:
+    raise ValueError(
+        "Number of channels must be divisible by the square of the upscale"
+        " factor."
+    )
+
+  new_channels = channels // (upscale_factor**2)
+  new_height = height * upscale_factor
+  new_width = width * upscale_factor
+
+  x = x.reshape(
+      batch_size, new_channels, upscale_factor, upscale_factor, height, width
+  )
+  x = jnp.transpose(
+      x, (0, 1, 4, 2, 5, 3)
+  )  # Move channels to spatial dimensions
+  x = x.reshape(batch_size, new_channels, new_height, new_width)
+
+  return x
 
 
 @lower_by_jax(torch.ops.aten.unbind)
