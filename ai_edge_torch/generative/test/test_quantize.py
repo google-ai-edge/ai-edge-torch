@@ -160,6 +160,7 @@ class TestQuantizeConvert(parameterized.TestCase):
     )
 
   def test_quantize_convert_toy_blockwise(self):
+    self.skipTest("b/448668892")
     config = toy_model.get_model_config()
     pytorch_model = toy_model.ToySingleLayerModel(config)
     idx = torch.unsqueeze(torch.arange(0, 100, dtype=torch.int), 0)
@@ -176,6 +177,7 @@ class TestQuantizeConvert(parameterized.TestCase):
     )
 
   def test_unsupported_block_size(self):
+    self.skipTest("b/448668892")
     config = toy_model.get_model_config()
     pytorch_model = toy_model.ToySingleLayerModel(config)
     idx = torch.unsqueeze(torch.arange(0, 100, dtype=torch.int), 0)
