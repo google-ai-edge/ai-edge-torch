@@ -29,53 +29,48 @@ Typical usage example:
 
 from typing import Optional
 from ai_edge_torch.generative.layers import model_config
+from ai_edge_torch.generative.quantize import quant_attrs
 from ai_edge_torch.generative.quantize import quant_recipe
 from ai_edge_torch.generative.quantize import quant_recipe_utils
 from ai_edge_torch.quantize import quant_config
 
 
-def full_int8_dynamic_recipe(
-    mcfg: Optional[model_config.ModelConfig] = None,
+def full_dynamic_recipe(
+    mcfg: model_config.ModelConfig | None = None,
+    weight_dtype: quant_attrs.Dtype = quant_attrs.Dtype.INT8,
+    granularity: quant_attrs.Granularity = quant_attrs.Granularity.CHANNELWISE,
 ) -> quant_config.QuantConfig:
   return quant_config.QuantConfig(
       generative_recipe=quant_recipe.GenerativeQuantRecipe(
-          default=quant_recipe_utils.create_layer_quant_int8_dynamic(),
+          default=quant_recipe_utils.create_layer_quant_dynamic(
+              weight_dtype, granularity
+          ),
           _model_config=mcfg,
       )
   )
 
 
-def full_int8_weight_only_recipe(
-    mcfg: Optional[model_config.ModelConfig] = None,
+def full_weight_only_recipe(
+    mcfg: model_config.ModelConfig | None = None,
+    weight_dtype: quant_attrs.Dtype = quant_attrs.Dtype.INT8,
+    granularity: quant_attrs.Granularity = quant_attrs.Granularity.CHANNELWISE,
 ) -> quant_config.QuantConfig:
   return quant_config.QuantConfig(
       generative_recipe=quant_recipe.GenerativeQuantRecipe(
-          default=quant_recipe_utils.create_layer_quant_int8_weight_only(),
+          default=quant_recipe_utils.create_layer_quant_weight_only(
+              weight_dtype, granularity
+          ),
           _model_config=mcfg,
       )
   )
 
 
 def full_fp16_recipe(
-    mcfg: Optional[model_config.ModelConfig] = None,
+    mcfg: model_config.ModelConfig | None = None,
 ) -> quant_config.QuantConfig:
   return quant_config.QuantConfig(
       generative_recipe=quant_recipe.GenerativeQuantRecipe(
           default=quant_recipe_utils.create_layer_quant_fp16(),
-          _model_config=mcfg,
-      )
-  )
-
-
-def all_supported_int4_dynamic_block_recipe(
-    block_size: int,
-    mcfg: Optional[model_config.ModelConfig] = None,
-) -> quant_config.QuantConfig:
-  return quant_config.QuantConfig(
-      generative_recipe=quant_recipe.GenerativeQuantRecipe(
-          default=quant_recipe_utils.create_layer_quant_int4_dynamic_block(
-              block_size
-          ),
           _model_config=mcfg,
       )
   )

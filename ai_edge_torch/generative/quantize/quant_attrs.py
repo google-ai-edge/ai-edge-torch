@@ -63,8 +63,15 @@ class Granularity(enum.Enum):
     NONE: Granularity not applicable to this quantization scheme.
     CHANNELWISE: Or per-channel quantization. Each channel of relevant tensors
       is quantized independently of one another.
+    BLOCKWISE_32: Blockwise quantization with block size 32.
+    BLOCKWISE_64: Blockwise quantization with block size 64.
+    BLOCKWISE_128: Blockwise quantization with block size 128.
+    BLOCKWISE_256: Blockwise quantization with block size 256.
   """
 
   NONE = enum.auto()
   CHANNELWISE = enum.auto()
-  BLOCKWISE = enum.auto()
+  BLOCKWISE_32 = enum.auto()
+  BLOCKWISE_64 = enum.auto()
+  BLOCKWISE_128 = enum.auto()
+  BLOCKWISE_256 = enum.auto()

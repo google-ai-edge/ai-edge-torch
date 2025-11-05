@@ -33,7 +33,7 @@ def main():
   kv = kv_utils.KVCache.from_model_config(config)
 
   # Create a quantization recipe to be applied to the model
-  quant_config = quant_recipes.full_int8_dynamic_recipe()
+  quant_config = quant_recipes.full_dynamic_recipe()
   print(quant_config)
 
   # Convert with quantization

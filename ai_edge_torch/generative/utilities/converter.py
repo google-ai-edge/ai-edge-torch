@@ -25,6 +25,7 @@ from ai_edge_torch._convert import converter as converter_utils
 from ai_edge_torch.generative.layers import kv_cache as kv_utils
 from ai_edge_torch.generative.layers import lora as lora_utils
 import ai_edge_torch.generative.layers.model_config as cfg
+from ai_edge_torch.generative.quantize import quant_attrs
 from ai_edge_torch.generative.quantize import quant_recipes
 from ai_edge_torch.generative.utilities import export_config as export_config_lib
 from ai_edge_torch.generative.utilities import litertlm_builder
@@ -207,18 +208,22 @@ def get_quant_recipe_from_flag(
     case QuantizationName.NONE:
       return None
     case QuantizationName.DYNAMIC_INT8:
-      return quant_recipes.full_int8_dynamic_recipe(mcfg=model_config)
+      return quant_recipes.full_dynamic_recipe(mcfg=model_config)
     case QuantizationName.WEIGHT_ONLY_INT8:
-      return quant_recipes.full_int8_weight_only_recipe(mcfg=model_config)
+      return quant_recipes.full_weight_only_recipe(mcfg=model_config)
     case QuantizationName.FP16:
       return quant_recipes.full_fp16_recipe()
     case QuantizationName.DYNAMIC_INT4_BLOCK32:
-      return quant_recipes.all_supported_int4_dynamic_block_recipe(
-          32, mcfg=model_config
+      return quant_recipes.full_dynamic_recipe(
+          mcfg=model_config,
+          weight_dtype=quant_attrs.Dtype.INT4,
+          granularity=quant_attrs.Granularity.BLOCKWISE_32,
       )
     case QuantizationName.DYNAMIC_INT4_BLOCK128:
-      return quant_recipes.all_supported_int4_dynamic_block_recipe(
-          128, mcfg=model_config
+      return quant_recipes.full_dynamic_recipe(
+          mcfg=model_config,
+          weight_dtype=quant_attrs.Dtype.INT4,
+          granularity=quant_attrs.Granularity.BLOCKWISE_128,
       )
     case _:
       raise ValueError(f'Unsupported quantization flag: {quantize}')

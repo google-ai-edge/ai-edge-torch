@@ -79,18 +79,18 @@ class TestVerifyRecipes(parameterized.TestCase):
           Dtype.INT4,
           Mode.DYNAMIC_RANGE,
           Algorithm.MIN_MAX,
-          Granularity.BLOCKWISE,
-          32,
+          Granularity.BLOCKWISE_32,
+      ),
+      (
+          Dtype.FP32,
+          Dtype.INT4,
+          Mode.DYNAMIC_RANGE,
+          Algorithm.MIN_MAX,
+          Granularity.BLOCKWISE_128,
       ),
   ])
   def test_verify_valid_recipes(
-      self,
-      activation,
-      weight,
-      mode,
-      algo,
-      granularity,
-      block_size=None,
+      self, activation, weight, mode, algo, granularity
   ):
     quant_recipe.LayerQuantRecipe(
         activation, weight, mode, algo, granularity
@@ -108,21 +108,21 @@ class TestQuantizeConvert(parameterized.TestCase):
   def _attention_int8_dynamic_recipe() -> quant_config.QuantConfig:
     return quant_config.QuantConfig(
         generative_recipe=quant_recipe.GenerativeQuantRecipe(
-            attention=quant_recipe_utils.create_layer_quant_int8_dynamic(),
+            attention=quant_recipe_utils.create_layer_quant_dynamic(),
         )
     )
 
   def _feedforward_int8_dynamic_recipe() -> quant_config.QuantConfig:
     return quant_config.QuantConfig(
         generative_recipe=quant_recipe.GenerativeQuantRecipe(
-            feedforward=quant_recipe_utils.create_layer_quant_int8_dynamic(),
+            feedforward=quant_recipe_utils.create_layer_quant_dynamic(),
         )
     )
 
   @parameterized.parameters([
       (quant_recipes.full_fp16_recipe()),
-      (quant_recipes.full_int8_dynamic_recipe()),
-      (quant_recipes.full_int8_weight_only_recipe()),
+      (quant_recipes.full_dynamic_recipe()),
+      (quant_recipes.full_weight_only_recipe()),
       (_attention_int8_dynamic_recipe()),
       (_feedforward_int8_dynamic_recipe()),
   ])
@@ -148,7 +148,7 @@ class TestQuantizeConvert(parameterized.TestCase):
     idx = torch.unsqueeze(torch.arange(0, 100, dtype=torch.int), 0)
     input_pos = torch.arange(0, 100, dtype=torch.int)
 
-    quant_config = quant_recipes.full_int8_dynamic_recipe()
+    quant_config = quant_recipes.full_dynamic_recipe()
     quantized_model = ai_edge_torch.convert(
         pytorch_model, (idx, input_pos), quant_config=quant_config
     )
@@ -164,7 +164,9 @@ class TestQuantizeConvert(parameterized.TestCase):
     pytorch_model = toy_model.ToySingleLayerModel(config)
     idx = torch.unsqueeze(torch.arange(0, 100, dtype=torch.int), 0)
     input_pos = torch.arange(0, 100, dtype=torch.int)
-    quant_config = quant_recipes.all_supported_int4_dynamic_block_recipe(32)
+    quant_config = quant_recipes.full_dynamic_recipe(
+        weight_dtype=Dtype.INT4, granularity=Granularity.BLOCKWISE_32
+    )
     quantized_model = ai_edge_torch.convert(
         pytorch_model, (idx, input_pos), quant_config=quant_config
     )
@@ -173,17 +175,6 @@ class TestQuantizeConvert(parameterized.TestCase):
         len(quantized_model._tflite_model),
         len(float_model._tflite_model),
         "Quantized model isn't smaller than F32 model.",
-    )
-
-  def test_unsupported_block_size(self):
-    config = toy_model.get_model_config()
-    pytorch_model = toy_model.ToySingleLayerModel(config)
-    idx = torch.unsqueeze(torch.arange(0, 100, dtype=torch.int), 0)
-    input_pos = torch.arange(0, 100, dtype=torch.int)
-    self.assertRaises(
-        ValueError,
-        quant_recipes.all_supported_int4_dynamic_block_recipe,
-        36,
     )
 
   def test_quantize_convert_compare_toy(self):
