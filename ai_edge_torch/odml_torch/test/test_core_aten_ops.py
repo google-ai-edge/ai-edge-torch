@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+import ai_edge_torch
 from ai_edge_torch import odml_torch
 import numpy as np
 import torch
@@ -409,21 +410,8 @@ class TestCoreAtenOps(parameterized.TestCase):
       # fmt: on
       # pyformat: enable
   )
-  def test_op(self, op, args, kwargs):
+  def test_lowering_op(self, op, args, kwargs):
     self._run_export_and_compare(op, args, kwargs)
-
-  @parameterized.named_parameters(
-      # fmt: off
-      # pyformat: disable
-      ("aten_multinomial_1d_no_replacement", torch.ops.aten.multinomial, (rnd(torch.float32, (10,), 0.1, 1.0), 3, False), dict()),
-      ("aten_multinomial_1d_with_replacement", torch.ops.aten.multinomial, (rnd(torch.float32, (10,), 0.1, 1.0), 12, True), dict()),
-      ("aten_multinomial_2d_no_replacement", torch.ops.aten.multinomial, (rnd(torch.float32, (4, 10), 0.1, 1.0), 3, False), dict()),
-      ("aten_multinomial_2d_with_replacement", torch.ops.aten.multinomial, (rnd(torch.float32, (4, 10), 0.1, 1.0), 12, True), dict()),
-      # fmt: on
-      # pyformat: enable
-  )
-  def test_stochastic_op(self, op, args, kwargs):
-    self._run_export_and_compare(op, args, kwargs, check_values=False)
 
   @googletest.skip("wip jax lowering")
   def test_aten_native_batch_norm_legit(self):
@@ -550,6 +538,68 @@ class TestCoreAtenOps(parameterized.TestCase):
     )
     kwargs = dict()
     self._run_export_and_compare(torch.ops.aten.native_batch_norm, args, kwargs)
+
+  def _run_export_convert_and_compare(
+      self,
+      func,
+      args,
+      kwargs,
+      atol=1e-3,
+      rtol=1e-5,
+      equal_nan=True,
+      ignore_indices=False,
+      check_values=True,
+  ):
+    """Assert func, args, and kwargs can be converted and pass numerical validation."""
+    with self.subTest("torch_eval"):
+      expected = func(*args, **kwargs)
+
+    with self.subTest("torch_convert_eval"):
+      ep, new_args, new_kwargs = export_without_scalar_inputs(
+          func, args, kwargs
+      )
+      edge_model = ai_edge_torch.convert(ep.module(), new_args, new_kwargs)
+
+      np_args, np_kwargs = pytree.tree_map_only(
+          torch.is_tensor, lambda x: x.detach().numpy(), [new_args, new_kwargs]
+      )
+      actual = pytree.tree_flatten(edge_model(*np_args, **np_kwargs))[0]
+
+    with self.subTest("torch_convert_eval_diff:" + str(atol)):
+      if ignore_indices and isinstance(expected, tuple) and len(expected) == 2:
+        expected = expected[0]
+        actual = actual[0]
+
+      self._diff_output(
+          expected,
+          actual,
+          atol=atol,
+          rtol=rtol,
+          equal_nan=equal_nan,
+          check_values=check_values,
+      )
+
+  @parameterized.named_parameters(
+      # fmt: off
+      # pyformat: disable
+      ("aten_multinomial_1d_no_replacement", torch.ops.aten.multinomial, (rnd(torch.float32, (10,), 0.1, 1.0), 3, False), dict()),
+      ("aten_multinomial_2d_no_replacement", torch.ops.aten.multinomial, (rnd(torch.float32, (4, 10), 0.1, 1.0), 3, False), dict()),
+      # fmt: on
+      # pyformat: enable
+  )
+  def test_convert_stochastic_op(self, op, args, kwargs):
+    self._run_export_convert_and_compare(op, args, kwargs, check_values=False)
+
+  @parameterized.named_parameters(
+      # fmt: off
+      # pyformat: disable
+      ("aten_full_0", torch.ops.aten.full, ((5, 5), 0.123,), dict()),
+      ("aten_view_0", torch.ops.aten.view, (rnd(torch.float32, (10, 10)), [1, 100],), dict()),
+      # fmt: on
+      # pyformat: enable
+  )
+  def test_convert_op(self, op, args, kwargs):
+    self._run_export_convert_and_compare(op, args, kwargs)
 
 
 if __name__ == "__main__":

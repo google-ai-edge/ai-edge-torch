@@ -21,6 +21,7 @@ import operator
 from typing import Any, Callable, Optional
 
 from ai_edge_torch import fx_infra
+from ai_edge_torch.odml_torch.experimental import torch_tfl
 from jax._src.lib.mlir import ir
 from jax._src.lib.mlir.dialects import func
 from jax._src.lib.mlir.dialects import hlo as stablehlo
@@ -363,12 +364,24 @@ def exported_program_to_mlir(
     # Run decompositions for retracing and cananicalization, if modified.
     exported_program = fx_infra.safe_run_decompositions(exported_program, {})
 
+  if _pre_lower_pass:
+    _pre_lower_pass(exported_program)
+
+  exported_program = fx_infra.safe_run_decompositions(
+      exported_program,
+      fx_infra.decomp.pre_convert_decomp()
+      | fx_infra.decomp.pre_lower_decomp()
+      | {
+          op: torch_tfl.decomps[op]
+          for op in [
+              torch.ops.aten.multinomial.default,
+          ]
+      },
+  )
+
   # Passes below mutate the exported program to a state not executable by torch.
   # Do not call run_decompositions after applying the passes.
   _convert_q_dq_per_channel_args_to_list(exported_program)
-
-  if _pre_lower_pass:
-    _pre_lower_pass(exported_program)
 
   if not ir_context:
     ir_context = export_utils.create_ir_context()
