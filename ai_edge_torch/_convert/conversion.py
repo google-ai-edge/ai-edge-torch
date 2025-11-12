@@ -136,7 +136,7 @@ def convert_signatures(
     )
     return exported_program
 
-  exported_programs: torch.export.ExportedProgram = [
+  exported_programs = [
       export(
           mod=sig.module,
           args=sig.args,
