@@ -22,7 +22,7 @@ For a more detailed explanation of how the system works, please refer to the [Sy
 
 ### Model Authoring using Edge Generative API
 
-The library provides basic [building blocks](generative/layers) for common transformer models (encoder only, decoder only, or encoder-decoder style). As a mobile App developer who wants to integrate LLMs or transformer models into your Android or iOS app, you can re-author your PyTorch Large Language Model using these layers.
+The library provides basic [building blocks](layers/) for common transformer models (encoder only, decoder only, or encoder-decoder style). As a mobile App developer who wants to integrate LLMs or transformer models into your Android or iOS app, you can re-author your PyTorch Large Language Model using these layers.
 
 See our [examples](examples/README.md), which explain in detail how to re-compose popular architectures like [Gemma](examples/gemma), [TinyLlama](examples/tiny_llama), and [Phi-2](examples/phi2) using the library. To do so, you need to have an understanding of the model structure (attention mechanism used, MLP layers) and also be familiar with writing PyTorch code. Our examples should help you get familiar with the process.
 <br/>
