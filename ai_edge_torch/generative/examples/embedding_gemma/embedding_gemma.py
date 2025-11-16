@@ -20,7 +20,6 @@ from ai_edge_torch.generative.layers import attention
 from ai_edge_torch.generative.layers import attention_utils
 from ai_edge_torch.generative.layers import builder
 from ai_edge_torch.generative.layers import model_config as cfg
-# import ai_edge_torch.generative.utilities.loader as loading_utils
 import safetensors.torch as safetensors_torch
 import torch
 from torch import nn
@@ -250,10 +249,8 @@ class EmbeddingGemma(nn.Module):
         expanded_sliding_mask = sliding_mask.unsqueeze(1)
         # Shape: [B, 1, seq_len, seq_len]
 
-        # The final mask -- element-wise minimum of sliding and padding masks.
-        combined_mask = torch.minimum(
-            expanded_sliding_mask, padding_mask_expanded
-        )
+        combined_mask = expanded_sliding_mask + padding_mask_expanded
+        # Shape: [B, 1, seq_len, seq_len]
 
       x = block(x, rope, combined_mask)
 
