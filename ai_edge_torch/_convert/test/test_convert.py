@@ -91,6 +91,78 @@ class TestConvert(googletest.TestCase):
         model_coverage.compare_tflite_torch(edge_model, torch_module, args)
     )
 
+  def test_convert_conv2d_x1(self):
+    """Tests conversion of a simple Conv2d module."""
+
+    class Conv2d(nn.Module):
+
+      def __init__(self):
+        super().__init__()
+        self.conv = nn.Conv2d(
+            in_channels=3, out_channels=16, kernel_size=3, stride=1, padding=1
+        )
+
+      def forward(self, x):
+        return self.conv(x)
+
+    args = (torch.randn((1, 3, 224, 224)),)
+    torch_module = Conv2d().eval()
+    edge_model = ai_edge_torch.convert(torch_module, args)
+
+    tmp_dir_name = os.environ.get("TEST_UNDECLARED_OUTPUTS_DIR")
+    tmp_dir_path = os.path.join(tmp_dir_name, "conv2d_x1.tflite")
+    edge_model.export(tmp_dir_path)
+
+    self.assertTrue(
+        model_coverage.compare_tflite_torch(edge_model, torch_module, args)
+    )
+
+  def test_convert_conv2d_add(self):
+    """Tests conversion of Conv2d layers with add ops."""
+
+    class Conv2d_add(nn.Module):
+
+      def __init__(self):
+        super().__init__()
+        self.convs = nn.ModuleList()
+        self.convs.append(
+            nn.Conv2d(
+                in_channels=3,
+                out_channels=16,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+            )
+        )
+        for _ in range(14):
+          self.convs.append(
+              nn.Conv2d(
+                  in_channels=16,
+                  out_channels=16,
+                  kernel_size=3,
+                  stride=1,
+                  padding=1,
+              )
+          )
+
+      def forward(self, x):
+        x = self.convs[0](x)
+        for i in range(1, 15):
+          x = x + self.convs[i](x)
+        return x
+
+    args = (torch.randn((1, 3, 224, 224)),)
+    torch_module = Conv2d_add().eval()
+    edge_model = ai_edge_torch.convert(torch_module, args)
+
+    tmp_dir_name = os.environ.get("TEST_UNDECLARED_OUTPUTS_DIR")
+    tmp_dir_path = os.path.join(tmp_dir_name, "conv2d_add_x14.tflite")
+    edge_model.export(tmp_dir_path)
+
+    self.assertTrue(
+        model_coverage.compare_tflite_torch(edge_model, torch_module, args)
+    )
+
   def test_convert_resnet18(self):
     args = (torch.randn(4, 3, 224, 224),)
     torch_module = torchvision.models.resnet18().eval()
