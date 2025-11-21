@@ -23,11 +23,13 @@ try:
   # pylint: disable=g-import-not-at-top
   from ai_edge_litert.internal import llm_metadata_pb2
   from ai_edge_litert.internal import litertlm_builder
+  from ai_edge_litert.internal import llm_model_type_pb2
   # pylint: enable=g-import-not-at-top
 
   _litertlm_builder_available = True
 except ImportError:
   llm_metadata_pb2 = None
+  llm_model_type_pb2 = None
   litertlm_builder = None
   _litertlm_builder_available = False
 
@@ -51,6 +53,8 @@ def build_litertlm(
     start_token_id: int | None = None,
     stop_tokens: str | list[str] | None = None,
     stop_token_ids: list[int] | None = None,
+    llm_model_type: str = 'generic',
+    jinja_prompt_template: str | None = None,
     **kwargs,
 ):
   """Builds a LiteRT-LM file from a TFlite model."""
@@ -59,6 +63,7 @@ def build_litertlm(
   if not is_litertlm_builder_available():
     raise ValueError('LiteRT-LM builder is not available.')
   assert llm_metadata_pb2 is not None
+  assert llm_model_type_pb2 is not None
   assert litertlm_builder is not None
 
   llm_metadata = llm_metadata_pb2.LlmMetadata()
@@ -95,6 +100,39 @@ def build_litertlm(
     llm_metadata.prompt_templates.user.suffix = user_prompt_suffix
 
   llm_metadata.max_num_tokens = context_length
+
+  match llm_model_type:
+    case litertlm_builder.LlmModelType.GENERIC:
+      llm_metadata.llm_model_type.CopyFrom(
+          llm_model_type_pb2.LlmModelType(
+              generic_model=llm_model_type_pb2.GenericModel()
+          )
+      )
+    case litertlm_builder.LlmModelType.GEMMA3N:
+      llm_metadata.llm_model_type.CopyFrom(
+          llm_model_type_pb2.LlmModelType(
+              gemma3n=llm_model_type_pb2.Gemma3N()
+          )
+      )
+    case litertlm_builder.LlmModelType.GEMMA3:
+      llm_metadata.llm_model_type.CopyFrom(
+          llm_model_type_pb2.LlmModelType(gemma3=llm_model_type_pb2.Gemma3())
+      )
+    case litertlm_builder.LlmModelType.QWEN3:
+      llm_metadata.llm_model_type.CopyFrom(
+          llm_model_type_pb2.LlmModelType(qwen3=llm_model_type_pb2.Qwen3())
+      )
+    case litertlm_builder.LlmModelType.QWEN2P5:
+      llm_metadata.llm_model_type.CopyFrom(
+          llm_model_type_pb2.LlmModelType(
+              qwen2p5=llm_model_type_pb2.Qwen2p5()
+          )
+      )
+    case _:
+      raise ValueError(f'Unsupported LLM model type: {llm_model_type}')
+
+  if jinja_prompt_template is not None:
+    llm_metadata.jinja_prompt_template = jinja_prompt_template
 
   llm_metadata_path = os.path.join(workdir, 'llm_metadata.pb')
   with open(llm_metadata_path, 'wb') as f:
