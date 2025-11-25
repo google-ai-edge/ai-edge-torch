@@ -18,6 +18,7 @@
 
 import os
 import pathlib
+from google.protobuf import text_format
 
 try:
   # pylint: disable=g-import-not-at-top
@@ -43,18 +44,19 @@ def build_litertlm(
     workdir: str,
     output_path: str,
     context_length: int,
-    model_prompt_prefix: str | None,
-    model_prompt_suffix: str | None,
-    user_prompt_prefix: str | None,
-    user_prompt_suffix: str | None,
-    tokenizer_model_path: str | None,
-    hf_tokenizer_model_path: str | None,
+    model_prompt_prefix: str | None = None,
+    model_prompt_suffix: str | None = None,
+    user_prompt_prefix: str | None = None,
+    user_prompt_suffix: str | None = None,
+    tokenizer_model_path: str | None = None,
+    hf_tokenizer_model_path: str | None = None,
     start_token: str | None = None,
     start_token_id: int | None = None,
     stop_tokens: str | list[str] | None = None,
     stop_token_ids: list[int] | None = None,
     llm_model_type: str = 'generic',
     jinja_prompt_template: str | None = None,
+    base_llm_metadata_path: str | None = None,
     **kwargs,
 ):
   """Builds a LiteRT-LM file from a TFlite model."""
@@ -62,11 +64,22 @@ def build_litertlm(
 
   if not is_litertlm_builder_available():
     raise ValueError('LiteRT-LM builder is not available.')
+  assert litertlm_builder is not None
   assert llm_metadata_pb2 is not None
   assert llm_model_type_pb2 is not None
-  assert litertlm_builder is not None
 
   llm_metadata = llm_metadata_pb2.LlmMetadata()
+  if base_llm_metadata_path:
+    if base_llm_metadata_path.endswith('.pb'):
+      with open(base_llm_metadata_path, 'rb') as f:
+        llm_metadata.ParseFromString(f.read())
+    elif base_llm_metadata_path.endswith('.textproto'):
+      with open(base_llm_metadata_path, 'r') as f:
+        text_format.Parse(f.read(), llm_metadata, allow_unknown_field=True)
+    else:
+      raise ValueError(
+          'Base LLM metadata path must be a binary or text proto file.'
+      )
 
   if start_token_id is not None:
     llm_metadata.start_token.token_ids.ids.append(start_token_id)
@@ -101,40 +114,44 @@ def build_litertlm(
 
   llm_metadata.max_num_tokens = context_length
 
-  match llm_model_type:
-    case litertlm_builder.LlmModelType.GENERIC:
-      llm_metadata.llm_model_type.CopyFrom(
-          llm_model_type_pb2.LlmModelType(
-              generic_model=llm_model_type_pb2.GenericModel()
-          )
-      )
-    case litertlm_builder.LlmModelType.GEMMA3N:
-      llm_metadata.llm_model_type.CopyFrom(
-          llm_model_type_pb2.LlmModelType(
-              gemma3n=llm_model_type_pb2.Gemma3N()
-          )
-      )
-    case litertlm_builder.LlmModelType.GEMMA3:
-      llm_metadata.llm_model_type.CopyFrom(
-          llm_model_type_pb2.LlmModelType(gemma3=llm_model_type_pb2.Gemma3())
-      )
-    case litertlm_builder.LlmModelType.QWEN3:
-      llm_metadata.llm_model_type.CopyFrom(
-          llm_model_type_pb2.LlmModelType(qwen3=llm_model_type_pb2.Qwen3())
-      )
-    case litertlm_builder.LlmModelType.QWEN2P5:
-      llm_metadata.llm_model_type.CopyFrom(
-          llm_model_type_pb2.LlmModelType(
-              qwen2p5=llm_model_type_pb2.Qwen2p5()
-          )
-      )
-    case _:
-      raise ValueError(f'Unsupported LLM model type: {llm_model_type}')
+  if (
+      llm_metadata.llm_model_type
+      == llm_model_type_pb2.LlmModelType.generic_model
+  ):
+    match llm_model_type:
+      case litertlm_builder.LlmModelType.GENERIC:
+        llm_metadata.llm_model_type.CopyFrom(
+            llm_model_type_pb2.LlmModelType(
+                generic_model=llm_model_type_pb2.GenericModel()
+            )
+        )
+      case litertlm_builder.LlmModelType.GEMMA3N:
+        llm_metadata.llm_model_type.CopyFrom(
+            llm_model_type_pb2.LlmModelType(
+                gemma3n=llm_model_type_pb2.Gemma3N()
+            )
+        )
+      case litertlm_builder.LlmModelType.GEMMA3:
+        llm_metadata.llm_model_type.CopyFrom(
+            llm_model_type_pb2.LlmModelType(gemma3=llm_model_type_pb2.Gemma3())
+        )
+      case litertlm_builder.LlmModelType.QWEN3:
+        llm_metadata.llm_model_type.CopyFrom(
+            llm_model_type_pb2.LlmModelType(qwen3=llm_model_type_pb2.Qwen3())
+        )
+      case litertlm_builder.LlmModelType.QWEN2P5:
+        llm_metadata.llm_model_type.CopyFrom(
+            llm_model_type_pb2.LlmModelType(
+                qwen2p5=llm_model_type_pb2.Qwen2p5()
+            )
+        )
+      case _:
+        raise ValueError(f'Unsupported LLM model type: {llm_model_type}')
 
   if jinja_prompt_template is not None:
     llm_metadata.jinja_prompt_template = jinja_prompt_template
 
-  llm_metadata_path = os.path.join(workdir, 'llm_metadata.pb')
+  llm_metadata_path = os.path.join(workdir, 'llm_metadata_final.pb')
   with open(llm_metadata_path, 'wb') as f:
     f.write(llm_metadata.SerializeToString())
 
