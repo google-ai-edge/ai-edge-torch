@@ -114,10 +114,8 @@ def build_litertlm(
 
   llm_metadata.max_num_tokens = context_length
 
-  if (
-      llm_metadata.llm_model_type
-      == llm_model_type_pb2.LlmModelType.generic_model
-  ):
+  mdl_type = llm_metadata.llm_model_type.WhichOneof('model_type')
+  if not mdl_type or mdl_type == 'generic_model':
     match llm_model_type:
       case litertlm_builder.LlmModelType.GENERIC:
         llm_metadata.llm_model_type.CopyFrom(
