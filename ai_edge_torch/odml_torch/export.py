@@ -350,7 +350,8 @@ def exported_program_to_mlir(
     exported_program: The exported program to lower.
     ir_context: The MLIR context to use. If not provided, a new context will be
       created.
-    _pre_lower_pass: A function to run on exported program before lowering.
+    _pre_lower_pass: A function to run on exported program before lowering,
+      after all run_decompositions calls.
 
   Returns:
     The lowered MLIR module, metadata, and weight tensors bundle from exported
@@ -360,17 +361,15 @@ def exported_program_to_mlir(
       exported_program,
       fx_infra.decomp.pre_lower_decomp(),
   )
-  if _convert_i64_to_i32(exported_program):
-    # Run decompositions for retracing and cananicalization, if modified.
-    exported_program = fx_infra.safe_run_decompositions(exported_program, {})
 
-  if _pre_lower_pass:
-    _pre_lower_pass(exported_program)
+  # Passes to run after pre_lower_decomp - requires ops to be decomposed into
+  # lower level ops.
+  _convert_i64_to_i32(exported_program)
 
+  # Last decomposition and canonicalization before lowering.
   exported_program = fx_infra.safe_run_decompositions(
       exported_program,
-      fx_infra.decomp.pre_convert_decomp()
-      | fx_infra.decomp.pre_lower_decomp()
+      fx_infra.decomp.pre_lower_decomp()
       | {
           op: torch_tfl.decomps[op]
           for op in [
@@ -379,10 +378,14 @@ def exported_program_to_mlir(
       },
   )
 
-  # Passes below mutate the exported program to a state not executable by torch.
+  # Passes below modify the exported program to a state not executable by torch.
   # Do not call run_decompositions after applying the passes.
+  if _pre_lower_pass:
+    _pre_lower_pass(exported_program)
+
   _convert_q_dq_per_channel_args_to_list(exported_program)
 
+  # Begin of lowering.
   if not ir_context:
     ir_context = export_utils.create_ir_context()
 
