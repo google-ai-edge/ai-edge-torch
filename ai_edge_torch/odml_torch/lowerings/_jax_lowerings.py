@@ -489,6 +489,17 @@ def _aten_copy(self, src, **kwargs):
   return _TORCH_XLA2_IMPLS[torch.ops.aten.copy](self, src)
 
 
+@lower_by_jax(torch.ops.aten.elu.default)
+def _aten_elu(self, alpha=1.0, scale=1.0, input_scale=1.0):
+  pos_coef = scale
+  neg_coef = alpha * scale
+  neg_input_coef = input_scale
+
+  pos_branch = self * pos_coef
+  neg_branch = jnp.expm1(self * neg_input_coef) * neg_coef
+  return jnp.where(self >= 0, pos_branch, neg_branch)
+
+
 @registry.lower(torch.ops.aten.add.Scalar)
 def _aten_add_scalar(lctx: LoweringContext, self, other):
   _log_usage(torch.ops.aten.add.Scalar)
