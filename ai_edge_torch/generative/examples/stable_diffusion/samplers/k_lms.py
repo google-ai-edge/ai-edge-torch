@@ -69,6 +69,6 @@ class KLMSSampler(SamplerInterface):
           continue
         y *= x - self.sigmas[t - j]
         y /= self.sigmas[t - i] - self.sigmas[t - j]
-      lms_coeff = np.trapz(y=y, x=x)
+      lms_coeff = np.trapezoid(y=y, x=x)
       latents += lms_coeff * output
     return latents
