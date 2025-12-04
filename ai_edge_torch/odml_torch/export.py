@@ -360,6 +360,7 @@ def exported_program_to_mlir(
   exported_program = fx_infra.safe_run_decompositions(
       exported_program,
       fx_infra.decomp.pre_lower_decomp(),
+      can_skip=False,
   )
 
   # Passes to run after pre_lower_decomp - requires ops to be decomposed into

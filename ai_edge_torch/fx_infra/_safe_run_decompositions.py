@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """ExportedProgram.run_decompositions wrapper to handle unexpected export behavior."""
+import operator
 import torch
 
 
@@ -26,14 +27,48 @@ _DUMMY_DECOMP_TABLE = {
     torch._ops.OperatorBase(): lambda: None,
 }
 
+_BUILTIN_OPERATORS = {
+    getattr(operator, name)
+    for name in dir(operator)
+    if not name.startswith("_")
+}
 
-def safe_run_decompositions(exported_program, decomp_table=None):
+
+def _require_decomp(
+    exported_program: torch.export.ExportedProgram, decomp_table
+):
+  """Checks if the exported program requires decompositions."""
+  for node in exported_program.graph.nodes:
+    if "call_" not in str(node.op):
+      continue
+
+    op = node.target
+    if isinstance(op, torch._ops.OpOverloadPacket):
+      op = op.default
+
+    if op in decomp_table:
+      return True
+
+    if (
+        not isinstance(op, (torch._ops.OpOverload, torch._ops.OperatorBase))
+        and op not in _BUILTIN_OPERATORS
+    ):
+      # Python function that requires to be retraced via run_decompositions.
+      return True
+
+  return False
+
+
+def safe_run_decompositions(exported_program, decomp_table=None, can_skip=True):
   """Wrapper for ExportedProgram.run_decompositions to handle unexpected export behavior."""
 
   if decomp_table is not None and not decomp_table:
     # Empty decomp table means no op decompositions. Use dummy decomp table
     # instead for backward compatibility.
     decomp_table = _DUMMY_DECOMP_TABLE
+
+  if can_skip and not _require_decomp(exported_program, decomp_table):
+    return exported_program
 
   for node in exported_program.graph.nodes:
     if node.target == torch.ops.aten.view.default:

@@ -133,6 +133,7 @@ def convert_signatures(
     exported_program = fx_infra.safe_run_decompositions(
         exported_program,
         fx_infra.decomp.pre_convert_decomp(),
+        can_skip=False,
     )
     return exported_program
 

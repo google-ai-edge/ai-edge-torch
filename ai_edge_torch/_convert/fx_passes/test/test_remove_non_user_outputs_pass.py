@@ -43,6 +43,7 @@ def _export_to_stablehlo(
   exported_program = fx_infra.safe_run_decompositions(
       exported_program,
       fx_infra.decomp.pre_convert_decomp(),
+      can_skip=False,
   )
   exported_program = fx_infra.run_passes(
       exported_program,
