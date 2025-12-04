@@ -100,6 +100,15 @@ class TestConvert(googletest.TestCase):
         model_coverage.compare_tflite_torch(edge_model, torch_module, args)
     )
 
+  def test_convert_mobilenet_v2(self):
+    args = (torch.randn(4, 3, 224, 224),)
+    torch_module = torchvision.models.mobilenet_v2().eval()
+    edge_model = ai_edge_torch.convert(torch_module, args)
+
+    self.assertTrue(
+        model_coverage.compare_tflite_torch(edge_model, torch_module, args)
+    )
+
   def test_signature_args_ordering(self):
     """Tests conversion of a model with more than 10 arguments."""
 
