@@ -69,7 +69,8 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
 
     name: Test Install and Import ai-edge-torch
-    runs-on: ubuntu-latest
+    runs-on:
+      labels: Linux_runner_8_core
     steps:
       - uses: actions/setup-python@v4
         with:
