@@ -93,7 +93,7 @@ setup(
         "tabulate",
         "torch>=2.4.0,<2.10.0",
         "ai-edge-tensorflow==2.21.0.dev20251110",
-        "ai-edge-litert>=2.0.3,<2.1.0",
+        "ai-edge-litert>=2.0.3,<2.2.0",
         "ai-edge-quantizer==0.4.*",
         "jax",
         "torch-xla2[odml]>=0.0.1.dev20241201",
