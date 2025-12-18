@@ -30,3 +30,4 @@ run_passes = pass_base.run_passes
 
 CanonicalizePass = _canonicalize_pass.CanonicalizePass
 safe_run_decompositions = _safe_run_decompositions.safe_run_decompositions
+annotate_force_decomp = _safe_run_decompositions.annotate_force_decomp

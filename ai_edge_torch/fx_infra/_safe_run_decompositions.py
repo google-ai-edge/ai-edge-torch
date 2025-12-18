@@ -14,6 +14,7 @@
 # ==============================================================================
 """ExportedProgram.run_decompositions wrapper to handle unexpected export behavior."""
 import operator
+from typing import Any, Callable
 import torch
 
 
@@ -59,6 +60,15 @@ def _require_decomp(
   return False
 
 
+_FORCE_DECOMP_ATTR = "_ai_edge_torch_force_decomp"
+
+
+def annotate_force_decomp(decomp: Callable[..., Any]):
+  """Annotates a decomp to force it to be run (at least shallowly) in safe_run_decompositions."""
+  setattr(decomp, _FORCE_DECOMP_ATTR, _FORCE_DECOMP_ATTR)
+  return decomp
+
+
 def safe_run_decompositions(exported_program, decomp_table=None, can_skip=True):
   """Wrapper for ExportedProgram.run_decompositions to handle unexpected export behavior."""
 
@@ -78,6 +88,14 @@ def safe_run_decompositions(exported_program, decomp_table=None, can_skip=True):
       # retracing in run_decomposition below would decompose torch.reshape
       # back to one aten.view.
       node.target = lambda self, size: torch.reshape(self.contiguous(), size)
+
+    # Torch may skip some decompositions even if target is in decomp_table.
+    # The following ensures the target is always run through the decompositions
+    # shallowly if it has _FORCE_DECOMP_ATTR.
+    if decomp_table and node.target in decomp_table:
+      decomp = decomp_table[node.target]
+      if hasattr(decomp, _FORCE_DECOMP_ATTR):
+        node.target = decomp
 
   exported_program = exported_program.run_decompositions(decomp_table)
 
