@@ -1,0 +1,271 @@
+# Copyright 2025 The AI Edge Torch Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+"""Export library for HF integration."""
+
+import os
+import time
+from ai_edge_torch import fx_infra
+from ai_edge_torch._convert import converter as converter_utils
+from ai_edge_torch.generative.export_hf.core import attention as _
+from ai_edge_torch.generative.export_hf.core import exportable_module
+from ai_edge_torch.generative.export_hf.core import patches as _
+from ai_edge_torch.generative.export_hf.core import utils
+from ai_edge_torch.generative.export_hf.core.mu import mu_pass_lib
+from ai_edge_torch.generative.tools import tokenizer_to_sentencepiece_lib as tokenizer_lib
+from ai_edge_torch.odml_torch.experimental import torch_tfl
+import torch
+import transformers
+from ai_edge_quantizer import quantizer as quantizer_lib
+from ai_edge_quantizer import recipe as recipe_lib
+
+
+def verify_model_compatibility(model, model_config, text_model_config):
+  """Verifies model compatibility."""
+  del model_config  # Unused.
+
+  # Validating compatibility...
+  # NOTE: Currently we don't throw errors for model incompatibilities.
+  rope_type = getattr(text_model_config, 'rope_type', 'default')
+  if 'dynamic' in rope_type or 'longrope' in rope_type:
+    print(utils.ERROR_MESSAGE)
+    print('Dynamic and longrope are not supported yet.')
+    raise NotImplementedError('Dynamic and longrope are not supported yet.')
+  if getattr(text_model_config, 'rope_scaling', None) is not None:
+    print(utils.ERROR_MESSAGE)
+    print(
+        'rope_scaling is not supported yet, the model exported will have wrong'
+        ' results and is for BENCHMARKING ONLY.'
+    )
+  can_compile_fullgraph = getattr(model, '_can_compile_fullgraph', None)
+  if can_compile_fullgraph is None:
+    print(utils.WARNING_MESSAGE)
+    print(
+        "Model didn't specify _can_compile_fullgraph. It might not be"
+        ' exportable.'
+    )
+  elif not can_compile_fullgraph:
+    print(utils.ERROR_MESSAGE)
+    print('Model is not fully compilable.')
+
+  supports_attention_backend = getattr(
+      model, '_supports_attention_backend', None
+  )
+  if supports_attention_backend is None:
+    print(utils.WARNING_MESSAGE)
+    print(
+        "Model didn't specify supports_attention_backend. It might not be"
+        ' correctly exported.'
+    )
+  elif not supports_attention_backend:
+    print(utils.ERROR_MESSAGE)
+    print('Model does not support attention backend.')
+
+
+def load_model(
+    model_path: str,
+    trust_remote_code: bool = False,
+    auto_model_override: str | None = None,
+):
+  """Loads model from checkpoint."""
+
+  config = transformers.AutoConfig.from_pretrained(
+      model_path,
+      torch_dtype=torch.float32,
+      trust_remote_code=trust_remote_code,
+  )
+  config._attn_implementation = 'lrt_transposed_attention'  # pylint: disable=protected-access
+
+  auto_model_cls = transformers.AutoModelForCausalLM
+  if auto_model_override is not None:
+    auto_model_cls = transformers.__dict__[auto_model_override]
+
+  model = auto_model_cls.from_pretrained(
+      model_path,
+      config=config,
+      torch_dtype=torch.float32,
+      trust_remote_code=trust_remote_code,
+  )
+
+  model.generation_config.cache_implementation = 'static'
+  model.generation_config.do_sample = False
+
+  text_model_config = config
+  if hasattr(config, 'text_config'):
+    text_model_config = config.text_config
+
+  verify_model_compatibility(model, config, text_model_config)
+
+  tokenizer = transformers.AutoTokenizer.from_pretrained(model_path)
+
+  return model, config, text_model_config, tokenizer
+
+
+def export_text_model(
+    model,
+    text_model_config,
+    export_config: exportable_module.ExportableModuleConfig,
+    work_dir: str,
+    quantization_recipe: str | None = None,
+):
+  """Exports text model to tflite."""
+  if export_config.externalize_embedder:
+    raise NotImplementedError(
+        'External embedder is not supported for text model.'
+    )
+  else:
+    prefill_module = (
+        exportable_module.LiteRTExportableModuleForDecoderOnlyLMPrefill(model)
+    )
+    decode_module = (
+        exportable_module.LiteRTExportableModuleForDecoderOnlyLMGenerate(model)
+    )
+  converter = converter_utils.Converter()
+  has_dynamic_shape = (
+      export_config.cache_length_dim is not None
+      or export_config.prefill_length_dim is not None
+  )
+  sample_prefill_inputs = prefill_module.get_sample_inputs(
+      text_model_config, export_config
+  )
+  for signature_name, (
+      sample_prefill_inputs,
+      prefill_dynamic_shapes,
+  ) in sample_prefill_inputs.items():
+    if has_dynamic_shape:
+      prefill_ep = torch.export.export(
+          prefill_module,
+          args=(),
+          kwargs=sample_prefill_inputs,
+          dynamic_shapes=prefill_dynamic_shapes,
+      )
+
+      print('Running prefill_module pre lower decompositions...')
+      prefill_ep = fx_infra.safe_run_decompositions(
+          prefill_ep, fx_infra.decomp.pre_lower_decomp()
+      )
+
+      print('Running prefill_module decompositions...')
+      prefill_ep = prefill_ep.run_decompositions(torch_tfl.decomps)
+
+      converter.add_signature(
+          signature_name,
+          prefill_ep.module(),
+          sample_kwargs=sample_prefill_inputs,
+          dynamic_shapes=prefill_dynamic_shapes,
+      )
+    else:
+      converter.add_signature(
+          signature_name,
+          prefill_module.eval(),
+          sample_kwargs=sample_prefill_inputs,
+      )
+  sample_decode_inputs, decode_dynamic_shapes = decode_module.get_sample_inputs(
+      text_model_config, export_config
+  )['decode']
+  if has_dynamic_shape:
+    print('Exporting decode_module...')
+    decode_ep = torch.export.export(
+        decode_module,
+        args=(),
+        kwargs=sample_decode_inputs,
+        dynamic_shapes=decode_dynamic_shapes,
+    )
+
+    print('Running decode_module pre lower decompositions...')
+    decode_ep = fx_infra.safe_run_decompositions(
+        decode_ep, fx_infra.decomp.pre_lower_decomp()
+    )
+
+    print('Running decode_module decompositions...')
+    decode_ep = decode_ep.run_decompositions(torch_tfl.decomps)
+
+    converter.add_signature(
+        'decode',
+        decode_ep.module(),
+        sample_kwargs=sample_decode_inputs,
+        dynamic_shapes=decode_dynamic_shapes,
+    )
+  else:
+    converter.add_signature(
+        'decode',
+        decode_module.eval(),
+        sample_kwargs=sample_decode_inputs,
+    )
+
+  start_time = time.perf_counter()
+
+  print('Converting model...')
+  lrt_model = converter.convert(strict_export=False)
+  print('Converting model done.')
+
+  model_path = os.path.join(work_dir, 'model.tflite')
+  print(f'Exporting model to {model_path}...')
+  lrt_model.export(model_path)
+  mu_pass_lib.update_model(model_path, model_path)
+  end_time = time.perf_counter()
+  elapsed_time = end_time - start_time
+  print(f'Model conversion executed in {elapsed_time} seconds.')
+
+  # Quantization
+  start_time = time.perf_counter()
+  qt = quantizer_lib.Quantizer(model_path)
+  skip_quantization = False
+  quantized_model_path = os.path.join(work_dir, 'model_quantized.tflite')
+  if not quantization_recipe:
+    skip_quantization = True
+  else:
+    try:
+      if quantization_recipe.endswith('.json'):
+        recipe = quantization_recipe
+      else:
+        recipe = recipe_lib.__dict__[quantization_recipe]()
+      qt.load_quantization_recipe(recipe)
+    except Exception as e:
+      raise ValueError(
+          f'Invalid quantization recipe: {quantization_recipe}. Please check'
+          ' the recipe name.'
+      ) from e
+  if not skip_quantization:
+    print(f'Exporting quantized model to {quantized_model_path}...')
+    qt.quantize().export_model(quantized_model_path, overwrite=True)
+    end_time = time.perf_counter()
+    elapsed_time = end_time - start_time
+    print(f'Model quantization executed in {elapsed_time} seconds.')
+
+
+def export_tokenizer(
+    tokenizer,
+    work_dir: str,
+) -> str:
+  """Exports tokenizer."""
+  try:
+    tokenizer_path = tokenizer.save_pretrained(work_dir, legacy_format=False)
+    # TODO(weiyiw): This is rough... polish it.
+    if isinstance(tokenizer_path, tuple):
+      tokenizer_path = [
+          x for x in tokenizer_path if x.endswith('tokenizer.json')
+      ]
+      assert len(tokenizer_path) == 1
+      return tokenizer_path[0]
+    else:
+      return tokenizer_path
+  except Exception:  # pylint: disable=broad-exception-caught
+    # Fallback to convert tokenizer to sentencepiece.
+    print('Failed to export tokenizer. Converting to sentencepiece.')
+    spm_serialized = tokenizer_lib.convert(tokenizer)
+    tokenizer_path = os.path.join(work_dir, 'tokenizer.spiece')
+    with open(tokenizer_path, 'wb') as f:
+      f.write(spm_serialized)
+  return tokenizer_path

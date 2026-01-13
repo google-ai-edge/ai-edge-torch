@@ -1,0 +1,77 @@
+# Copyright 2025 The AI Edge Torch Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+"""Export functions for HuggingFace Transformers models."""
+
+import os
+
+from ai_edge_torch.generative.export_hf.core import export_lib
+from ai_edge_torch.generative.export_hf.core import exportable_module
+from ai_edge_torch.generative.export_hf.core import litert_lm_builder
+import torch
+
+
+def export(
+    model: str,
+    output_dir: str,
+    prefill_lengths=(256,),
+    cache_length=4096,
+    quantization_recipe: str = 'dynamic_wi8_afp32',
+    enable_dynamic_shape: bool = False,
+    # externalize_embedder: bool = False,
+    auto_model_override: str | None = None,
+    # target_accelerator: str | None = None,
+    trust_remote_code: bool = False,
+    use_jinja_template: bool = False,
+):
+  """Exports HuggingFace Transformers model to tflite."""
+  # TODO(weiyiw): Use tmp dir for work_dir.
+  work_dir = output_dir
+  os.makedirs(work_dir, exist_ok=True)
+  pt_model, config, text_model_config, tokenizer = export_lib.load_model(
+      model,
+      trust_remote_code=trust_remote_code,
+      auto_model_override=auto_model_override,
+  )
+  del config  # Unused.
+  export_config = exportable_module.ExportableModuleConfig(
+      batch_size=1,
+      prefill_lengths=prefill_lengths,
+      cache_length=cache_length,
+      prefill_length_dim=torch.export.Dim('prefill_length', min=1, max=1024)
+      if enable_dynamic_shape
+      else None,
+      cache_length_dim=torch.export.Dim('cache_length')
+      if enable_dynamic_shape
+      else None,
+      externalize_embedder=False,
+  )
+  export_lib.export_text_model(
+      pt_model, text_model_config, export_config, work_dir, quantization_recipe
+  )
+  tokenizer_model_path = export_lib.export_tokenizer(tokenizer, work_dir)
+  tflite_model_path = os.path.join(
+      work_dir,
+      'model_quantized.tflite' if quantization_recipe else 'model.tflite',
+  )
+  litert_lm_builder.package_model(
+      pt_model,
+      tokenizer,
+      tflite_model_path,
+      tokenizer_model_path,
+      cache_length,
+      work_dir,
+      output_dir,
+      use_jinja_template,
+  )

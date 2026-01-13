@@ -97,6 +97,8 @@ setup(
         "ai-edge-quantizer-nightly",
         "jax",
         "torch-xla2[odml]>=0.0.1.dev20241201",
+        "jaxtyping",
+        "fire",
     ],
     extras_require={
         "torch-xla": ["torch_xla>=2.4.0"],

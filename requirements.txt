@@ -15,3 +15,5 @@ safetensors
 kagglehub
 transformers
 multipledispatch
+jaxtyping
+fire
