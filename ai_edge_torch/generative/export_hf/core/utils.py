@@ -79,3 +79,13 @@ def has_local_rope(model):
   if hasattr(model, 'language_model'):
     model = model.language_model
   return hasattr(model.model, 'rotary_emb_local')
+
+
+def has_sliding_attention(model):
+  if hasattr(model, 'language_model'):
+    model = model.language_model
+  sliding_window = getattr(model.config, 'sliding_window', None)
+  if not sliding_window:
+    return False
+  layer_types = getattr(model.config, 'layer_types', None)
+  return layer_types is not None and 'sliding_attention' in layer_types

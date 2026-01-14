@@ -165,7 +165,7 @@ class LiteRTExportableModuleForDecoderOnlyLMPrefill(
   def get_sample_inputs(
       self, model_config, export_config: ExportableModuleConfig
   ):
-    kv_cache_inputs, kv_cache_dynamic_shapes = super().get_sample_kv_cache(
+    kv_cache_inputs, kv_cache_dynamic_shapes = self.get_sample_kv_cache(
         model_config, export_config
     )
     batch_size = export_config.batch_size
@@ -231,7 +231,7 @@ class LiteRTExportableModuleForDecoderOnlyLMGenerate(
   def get_sample_inputs(
       self, model_config, export_config: ExportableModuleConfig
   ):
-    kv_cache_inputs, kv_cache_dynamic_shapes = super().get_sample_kv_cache(
+    kv_cache_inputs, kv_cache_dynamic_shapes = self.get_sample_kv_cache(
         model_config, export_config
     )
     batch_size = export_config.batch_size
