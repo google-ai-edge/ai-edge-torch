@@ -16,6 +16,7 @@
 
 import abc
 import dataclasses
+from ai_edge_torch.generative.export_hf.core import cache as _
 from ai_edge_torch.generative.export_hf.core import cache_base as kv_cache_lib
 from ai_edge_torch.generative.export_hf.core import utils
 import torch
