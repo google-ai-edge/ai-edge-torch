@@ -73,3 +73,9 @@ ERROR_MESSAGE = r"""
            /_______________\
 
 """
+
+
+def has_local_rope(model):
+  if hasattr(model, 'language_model'):
+    model = model.language_model
+  return hasattr(model.model, 'rotary_emb_local')
