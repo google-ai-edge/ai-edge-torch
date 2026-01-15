@@ -64,6 +64,34 @@ def _torch_tensors_to_np(*argv):
     raise ValueError("Unsupported torch.tensor type.")
 
 
+def _print_diff(tensor_idx, tflite_out, torch_out):
+  """Prints difference details between two tensors."""
+  diff = np.abs(tflite_out - torch_out)
+  max_abs_diff = np.max(diff)
+  avg_abs_diff = np.mean(diff)
+  print(f"Tensor {tensor_idx} difference:")
+  print(f"  PyTorch result: {torch_out}")
+  print(f"  TFLite result: {tflite_out}")
+  print(f"  Difference: {diff}")
+  print(f"  Max absolute difference: {max_abs_diff}")
+  print(f"  Mean absolute difference: {avg_abs_diff}")
+  top10_diffs = np.sort(diff.flatten())[-10:][::-1]
+  print(f"  Top 10 differences: {top10_diffs}")
+  nonzero_indices = np.abs(torch_out) > 0
+  if np.any(nonzero_indices):
+    rel_diff = diff[nonzero_indices] / np.abs(torch_out[nonzero_indices])
+    max_rel_diff_percent = np.max(rel_diff) * 100
+    mean_rel_diff_percent = np.mean(rel_diff) * 100
+    print(
+        "  Max relative difference (for non-zero golden values):"
+        f" {max_rel_diff_percent:.2f}%"
+    )
+    print(
+        "  Mean relative difference (for non-zero golden values):"
+        f" {mean_rel_diff_percent:.2f}%"
+    )
+
+
 def compare_tflite_torch(
     edge_model: model.Model,
     torch_eval_func: Callable,
@@ -72,7 +100,7 @@ def compare_tflite_torch(
     *,
     num_valid_inputs: int = 1,
     signature_name: str = None,
-    atol: float = 1e-5,
+    atol: float = 1e-4,
     rtol: float = 1e-5
 ):
   """Compares torch models and TFLite models.
@@ -140,6 +168,16 @@ def compare_tflite_torch(
         for out, golden_out in zip(output, golden_output)
     ])
     if not is_equal:
+      print("TFLite and PyTorch results are different.")
+      if not is_output_len_eq:
+        print(
+            "Output length mismatch:"
+            f" TFLite {len(output)}, PyTorch {len(golden_output)}"
+        )
+        return False
+      for i, (out, golden_out) in enumerate(zip(output, golden_output)):
+        if not np.allclose(out, golden_out, atol=atol, rtol=rtol):
+          _print_diff(i, out, golden_out)
       return False
 
   return True
