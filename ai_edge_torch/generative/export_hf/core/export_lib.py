@@ -22,7 +22,11 @@ from ai_edge_torch.generative.export_hf.core import attention as _
 from ai_edge_torch.generative.export_hf.core import exportable_module
 from ai_edge_torch.generative.export_hf.core import patches as _
 from ai_edge_torch.generative.export_hf.core import utils
+from ai_edge_torch.generative.export_hf.core.external_emb import exportable_module as external_emb_module
+from ai_edge_torch.generative.export_hf.core.external_rope import preprocess_model as external_rope_preprocess_model
 from ai_edge_torch.generative.export_hf.core.mu import mu_pass_lib
+from ai_edge_torch.generative.export_hf.core.split_cache import attention as _
+from ai_edge_torch.generative.export_hf.core.split_cache import exportable_module as split_cache_module
 from ai_edge_torch.generative.tools import tokenizer_to_sentencepiece_lib as tokenizer_lib
 from ai_edge_torch.odml_torch.experimental import torch_tfl
 import torch
@@ -112,7 +116,28 @@ def load_model(
   return model, config, text_model_config, tokenizer
 
 
-def export_text_model(
+def get_prefill_decode_exportable_cls(
+    export_config: exportable_module.ExportableModuleConfig,
+):
+  """Gets exportable module class."""
+  if export_config.split_cache:
+    return (
+        split_cache_module.LiteRTSplitCacheExportableModuleForDecoderOnlyLMPrefill,
+        split_cache_module.LiteRTSplitCacheExportableModuleForDecoderOnlyLMGenerate,
+    )
+  elif export_config.externalize_embedder:
+    return (
+        external_emb_module.LiteRTExportableModuleForDecoderOnlyLMPrefillExternalEmbedder,
+        external_emb_module.LiteRTExportableModuleForDecoderOnlyLMGenerateExternalEmbedder,
+    )
+  else:
+    return (
+        exportable_module.LiteRTExportableModuleForDecoderOnlyLMPrefill,
+        exportable_module.LiteRTExportableModuleForDecoderOnlyLMGenerate,
+    )
+
+
+def export_text_prefill_decode_model(
     model,
     text_model_config,
     export_config: exportable_module.ExportableModuleConfig,
@@ -120,22 +145,28 @@ def export_text_model(
     quantization_recipe: str | None = None,
 ):
   """Exports text model to tflite."""
-  if export_config.externalize_embedder:
-    raise NotImplementedError(
-        'External embedder is not supported for text model.'
-    )
-  else:
-    prefill_module = (
-        exportable_module.LiteRTExportableModuleForDecoderOnlyLMPrefill(model)
-    )
-    decode_module = (
-        exportable_module.LiteRTExportableModuleForDecoderOnlyLMGenerate(model)
-    )
-  converter = converter_utils.Converter()
   has_dynamic_shape = (
       export_config.cache_length_dim is not None
       or export_config.prefill_length_dim is not None
   )
+  if export_config.externalize_rope:
+    model = external_rope_preprocess_model.inject_rotary_position_embedding(
+        model
+    )
+  if export_config.split_cache:
+    assert (
+        not has_dynamic_shape
+    ), 'Dynamic shape is not supported for split cache.'
+    model.set_attn_implementation('lrt_split_cache_attention')
+  else:
+    model.set_attn_implementation('lrt_transposed_attention')
+
+  prefill_module_cls, decode_module_cls = get_prefill_decode_exportable_cls(
+      export_config
+  )
+  prefill_module = prefill_module_cls(model)
+  decode_module = decode_module_cls(model)
+  converter = converter_utils.Converter()
   sample_prefill_inputs = prefill_module.get_sample_inputs(
       text_model_config, export_config
   )
@@ -219,30 +250,64 @@ def export_text_model(
   print(f'Model conversion executed in {elapsed_time} seconds.')
 
   # Quantization
-  start_time = time.perf_counter()
-  qt = quantizer_lib.Quantizer(model_path)
-  skip_quantization = False
-  quantized_model_path = os.path.join(work_dir, 'model_quantized.tflite')
+  return maybe_quantize_model(model_path, quantization_recipe)
+
+
+def maybe_quantize_model(
+    model_path: str,
+    quantization_recipe: str | None = None,
+):
+  """Quantizes model if recipe is provided."""
   if not quantization_recipe:
-    skip_quantization = True
-  else:
-    try:
-      if quantization_recipe.endswith('.json'):
-        recipe = quantization_recipe
-      else:
-        recipe = recipe_lib.__dict__[quantization_recipe]()
-      qt.load_quantization_recipe(recipe)
-    except Exception as e:
-      raise ValueError(
-          f'Invalid quantization recipe: {quantization_recipe}. Please check'
-          ' the recipe name.'
-      ) from e
-  if not skip_quantization:
-    print(f'Exporting quantized model to {quantized_model_path}...')
-    qt.quantize().export_model(quantized_model_path, overwrite=True)
-    end_time = time.perf_counter()
-    elapsed_time = end_time - start_time
-    print(f'Model quantization executed in {elapsed_time} seconds.')
+    return model_path
+  start_time = time.perf_counter()
+  quantized_model_path = (
+      model_path.removesuffix('.tflite') + '_quantized.tflite'
+  )
+  qt = quantizer_lib.Quantizer(model_path)
+  try:
+    if quantization_recipe.endswith('.json'):
+      recipe = quantization_recipe
+    else:
+      recipe = recipe_lib.__dict__[quantization_recipe]()
+    qt.load_quantization_recipe(recipe)
+  except Exception as e:
+    raise ValueError(
+        f'Invalid quantization recipe: {quantization_recipe}. Please check'
+        ' the recipe name.'
+    ) from e
+  qt.quantize().export_model(quantized_model_path, overwrite=True)
+  end_time = time.perf_counter()
+  elapsed_time = end_time - start_time
+  print(f'Model quantization executed in {elapsed_time} seconds.')
+  return quantized_model_path
+
+
+def export_embedder_model(
+    model,
+    text_model_config,
+    export_config: exportable_module.ExportableModuleConfig,
+    work_dir: str,
+    quantization_recipe: str | None = None,
+):
+  """Exports embedder."""
+  embedder_module = external_emb_module.LiteRTExportableModuleForEmbedder(
+      model.get_input_embeddings()
+  )
+  converter = converter_utils.Converter()
+  sample_inputs = embedder_module.get_sample_inputs(
+      text_model_config, export_config
+  )
+  for signature_name, (sample_inputs, _) in sample_inputs.items():
+    converter.add_signature(
+        signature_name,
+        embedder_module.eval(),
+        sample_kwargs=sample_inputs,
+    )
+  lrt_model = converter.convert(strict_export=False)
+  model_path = os.path.join(work_dir, 'model.tflite')
+  lrt_model.export(model_path)
+  return maybe_quantize_model(model_path, quantization_recipe)
 
 
 def export_tokenizer(

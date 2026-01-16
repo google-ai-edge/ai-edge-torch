@@ -57,7 +57,7 @@ def export(
       else None,
       externalize_embedder=False,
   )
-  export_lib.export_text_model(
+  export_lib.export_text_prefill_decode_model(
       pt_model, text_model_config, export_config, work_dir, quantization_recipe
   )
   tokenizer_model_path = export_lib.export_tokenizer(tokenizer, work_dir)

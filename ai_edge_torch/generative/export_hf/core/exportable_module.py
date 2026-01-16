@@ -35,6 +35,8 @@ class ExportableModuleConfig:
 
   # Export configs
   externalize_embedder: bool = False
+  externalize_rope: bool = False
+  split_cache: bool = False
 
   cache_implementation: str = "LiteRTLMCache"
 
