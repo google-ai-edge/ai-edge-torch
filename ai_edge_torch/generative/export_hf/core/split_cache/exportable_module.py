@@ -14,6 +14,7 @@
 # ==============================================================================
 """Exportable module for split cache attention models."""
 
+from ai_edge_torch.generative.export_hf.core import cache as base_cache_lib
 from ai_edge_torch.generative.export_hf.core import exportable_module as base_exportable_module
 from ai_edge_torch.generative.export_hf.core import utils
 from ai_edge_torch.generative.export_hf.core.split_cache import attention_mask
@@ -296,4 +297,66 @@ class SplitAttentionMaskBuilder(nn.Module):
         'time_step': torch.tensor(1, dtype=torch.int32),
     }
     sample_inputs['decode_mask'] = (decode_inputs, {})
+    return sample_inputs
+
+
+class CacheUpdate(torch.nn.Module):
+  """Exportable module for decoder only LM running on NPU."""
+
+  def forward(
+      self,
+      kv_slice: base_cache_lib.LiteRTLMCache,
+      kv_cache: base_cache_lib.LiteRTLMCache,
+      input_pos: torch.Tensor,
+  ):
+    assert len(kv_slice.layers) == len(kv_cache.layers)
+    num_layers = len(kv_slice.layers)
+
+    cache_kwargs = {'cache_position': input_pos, 'kv_slice_preprocessed': True}
+
+    for i in range(num_layers):
+      k_slice = kv_slice.layers[i].keys
+      v_slice = kv_slice.layers[i].values
+      kv_cache.update(k_slice, v_slice, i, cache_kwargs)
+
+    return {'kv_cache': kv_cache}
+
+  @classmethod
+  def _get_input(cls, model_config, input_length, cache_length, batch_size=1):
+    """Gets sample inputs for the model."""
+    kv_cache = base_cache_lib.LiteRTLMCache.create_from_config(
+        model_config, cache_length, batch_size, reverse_kv=True
+    )
+    kv_slice = base_cache_lib.LiteRTLMCache.create_from_config(
+        model_config, input_length, batch_size, reverse_kv=True
+    )
+    return {
+        'kv_cache': kv_cache,
+        'kv_slice': kv_slice,
+        'input_pos': torch.ones((input_length), dtype=torch.int32),
+    }
+
+  @classmethod
+  def get_sample_inputs(
+      cls,
+      model_config,
+      export_config: base_exportable_module.ExportableModuleConfig,
+  ):
+    """Gets sample inputs."""
+    sample_inputs = {}
+    for prefill_length in export_config.prefill_lengths:
+      inputs = cls._get_input(
+          model_config,
+          prefill_length,
+          export_config.cache_length,
+          export_config.batch_size,
+      )
+      sample_inputs[f'prefill_cache_update_{prefill_length}'] = (inputs, {})
+    decode_inputs = cls._get_input(
+        model_config,
+        1,
+        export_config.cache_length,
+        export_config.batch_size,
+    )
+    sample_inputs['decode_cache_update'] = (decode_inputs, {})
     return sample_inputs
