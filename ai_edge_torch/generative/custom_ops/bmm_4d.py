@@ -44,9 +44,18 @@ def bmm_4d(
 
 
 # Use register_fake to add a ``FakeTensor`` kernel for the operator
-@bmm_4d.register_fake
-def _(lhs, rhs):
+@torch.library.custom_op("ai_edge_torch::bmm_4d", mutates_args=())
+def _bmm_4d_fake(lhs: torch.Tensor, rhs: torch.Tensor) -> torch.Tensor:
   return torch.einsum("abcd,abed->abce", lhs, rhs)
+
+
+# Use explicit fake implementation for bmm_4d because dynamo cannot derive the
+# output's symbolic shape from the impl above.
+@torch.library.register_fake("ai_edge_torch::bmm_4d")
+def bmm_4d_fake(lhs: torch.Tensor, rhs: torch.Tensor) -> torch.Tensor:
+  a, b, c, d = lhs.shape
+  a, b, e, d = rhs.shape
+  return torch.empty([a, b, c, e], dtype=lhs.dtype)
 
 
 @lowerings.lower(torch.ops.ai_edge_torch.bmm_4d)
