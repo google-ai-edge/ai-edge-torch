@@ -23,6 +23,8 @@ import torch.utils._pytree as pytree
 
 @dataclasses.dataclass
 class Signature:
+  """Signature of a torch function."""
+
   name: str
   module: torch.nn.Module
   sample_args: tuple[torch.Tensor, ...]
@@ -31,6 +33,7 @@ class Signature:
 
   @property
   def _normalized_sample_args_kwargs(self):
+    """Returns the normalized sample args and kwargs."""
     args, kwargs = self.sample_args, self.sample_kwargs
     if args is not None:
       if not isinstance(args, tuple):
@@ -48,14 +51,15 @@ class Signature:
 
   @property
   def flat_arg_names(self) -> list[str]:
+    """Returns the names of the flat arguments in the signature."""
     spec = pytree.tree_flatten(self._normalized_sample_args_kwargs)[1]
-    args_spec, kwargs_spec = spec.children_specs
+    args_spec, kwargs_spec = spec.children()
     names = []
     for i in range(args_spec.num_leaves):
       names.append(f"args_{i}")
 
     kwargs_names = lowertools.flat_dict_names(
-        kwargs_spec.children_specs, kwargs_spec.context
+        kwargs_spec.children(), kwargs_spec.context
     )
     names.extend(kwargs_names)
     return names

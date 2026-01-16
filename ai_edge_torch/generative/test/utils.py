@@ -38,7 +38,7 @@ def compare_tflite_torch(
 ) -> bool:
   """Compares torch models and TFLite models."""
   values, spec = pytree.tree_flatten({"kv_cache": kv_cache})
-  flat_names = common_utils.flat_dict_names(spec.children_specs, spec.context)
+  flat_names = common_utils.flat_dict_names(spec.children(), spec.context)
   torch_output = torch_model(tokens, input_pos, kv_cache, **kwargs)
 
   if "pixel_values" in kwargs:
