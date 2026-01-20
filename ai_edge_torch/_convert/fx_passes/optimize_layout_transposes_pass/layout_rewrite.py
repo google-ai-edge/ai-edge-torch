@@ -347,7 +347,9 @@ def _aten__native_batch_norm_legit_no_training(node):
 
 @rewriters.register(aten.group_norm.default)
 def _aten_group_norm(node):
-  def group_norm(input, num_groups: int, weight=None, bias=None, eps=1e-5):
+  def group_norm(
+      input, num_groups: int, weight=None, bias=None, eps=1e-5, cudnn_enabled=True
+  ):
     is_composite_supported = (
         ai_edge_torch.config.enable_group_norm_composite
         and weight is not None
@@ -368,7 +370,9 @@ def _aten_group_norm(node):
       input, weight, bias = builder.mark_inputs(input, weight, bias)
 
     input = utils.tensor_to_nchw(input)
-    output = aten.group_norm.default(input, num_groups, weight, bias, eps=eps)
+    output = aten.group_norm.default(
+        input, num_groups, weight, bias, eps, cudnn_enabled
+    )
     output = utils.tensor_to_nhwc(output)
 
     if builder is not None:
