@@ -49,7 +49,7 @@ class TestQuantizerSanityBasic(googletest.TestCase):
     quantizer = pt2e_quantizer.PT2EQuantizer().set_global(
         pt2e_quantizer.get_symmetric_quantization_config()
     )
-    model = torch.export.export_for_training(model, sample_input).module()
+    model = torch.export.export(model, sample_input).module()
     model = quantize_pt2e.prepare_pt2e(model, quantizer)
     model = quantize_pt2e.convert_pt2e(model, fold_quantize=False)
 
