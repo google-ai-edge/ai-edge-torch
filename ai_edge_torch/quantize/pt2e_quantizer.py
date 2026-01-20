@@ -26,19 +26,19 @@ from ai_edge_torch.quantize.pt2e_quantizer_utils import OperatorPatternType
 from ai_edge_torch.quantize.pt2e_quantizer_utils import propagate_annotation
 from ai_edge_torch.quantize.pt2e_quantizer_utils import QuantizationConfig
 import torch
-from torch.ao.quantization.fake_quantize import FusedMovingAvgObsFakeQuantize
-from torch.ao.quantization.observer import HistogramObserver
-from torch.ao.quantization.observer import MinMaxObserver
-from torch.ao.quantization.observer import MovingAverageMinMaxObserver
-from torch.ao.quantization.observer import MovingAveragePerChannelMinMaxObserver  # NOQA
-from torch.ao.quantization.observer import PerChannelMinMaxObserver
-from torch.ao.quantization.observer import PlaceholderObserver
-from torch.ao.quantization.qconfig import _ObserverOrFakeQuantizeConstructor
-from torch.ao.quantization.quantizer import FixedQParamsQuantizationSpec
-from torch.ao.quantization.quantizer import QuantizationSpec
-from torch.ao.quantization.quantizer import Quantizer
 from torch.fx import Node
 import torch.nn.functional as F
+from torchao.quantization.pt2e import ObserverOrFakeQuantizeConstructor
+from torchao.quantization.pt2e.fake_quantize import FusedMovingAvgObsFakeQuantize
+from torchao.quantization.pt2e.observer import HistogramObserver
+from torchao.quantization.pt2e.observer import MinMaxObserver
+from torchao.quantization.pt2e.observer import MovingAverageMinMaxObserver
+from torchao.quantization.pt2e.observer import MovingAveragePerChannelMinMaxObserver  # NOQA
+from torchao.quantization.pt2e.observer import PerChannelMinMaxObserver
+from torchao.quantization.pt2e.observer import PlaceholderObserver
+from torchao.quantization.pt2e.quantizer import FixedQParamsQuantizationSpec
+from torchao.quantization.pt2e.quantizer import QuantizationSpec
+from torchao.quantization.pt2e.quantizer import Quantizer
 
 __all__ = [
     "PT2EQuantizer",
@@ -118,7 +118,7 @@ def get_symmetric_quantization_config(
       if is_per_channel
       else torch.per_tensor_symmetric
   )
-  weight_observer_or_fake_quant_ctr: _ObserverOrFakeQuantizeConstructor = (
+  weight_observer_or_fake_quant_ctr: ObserverOrFakeQuantizeConstructor = (
       MinMaxObserver
   )
   if is_qat:

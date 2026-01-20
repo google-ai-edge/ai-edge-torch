@@ -124,7 +124,7 @@ quantization](https://docs.pytorch.org/ao/stable/tutorials_source/pt2e_quant_ptq
 using the `ai_edge_torch` backend.
 
 ```python
-from torch.ao.quantization.quantize_pt2e import prepare_pt2e, convert_pt2e
+from torchao.quantization.pt2e.quantize_pt2e import prepare_pt2e, convert_pt2e
 from ai_edge_torch.quantize.pt2e_quantizer import get_symmetric_quantization_config
 from ai_edge_torch.quantize.pt2e_quantizer import PT2EQuantizer
 from ai_edge_torch.quantize.quant_config import QuantConfig

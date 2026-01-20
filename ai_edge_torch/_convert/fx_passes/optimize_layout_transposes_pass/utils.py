@@ -17,7 +17,7 @@
 from typing import Callable
 
 import torch
-import torch.ao.quantization.quantize_pt2e
+import torchao.quantization.pt2e.quantize_pt2e  # pylint: disable=unused-import
 
 
 def tensor_to_nhwc(t: torch.Tensor):

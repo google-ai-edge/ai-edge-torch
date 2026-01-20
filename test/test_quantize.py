@@ -21,7 +21,7 @@ import ai_edge_torch
 from ai_edge_torch.quantize import pt2e_quantizer
 from ai_edge_torch.quantize import quant_config
 import torch
-from torch.ao.quantization import quantize_pt2e
+from torchao.quantization.pt2e import quantize_pt2e
 import torchvision
 
 from absl.testing import absltest as googletest

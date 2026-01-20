@@ -2,6 +2,7 @@ absl-py
 torch==2.9.0
 torchvision==0.24.0
 torchaudio==2.9.0
+torchao
 --pre
 tf-nightly>=2.21.0.dev20250818
 ai-edge-litert-nightly

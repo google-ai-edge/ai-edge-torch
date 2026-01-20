@@ -25,7 +25,7 @@ from ai_edge_torch.testing import model_coverage
 import numpy as np
 import torch
 from torch import nn
-from torch.ao.quantization import quantize_pt2e
+from torchao.quantization.pt2e import quantize_pt2e
 import torchvision
 
 from absl.testing import absltest as googletest

@@ -19,19 +19,19 @@ import operator
 from typing import Callable, Dict, List, NamedTuple, Optional
 
 import torch
-from torch.ao.quantization.fx.utils import get_new_attr_name_with_prefix
-from torch.ao.quantization.pt2e.graph_utils import find_sequential_partitions
-from torch.ao.quantization.pt2e.utils import _get_aten_graph_module_for_pattern
-from torch.ao.quantization.quantizer import QuantizationAnnotation
-from torch.ao.quantization.quantizer import QuantizationSpec
-from torch.ao.quantization.quantizer import QuantizationSpecBase
-from torch.ao.quantization.quantizer import SharedQuantizationSpec
-from torch.ao.quantization.quantizer.utils import _annotate_input_qspec_map
-from torch.ao.quantization.quantizer.utils import _annotate_output_qspec
 from torch.fx import Node
 from torch.fx.passes.utils.matcher_with_name_node_map_utils import SubgraphMatcherWithNameNodeMap
 from torch.fx.passes.utils.source_matcher_utils import get_source_partitions
 import torch.nn.functional as F
+from torchao.quantization.pt2e.utils import get_new_attr_name_with_prefix
+from torchao.quantization.pt2e.graph_utils import find_sequential_partitions
+from torchao.quantization.pt2e.quantizer import QuantizationAnnotation
+from torchao.quantization.pt2e.quantizer import QuantizationSpec
+from torchao.quantization.pt2e.quantizer import QuantizationSpecBase
+from torchao.quantization.pt2e.quantizer import SharedQuantizationSpec
+from torchao.quantization.pt2e.quantizer.utils import annotate_input_qspec_map
+from torchao.quantization.pt2e.quantizer.utils import annotate_output_qspec
+from torchao.quantization.pt2e.utils import _get_aten_graph_module_for_pattern
 
 __all__ = [
     "OperatorConfig",
@@ -230,25 +230,25 @@ def _annotate_linear(
       bias_node = node.args[2]
 
     if _is_annotated([node]) is False:  # type: ignore[list-item]
-      _annotate_input_qspec_map(
+      annotate_input_qspec_map(
           node,
           act_node,
           input_act_qspec,
       )
-      _annotate_input_qspec_map(
+      annotate_input_qspec_map(
           node,
           weight_node,
           weight_qspec,
       )
       nodes_to_mark_annotated = [node, weight_node]
       if bias_node:
-        _annotate_input_qspec_map(
+        annotate_input_qspec_map(
             node,
             bias_node,
             bias_qspec,
         )
         nodes_to_mark_annotated.append(bias_node)
-      _annotate_output_qspec(node, output_act_qspec)
+      annotate_output_qspec(node, output_act_qspec)
       _mark_nodes_as_annotated(nodes_to_mark_annotated)
       annotated_partitions.append(nodes_to_mark_annotated)
 

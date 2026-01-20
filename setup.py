@@ -95,6 +95,7 @@ setup(
         "tf-nightly>=2.21.0.dev20250818",
         "ai-edge-litert-nightly",
         "ai-edge-quantizer-nightly",
+        "torchao",
         "jax",
         "torch-xla2[odml]>=0.0.1.dev20241201",
         "jaxtyping",

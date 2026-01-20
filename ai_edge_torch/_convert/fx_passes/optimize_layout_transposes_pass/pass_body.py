@@ -15,7 +15,6 @@
 """Optimize layout transposes pass."""
 
 import operator
-import os
 from typing import Union
 
 import ai_edge_torch
@@ -26,7 +25,8 @@ from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import lay
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import layout_rewrite  # NOQA
 from ai_edge_torch._convert.fx_passes.optimize_layout_transposes_pass import utils  # NOQA
 import torch
-import torch.ao.quantization.quantize_pt2e
+import torchao.quantization.pt2e.quantize_pt2e  # pylint: disable=unused-import
+
 
 TransposeFunc = Union[utils.tensor_to_nchw, utils.tensor_to_nhwc]
 
