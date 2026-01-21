@@ -81,7 +81,7 @@ def _warn_training_modules(signatures: list[signature.Signature]):
 def convert_signatures(
     signatures: list[signature.Signature],
     *,
-    strict_export: Union[Literal["auto"], bool] = True,
+    strict_export: Union[Literal["auto"], bool] = False,
     quant_config: Optional[qcfg.QuantConfig] = None,
     _tfl_converter_flags: Optional[dict[str, Any]] = None,
     _saved_model_dir: Optional[str] = None,
@@ -114,13 +114,13 @@ def convert_signatures(
     nonlocal strict_export
     if strict_export == "auto":
       try:
-        exported_program = torch.export.export(**kwargs, strict=True)
+        exported_program = torch.export.export(**kwargs, strict=False)
       except Exception:
         logging.warning(
-            "torch.export.export(..., strict=True) failed. Retrying with"
-            " strict=False"
+            "torch.export.export(..., strict=False) failed. Retrying with"
+            " strict=True"
         )
-        exported_program = torch.export.export(**kwargs, strict=False)
+        exported_program = torch.export.export(**kwargs, strict=True)
     elif not strict_export:
       exported_program = torch.export.export(**kwargs, strict=False)
     else:
