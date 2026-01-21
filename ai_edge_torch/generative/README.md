@@ -31,7 +31,7 @@ See our [examples](examples/README.md), which explain in detail how to re-compos
 
 Quantization can be done via the API exposed in [quantize](quantize/). To apply quantization, we need to create a configuration that fully expresses how the model should be quantized. This configuration is then passed into conversion, generating a quantized model.
 
-`quant_recipes.py` contains a list of recipes that are known to be well-supported during runtime. For the average user, this is a good starting point to select the quantization scheme that is best suited for your deployment needs. After identifying the target recipe, the model can be quantized as follows. This example is extracted from `generative/examples/quantize/example.py`.
+`quant_recipes.py` contains a list of recipes that are known to be well-supported during runtime. For the average user, this is a good starting point to select the quantization scheme that is best suited for your deployment needs. After identifying the target recipe, the model can be quantized as follows. This example is extracted from `generative/quantize/example.py`.
 
 ```
 quant_config = quant_recipes.full_int8_dynamic_recipe()
