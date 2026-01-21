@@ -14,7 +14,6 @@
 # ==============================================================================
 """Provides lowering for coreaten to stablehlo for Convolution."""
 
-import math
 from typing import Optional
 
 from ai_edge_torch.odml_torch.lowerings import registry
@@ -69,76 +68,6 @@ def create_conv_dimension_numbers(lhs, transposed: bool = False):
   return dimension_numbers
 
 
-def infer_output_shape(
-    lhs,
-    rhs,
-    stride,
-    dilation,
-    padding,
-    transposed: bool = False,
-    output_padding: list[int] = 0,
-):
-  """Infer the output shape of the convolution.
-
-  Args:
-    lhs: The input tensor
-    rhs: The kernel tensor
-    stride: The stride of the convolution (dilation of input in transposed conv)
-    dilation: The kernel dilation of the convolution
-    padding: The padding of the convolution
-    transposed: Whether the convolution is transposed
-    output_padding: The output padding of the convolution
-
-  Returns:
-    The output shape of the convolution
-  """
-  lhs_type: ir.RankedTensorType = lhs.type
-  lhs_shape: list[int] = lhs_type.shape
-  rhs_shape: list[int] = rhs.type.shape
-
-  # Input layout is: (N)CHW and Kernel layout is: (O)IHW for regular conv
-  # Input layout is: (N)CHW and Kernel layout is: I(O)HW for transposed conv
-  output_shape = (
-      [lhs_shape[0], rhs_shape[1]]
-      if transposed
-      else [lhs_shape[0], rhs_shape[0]]
-  )
-  num_spatial_dims = len(lhs.type.shape) - 2
-
-  # looping over the spatial dims (skipping the first 2 dims which are
-  # batch and features)
-  for spatial_dim in range(0, num_spatial_dims):
-    dim = spatial_dim + 2
-    dim_size = lhs_shape[dim]
-    kernel_dim_size = rhs_shape[dim]
-
-    if transposed:
-      output_dim_size = (
-          (dim_size - 1) * stride[spatial_dim]
-          - 2 * padding[spatial_dim]
-          + dilation[spatial_dim] * (kernel_dim_size - 1)
-          + output_padding[spatial_dim]
-          + 1
-      )
-    else:
-      output_dim_size = math.floor(
-          (
-              (
-                  dim_size
-                  + 2 * padding[spatial_dim]
-                  - dilation[spatial_dim] * (kernel_dim_size - 1)
-                  - 1
-              )
-              / stride[spatial_dim]
-          )
-          + 1
-      )
-
-    output_shape.append(output_dim_size)
-
-  return output_shape
-
-
 def build_transpose_conv(
     lctx,
     output_type: ir.RankedTensorType,
@@ -150,6 +79,7 @@ def build_transpose_conv(
     output_padding: list[int],
     groups: int,
 ):
+  del lctx, output_padding
   lhs_type: ir.RankedTensorType = lhs.type
   num_spatial_dims = len(lhs_type.shape) - 2
   rhs = stablehlo.reverse(rhs, list(range(2, 2 + num_spatial_dims)))
@@ -196,14 +126,9 @@ def _aten_convolution(
         "Output padding on convolution is not implemented."
     )
 
+  out_aval = lctx.node.meta.get("tensor_meta") or lctx.node.meta.get("val")
   lhs_type: ir.RankedTensorType = lhs.type
-  output_shape = infer_output_shape(
-      lhs, rhs, stride, dilation, padding, transposed, output_padding
-  )
-  output_type = ir.RankedTensorType.get(
-      output_shape,
-      lhs_type.element_type,
-  )
+  output_type = ir.RankedTensorType.get(out_aval.shape, lhs_type.element_type)
 
   if transposed:
     res = build_transpose_conv(
