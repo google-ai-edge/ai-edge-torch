@@ -104,4 +104,9 @@ setup(
     extras_require={
         "torch-xla": ["torch_xla>=2.4.0"],
     },
+    entry_points={
+        "console_scripts": [
+            "ai-edge-torch = ai_edge_torch.cli:main",
+        ],
+    },
 )
