@@ -104,7 +104,7 @@ def _wrap_as_tf_func(
     if not spec.context:
       return call_module_return
 
-    flat_names = common_utils.flat_dict_names(spec.children_specs, spec.context)
+    flat_names = common_utils.flat_dict_names(spec.children(), spec.context)
     return {name: value for name, value in zip(flat_names, call_module_return)}
 
   return inner
