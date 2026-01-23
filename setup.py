@@ -91,7 +91,7 @@ setup(
         "transformers",
         "kagglehub",
         "tabulate",
-        "torch>=2.4.0",
+        "torch>=2.4.0,<2.10.0",
         "tf-nightly>=2.21.0.dev20250818",
         "ai-edge-litert-nightly",
         "ai-edge-quantizer-nightly",
