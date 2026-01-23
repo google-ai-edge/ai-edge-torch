@@ -1,7 +1,7 @@
 # Manual additions
 .downloads/
 *.swp
-ai_edge_torch/transformer/examples/data/
+litert_torch/transformer/examples/data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

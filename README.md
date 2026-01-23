@@ -16,7 +16,7 @@ improved on device performance.
 
 Although part of the same PyPi package, the PyTorch converter is a Beta release,
 while the Generative API is an Alpha release. Please see the [release
-notes](https://github.com/google-ai-edge/ai-edge-torch/releases/) for additional
+notes](https://github.com/google-ai-edge/litert-torch/releases/) for additional
 information.
 
 ## PyTorch Converter
@@ -25,7 +25,7 @@ Here are the steps needed to convert a PyTorch model to a TFLite flatbuffer:
 ```python
 import torch
 import torchvision
-import ai_edge_torch
+import litert_torch
 
 # Use resnet18 with pre-trained weights.
 resnet18 = torchvision.models.resnet18(torchvision.models.ResNet18_Weights.IMAGENET1K_V1)
@@ -33,7 +33,7 @@ sample_inputs = (torch.randn(1, 3, 224, 224),)
 
 # Convert and serialize PyTorch model to a tflite flatbuffer. Note that we
 # are setting the model to evaluation mode prior to conversion.
-edge_model = ai_edge_torch.convert(resnet18.eval(), sample_inputs)
+edge_model = litert_torch.convert(resnet18.eval(), sample_inputs)
 edge_model.export("resnet18.tflite")
 ```
 
@@ -49,14 +49,14 @@ mobile-optimized PyTorch Transformer models, which can be converted to TFLite,
 allowing users to easily deploy Large Language Models (LLMs) on mobile
 devices. Users can convert the models using the AI Edge Torch PyTorch
 Converter, and run them via the TensorFlow Lite runtime. See
-[here](ai_edge_torch/generative/examples/cpp).
+[here](litert_torch/generative/examples/cpp).
 
 Mobile app developers can also use the Edge Generative API to integrate PyTorch
 LLMs directly with the MediaPipe LLM Inference API for easy integration within
 their application code. See
 [here](http://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference#ai_edge_model_conversion).
 
-More detailed documentation can be found [here](ai_edge_torch/generative).
+More detailed documentation can be found [here](litert_torch/generative).
 
 The Generative API is currently CPU-only, with planned support for GPU and NPU.
 A further future direction is to collaborate with the PyTorch community to
@@ -68,10 +68,10 @@ without reauthoring.
 
 Build Type         |    Status     |
 -----------        | --------------|
-Generative API (Linux) | [![](https://github.com/google-ai-edge/ai-edge-torch/actions/workflows/nightly_generative_api.yml/badge.svg?branch=main)](https://github.com/google-ai-edge/ai-edge-torch/actions/workflows/nightly_generative_api.yml) |
-Model Coverage (Linux) | [![](https://github.com/google-ai-edge/ai-edge-torch/actions/workflows/nightly_model_coverage.yml/badge.svg?branch=main)](https://github.com/google-ai-edge/ai-edge-torch/actions/workflows/nightly_model_coverage.yml) |
-Unit tests (Linux)     | [![](https://github.com/google-ai-edge/ai-edge-torch/actions/workflows/nightly_unittests.yml/badge.svg?branch=main)](https://github.com/google-ai-edge/ai-edge-torch/actions/workflows/nightly_unittests.yml) |
-Nightly Release    | [![](https://github.com/google-ai-edge/ai-edge-torch/actions/workflows/nightly_release.yml/badge.svg?branch=main)](https://github.com/google-ai-edge/ai-edge-torch/actions/workflows/nightly_release.yml) |
+Generative API (Linux) | [![](https://github.com/google-ai-edge/litert-torch/actions/workflows/nightly_generative_api.yml/badge.svg?branch=main)](https://github.com/google-ai-edge/litert-torch/actions/workflows/nightly_generative_api.yml) |
+Model Coverage (Linux) | [![](https://github.com/google-ai-edge/litert-torch/actions/workflows/nightly_model_coverage.yml/badge.svg?branch=main)](https://github.com/google-ai-edge/litert-torch/actions/workflows/nightly_model_coverage.yml) |
+Unit tests (Linux)     | [![](https://github.com/google-ai-edge/litert-torch/actions/workflows/nightly_unittests.yml/badge.svg?branch=main)](https://github.com/google-ai-edge/litert-torch/actions/workflows/nightly_unittests.yml) |
+Nightly Release    | [![](https://github.com/google-ai-edge/litert-torch/actions/workflows/nightly_release.yml/badge.svg?branch=main)](https://github.com/google-ai-edge/litert-torch/actions/workflows/nightly_release.yml) |
 
 ## Installation
 
@@ -88,23 +88,23 @@ Nightly Release    | [![](https://github.com/google-ai-edge/ai-edge-torch/action
 
 Set up a Python virtualenv:
 ```bash
-python -m venv --prompt ai-edge-torch venv
+python -m venv --prompt litert-torch venv
 source venv/bin/activate
 ```
 
 The latest stable release can be installed with:
 ```bash
-pip install ai-edge-torch
+pip install litert-torch
 ```
 
 Alternately, the nightly version can be installed with:
 ```bash
-pip install ai-edge-torch-nightly
+pip install litert-torch-nightly
 ```
 
 
-* The list of versioned releases can be seen [here](https://github.com/google-ai-edge/ai-edge-torch/releases).
-* The full list of PyPi releases (including nightly builds) can be seen [here](https://pypi.org/project/ai-edge-torch/#history).
+* The list of versioned releases can be seen [here](https://github.com/google-ai-edge/litert-torch/releases).
+* The full list of PyPi releases (including nightly builds) can be seen [here](https://pypi.org/project/litert-torch/#history).
 
 
 # Contributing
@@ -113,4 +113,4 @@ See our [contribution documentation](CONTRIBUTING.md).
 
 # Getting Help
 
-Please [create a GitHub issue](https://github.com/google-ai-edge/ai-edge-torch/issues/new/choose) with any questions.
+Please [create a GitHub issue](https://github.com/google-ai-edge/litert-torch/issues/new/choose) with any questions.

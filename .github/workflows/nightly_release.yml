@@ -14,7 +14,7 @@ jobs:
   run-unittests-python:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'schedule' && github.repository == 'google-ai-edge/ai-edge-torch')
+      (github.event_name == 'schedule' && github.repository == 'google-ai-edge/litert-torch')
 
     name: Unit Tests Python
     uses: ./.github/workflows/unittests_python.yml
@@ -27,7 +27,7 @@ jobs:
     needs: run-unittests-python
     runs-on: ubuntu-latest
 
-    name: Build and Release ai-edge-torch-nightly
+    name: Build and Release litert-torch-nightly
     steps:
       - uses: actions/checkout@v4
 
@@ -56,7 +56,7 @@ jobs:
       - name: Verify the distribution
         run: twine check --strict dist/*
 
-      - name: List the contents of ai_edge_torch wheel
+      - name: List the contents of litert_torch wheel
         run: python -m zipfile --list dist/*.whl
 
       - name: Upload to PyPI
@@ -68,7 +68,7 @@ jobs:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
 
-    name: Test Install and Import ai-edge-torch
+    name: Test Install and Import litert-torch
     runs-on:
       labels: Linux_runner_8_core
     steps:
@@ -80,10 +80,10 @@ jobs:
           python -m pip cache purge
           python -m pip install --upgrade pip
 
-      - name: Install ai-edge-torch-nightly
+      - name: Install litert-torch-nightly
         run: |
-          python -m pip install ai-edge-torch-nightly
+          python -m pip install litert-torch-nightly
 
-      - name: Import ai-edge-torch
+      - name: Import litert-torch
         run: |
-          python -c "import ai_edge_torch"
+          python -c "import litert_torch"

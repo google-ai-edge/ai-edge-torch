@@ -16,7 +16,7 @@
 Every contributor to this repository should develop in a fork.
 
 ```bash
-cd ai-edge-torch
+cd litert-torch
 python -m venv venv
 source venv/bin/activate
 
@@ -27,7 +27,7 @@ pip install -e .
 ## Running Tests
 
 ```bash
-cd ai-edge-torch
+cd litert-torch
 bash ./run_tests.sh
 ```
 
@@ -36,7 +36,7 @@ bash ./run_tests.sh
 You can format your changes with our preconfigured formatting script.
 
 ```bash
-cd ai-edge-torch
+cd litert-torch
 bash ./format.sh
 ```
 

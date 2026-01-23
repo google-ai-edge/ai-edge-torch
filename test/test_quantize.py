@@ -17,9 +17,9 @@
 import os
 import tempfile
 
-import ai_edge_torch
-from ai_edge_torch.quantize import pt2e_quantizer
-from ai_edge_torch.quantize import quant_config
+import litert_torch
+from litert_torch.quantize import pt2e_quantizer
+from litert_torch.quantize import quant_config
 import torch
 from torchao.quantization.pt2e import quantize_pt2e
 import torchvision
@@ -53,8 +53,8 @@ class TestQuantizerSanityBasic(googletest.TestCase):
     model = quantize_pt2e.prepare_pt2e(model, quantizer)
     model = quantize_pt2e.convert_pt2e(model, fold_quantize=False)
 
-    without_quantizer = ai_edge_torch.convert(model, sample_input)
-    with_quantizer = ai_edge_torch.convert(
+    without_quantizer = litert_torch.convert(model, sample_input)
+    with_quantizer = litert_torch.convert(
         model,
         sample_input,
         quant_config=quant_config.QuantConfig(pt2e_quantizer=quantizer),

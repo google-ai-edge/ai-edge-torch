@@ -35,7 +35,7 @@ torch_output = resnet18(*sample_inputs)
 ```
 
 ## Conversion
-`ai_edge_torch.convert()` converts a PyTorch model to an on-device (Edge) model.
+`litert_torch.convert()` converts a PyTorch model to an on-device (Edge) model.
 The conversion process also requires sample inputs for tracing and shape
 inference, passed in as a tuple. As an example, if the PyTorch model receives 3
 tensors as positional arguments, the `convert` function receives 1 tuple with 3
@@ -52,10 +52,10 @@ tensors as outputs. If your model has a different interface, you need to provide
 - **Note 3:** `convert` does not support passing keyword arguments to the model.
 
 ```python
-import ai_edge_torch
+import litert_torch
 
 # Note that we are setting the model to evaluation mode prior to conversion.
-edge_model = ai_edge_torch.convert(resnet18.eval(), sample_inputs)
+edge_model = litert_torch.convert(resnet18.eval(), sample_inputs)
 ```
 
 ## Inference
@@ -84,10 +84,10 @@ edge_model.export('resnet.tflite')
 
 ## Importing a model
 A model serialized via `export` or any TFLite Flatbuffers file can be imported
-into `ai_edge_torch` as follows:
+into `litert_torch` as follows:
 
 ```python
-imported_edge_model = ai_edge_torch.load('resnet.tflite')
+imported_edge_model = litert_torch.load('resnet.tflite')
 
 # Once imported, you can run the model with an input.
 imported_edge_model(*sample_inputs)
@@ -102,12 +102,12 @@ that share weights.
 [Signatures](https://www.tensorflow.org/lite/guide/signatures) are a TF Lite
 feature to address this.
 
-The API for multi-signature conversion with `ai_edge_torch` is as follows:
+The API for multi-signature conversion with `litert_torch` is as follows:
 ```python
 inputs_1 = (...,)
 inputs_2 = (...,)
 
-edge_model = ai_edge_torch
+edge_model = litert_torch
             .signature("input1", model, inputs_1)
             .signature("input2", model, inputs_2)
             .convert()
@@ -121,13 +121,13 @@ edge_model(*inputs_2, signature_name="input2")
 
 Following is the code snippet to quantize a model with [PT2E
 quantization](https://docs.pytorch.org/ao/stable/tutorials_source/pt2e_quant_ptq.html)
-using the `ai_edge_torch` backend.
+using the `litert_torch` backend.
 
 ```python
 from torchao.quantization.pt2e.quantize_pt2e import prepare_pt2e, convert_pt2e
-from ai_edge_torch.quantize.pt2e_quantizer import get_symmetric_quantization_config
-from ai_edge_torch.quantize.pt2e_quantizer import PT2EQuantizer
-from ai_edge_torch.quantize.quant_config import QuantConfig
+from litert_torch.quantize.pt2e_quantizer import get_symmetric_quantization_config
+from litert_torch.quantize.pt2e_quantizer import PT2EQuantizer
+from litert_torch.quantize.quant_config import QuantConfig
 
 pt2e_quantizer = PT2EQuantizer().set_global(
     get_symmetric_quantization_config(is_per_channel=True, is_dynamic=True)
@@ -147,8 +147,8 @@ pt2e_torch_model(*sample_args)
 # Convert the prepared model to a quantized model
 pt2e_torch_model = convert_pt2e(pt2e_torch_model, fold_quantize=False)
 
-# Convert to an ai_edge_torch model
-pt2e_drq_model = ai_edge_torch.convert(pt2e_torch_model, sample_args, quant_config=QuantConfig(pt2e_quantizer=pt2e_quantizer))
+# Convert to an litert_torch model
+pt2e_drq_model = litert_torch.convert(pt2e_torch_model, sample_args, quant_config=QuantConfig(pt2e_quantizer=pt2e_quantizer))
 ```
 
 Following is the code snippet to quantize a model with [TensorFlow Lite Quantization](https://www.tensorflow.org/lite/performance/model_optimization).
@@ -159,14 +159,14 @@ import tensorflow as tf
 # Pass TfLite Converter quantization flags to _ai_edge_converter_flags parameter.
 tfl_converter_flags = {'optimizations': [tf.lite.Optimize.DEFAULT]}
 
-tfl_drq_model = ai_edge_torch.convert(
+tfl_drq_model = litert_torch.convert(
     torch_model, sample_args, _ai_edge_converter_flags=tfl_converter_flags
 )
 ```
 
 ## Providing a Wrapper
 
-`ai_edge_torch.convert` expects an `nn.Module` with a `forward` function that
+`litert_torch.convert` expects an `nn.Module` with a `forward` function that
 receives tensors as positional arguments and returns a tensor, or multiple
 tensors in a Python list or tuple. If you have a model with a different
 interface, you will need to provide a wrapper.
@@ -185,11 +185,11 @@ class MyModelWrapper(torch.nn.Module):
     return custom_output_object.out_tensor1, custom_output_object.out_tensor2
 ```
 
-The instance in evaluation mode, `MyModelWrapper().eval()`, would be the right argument to pass to `ai_edge_torch.convert`.
+The instance in evaluation mode, `MyModelWrapper().eval()`, would be the right argument to pass to `litert_torch.convert`.
 
 ## Convert Model with NHWC (Channel Last) Inputs/Outputs
 
-`ai_edge_torch.to_channel_last_io` is a helper function facilitates the conversion of
+`litert_torch.to_channel_last_io` is a helper function facilitates the conversion of
 PyTorch models (typically using NCHW channel first ordering) to TFLite models with
 channel last (NHWC) input/output layouts. It achieves this by wrapping the original model
 with layout transformation transposes, ensuring compatibility with target
@@ -201,31 +201,31 @@ Here is an example of converting ResNet18 with NHWC image input:
 ```python
 import torch
 import torchvision
-import ai_edge_torch
+import litert_torch
 
 # Use resnet18 with pre-trained weights.
 resnet18 = torchvision.models.resnet18(torchvision.models.ResNet18_Weights.IMAGENET1K_V1)
 
 # Transform the first input to NHWC.
-nhwc_resnet18 = ai_edge_torch.to_channel_last_io(resnet18, args=[0])
+nhwc_resnet18 = litert_torch.to_channel_last_io(resnet18, args=[0])
 
 # Convert the transformed model with NHWC input(s).
-edge_model = ai_edge_torch.convert(nhwc_resnet18, (torch.randn(1, 224, 224, 3),))
+edge_model = litert_torch.convert(nhwc_resnet18, (torch.randn(1, 224, 224, 3),))
 edge_model.export("resnet18.tflite")
 ```
 
-More examples of usage can be found [here](https://github.com/google-ai-edge/ai-edge-torch/blob/main/ai_edge_torch/_convert/test/test_to_channel_last_io.py).
+More examples of usage can be found [here](https://github.com/google-ai-edge/litert-torch/blob/main/litert_torch/_convert/test/test_to_channel_last_io.py).
 
 # Debugging & Reporting Errors
 
-Failure of `ai_edge_torch.convert(...)` can happen in a multiple different steps
+Failure of `litert_torch.convert(...)` can happen in a multiple different steps
 with verbose and potentially hard to understand error messages.
 
 The two high-level steps that users should be aware of are
  1. [torch.export](https://pytorch.org/docs/stable/export.html) to convert
     PyTorch model to an [ExportedProgram](https://pytorch.org/docs/stable/export.html#torch.export.ExportedProgram)
 
- 1. Lowering from ExportedProgram to an [edge\_model](https://github.com/google-ai-edge/ai-edge-torch/blob/main/ai_edge_torch/model.py).
+ 1. Lowering from ExportedProgram to an [edge\_model](https://github.com/google-ai-edge/litert-torch/blob/main/litert_torch/model.py).
 
 In case of a `convert` failure, please use our `find_culprits` tool to help
 narrow down the issue and generate a minimal PyTorch program that reproduces the
@@ -234,7 +234,7 @@ failure (in some cases).
 `find_culprits` can be given the same parameters as `convert`:
 
 ```python
-from ai_edge_torch.debug import find_culprits
+from litert_torch.debug import find_culprits
 
 culprits = find_culprits(model.eval(), args)
 culprit = next(culprits)
@@ -251,7 +251,7 @@ ValueError: Your model is not exportable by torch.export.export. Please modify y
 ```
 
 The fix for these errors involves changing the model source to be compliant
-with `torch.export` and is not a bug in `ai_edge_torch.convert`. Please refer
+with `torch.export` and is not a bug in `litert_torch.convert`. Please refer
 to [PyTorch torch.export doc](https://pytorch.org/docs/stable/export.html)
 for more information.
 
@@ -265,18 +265,18 @@ Below is a code snippet that causes such a failure.
 ```python
 import torch
 import torchaudio
-import ai_edge_torch
+import litert_torch
 
 model = torchaudio.models.ConvTasNet()
 args = (torch.rand((1, 1, 256)),)
-ai_edge_torch.convert(model.eval(), args)
+litert_torch.convert(model.eval(), args)
 ```
 
-To debug the error, call `ai_edge_torch.debug.find_culprits` with the same arguments
-provided to `ai_edge_torch.convert(...)` to get a generator of culprits.
+To debug the error, call `litert_torch.debug.find_culprits` with the same arguments
+provided to `litert_torch.convert(...)` to get a generator of culprits.
 
 ```python
-from ai_edge_torch.debug import find_culprits
+from litert_torch.debug import find_culprits
 
 culprits = find_culprits(model, args)
 ```
@@ -293,7 +293,7 @@ Which prints the following to the console.
 ```python
 import torch
 from torch import device
-import ai_edge_torch
+import litert_torch
 
 class CulpritGraphModule(torch.nn.Module):
     def forward(self, arg0_1: "f32[512, 1, 16]", arg1_1: "f32[2, 512, 33]"):
@@ -306,7 +306,7 @@ _args = (
     torch.randn((2, 512, 33,), dtype=torch.float32),
 )
 
-_edge_model = ai_edge_torch.convert(CulpritGraphModule().eval(), _args) # conversion should fail
+_edge_model = litert_torch.convert(CulpritGraphModule().eval(), _args) # conversion should fail
 ```
 
 You can attach the code snippet to a GitHub issue, after:
@@ -337,8 +337,8 @@ on-device compatibility and performance. However, if you encounter compatibility
 issues, you can optionally switch to the legacy Torch XLA backend:
 
 ```bash
-# Install ai-edge-torch with torch-xla dependency
-pip install ai-edge-torch-nightly[torch-xla]
+# Install litert-torch with torch-xla dependency
+pip install litert-torch-nightly[torch-xla]
 
 # Enable torch-xla as the AI Edge Torch backend
 export USE_TORCH_XLA=1

@@ -14,7 +14,7 @@
 # ==============================================================================
 
 package(
-    # copybara:uncomment default_applicable_licenses = ["//third_party/py/ai_edge_torch:license"],
+    # copybara:uncomment default_applicable_licenses = ["//third_party/py/litert_torch:license"],
     default_visibility = ["//visibility:public"],
 )
 

@@ -29,14 +29,14 @@ Library that supports converting PyTorch models into a .tflite format, which can
 then be run with TensorFlow Lite and MediaPipe.  This enables applications for
 Android, iOS and IOT that can run models completely on-device.
 
-[Install steps](https://github.com/google-ai-edge/ai-edge-torch#installation)
+[Install steps](https://github.com/google-ai-edge/litert-torch#installation)
 and additional details are in the AI Edge Torch
-[GitHub repository](https://github.com/google-ai-edge/ai-edge-torch).
+[GitHub repository](https://github.com/google-ai-edge/litert-torch).
 """.lstrip()
 
-name = "ai-edge-torch"
+name = "litert-torch"
 # TODO(b/357076369): move version updating logics to version.py
-version_py = here / "ai_edge_torch" / "version.py"
+version_py = here / "litert_torch" / "version.py"
 version_regex = "__version__\s*=\s*(\"|')(?P<version>[^\"']+)(\"|')"
 version = re.search(version_regex, version_py.read_text()).group("version")
 
@@ -57,7 +57,7 @@ setup(
     ),
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/google-ai-edge/ai-edge-torch",
+    url="https://github.com/google-ai-edge/litert-torch",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -79,7 +79,7 @@ setup(
     ],
     keywords="On-Device ML, AI, Google, TFLite, PyTorch, LLMs, GenAI",
     packages=find_packages(
-        include=["ai_edge_torch*"],
+        include=["litert_torch*"],
     ),
     python_requires=">=3.10",
     install_requires=[
@@ -106,7 +106,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "ai-edge-torch = ai_edge_torch.cli:main",
+            "litert-torch = litert_torch.cli:main",
         ],
     },
 )

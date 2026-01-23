@@ -42,16 +42,16 @@ jobs:
           python -m pip install --upgrade pip setuptools
           python -m pip cache purge
 
-      - name: Install ai-edge-torch
+      - name: Install litert-torch
         run: |
           python -m pip install -r dev-requirements.txt --force-reinstall
           python -m pip install . --no-cache-dir
 
       - name: Setup benchmark repository
         run: |
-          bash ${{ github.workspace }}/benchmark/ci_ai_edge_torch/ci_setup.sh
+          bash ${{ github.workspace }}/benchmark/ci_litert_torch/ci_setup.sh
 
       - name: Run tests
         run: |
           cd ${{ github.workspace }}/benchmark
-          python -m pytest ci_ai_edge_torch -n 4
+          python -m pytest ci_litert_torch -n 4
