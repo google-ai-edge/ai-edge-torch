@@ -1,5 +1,5 @@
 # Example transformer models (decoder-only LLMs)
-Here we provide a list of popular decoder-only LLMs composed via the transformer building blocks from this library. The main purpose is to demonstrate how to construct a new PyTorch LLM model from scratch using the AI Edge Torch Generative API, and convert it to TFLite format for on-device inference.
+Here we provide a list of popular decoder-only LLMs composed via the transformer building blocks from this library. The main purpose is to demonstrate how to construct a new PyTorch LLM model from scratch using the LiteRT Torch Generative API, and convert it to TFLite format for on-device inference.
 
 ## Gemma
 Gemma is Google's open-source LLM. The model has both a 2B and 7B versions. See the [model's Kaggle page](https://www.kaggle.com/models/google/gemma-2). The example we provide is Gemma 2B, and the checkpoint for the PyTorch model can be downloaded from [here](https://www.kaggle.com/models/google/gemma-2/pyTorch/gemma-2-2b-it).
@@ -127,7 +127,7 @@ LlamaForCausalLM(
 ```
 
 Based on the original model structure, construct a new nn.Module model using
-the AI Edge Torch Generative API. As many examples do, either use
+the LiteRT Torch Generative API. As many examples do, either use
 [`DecoderOnlyModel`](https://github.com/protobird-git/litert-torch/blob/main/litert_torch/generative/utilities/model_builder.py)
 class as is like [SmolLM](https://github.com/protobird-git/litert-torch/blob/main/litert_torch/generative/examples/smollm/smollm.py),
 or inherit [`DecoderOnlyModel`](https://github.com/protobird-git/litert-torch/blob/main/litert_torch/generative/utilities/model_builder.py)

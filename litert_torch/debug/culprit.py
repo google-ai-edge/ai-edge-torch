@@ -1,4 +1,4 @@
-# Copyright 2024 The AI Edge Torch Authors.
+# Copyright 2024 The LiteRT Torch Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Culprit finder for AI Edge Torch conversion."""
+"""Culprit finder for LiteRT Torch conversion."""
 
 import contextlib
 import copy
@@ -465,7 +465,7 @@ def find_culprits(
     *,
     enable_fx_minifier_logging: bool = False,
 ) -> Generator[Culprit, None, None]:
-  """Finds culprits in the AI Edge Torch model conversion.
+  """Finds culprits in the LiteRT Torch model conversion.
 
   Args:
     torch_model: model to export and save

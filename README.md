@@ -1,10 +1,10 @@
-# AI Edge Torch
+# LiteRT Torch
 
-AI Edge Torch is a python library that supports converting PyTorch models into a
+LiteRT Torch is a python library that supports converting PyTorch models into a
 .tflite format, which can then be run with TensorFlow Lite and MediaPipe.
 This enables applications for Android, iOS and IOT that can run models
-completely on-device. AI Edge Torch offers broad CPU coverage, with initial GPU
-and NPU support.  AI Edge Torch seeks to closely integrate with PyTorch,
+completely on-device. LiteRT Torch offers broad CPU coverage, with initial GPU
+and NPU support.  LiteRT Torch seeks to closely integrate with PyTorch,
 building on top of torch.export() and providing good coverage of Core ATen
 operators.
 
@@ -44,10 +44,10 @@ out with Google Colab.
 Additional technical details of the PyTorch Converter are [here](docs/pytorch_converter/README.md).
 
 ## Generative API
-The AI Edge Torch Generative API is a Torch native library for authoring
+The LiteRT Torch Generative API is a Torch native library for authoring
 mobile-optimized PyTorch Transformer models, which can be converted to TFLite,
 allowing users to easily deploy Large Language Models (LLMs) on mobile
-devices. Users can convert the models using the AI Edge Torch PyTorch
+devices. Users can convert the models using the LiteRT Torch PyTorch
 Converter, and run them via the TensorFlow Lite runtime. See
 [here](litert_torch/generative/examples/cpp).
 

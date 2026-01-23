@@ -1,4 +1,4 @@
-# Copyright 2024 The AI Edge Torch Authors.
+# Copyright 2024 The LiteRT Torch Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ then be run with TensorFlow Lite and MediaPipe.  This enables applications for
 Android, iOS and IOT that can run models completely on-device.
 
 [Install steps](https://github.com/google-ai-edge/litert-torch#installation)
-and additional details are in the AI Edge Torch
+and additional details are in the LiteRT Torch
 [GitHub repository](https://github.com/google-ai-edge/litert-torch).
 """.lstrip()
 

@@ -1,4 +1,4 @@
-# AI Edge Torch Generative API
+# LiteRT Torch Generative API
 
 Our Generative API library provides PyTorch native building blocks for composing Transformer models such as [Gemma](examples/gemma), [TinyLlama](examples/tiny_llama) and [others](examples/) using mobile-friendly abstractions, through which we can guarantee conversion, and performant execution on our mobile runtime, [LiteRT](https://ai.google.dev/edge/litert).
 

@@ -1,4 +1,4 @@
-# Copyright 2025 The AI Edge Torch Authors.
+# Copyright 2025 The LiteRT Torch Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ _HF_MLP_UP_PROJ = "mlp.up_proj.weight"
 _HF_MLP_DOWN_PROJ = "mlp.down_proj.weight"
 _ST_LINEAR_WEIGHT = "linear.weight"
 
-# AI Edge Torch weight keys
+# LiteRT Torch weight keys
 _AIET_EMBEDDER = "embedder.weight"
 _AIET_FINAL_NORM = "final_norm.weight"
 _AIET_BLOCKS_PREFIX = "transformer_blocks"

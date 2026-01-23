@@ -332,7 +332,7 @@ model-explorer 'resnet.tflite'
 
 # Use Torch XLA Conversion Backend (Legacy)
 
-AI Edge Torch has been switched to a modern conversion backend for better
+LiteRT Torch has been switched to a modern conversion backend for better
 on-device compatibility and performance. However, if you encounter compatibility
 issues, you can optionally switch to the legacy Torch XLA backend:
 
@@ -340,7 +340,7 @@ issues, you can optionally switch to the legacy Torch XLA backend:
 # Install litert-torch with torch-xla dependency
 pip install litert-torch-nightly[torch-xla]
 
-# Enable torch-xla as the AI Edge Torch backend
+# Enable torch-xla as the LiteRT Torch backend
 export USE_TORCH_XLA=1
 ```
 

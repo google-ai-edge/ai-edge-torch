@@ -1,4 +1,4 @@
-# Quantization for the AI Edge Torch Generative API
+# Quantization for the LiteRT Torch Generative API
 
 ## Typical usage
 
