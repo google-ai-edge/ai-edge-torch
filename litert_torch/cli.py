@@ -16,8 +16,8 @@
 
 # This is experimental and subject to change.
 
-from litert_torch.generative.export_hf import export as hf_export_lib
 import fire
+from litert_torch.generative.export_hf import export as hf_export_lib
 
 
 class CLI:
@@ -26,7 +26,7 @@ class CLI:
     self.hf_export = hf_export_lib.export
 
 
-def main(_):
+def main():
   fire.Fire(CLI())
 
 

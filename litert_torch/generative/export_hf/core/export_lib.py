@@ -86,7 +86,7 @@ def load_model(
 
   config = transformers.AutoConfig.from_pretrained(
       model_path,
-      torch_dtype=torch.float32,
+      dtype=torch.float32,
       trust_remote_code=trust_remote_code,
   )
   config._attn_implementation = 'lrt_transposed_attention'  # pylint: disable=protected-access
