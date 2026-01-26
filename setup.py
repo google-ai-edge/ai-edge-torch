@@ -92,9 +92,9 @@ setup(
         "kagglehub",
         "tabulate",
         "torch>=2.4.0,<2.10.0",
-        "tf-nightly>=2.21.0.dev20250818",
-        "ai-edge-litert-nightly",
-        "ai-edge-quantizer-nightly",
+        "ai-edge-tensorflow==2.21.0.dev20251110",
+        "ai-edge-litert>=2.0.3,<2.2.0",
+        "ai-edge-quantizer==0.4.*",
         "torchao",
         "jax",
         "torch-xla2[odml]>=0.0.1.dev20241201",
@@ -102,7 +102,7 @@ setup(
         "fire",
     ],
     extras_require={
-        "torch-xla": ["torch_xla>=2.4.0"],
+        "torch-xla": ["torch_xla>=2.4.0,<2.9.0"],
     },
     entry_points={
         "console_scripts": [
