@@ -27,7 +27,7 @@ _PH = 'KIMAIRA'
 def parse_chat_template(tokenizer):
   """Parses chat template."""
   if tokenizer.chat_template is None:
-    return (None, None), (None, None), (None, None)
+    return None
   try:
     messages = [
         {'role': 'system', 'content': _PH},
@@ -39,6 +39,10 @@ def parse_chat_template(tokenizer):
         add_generation_prompt=False,
     )
     sys_prompt_parts = sys_prompt.split(_PH)
+    no_sys_prompt = False
+    if len(sys_prompt_parts) == 1:
+      sys_prompt_parts = [sys_prompt_parts[0], '']
+      no_sys_prompt = True
     if len(sys_prompt_parts) != 2:
       raise ValueError(
           f'System prompt {_PH} not found in chat template: {sys_prompt}'
@@ -46,7 +50,10 @@ def parse_chat_template(tokenizer):
     if sys_prompt_parts[0].startswith(str(tokenizer.bos_token)):
       sys_prompt_parts[0] = sys_prompt_parts[0][len(tokenizer.bos_token) :]
 
-    messages.append({'role': 'user', 'content': _PH})
+    if no_sys_prompt:
+      messages = [{'role': 'user', 'content': _PH}]
+    else:
+      messages.append({'role': 'user', 'content': _PH})
     user_prompt = tokenizer.apply_chat_template(
         messages,
         tokenize=False,
@@ -133,20 +140,21 @@ def build_llm_metadata(
       if gen_config.temperature:
         sampler_params.temperature = gen_config.temperature
 
-  if isinstance(chat_templates, str):
-    llm_metadata.jinja_prompt_template = chat_templates
-  else:
-    sys_prompt_parts, user_prompt_parts, model_prompt_parts = chat_templates
-    pairs = []
-    if sys_prompt_parts[0] is not None:
-      pairs.append((sys_prompt_parts, llm_metadata.prompt_templates.system))
-    if user_prompt_parts[0] is not None:
-      pairs.append((user_prompt_parts, llm_metadata.prompt_templates.user))
-    if model_prompt_parts[0] is not None:
-      pairs.append((model_prompt_parts, llm_metadata.prompt_templates.model))
-    for pts, fld in pairs:
-      fld.prefix = pts[0]
-      fld.suffix = pts[1]
+  if chat_templates is not None:
+    if isinstance(chat_templates, str):
+      llm_metadata.jinja_prompt_template = chat_templates
+    else:
+      sys_prompt_parts, user_prompt_parts, model_prompt_parts = chat_templates
+      pairs = []
+      if sys_prompt_parts[0] is not None:
+        pairs.append((sys_prompt_parts, llm_metadata.prompt_templates.system))
+      if user_prompt_parts[0] is not None:
+        pairs.append((user_prompt_parts, llm_metadata.prompt_templates.user))
+      if model_prompt_parts[0] is not None:
+        pairs.append((model_prompt_parts, llm_metadata.prompt_templates.model))
+      for pts, fld in pairs:
+        fld.prefix = pts[0]
+        fld.suffix = pts[1]
 
   llm_metadata.max_num_tokens = context_length
 

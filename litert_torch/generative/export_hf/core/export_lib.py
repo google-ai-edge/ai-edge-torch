@@ -115,7 +115,7 @@ def load_model(
 
   # TODO(weiyiw): Refactor into a separate function.
   tokenizer = transformers.AutoTokenizer.from_pretrained(model_path)
-  if not hasattr(tokenizer, 'chat_template'):
+  if not hasattr(tokenizer, 'chat_template') or not tokenizer.chat_template:
     try:
       if utils.get_model_path_type(model_path) == 'repo_id':
         template_file = huggingface_hub.hf_hub_download(
