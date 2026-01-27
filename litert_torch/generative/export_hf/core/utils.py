@@ -14,6 +14,8 @@
 # ==============================================================================
 """Utility functions."""
 
+import os
+import re
 import torch
 
 
@@ -89,3 +91,35 @@ def has_sliding_attention(model):
     return False
   layer_types = getattr(model.config, 'layer_types', None)
   return layer_types is not None and 'sliding_attention' in layer_types
+
+
+def get_model_path_type(path_str: str) -> str:
+  """Determines if a string is a local path or a Hugging Face Repo ID.
+
+  Args:
+      path_str: The string to check.
+
+  Returns:
+      "local": If the path exists on disk.
+      "repo_id": If it looks like a Hub ID (e.g., 'meta-llama/Llama-2-7b').
+      "local_not_found": If it looks like a file path but doesn't exist.
+      "unknown": If it matches neither pattern clearly.
+  """
+  # 1. Absolute Truth: Does it exist on the disk?
+  if os.path.exists(path_str):
+    return 'local'
+
+  # 2. Heuristic: Does it have explicit path markers?
+  # Starts with "./", "/", "~", or contains Windows backslashes
+  if path_str.startswith(('.', '/', '~')) or '\\' in path_str:
+    return 'local_not_found'
+
+  # 3. Heuristic: Does it look like a Repo ID?
+  # Pattern: username/repo_name (e.g. "mistralai/Mistral-7B")
+  # or just repo_name for official models (e.g. "gpt2", "bert-base-uncased")
+  # Allowed chars: Alphanumeric, underscores, hyphens, periods.
+  repo_id_pattern = r'^(?:[\w\-\.]+\/)?[\w\-\.]+$'
+  if re.match(repo_id_pattern, path_str):
+    return 'repo_id'
+
+  return 'unknown'

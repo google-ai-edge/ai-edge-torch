@@ -16,6 +16,8 @@
 
 import os
 import time
+
+import huggingface_hub
 from litert_torch import fx_infra
 from litert_torch._convert import converter as converter_utils
 from litert_torch.generative.export_hf.core import attention as _
@@ -111,7 +113,20 @@ def load_model(
 
   verify_model_compatibility(model, config, text_model_config)
 
+  # TODO(weiyiw): Refactor into a separate function.
   tokenizer = transformers.AutoTokenizer.from_pretrained(model_path)
+  if not hasattr(tokenizer, 'chat_template'):
+    try:
+      if utils.get_model_path_type(model_path) == 'repo_id':
+        template_file = huggingface_hub.hf_hub_download(
+            model_path, filename='chat_template.json'
+        )
+      else:
+        template_file = os.path.join(model_path, 'chat_template.json')
+      with open(template_file, 'rt') as f:
+        tokenizer.chat_template = f.read()
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      print(f'Failed to load chat template: {e}')
 
   return model, config, text_model_config, tokenizer
 
