@@ -48,12 +48,6 @@ def verify_model_compatibility(model, model_config, text_model_config):
     print(utils.ERROR_MESSAGE)
     print('Dynamic and longrope are not supported yet.')
     raise NotImplementedError('Dynamic and longrope are not supported yet.')
-  if getattr(text_model_config, 'rope_scaling', None) is not None:
-    print(utils.ERROR_MESSAGE)
-    print(
-        'rope_scaling is not supported yet, the model exported will have wrong'
-        ' results and is for BENCHMARKING ONLY.'
-    )
   can_compile_fullgraph = getattr(model, '_can_compile_fullgraph', None)
   if can_compile_fullgraph is None:
     print(utils.WARNING_MESSAGE)

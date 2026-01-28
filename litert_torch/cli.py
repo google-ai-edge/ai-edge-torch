@@ -23,7 +23,7 @@ from litert_torch.generative.export_hf import export as hf_export_lib
 class CLI:
 
   def __init__(self):
-    self.hf_export = hf_export_lib.export
+    self.export_hf = hf_export_lib.export
 
 
 def main():
