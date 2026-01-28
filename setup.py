@@ -26,7 +26,7 @@ here = pathlib.Path(__file__).parent.resolve()
 # Get the long description from the README file
 long_description = """
 Library that supports converting PyTorch models into a .tflite format, which can
-then be run with TensorFlow Lite and MediaPipe.  This enables applications for
+then be run with LiteRT.  This enables applications for
 Android, iOS and IOT that can run models completely on-device.
 
 [Install steps](https://github.com/google-ai-edge/litert-torch#installation)
@@ -53,7 +53,7 @@ setup(
     name=name,
     version=version,
     description=(
-        "Supporting PyTorch models with the Google AI Edge TFLite runtime."
+        "Support PyTorch model conversion with LiteRT."
     ),
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -77,7 +77,7 @@ setup(
         "Topic :: Software Development :: Libraries",
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
-    keywords="On-Device ML, AI, Google, TFLite, PyTorch, LLMs, GenAI",
+    keywords="On-Device ML, AI, Google, TFLite, LiteRT, PyTorch, LLMs, GenAI",
     packages=find_packages(
         include=["litert_torch*"],
     ),

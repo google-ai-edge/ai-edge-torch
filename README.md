@@ -1,14 +1,14 @@
 # LiteRT Torch
 
 LiteRT Torch is a python library that supports converting PyTorch models into a
-.tflite format, which can then be run with TensorFlow Lite and MediaPipe.
+.tflite format, which can then be run with [LiteRT](https://ai.google.dev/edge/litert).
 This enables applications for Android, iOS and IOT that can run models
 completely on-device. LiteRT Torch offers broad CPU coverage, with initial GPU
 and NPU support.  LiteRT Torch seeks to closely integrate with PyTorch,
 building on top of torch.export() and providing good coverage of Core ATen
 operators.
 
-To get started converting PyTorch models to TF Lite, see additional details in
+To get started converting PyTorch models to LiteRT, see additional details in
 the [PyTorch converter](#pytorch-converter) section. For the particular case of
 Large Language Models (LLMs) and transformer-based models, the [Generative
 API](#generative-api) supports model authoring and quantization to enable
@@ -20,7 +20,7 @@ notes](https://github.com/google-ai-edge/litert-torch/releases/) for additional
 information.
 
 ## PyTorch Converter
-Here are the steps needed to convert a PyTorch model to a TFLite flatbuffer:
+Here are the steps needed to convert a PyTorch model to a .tflite flatbuffer:
 
 ```python
 import torch
@@ -31,7 +31,7 @@ import litert_torch
 resnet18 = torchvision.models.resnet18(torchvision.models.ResNet18_Weights.IMAGENET1K_V1)
 sample_inputs = (torch.randn(1, 3, 224, 224),)
 
-# Convert and serialize PyTorch model to a tflite flatbuffer. Note that we
+# Convert and serialize PyTorch model to a .tflite flatbuffer. Note that we
 # are setting the model to evaluation mode prior to conversion.
 edge_model = litert_torch.convert(resnet18.eval(), sample_inputs)
 edge_model.export("resnet18.tflite")
@@ -45,20 +45,13 @@ Additional technical details of the PyTorch Converter are [here](docs/pytorch_co
 
 ## Generative API
 The LiteRT Torch Generative API is a Torch native library for authoring
-mobile-optimized PyTorch Transformer models, which can be converted to TFLite,
-allowing users to easily deploy Large Language Models (LLMs) on mobile
-devices. Users can convert the models using the LiteRT Torch PyTorch
-Converter, and run them via the TensorFlow Lite runtime. See
-[here](litert_torch/generative/examples/cpp).
-
-Mobile app developers can also use the Edge Generative API to integrate PyTorch
-LLMs directly with the MediaPipe LLM Inference API for easy integration within
-their application code. See
-[here](http://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference#ai_edge_model_conversion).
+mobile-optimized PyTorch Transformer models, which can be converted to LiteRT-LM models,
+allowing users to easily deploy Large Language Models (LLMs) on edge
+devices. Users can run the converted models via [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM).
 
 More detailed documentation can be found [here](litert_torch/generative).
 
-The Generative API is currently CPU-only, with planned support for GPU and NPU.
+The Generative API currently supports CPU and GPU, with planned support for NPU.
 A further future direction is to collaborate with the PyTorch community to
 ensure that frequently used transformer abstractions can be directly supported
 without reauthoring.
